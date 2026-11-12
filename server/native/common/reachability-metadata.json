@@ -1,0 +1,7 @@
+{
+  "resources": [
+    { "glob": "data/**" },
+    { "glob": "assets/.mcassetsroot" },
+    { "glob": "version.json" }
+  ]
+}

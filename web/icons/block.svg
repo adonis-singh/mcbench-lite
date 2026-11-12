@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <!-- The app's own mark: a wire cube with a lit block inside. Drawn here; no game texture. -->
+  <defs>
+    <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="2.2" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <style>.w{stroke:#f5f5f5}@media (prefers-color-scheme: light){.w{stroke:#18181b}}</style>
+  </defs>
+  <path class="w" d="M32 8V32M32 32 52.78 44M32 32 11.22 44" stroke-width="2.4" stroke-linecap="round" opacity=".32"/>
+  <g filter="url(#glow)" stroke="#0b3d1c" stroke-width=".7" stroke-linejoin="round">
+    <path d="M22.47 26.5 32 32V43L22.47 37.5Z" fill="#3ecf6b"/>
+    <path d="M41.53 26.5 32 32V43L41.53 37.5Z" fill="#229a4b"/>
+    <path d="M32 21 41.53 26.5 32 32 22.47 26.5Z" fill="#7df0a0"/>
+  </g>
+  <path class="w" d="M32 8 52.78 20V44L32 56 11.22 44V20ZM52.78 20 32 32 11.22 20M32 32V56" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

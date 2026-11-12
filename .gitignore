@@ -1,0 +1,13 @@
+/node_modules
+/data
+.env
+.env.*
+!.env.example
+*.log
+__pycache__/
+/.venv
+tmp/
+renderer/target/
+renderer/parity/target/
+# Minecraft's tables, made on each machine from the server jar (server/minecraft-tables.js)
+/core/minecraft/

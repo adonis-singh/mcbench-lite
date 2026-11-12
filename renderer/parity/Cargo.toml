@@ -1,0 +1,17 @@
+# The mesher against a reference build of itself (scripts/mesher-parity.js
+# puts that build's sources in ../target/reference): every tile of every
+# world, byte for byte, and what each patch and load answers.
+[package]
+name = "mcbench-renderer-parity"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[workspace]
+
+[dependencies]
+current = { package = "mcbench-renderer", path = ".." }
+reference = { package = "mcbench-renderer-reference", path = "../target/reference" }
+
+[profile.release]
+opt-level = 3

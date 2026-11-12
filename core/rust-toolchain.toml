@@ -1,0 +1,8 @@
+# The Rust that builds the engine, natively and as WebAssembly: rustup
+# installs this release and the WebAssembly target the first time core/ is
+# built. The profiles in pgo/ are read by this release's LLVM (23); a rustc
+# with an older LLVM cannot read them.
+[toolchain]
+channel = "1.99.1"
+targets = ["wasm32-unknown-unknown"]
+profile = "minimal"

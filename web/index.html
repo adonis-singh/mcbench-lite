@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>mcbench-lite</title>
+  <link rel="icon" href="/icons/block.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="/style.css" />
+  <!-- The saved theme applies before the first paint, not after the app loads. -->
+  <script src="/theme.js"></script>
+  <!-- Listens for failures before the app loads, so even a failed load says so. -->
+  <script src="/page-errors.js"></script>
+</head>
+<body>
+  <div id="app"><p class="page-loading">Loading mcbench-lite…</p></div>
+  <div id="page-error" role="alert" hidden><span class="page-error-text"></span><button type="button" class="btn">Reload</button></div>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,30 @@
+[package]
+name = "mcbench-core"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "mcbench_core"
+path = "src/lib.rs"
+
+[features]
+jmath-intel = []
+jmath-fdlibm = []
+
+[[bin]]
+name = "mcbench-core"
+path = "src/main.rs"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "unwind"
+debug = false
+
+# The WebAssembly module (scripts/build-wasm.js): the target has no
+# unwinding, so a panic ends the instance.
+[profile.wasm]
+inherits = "release"
+panic = "abort"
+strip = true

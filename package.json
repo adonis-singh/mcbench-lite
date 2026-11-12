@@ -1,0 +1,38 @@
+{
+  "name": "mcbench-lite",
+  "version": "1.0.0",
+  "description": "Chat with an AI model that builds in a Minecraft world, shown in a 3D viewer. Bench several models on one prompt.",
+  "private": true,
+  "license": "MIT",
+  "repository": "github:adonis-singh/mcbench-lite",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server/index.js",
+    "prepare:minecraft": "node scripts/prepare-minecraft.js",
+    "url": "node -e \"require('./server/dotenv').loadDotEnv(); console.log(require('./server/auth').link(process.env.PORT || 3020))\"",
+    "dev": "node --watch-path server --watch-path web server/index.js",
+    "codex:login": "npx --yes @openai/codex@0.167.1 login",
+    "cursor:login": "node scripts/cursor-login.js",
+    "test": "node --test \"test/**/*.test.js\"",
+    "test:ui": "MCBENCH_UI_INTEGRATION=1 node --test test/shot-browser.integration.test.js",
+    "test:minecraft": "MCBENCH_VERIFY_INTEGRATION=1 node --test test/minecraft-verify.integration.test.js",
+    "test:entities": "MCBENCH_ENTITY_INTEGRATION=1 node --test test/entity-assets.integration.test.js",
+    "test:settle": "MCBENCH_SETTLE_INTEGRATION=1 node --test test/settle-flow.integration.test.js",
+    "bench:3m": "node --expose-gc scripts/benchmark-3m.js",
+    "bench:verification": "node scripts/benchmark-verification.js",
+    "test:sandbox": "MCBENCH_SANDBOX_INTEGRATION=1 node --test test/sandbox.integration.test.js test/sandbox-storage.integration.test.js"
+  },
+  "engines": {
+    "node": "^22.13.0 || 23.x || 24.x || 25.x || 26.x"
+  },
+  "dependencies": {
+    "@cursor/sdk": "^1.3.1",
+    "@streamparser/json": "0.0.26",
+    "better-sqlite3": "12.11.1",
+    "deepslate": "0.26.0",
+    "gl-matrix": "3.4.3",
+    "htm": "3.1.1",
+    "openai-oauth": "^2.0.0",
+    "playwright-core": "^1.61.1"
+  }
+}

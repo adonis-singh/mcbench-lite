@@ -1,0 +1,5 @@
+# The WebAssembly module's call stack (the shadow stack in linear memory that
+# block code's frames use), 8 MiB. Memory is committed as it is touched, so
+# the size only bounds how deep block code may recurse.
+[target.wasm32-unknown-unknown]
+rustflags = ["-C", "link-arg=-zstack-size=8388608"]
