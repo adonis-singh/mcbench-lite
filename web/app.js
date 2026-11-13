@@ -1191,7 +1191,7 @@ function SetupStatus({ status, noAI, onConnect, onRetry }) {
         `)}
       </ol>
       ${noAI ? html`
-        <button type="button" class="setup-connect" onClick=${onConnect}>Connect an AI while this runs</button>
+        <button type="button" class="connect-link" onClick=${onConnect}>Connect an AI while this runs</button>
       ` : html`<div class="empty-sub">You can send your first build now. It starts when the app is ready.</div>`}
     </div>
   `;
@@ -6054,12 +6054,7 @@ function App() {
 
   const benchReady = benchModels.length >= 2;
   // Under an empty screen's question while no AI is connected.
-  const connectHint = html`
-    <div class="connect-hint">
-      <div class="connect-hint-text">Connect an AI to start building</div>
-      <button type="button" class="btn gold connect-hint-button" onClick=${connectAI}>Connect an AI</button>
-    </div>
-  `;
+  const connectHint = html`<button type="button" class="connect-link" onClick=${connectAI}>Connect an AI to start building</button>`;
   // The bench models' popover opens down from their row: before it opens,
   // the row learns how much of the window is left below it, which caps the
   // popover's height.
@@ -6239,9 +6234,6 @@ function App() {
           ${promptLibrary.phase === 'failed' && html`
             <div class="side-empty" role="alert">Prompts failed to load. <button type="button" class="text-link" onClick=${loadPrompts}>Try again</button></div>
           `}
-        `}
-        ${noAI && html`
-          <button type="button" class="meta warn sidebar-connect" onClick=${connectAI}>No AI connected. Connect one</button>
         `}
         ${config.phase === 'failed' && html`
           <div class="side-empty" role="alert">Models failed to load. <button type="button" class="text-link" onClick=${loadConfig}>Try again</button></div>

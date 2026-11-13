@@ -3431,23 +3431,11 @@ button.bench-status:hover { background: var(--well); color: var(--bone); }
 }
 .bench-need { margin-top: -4px; color: var(--dim-text); font-size: 12px; }
 
-/* No AI connected: the empty screens' line under the question, with its
-   button to Settings' Connect an AI. */
-.connect-hint { display: flex; flex-direction: column; align-items: center; gap: 10px; }
-.connect-hint-text { color: var(--ash); font-size: 13px; }
-.connect-hint-button { min-height: 32px; padding: 0 14px; font: 500 13px var(--font-ui); }
-.sidebar .sidebar-connect {
-  margin: 0;
-  border: 0;
-  border-radius: 7px;
-  background: transparent;
-  text-align: left;
-  text-decoration: underline;
-  text-decoration-color: color-mix(in srgb, var(--err-text) 40%, transparent);
-  text-underline-offset: 3px;
-  cursor: pointer;
-}
-.sidebar .sidebar-connect:hover { background: var(--hover); }
+/* No AI connected: the one line under an empty screen's question, and under
+   the setup steps while the app prepares. It opens Settings' Connect an AI. */
+.connect-link { padding: 2px 4px; border: 0; background: transparent; color: var(--ash); font: 13px var(--font-ui); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.connect-link:hover { color: var(--bone); }
+.setup .connect-link { margin-top: 2px; }
 /* The model picker with no AI connected: what is missing and the way to it. */
 .model-picker-no-ai { align-items: center; justify-content: center; gap: 12px; padding: 24px 18px; text-align: center; }
 .model-picker-no-ai-text { color: var(--ash); font-size: 13px; }
@@ -3484,10 +3472,6 @@ button.bench-status:hover { background: var(--well); color: var(--bone); }
 .setup-dash { width: 8px; height: 1.5px; background: var(--dim-text); }
 .setup-failed { display: flex; align-items: center; justify-content: center; gap: 10px; color: var(--err-text); font-size: 12.5px; }
 .setup-failed .btn { min-height: 30px; padding: 0 12px; font: 500 12.5px var(--font-ui); }
-/* No AI connected while the app prepares: one line that opens Settings'
-   Connect an AI. */
-.setup-connect { margin-top: 2px; padding: 2px 4px; border: 0; background: transparent; color: var(--ash); font: 13px var(--font-ui); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
-.setup-connect:hover { color: var(--bone); }
 .setup .empty-sub { text-align: center; }
 /* Narrow windows: the world pane sits above the chat, so the steps take
    less height to keep the one under way in view. */
