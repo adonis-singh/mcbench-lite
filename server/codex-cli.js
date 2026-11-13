@@ -129,6 +129,14 @@ function hostEnv(home = codexHome()) {
   return harness.cliEnv({ CODEX_HOME: home });
 }
 
+// `codex login --device-auth` and `codex logout`, run for Settings
+// (provider-login.js) on the login's CODEX_HOME. The device sign-in opens no
+// browser itself; BROWSER is `true` all the same, so no Codex login can open
+// one on this machine.
+function loginCommand(args) {
+  return { file: codexBinary(), args, env: { ...hostEnv(), BROWSER: 'true' } };
+}
+
 // A chat's own CODEX_HOME on the host: the login (linked, so token refreshes
 // reach the real one) and the chat's sessions. The real CODEX_HOME's
 // AGENTS.md, skills and memories would otherwise enter the model's prompt.
@@ -367,6 +375,6 @@ const { completion, closeSession } = harness.sessionRelay(CodexSession);
 
 module.exports = {
   completion, closeSession, listModels, modelInfo, forgetModels, storedLogin, account, version, configToml, containerArgs, hostArgs, hostEnv, prepareHome, prepareRuntime,
-  checkItem, usageOf, contextTokensOf, modelsFromCache, configure, codexHome, ALLOWED_HOSTS,
+  checkItem, usageOf, contextTokensOf, modelsFromCache, configure, codexHome, loginCommand, ALLOWED_HOSTS,
 };
 module.exports._internal = { LAUNCHERS };

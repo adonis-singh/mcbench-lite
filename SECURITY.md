@@ -2,7 +2,7 @@
 
 mcbench-lite runs code that a language model wrote, on your machine, next to your API keys.
 
-One person runs the app on their own machine. It listens on 127.0.0.1 only and holds that person's provider keys, their Claude Code, Codex and Cursor sign-ins, and their chats. It is not built to be put on a network, and nothing in it makes that safe.
+One person runs the app on their own machine. It listens on 127.0.0.1 only, unless `MCBENCH_BIND` names another address, and holds that person's provider keys, their Claude Code, Codex and Cursor sign-ins, and their chats. It is not built to be put on a network, and nothing in it makes that safe.
 
 ## What a model can reach
 
@@ -33,18 +33,20 @@ Claude Code, Codex on macOS and Cursor are not in a container. What confines the
 | Attacker | What they control | What stops them |
 |---|---|---|
 | A web page in your browser | Requests to 127.0.0.1, and frames | Every request needs the access token. The browser's cookie is set on the app's own `mcbench-<label>.localhost` name, where the label comes from the token. Browsers send cookies to every port of a host name, so a program listening on another port of that name would receive it: it would have to know the label first. A foreign `Host` is refused, a cross-site request to the API is refused, another site cannot frame the app's pages or its attachments, and an attachment is served as a download unless it is an image, a PDF or text |
-| Another account or process on the machine | Connections to 127.0.0.1, and files its permissions allow | The same token, 32 random bytes in `data/auth-token`, readable by your account alone. The data folder and `settings.json` are private to your account. Settings cannot name a program for the server to run: the CLI binaries come from the server's environment only |
+| Another account or process on the machine | Connections to 127.0.0.1, and files its permissions allow | The same token, 32 random bytes in `data/auth-token`, readable by your account alone. The data folder, the tools folder and `settings.json` are private to your account. Settings cannot name a program for the server to run: a CLI is the one `MCBENCH_CLAUDE_BINARY` or `MCBENCH_CODEX_BINARY` names, else the one on the server's `PATH`, else the one the app installed in its tools folder. The page can ask the server to install Claude Code or Codex CLI by name only; the version, address, checksum and folder are the server's |
 | Untrusted data | Attachments, worlds a model made, and the repository you name for Share | A malformed input fails its one request. The engine runs in a child process; requests, reports and run time are capped; each chat's world, attachments and shell folder have a storage budget and the disk keeps a reserve free. A Share repository that holds symbolic links or submodules is refused before anything is written |
 
 ## What is not defended
 
-A program running as you can read the token, your keys and every chat. Keys saved in Settings are plain text in `data/settings.json`, readable by your account only. The setup creates `.env` readable by your account only, and the app refuses to start when other accounts can read or write it. There is no keychain integration.
+A program running as you can read the token, your keys and every chat. Keys saved in Settings are plain text in `data/settings.json`, readable by your account only. Keys in `.env`, which only you create (`install -m 600 .env.example .env`), are plain text too, and the app refuses to start when other accounts can read or write it. There is no keychain integration.
 
 The address the server prints on every start contains the access token, so your terminal's scrollback and any log you redirect it to hold the token. It only works from your own machine, and from there it gives full access to the app. The browser's cookie lasts 400 days. To revoke both, delete `data/auth-token` and restart.
 
 Share makes a build public on your GitHub Pages repository: its page, its blocks, its title and Minecraft's block textures. Removing it in Settings deletes its page and blocks from the site. The viewer's folder, which holds the textures, stays. Commits are made as your GitHub login, the title is in the commit message, and all of it stays in the repository's history until you rewrite it or delete the repository.
 
-The shell's image is built on your machine, the first time a model runs bash, from the `python:3.12-slim` tag and the current pip and apt packages. Nothing in it is pinned to a digest.
+The shell's image is built on your machine while the server starts, when Docker is running, from the `python:3.12-slim` tag and the current pip and apt packages. Nothing in it is pinned to a digest.
+
+The programs in the tools folder are checked against their pinned sha256 once, when they are downloaded, and run as you from then on. A program running as you can change them, as it can change anything else of yours.
 
 On Linux the shell's container shares the host's kernel, so a kernel bug is a way out. On macOS it runs inside Docker Desktop's virtual machine.
 
@@ -53,6 +55,21 @@ An error response carries the error's message, which can include a path on your 
 Claude Code keeps each chat's transcript under `~/.claude/projects`. Deleting a chat deletes its current transcript there; transcripts of sessions the chat replaced earlier stay.
 
 Only the parity tools start the Paper reference server, never the app. While it runs, its game port accepts any local client under any name (offline mode), and `MCBENCH_MC_BIND` can put it on a network.
+
+## What the app downloads
+
+The app installs the programs it needs into its tools folder, `~/.mcbench-lite/tools` or the folder `MCBENCH_TOOLS_DIR` names, which only your account can read. Each is pinned in `server/tools.js` to one version and, for macOS and Linux on ARM and Intel, to the sha256 of its download, taken from the publisher's own checksum file where it publishes one and confirmed by downloading. A download whose sha256 differs fails, and nothing of it is kept. A program is unpacked into a folder named after its version, which appears whole, and nothing outside the tools folder is changed: no `PATH`, no shell profile, no `~/.rustup`.
+
+| Program | Version | From | Checksum from | When |
+|---|---|---|---|---|
+| Temurin JDK | 25.0.5+8 | github.com/adoptium/temurin25-binaries | Adoptium's `.sha256.txt` beside each file | the first start, unless `MCBENCH_JAVA` and `MCBENCH_JAVAC` name a JDK |
+| rustup (`rustup-init`) | 1.29.3 | static.rust-lang.org/rustup/archive | rustup's `.sha256` beside each file | the first start |
+| Rust and its WebAssembly target | 1.99.1 (`core/rust-toolchain.toml`) | static.rust-lang.org, through rustup | rustup's own checks of its downloads | the first start |
+| Chromium's headless shell | the build playwright-core names, 149.0.7827.55 | cdn.playwright.dev (Chrome for Testing's builds; Playwright's own build on ARM Linux) | none is published: the sha256 of each file as downloaded, the same as Google's Chrome for Testing files where those exist | the first start |
+| Claude Code | 2.1.311 | Anthropic's release bucket on storage.googleapis.com | the release's `manifest.json` | when you ask for it in Connect an AI and have no `claude` |
+| Codex CLI | 0.167.1 | github.com/openai/codex releases | GitHub's sha256 of each release file | when you ask for it in Connect an AI and have no `codex` |
+
+Paper's jar, BlueMap's jar and misode/mcmeta's block data go into the data folder, each pinned by sha256 (`server/paper-files.js`, `server/bluemap.js`, `server/assets.js`). Paper's launcher then downloads the Minecraft server from Mojang, and BlueMap's tool the Minecraft client jar; the app does not check those itself. The shell's image is not pinned (above).
 
 ## Reporting a vulnerability
 

@@ -26,6 +26,17 @@ function storedLogin() {
   return fs.existsSync(cursorSdk().getDefaultSdkAuthPath());
 }
 
+// The SDK's own sign-in, run for Settings (provider-login.js): it gives the
+// address to open to `onLoginUrl` and opens no browser, then waits until the
+// person has signed in on cursor.com and stores the key it is given in its
+// own file. The key in its result is not kept here.
+function login({ onLoginUrl, signal }) {
+  return cursorSdk().Cursor.auth.login({ openBrowser: false, onLoginUrl, signal }).then(() => {});
+}
+// Forgets the SDK's stored key. The key stays valid until it expires or is
+// revoked on cursor.com.
+const logout = () => cursorSdk().Cursor.auth.logout();
+
 // The package's exports map hides package.json from require.
 const version = () => JSON.parse(fs.readFileSync(path.resolve(path.dirname(require.resolve('@cursor/sdk')), '../../package.json'), 'utf8')).version;
 
@@ -223,5 +234,5 @@ class CursorSession extends RelaySession {
 // One run per conversation, as the CLI harnesses keep theirs.
 const { completion: cursorCompletion, closeSession } = sessionRelay(CursorSession);
 
-module.exports = { cursorCompletion, closeSession, listModels, modelInfo, storedLogin, version };
+module.exports = { cursorCompletion, closeSession, listModels, modelInfo, storedLogin, login, logout, version };
 module.exports._internal = { models, expandModels, modelSelection, renderPrompt, CursorSession };

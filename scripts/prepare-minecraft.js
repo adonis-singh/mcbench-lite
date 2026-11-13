@@ -3,8 +3,9 @@
 // Makes the tables of Minecraft the Rust engine is built with
 // (core/minecraft/<version>/: blocks.txt, loot.json, datafix.txt) from the
 // server jar, as the app's first start does, unless they are there: Paper is
-// downloaded into the data folder if it is not there yet, and a JDK 25 or
-// newer reads them (server/minecraft-tables.js). The repository holds none
+// downloaded into the data folder if it is not there yet, and the app's JDK
+// (server/tools.js, downloaded into the tools folder if it is not there yet)
+// reads them (server/minecraft-tables.js). The repository holds none
 // of them. Delete the folder to make them again.
 //
 //   node scripts/prepare-minecraft.js

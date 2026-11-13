@@ -8,7 +8,9 @@ const path = require('path');
 const cursor = require('./cursor');
 const claudeCode = require('./claude-code');
 const codexCli = require('./codex-cli');
+const providerLogin = require('./provider-login');
 const { DATA_DIR } = require('./storage');
+const tools = require('./tools');
 
 // The data folder's own settings: a server on a scratch data folder never
 // touches the checkout's keys. Batch workers, which move MCBENCH_DATA_DIR per
@@ -24,18 +26,14 @@ const file = path.resolve(process.env.MCBENCH_SETTINGS_FILE || path.join(DATA_DI
 const PROVIDERS = {
   openrouter: { label: 'OpenRouter', envKey: 'OPENROUTER_API_KEY' },
   openai: { label: 'OpenAI', envKey: 'OPENAI_API_KEY' },
-  codex: {
-    label: 'ChatGPT',
-    auth: 'cli-login',
-    login: 'npm run codex:login',
-  },
+  codex: { label: 'ChatGPT', auth: 'cli-login' },
   anthropic: { label: 'Anthropic', envKey: 'ANTHROPIC_API_KEY' },
   groq: { label: 'Groq', envKey: 'GROQ_API_KEY' },
   google: { label: 'Google', envKey: 'GOOGLE_API_KEY' },
   qwencloud: { label: 'QwenCloud', envKey: 'QWENCLOUD_API_KEY' },
-  cursor: { label: 'Cursor', envKey: 'CURSOR_API_KEY', auth: 'api-key-or-login', login: 'npm run cursor:login', harness: true },
-  'claude-code': { label: 'Claude Code', auth: 'cli-login', login: 'claude auth login', harness: true, runtime: { binary: 'claude', binaryEnv: 'MCBENCH_CLAUDE_BINARY', homeEnv: 'CLAUDE_CONFIG_DIR', home: '~' } },
-  'codex-cli': { label: 'Codex CLI', auth: 'cli-login', login: 'codex login', harness: true, runtime: { binary: 'codex', binaryEnv: 'MCBENCH_CODEX_BINARY', homeEnv: 'CODEX_HOME', home: '~/.codex' } },
+  cursor: { label: 'Cursor', envKey: 'CURSOR_API_KEY', auth: 'api-key-or-login', harness: true },
+  'claude-code': { label: 'Claude Code', auth: 'cli-login', harness: true, runtime: { binary: 'claude', binaryEnv: 'MCBENCH_CLAUDE_BINARY', homeEnv: 'CLAUDE_CONFIG_DIR', home: '~' } },
+  'codex-cli': { label: 'Codex CLI', auth: 'cli-login', harness: true, runtime: { binary: 'codex', binaryEnv: 'MCBENCH_CODEX_BINARY', homeEnv: 'CODEX_HOME', home: '~/.codex' } },
 };
 const RUNTIMES = { 'claude-code': claudeCode, 'codex-cli': codexCli };
 const LOGINS = { codex: codexCli.storedLogin, cursor: cursor.storedLogin, 'claude-code': claudeCode.storedLogin, 'codex-cli': codexCli.storedLogin };
@@ -57,8 +55,20 @@ function providerSettings(id, saved = {}, previous) {
   };
 }
 
+// A CLI's program is the one its environment variable names, else the one
+// on PATH, else the one cli-install.js put in the tools folder (tools.js).
 function applyRuntimes() {
-  for (const [id, runtime] of Object.entries(RUNTIMES)) runtime.configure({ binary: process.env[PROVIDERS[id].runtime.binaryEnv] || '', home: '' });
+  for (const [id, runtime] of Object.entries(RUNTIMES)) {
+    const { binary, binaryEnv } = PROVIDERS[id].runtime;
+    runtime.configure({ binary: process.env[binaryEnv] || tools.cliProgram(binary), home: '' });
+  }
+}
+
+// A CLI was installed into the tools folder: the harnesses run it, and
+// Settings reads its version again.
+function refreshRuntimes() {
+  applyRuntimes();
+  versions.clear();
 }
 
 const saved = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : {};
@@ -163,7 +173,6 @@ function publicSettings() {
         connected: connected(id),
         envKey: provider.envKey,
         auth: provider.auth || 'api-key',
-        login: provider.login,
         harness: Boolean(provider.harness),
         enabled: settings.providers[id].enabled,
         hiddenModels: settings.providers[id].hiddenModels,
@@ -208,6 +217,10 @@ function details({ refresh = false } = {}) {
     if (id === 'codex' || id === 'codex-cli') Object.assign(entry, { account: codex?.email || null, plan: codex?.plan || null, version: cliVersion('codex', codexCli.version, /(\d+\.\d+\.\d+)/) });
     if (id === 'claude-code') Object.assign(entry, { account: claude?.email || null, plan: claude?.plan || null, version: cliVersion('claude', claudeCode.version, /(\d+\.\d+\.\d+)/) });
     if (id === 'cursor') Object.assign(entry, { signedIn: cursor.storedLogin(), version: cliVersion('cursor', cursor.version, /(.+)/) });
+    // Signing in from Settings (provider-login.js); a CLI with no version is
+    // not installed.
+    const signIn = providerLogin.describe(id);
+    if (signIn) entry.signIn = { ...signIn, installed: Boolean(entry.version) };
     entry.summary = summary(id, entry);
   }
   return { ...pub, checkedAt: new Date().toISOString() };
@@ -229,6 +242,7 @@ module.exports = {
   PROVIDERS,
   get,
   update,
+  refreshRuntimes,
   updateModelFavorites,
   publicSettings,
   details,

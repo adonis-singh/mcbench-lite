@@ -36,6 +36,7 @@ const { minecraftLive } = require('../server/minecraft-live');
 const { blueMap, configFiles, renderMask } = require('../server/bluemap');
 const { blocksBlueprint, readBlueprint, worldBlueprint } = require('../server/blueprint');
 const { MC_VERSION } = require('../server/assets');
+const { JAVA, JAVAC } = require('../server/tools');
 const { World } = require('../server/world');
 const { Y_OFFSET } = require('../server/minecraft-dimension');
 const { build, MODULE } = require('./build-renderer');
@@ -64,17 +65,17 @@ async function bake(blockTable) {
   fs.rmSync(FOLDER, { recursive: true, force: true });
   writeFiles(FOLDER, configFiles(path.join(blueMap.root, 'data')));
   const classes = path.join(FOLDER, 'classes');
-  execFileSync(process.env.MCBENCH_JAVAC || 'javac', ['-proc:none', '-classpath', blueMap.jar, '-d', classes,
+  execFileSync(JAVAC, ['-proc:none', '-classpath', blueMap.jar, '-d', classes,
     path.join(ROOT, 'server', 'McbenchBake.java'), path.join(__dirname, 'McbenchBlueMapReference.java')], { stdio: 'inherit' });
   const classpath = [blueMap.jar, classes].join(path.delimiter);
   const flowTable = path.join(FOLDER, 'flow-angles.bin');
   const started = Date.now();
-  execFileSync('java', ['-Xmx2G', '-cp', classpath, 'McbenchBake', MC_VERSION, blockTable, flowTable],
+  execFileSync(JAVA, ['-Xmx2G', '-cp', classpath, 'McbenchBake', MC_VERSION, blockTable, flowTable],
     { cwd: FOLDER, stdio: ['ignore', 'inherit', 'inherit'] });
   console.log(`baked in ${Date.now() - started} ms`);
   execFileSync(path.join(RENDERER, 'target', 'release', 'mcbench-mesh'), ['flow', flowTable], { stdio: 'inherit' });
 
-  const java = spawn('java', ['-Xmx4G', '-cp', classpath, 'McbenchBlueMapReference', MC_VERSION, blockTable], { cwd: FOLDER, stdio: ['pipe', 'pipe', 'inherit'] });
+  const java = spawn(JAVA, ['-Xmx4G', '-cp', classpath, 'McbenchBlueMapReference', MC_VERSION, blockTable], { cwd: FOLDER, stdio: ['pipe', 'pipe', 'inherit'] });
   const replies = readline.createInterface({ input: java.stdout })[Symbol.asyncIterator]();
   let drawn = 0;
   // Every tile BlueMap draws for `blueprint` (bytes) under `mask`, as

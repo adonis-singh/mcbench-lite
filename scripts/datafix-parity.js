@@ -448,8 +448,8 @@ async function main() {
   // The dump is made as the app's first start makes it (server/minecraft-tables.js).
   if (flag('dump')) {
     const { writeDataFix, tablesFolder } = require('../server/minecraft-tables');
-    const { checkJdk, JAVA, JAVAC } = require('../server/bluemap');
-    await checkJdk();
+    const { installJdk, JAVA, JAVAC } = require('../server/tools');
+    await installJdk();
     const classpath = (await minecraftLive.ensurePaper()).map((file) => path.join(minecraftLive.paperDir, file));
     const target = tablesFolder(minecraftLive.minecraftVersion);
     await writeDataFix({ classpath, target, java: JAVA, javac: JAVAC });

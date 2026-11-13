@@ -26,6 +26,9 @@ const { execFile, execFileSync, spawn } = require('child_process');
 const { promisify } = require('util');
 const { writeDimensionPack } = require('./minecraft-dimension');
 const { step } = require('./progress');
+const setup = require('./setup');
+const tools = require('./tools');
+const { withLock } = require('./pid-lock');
 
 const execFileAsync = promisify(execFile);
 const SOURCES = ['McbenchEngine.java', 'McbenchLevel.java', 'McbenchExperiment.java'].map((name) => path.join(__dirname, name));
@@ -443,61 +446,40 @@ function engineEnv(mode) {
 const CORE = path.join(__dirname, '..', 'core');
 
 // The Rust that builds core/, natively and as WebAssembly, is the release
-// core/rust-toolchain.toml names, from rustup, with its WebAssembly target.
-// A Rust without rustup (Homebrew's `rust`) has neither that release nor the
-// target, so rustup is what the app asks for.
+// core/rust-toolchain.toml names, with its WebAssembly target, installed by
+// the app's own rustup in the tools folder (tools.js), which the first start
+// installs.
 const RUST_CHANNEL = fs.readFileSync(path.join(CORE, 'rust-toolchain.toml'), 'utf8').match(/^channel = "(.*)"$/m)[1];
-const RUSTUP_MISSING = 'The Rust engine is built with rustup, which is not installed: install it from https://rustup.rs (Homebrew\'s `rust` package is not enough), then start the app again';
 // rustup installs a toolchain only when told to (installRust), never as a
 // side effect of another command.
-const RUSTUP_ENV = { ...process.env, RUSTUP_AUTO_INSTALL: '0' };
-
-// Runs `work` while this process holds the file `lock`, which another
-// process waits for (every 200 ms). A lock whose holder is gone is taken over.
-async function withLock(lock, work) {
-  fs.mkdirSync(path.dirname(lock), { recursive: true });
-  for (;;) {
-    try {
-      fs.writeFileSync(lock, String(process.pid), { flag: 'wx' });
-      break;
-    } catch (error) {
-      if (error.code !== 'EEXIST') throw error;
-      const holder = Number(fs.readFileSync(lock, 'utf8'));
-      try { process.kill(holder, 0); } catch { fs.rmSync(lock, { force: true }); continue; }
-      await new Promise((resolve) => setTimeout(resolve, 200));
-    }
-  }
-  try {
-    return await work();
-  } finally {
-    fs.rmSync(lock, { force: true });
-  }
-}
+const RUSTUP_ENV = { ...process.env, ...tools.RUST_ENV, RUSTUP_AUTO_INSTALL: '0' };
 
 // Whether the pinned toolchain is installed.
 async function rustInstalled() {
   try {
-    await execFileAsync('rustup', ['which', 'cargo'], { cwd: CORE, env: RUSTUP_ENV });
+    await execFileAsync(tools.RUSTUP, ['which', 'cargo'], { cwd: CORE, env: RUSTUP_ENV });
     return true;
   } catch (error) {
-    if (error.code === 'ENOENT') throw new Error(RUSTUP_MISSING);
     if (!/is not installed/.test(error.stderr)) throw error;
     return false;
   }
 }
 
-// Installs the pinned toolchain the first time it is needed, saying so, in
-// one process at a time (rustup's own installs collide).
+// Installs rustup and the pinned toolchain the first time they are needed,
+// saying so, in one process at a time (rustup's own installs collide).
 let rustInstall = null;
 function installRust() {
-  rustInstall ||= (async () => {
+  rustInstall ||= setup.track('rust', async () => {
+    await step(`[rust] downloading rustup ${tools.PINS['rustup-init'].version} (about ${tools.PINS['rustup-init'].mb} MB) into ${tools.TOOLS_DIR}`, '[rust] rustup installed',
+      () => tools.installRustup({ onProgress: setup.progress('rust') }));
     if (await rustInstalled()) return;
-    await withLock(path.join(CORE, 'target', 'rustup-install.lock'), async () => {
+    await withLock(path.join(tools.TOOLS_DIR, 'rust', 'toolchain-install.lock'), async () => {
       if (await rustInstalled()) return;
+      setup.report('rust', { detail: `Installing Rust ${RUST_CHANNEL} and its WebAssembly target with rustup`, progress: undefined });
       await step(`[rust] installing Rust ${RUST_CHANNEL} and its WebAssembly target with rustup (once, about 550 MB on disk)`, `[rust] Rust ${RUST_CHANNEL} installed`,
-        () => execFileAsync('rustup', ['install'], { cwd: CORE, env: RUSTUP_ENV, maxBuffer: 1 << 24 }));
+        () => execFileAsync(tools.RUSTUP, ['install'], { cwd: CORE, env: RUSTUP_ENV, maxBuffer: 1 << 24 }));
     });
-  })().catch((error) => {
+  }).catch((error) => {
     rustInstall = null;
     throw error;
   });
@@ -515,10 +497,9 @@ function rust() {
   if (rustTools) return rustTools;
   const which = (name) => {
     try {
-      return execFileSync('rustup', ['which', name], { cwd: CORE, env: RUSTUP_ENV, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
+      return execFileSync(tools.RUSTUP, ['which', name], { cwd: CORE, env: RUSTUP_ENV, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
     } catch (error) {
-      if (error.code === 'ENOENT') throw new Error(RUSTUP_MISSING);
-      throw new Error(String(error.stderr).trim());
+      throw new Error(String(error.stderr || error.message).trim());
     }
   };
   const rustc = which('rustc');
@@ -551,8 +532,8 @@ function buildCore() {
   coreBuild ||= (async () => {
     await installRust();
     const { cargo, env } = rust();
-    await step('[engine] building the Rust engine (the first time takes a few minutes)', '[engine] Rust engine built',
-      () => execFileAsync(cargo, coreBuildArgs(), { cwd: CORE, env, maxBuffer: 1 << 24 }));
+    await setup.track('engine', () => step('[engine] building the Rust engine (the first time takes a few minutes)', '[engine] Rust engine built',
+      () => execFileAsync(cargo, coreBuildArgs(), { cwd: CORE, env, maxBuffer: 1 << 24 })));
     return path.join(CORE, 'target', 'release', 'mcbench-core');
   })().catch((error) => {
     coreBuild = null;
@@ -568,4 +549,4 @@ function coreEngine() {
   return new Engine({ build: buildCore });
 }
 
-module.exports = { Engine, buildCore, coreBuildArgs, coreProfile, coreEngine, installRust, rust, withLock, CORE, buildEngine, compileEngine, compileNative, engineName, engineEnv, jvmEngine, graalvmHome, NATIVE, PROFILE, RELEASES };
+module.exports = { Engine, buildCore, coreBuildArgs, coreProfile, coreEngine, installRust, rust, CORE, buildEngine, compileEngine, compileNative, engineName, engineEnv, jvmEngine, graalvmHome, NATIVE, PROFILE, RELEASES };

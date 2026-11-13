@@ -20,6 +20,9 @@ const { MC_VERSION } = require('./assets');
 const { sendFile } = require('./static-file');
 const { MODULE: MESHER } = require('../scripts/build-renderer');
 const { step } = require('./progress');
+const { JAVA, JAVAC } = require('./tools');
+const tools = require('./tools');
+const setup = require('./setup');
 
 const execFileAsync = promisify(execFile);
 const DATA_DIR = process.env.MCBENCH_DATA_DIR
@@ -33,14 +36,6 @@ const JAR_SHA256 = 'a2289d649f6a83e04cf222abcd3d4f2df4e32e61147015f921c05066f63e
 // Download sizes, for the terminal's account of the first start.
 const JAR_MB = 7;
 const CLIENT_MB = 31;
-// The JDK the app runs Java with (Paper's launcher, Minecraft's tables, the
-// block table and the bake): `java` and `javac` on PATH, or the programs these name.
-const JAVA = process.env.MCBENCH_JAVA || 'java';
-const JAVAC = process.env.MCBENCH_JAVAC || 'javac';
-// The data fixer's reference (scripts/DataFixReference.java) is compiled for
-// Java 25; Paper 1.21 and BlueMap 5 run on it.
-const JAVA_RELEASE = 25;
-const JDK_MISSING = `The app reads Minecraft's tables from the server jar and makes the 3D viewer's assets with Java, once: install a JDK, version ${JAVA_RELEASE} or newer (https://adoptium.net, or on a Mac \`brew install --cask temurin\`), so that \`java -version\` and \`javac -version\` work, then start the app again`;
 const MEMORY = process.env.MCBENCH_BLUEMAP_MEMORY || '2G';
 const BAKE = [path.join(__dirname, 'McbenchBake.java'), path.join(__dirname, 'McbenchEntityAssets.java')];
 // BlueMap's download cache (the Minecraft client jar it reads textures and
@@ -50,39 +45,6 @@ const MAP_ID = 'live';
 
 function sha256(bytes) {
   return crypto.createHash('sha256').update(bytes).digest('hex');
-}
-
-// Checks once that `java` and `javac` are a JDK of JAVA_RELEASE or newer;
-// rejects with what to install.
-let jdkCheck = null;
-function checkJdk() {
-  jdkCheck ||= (async () => {
-    for (const program of [JAVA, JAVAC]) {
-      let output;
-      try {
-        const { stdout, stderr } = await execFileAsync(program, ['-version'], { timeout: 30_000 });
-        output = `${stdout}${stderr}`;
-      } catch (error) {
-        throw new Error(`${JDK_MISSING} (\`${program} -version\` failed: ${String(error.stderr || error.message).trim()})`);
-      }
-      const release = Number(output.match(/(?:version "|javac )(\d+)/)?.[1]);
-      if (!(release >= JAVA_RELEASE)) throw new Error(`${JDK_MISSING} (\`${program}\` is: ${output.trim().split('\n')[0]})`);
-    }
-  })().catch((error) => {
-    jdkCheck = null;
-    throw error;
-  });
-  return jdkCheck;
-}
-
-async function downloadFile(url, target) {
-  const response = await fetch(url, { redirect: 'follow' });
-  if (!response.ok) throw new Error(`BlueMap download failed (HTTP ${response.status})`);
-  const bytes = Buffer.from(await response.arrayBuffer());
-  const temporary = `${target}.${process.pid}.tmp`;
-  fs.mkdirSync(path.dirname(target), { recursive: true });
-  fs.writeFileSync(temporary, bytes);
-  fs.renameSync(temporary, target);
 }
 
 function cameraHash(bounds, yOffset = 64) {
@@ -184,7 +146,7 @@ function contentType(file) {
 }
 
 class BlueMap {
-  constructor({ root = ROOT, java = JAVA, memory = MEMORY, download = downloadFile, run = execFileAsync, mesher = MESHER } = {}) {
+  constructor({ root = ROOT, java = JAVA, memory = MEMORY, download = tools.download, run = execFileAsync, mesher = MESHER } = {}) {
     this.root = root;
     this.java = java;
     this.memory = memory;
@@ -200,11 +162,8 @@ class BlueMap {
   async ensureJar() {
     if (fs.existsSync(this.jar) && sha256(fs.readFileSync(this.jar)) === JAR_SHA256) return;
     fs.rmSync(this.jar, { force: true });
-    await step(`[viewer] downloading BlueMap ${VERSION} (about ${JAR_MB} MB)`, `[viewer] BlueMap downloaded`, () => this.download(JAR_URL, this.jar));
-    if (sha256(fs.readFileSync(this.jar)) !== JAR_SHA256) {
-      fs.rmSync(this.jar, { force: true });
-      throw new Error('Downloaded BlueMap jar failed its checksum');
-    }
+    await step(`[viewer] downloading BlueMap ${VERSION} (about ${JAR_MB} MB)`, `[viewer] BlueMap downloaded`,
+      () => this.download(JAR_URL, this.jar, { sha256: JAR_SHA256, onProgress: setup.progress('viewer') }));
   }
 
   // The viewer's assets for `blockTable` (Paper's, see McbenchBlockTable),
@@ -297,8 +256,4 @@ module.exports = {
   renderMask,
   mapConfig,
   configFiles,
-  downloadFile,
-  checkJdk,
-  JAVA,
-  JAVAC,
 };

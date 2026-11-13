@@ -20,6 +20,8 @@ const within = (promise, ms) => Promise.race([promise.then(() => 'resolved', (er
 function renderer(t, behavior) {
   const playwright = require('playwright-core');
   const browsers = [];
+  // No headless shell is installed for these: the launch is faked.
+  t.mock.method(require('../server/tools'), 'headlessShell', async () => '/no/headless-shell');
   t.mock.method(playwright.chromium, 'launch', async () => {
     const mode = behavior();
     const browser = new EventEmitter();

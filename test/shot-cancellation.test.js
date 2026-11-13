@@ -10,6 +10,8 @@ test('queued screenshots cancel without touching another render; active cancella
   let release;
   let entered = new Promise(resolve => { enter = resolve; });
   let gate = new Promise(resolve => { release = resolve; });
+  // No headless shell is installed for these: the launch is faked.
+  t.mock.method(require('../server/tools'), 'headlessShell', async () => '/no/headless-shell');
   t.mock.method(playwright.chromium, 'launch', async () => {
     const browser = { on() {}, async close() { closeCount++; release(); }, async newPage() { return page; } };
     const page = {

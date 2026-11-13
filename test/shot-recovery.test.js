@@ -10,6 +10,8 @@ test('renderer failures release the queue even when evaluate and close never fin
   const playwright = require('playwright-core');
   let mode = 'crash';
   let launches = 0;
+  // No headless shell is installed for these: the launch is faked.
+  t.mock.method(require('../server/tools'), 'headlessShell', async () => '/no/headless-shell');
   t.mock.method(playwright.chromium, 'launch', async () => {
     launches++;
     const behavior = mode;

@@ -20,7 +20,8 @@ const path = require('path');
 const { execFile } = require('child_process');
 const { promisify } = require('util');
 
-const { installRust, rust, withLock, CORE } = require('../server/engine');
+const { installRust, rust, CORE } = require('../server/engine');
+const { withLock } = require('../server/pid-lock');
 const { step } = require('../server/progress');
 const { checkTables } = require('../server/minecraft-tables');
 const { MC_VERSION } = require('../server/assets');

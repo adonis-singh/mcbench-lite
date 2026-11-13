@@ -46,11 +46,18 @@ const { sendFile } = require('./static-file');
 const { supportsImageData, supportsImageType } = require('./image-input');
 const { BODY_LIMITS, httpError, readJsonBody, requestUrl, localHosts, foreignRequest, securityHeaders, pagePolicy } = require('./http-guard');
 const auth = require('./auth');
+const providerLogin = require('./provider-login');
+const setup = require('./setup');
+const tools = require('./tools');
+const cliInstall = require('./cli-install');
+const { installRust } = require('./engine');
 
 const PORT = Number(process.env.PORT || 3020);
-// The server listens on loopback only (server.listen below): the sandbox
-// holds an API key and can run networked commands, so the app is never
-// exposed to the LAN.
+// The server listens on loopback (server.listen below): the sandbox holds an
+// API key and can run networked commands, so the app is never exposed to the
+// LAN. A hosted instance names another address in MCBENCH_BIND, the one its
+// own virtual machine's sign-in gateway reaches it on.
+const BIND = process.env.MCBENCH_BIND || '127.0.0.1';
 store.clearExpiredArchive();
 // A purge that fails is tried again the next day; it is no reason to stop
 // the server (exitOnFatal).
@@ -444,6 +451,17 @@ async function handleChat(req, res, id) {
   await executeTurn(id, turn);
 }
 
+// Work runs or waits here: a turn, an edit, a title, or a bench round that
+// is queued (a model free for it starts it at once, so a queued round no
+// turn holds is one the bench has not started yet).
+function busy() {
+  if (reservations.holds.size || titles.tasks.size) return true;
+  return store.listBenches().some((bench) => store.benchMembers(bench.id).some((member) => {
+    const { round, halted } = store.benchProgress(member.id);
+    return !halted && round < bench.rounds;
+  }));
+}
+
 // Benches. Every round goes to every model unchanged; a model that is still
 // working on an earlier round takes the next one as soon as it finishes. A
 // model whose turn failed or was stopped waits until it is retried.
@@ -623,12 +641,77 @@ async function handleApi(req, res, url) {
   }
 
 
+  // `hosted` is set on an instance behind the hosted sign-in gateway, whose
+  // /account page signs out of the website and deletes the workspace.
   if (req.method === 'GET' && url.pathname === '/api/config') {
     return sendJson(res, 200, {
       providers: settings.publicSettings().providers,
       modelFavorites: settings.get().modelFavorites,
       mcVersion: MC_VERSION,
+      ...(process.env.MCBENCH_HOSTED === '1' ? { hosted: true } : {}),
     });
+  }
+
+  // What the first start prepares, for the page's setup screen to poll
+  // (setup.js):
+  //   { ready, steps: [{ id, title, doing, state, optional, detail?, progress?, seconds?, error? }] }
+  // `ready` is true once every step that is not optional is done. `title`
+  // names what a step makes and `doing` what its work does. `state` is
+  // waiting, running, done, failed or unavailable; `progress` is
+  // { done, total } bytes of the step's download under way (total null when
+  // the server did not say); `seconds` is how long a done step took, and
+  // `error` why a failed or unavailable one is not done. The steps, in
+  // order: jdk, rust, minecraft (Paper and the Minecraft server), tables,
+  // blocks (the page's block data), viewer, engine (native), wasm, browser,
+  // and shell (the model's shell image, the one optional step: it needs
+  // Docker, which the app cannot install).
+  if (req.method === 'GET' && url.pathname === '/api/setup') {
+    return sendJson(res, 200, setup.view());
+  }
+  // Runs the steps' work again after one failed (setup.js retry, index.js
+  // prepare); answers the steps as they are then, and the page reads on.
+  if (req.method === 'POST' && url.pathname === '/api/setup/retry') {
+    return sendJson(res, 200, setup.retry());
+  }
+
+  // Installing the Claude Code or Codex CLI into the tools folder, for
+  // Connect an AI when the program is not found (cli-install.js): POST
+  // starts it, GET reads it until it is done or failed.
+  if (req.method === 'POST' && url.pathname === '/api/cli-installs') {
+    const body = await readJsonBody(req);
+    return sendJson(res, 200, cliInstall.start(String(body.program || '')));
+  }
+  if (req.method === 'GET' && parts[1] === 'cli-installs' && parts.length === 3) {
+    return sendJson(res, 200, cliInstall.state(parts[2]));
+  }
+
+  // Whether work runs or waits here, page open or not: the hosted gateway
+  // stops an idle instance only while this is false.
+  if (req.method === 'GET' && url.pathname === '/api/activity') {
+    return sendJson(res, 200, { busy: busy() });
+  }
+
+  // Signing in to a subscription from Settings (provider-login.js): one
+  // sign-in per login at a time, read until it is done, failed or cancelled.
+  if (req.method === 'POST' && url.pathname === '/api/provider-logins') {
+    const body = await readJsonBody(req);
+    return sendJson(res, 200, providerLogin.start(String(body.provider || ''), body.method));
+  }
+  if (parts[1] === 'provider-logins' && parts.length >= 3) {
+    const provider = parts[2];
+    if (req.method === 'GET' && parts.length === 3) return sendJson(res, 200, providerLogin.state(provider));
+    if (req.method === 'DELETE' && parts.length === 3) return sendJson(res, 200, providerLogin.cancel(provider));
+    // The code the person pasted goes to the CLI; neither the response nor a
+    // log carries it.
+    if (req.method === 'POST' && parts[3] === 'input' && parts.length === 4) {
+      const body = await readJsonBody(req);
+      return sendJson(res, 200, providerLogin.input(provider, body.text));
+    }
+  }
+  if (req.method === 'POST' && url.pathname === '/api/provider-logouts') {
+    const body = await readJsonBody(req);
+    await providerLogin.logout(String(body.provider || ''));
+    return sendJson(res, 200, { ok: true });
   }
 
   if (req.method === 'PUT' && url.pathname === '/api/model-favorites') {
@@ -1274,13 +1357,14 @@ const lifecycle = {
   },
 };
 
-async function startHttpServer() {
-  // Turns the last run of the server stopped in the middle of end as errors.
-  for (const id of store.interruptUnfinished()) console.log(`[startup] ended the turn the server stopped in ${id}`);
-  // The viewer's assets, the engines and the page's engine module get ready
-  // before the first build opens. A failure is printed once, however many of
-  // them it stops (a missing rustup stops three), and one last line says
-  // whether all of them are ready.
+// The first start's steps (setup.js): the JDK, Rust, the viewer's assets,
+// the engines, the page's engine module and the headless browser get ready
+// before the first build opens. A failure is printed once, however many of
+// them it stops (a JDK that cannot be downloaded stops five), and one last
+// line says whether all of them are ready. The server's start runs this
+// (setup.start), and POST /api/setup/retry runs it again after a step failed
+// (setup.retry).
+function prepare() {
   const told = new Set();
   const tell = (tag) => (error) => {
     const text = String(error.stderr || error.message || error);
@@ -1292,15 +1376,33 @@ async function startHttpServer() {
   // first (the page's engine module waits for them itself).
   const tables = minecraftLive.minecraftTables();
   Promise.allSettled([
+    installRust().catch(tell('[rust]')),
     minecraftLive.warm(),
     coreWasm.prepare().catch(tell('[core-wasm]')),
     tables.then(() => minecraftVerifier.warm()).catch(tell('[verify]')),
     // Every build is settled on these engines (shot-world.js).
     tables.then(() => warmShotEngines()).catch(tell('[settle]')),
+    tools.headlessShell().catch(tell('[see_build]')),
+    // The page's block data, every file of it.
+    setup.track('blocks', async () => {
+      await Promise.all(Object.keys(ASSETS).filter((name) => name !== 'blocks.json').map((name) => getAsset(name)));
+      const registry = await getBlockRegistry();
+      console.log(`[assets] block registry ready (${Object.keys(registry).length} blocks, MC ${MC_VERSION})`);
+    }).catch(tell('[assets]')),
   ]).then((results) => console.log(results.every((result) => result.status === 'fulfilled')
-    ? '[startup] ready: the live world, the 3D viewer and the engines are prepared'
+    ? '[startup] ready: the live world, the 3D viewer, the engines and the headless browser are prepared'
     : '[startup] not everything could be prepared: see the errors above'));
-  server.listen(PORT, '127.0.0.1', () => {
+  // The model's shell image, built in the background so the first bash call
+  // does not wait for it. Without Docker the app works without bash, and the
+  // step says why.
+  sandbox.ensureImage().catch((error) => console.log('[sandbox]', error.message));
+}
+
+async function startHttpServer() {
+  // Turns the last run of the server stopped in the middle of end as errors.
+  for (const id of store.interruptUnfinished()) console.log(`[startup] ended the turn the server stopped in ${id}`);
+  setup.start(prepare);
+  server.listen(PORT, BIND, () => {
     // A signal came before the server listened: that shutdown, under way or
     // already done, had nothing to close.
     if (lifecycle.state !== 'starting') return server.close();
@@ -1308,9 +1410,6 @@ async function startHttpServer() {
     console.log(`mcbench-lite chat builder on ${auth.link(PORT)}`);
     // see_build's page is this server's own: it is opened once the server listens.
     warmRenderer().catch((error) => console.error('[see_build]', error.message));
-    getBlockRegistry()
-      .then((registry) => console.log(`[assets] block registry ready (${Object.keys(registry).length} blocks, MC ${MC_VERSION})`))
-      .catch((err) => console.error('[assets] warm-up failed:', err.message));
     // Benches carry on with the rounds they had queued.
     for (const bench of store.listBenches()) advanceBench(bench.id);
   });
@@ -1332,6 +1431,7 @@ async function stop() {
   listWatchers.clear();
   for (const turn of reservations.turns()) turn.controller.abort();
   titles.controller.abort();
+  providerLogin.shutdown();
   await Promise.all([reservations.idle(), ...titles.tasks]);
   await Promise.allSettled([
     sandbox.shutdown(),
@@ -1381,4 +1481,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { handleApi, route, server, advanceBench, startHttpServer, shutdown, exitOnSignals, exitOnFatal, FATAL_SHUTDOWN_MS, reservations, shares };
+module.exports = { handleApi, route, server, BIND, advanceBench, startHttpServer, shutdown, exitOnSignals, exitOnFatal, FATAL_SHUTDOWN_MS, reservations, shares };

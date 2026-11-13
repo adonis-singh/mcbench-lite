@@ -8,6 +8,7 @@
 const fs = require('fs');
 const { build } = require('../scripts/build-wasm');
 const { minecraftLive } = require('./minecraft-live');
+const setup = require('./setup');
 
 const PREFIX = '/core/';
 
@@ -34,7 +35,7 @@ function prepare() {
   if (['building', 'built'].includes(wasm.name)) return wasm.done;
   // The engine is built from Minecraft's tables, made first. The stamp is
   // read in the build's own promise: a module without one has failed.
-  const done = minecraftLive.minecraftTables().then(() => build()).then((file) => {
+  const done = minecraftLive.minecraftTables().then(() => setup.track('wasm', () => build())).then((file) => {
     const hash = fs.readFileSync(`${file}.sources`, 'utf8').slice(0, 16);
     return { file, url: `${PREFIX}${hash}.wasm` };
   });

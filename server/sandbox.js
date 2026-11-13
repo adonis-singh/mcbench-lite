@@ -6,6 +6,8 @@ const fs = require('fs');
 const path = require('path');
 const util = require('util');
 const storage = require('./storage');
+const setup = require('./setup');
+const { step } = require('./progress');
 
 // Per-conversation Linux sandbox, modelled on Codex's exec tooling: a Docker
 // container with a bind-mounted /work directory, a PERSISTENT bash
@@ -145,10 +147,22 @@ function docker(args, { timeoutMs = 60_000, check = true, binary = false } = {})
   });
 }
 
-async function ensureImage() {
-  const probe = await docker(['image', 'ls', '--quiet', IMAGE]);
-  if (probe.output.trim()) return;
-  await docker(['build', '-t', IMAGE, DOCKERFILE_DIR], { timeoutMs: 10 * 60 * 1000 });
+// The shell's image, built once per process unless Docker has it: the
+// server's start builds it in the background (index.js), so the first bash
+// call does not wait for it. A build that failed, or found Docker not
+// installed or not running, is tried again when it is next needed.
+let image = null;
+function ensureImage() {
+  image ||= setup.track('shell', async () => {
+    const probe = await docker(['image', 'ls', '--quiet', IMAGE]);
+    if (probe.output.trim()) return;
+    await step("[sandbox] building the model's shell image from sandbox/Dockerfile (once, a few minutes)", "[sandbox] shell image built",
+      () => docker(['build', '-t', IMAGE, DOCKERFILE_DIR], { timeoutMs: 10 * 60 * 1000 }));
+  }, { unavailable: (error) => [DOCKER_MISSING, DOCKER_NOT_RUNNING].includes(error.message) }).catch((error) => {
+    image = null;
+    throw error;
+  });
+  return image;
 }
 
 // The networked container reaches the public internet and nothing else: not

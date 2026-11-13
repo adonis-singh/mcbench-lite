@@ -2,8 +2,8 @@
 
 // The tables of Minecraft the Rust engine compiles in (include_str! of
 // core/minecraft/<version>/), made on this machine from the server jar Paper
-// downloaded, by the project's Java reference code on the JDK (bluemap.js:
-// JAVA, JAVAC). The repository holds none of them (.gitignore):
+// downloaded, by the project's Java reference code on the app's JDK
+// (tools.js: JAVA, JAVAC). The repository holds none of them (.gitignore):
 //   blocks.txt   the Java engine's dump (McbenchEngine.dump): blocks, states,
 //                properties, tags, collision shapes, items
 //   loot.json    the server jar's block loot tables, by block key
@@ -19,7 +19,7 @@ const { execFile } = require('child_process');
 const { promisify } = require('util');
 
 const { jvmEngine } = require('./engine');
-const { readZipEntry } = require('./zip-entry');
+const { zipNames, readZipEntry } = require('./zip-entry');
 
 const execFileAsync = promisify(execFile);
 const TABLES = ['blocks.txt', 'loot.json', 'datafix.txt'];
@@ -70,7 +70,7 @@ async function writeRegistry({ classpath, minecraftVersion, target, java, javac 
     }
     const jar = classpath.find((file) => path.basename(file) === `paper-${minecraftVersion}.jar`);
     const prefix = 'data/minecraft/loot_table/blocks/';
-    const names = (await zipNames(jar)).filter((name) => name.startsWith(prefix) && name.endsWith('.json')).sort();
+    const names = zipNames(jar).filter((name) => name.startsWith(prefix) && name.endsWith('.json')).sort();
     const loot = {};
     for (const name of names) loot[`minecraft:${name.slice(prefix.length, -'.json'.length)}`] = JSON.parse(readZipEntry(jar, name).toString('utf8'));
     writeWhole(path.join(target, 'blocks.txt'), lines.join('\n'));
@@ -104,12 +104,6 @@ async function writeDataFix({ classpath, target, java, javac }) {
   } finally {
     fs.rmSync(reference.classes, { recursive: true, force: true });
   }
-}
-
-// The entries of a zip file, by name.
-async function zipNames(jar) {
-  const { stdout } = await execFileAsync('unzip', ['-Z1', jar], { maxBuffer: 1 << 26 });
-  return stdout.split('\n');
 }
 
 // Writes `file` so that it appears whole (a rename).

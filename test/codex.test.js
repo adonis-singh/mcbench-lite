@@ -107,16 +107,15 @@ test('a streamed ChatGPT response reaches the turn intact, chunk by chunk', asyn
   assert.equal(result.tool_calls[0].function.arguments, call.arguments);
 });
 
-test('without a Codex login ChatGPT is disconnected and says to run npm run codex:login', async (t) => {
+test('without a Codex login ChatGPT is disconnected and says to sign in from Settings', async (t) => {
   const authFile = codexHome(t, { signedIn: false });
   const network = noNetwork(t);
   codexHandlers.set(authFile, async () => { throw new Error('the handler must not be called'); });
   const entry = settings.publicSettings().providers.codex;
   assert.equal(entry.connected, false);
-  assert.equal(entry.login, 'npm run codex:login');
   assert.equal(entry.baseUrl, undefined);
   assert.equal(settings.details().providers.codex.summary, 'Not signed in');
-  const message = /ChatGPT is not signed in: run npm run codex:login/;
+  const message = /ChatGPT is not signed in: sign in to it in Settings/;
   await assert.rejects(llm.chatCompletion({ provider: 'codex', model: 'gpt-6-astra', messages: [{ role: 'user', content: 'hi' }], tools: [] }), message);
   await assert.rejects(llm.listModels('codex'), message);
   assert.deepEqual(network, []);

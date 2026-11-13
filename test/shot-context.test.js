@@ -8,6 +8,8 @@ test('context loss reloads the world and retries the whole inspection once', asy
   const playwright = require('playwright-core');
   const pages = [];
   let alwaysLose = false;
+  // No headless shell is installed for these: the launch is faked.
+  t.mock.method(require('../server/tools'), 'headlessShell', async () => '/no/headless-shell');
   t.mock.method(playwright.chromium, 'launch', async () => {
     const browser = new EventEmitter();
     const page = new EventEmitter();
@@ -59,6 +61,8 @@ test('context loss reloads the world and retries the whole inspection once', asy
 test('a page that closed is opened again, and a render queued behind closeRenderer opens no browser', async t => {
   const playwright = require('playwright-core');
   const browsers = [];
+  // No headless shell is installed for these: the launch is faked.
+  t.mock.method(require('../server/tools'), 'headlessShell', async () => '/no/headless-shell');
   t.mock.method(playwright.chromium, 'launch', async () => {
     const browser = new EventEmitter();
     const page = new EventEmitter();

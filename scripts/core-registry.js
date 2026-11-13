@@ -12,12 +12,12 @@
 const path = require('path');
 const { minecraftLive } = require('../server/minecraft-live');
 const { writeRegistry, tablesFolder } = require('../server/minecraft-tables');
-const { checkJdk, JAVA, JAVAC } = require('../server/bluemap');
+const { installJdk, JAVA, JAVAC } = require('../server/tools');
 
 // The same code the app's first start makes them with
 // (MinecraftLive.minecraftTables).
 async function main() {
-  await checkJdk();
+  await installJdk();
   const classpath = (await minecraftLive.ensurePaper()).map((file) => path.join(minecraftLive.paperDir, file));
   const target = tablesFolder(minecraftLive.minecraftVersion);
   const count = await writeRegistry({ classpath, minecraftVersion: minecraftLive.minecraftVersion, target, java: JAVA, javac: JAVAC });

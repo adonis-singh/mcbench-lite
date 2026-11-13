@@ -2535,7 +2535,13 @@ body.sizing-sidebar .sidebar-edge::after { background: color-mix(in srgb, var(--
 }
 .settings-panel .s-input.mono { font-family: var(--font-data); font-size: 12.5px; }
 .settings-panel .s-input:focus { outline: none; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold) 70%, transparent), var(--glow-gold); }
-.s-value { font-size: 13px; color: var(--ash); text-align: right; }
+.s-value { min-width: 0; font-size: 13px; color: var(--ash); text-align: right; overflow-wrap: anywhere; }
+/* A row with a value (a path, an address) keeps its description readable:
+   the value sits beside it when it fits, else on its own line under it, and
+   wraps anywhere. */
+.s-row:has(> .s-row-control > .s-value) { display: flex; flex-wrap: wrap; align-items: center; row-gap: 6px; }
+.s-row:has(> .s-row-control > .s-value) > .s-row-text { flex: 1 1 260px; }
+.s-row:has(> .s-row-control > .s-value) > .s-row-control { flex: 0 1 auto; max-width: 100%; margin-left: auto; }
 .s-value.mono { font-family: var(--font-data); font-size: 12.5px; }
 .cmd-chip {
   display: inline-flex;
@@ -2561,6 +2567,36 @@ body.sizing-sidebar .sidebar-edge::after { background: color-mix(in srgb, var(--
 .cmd-chip button:hover { background: var(--hover); color: var(--bone); }
 .s-empty { padding: 18px; font-size: 12.5px; color: var(--dim-text); }
 .s-empty.error { color: var(--err-text); }
+/* Signing in from a provider's pane: the address to open, the one-time code,
+   the field for a pasted code, and why the last sign-in failed. */
+.s-signin-link { display: flex; align-items: center; gap: 4px; min-width: 0; margin-top: 6px; }
+.s-signin-link a {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-data);
+  font-size: 12px;
+  color: var(--bone);
+}
+.s-signin-link .copy-btn, .cmd-chip .copy-btn { flex: none; }
+.copy-btn {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--dim-text);
+  cursor: pointer;
+}
+.copy-btn:hover { background: var(--hover); color: var(--bone); }
+.s-signin-code code { font-size: 15px; letter-spacing: 0.08em; }
+.s-signin-form, .s-signin-start { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.settings-panel .s-signin-form .s-input { width: 240px; }
+.s-signin-error { display: block; margin-top: 6px; color: var(--err-text); white-space: pre-wrap; overflow-wrap: anywhere; }
+a.btn { display: inline-flex; align-items: center; text-decoration: none; }
 
 .s-models-intro { padding: 16px 18px 0; font-size: 12.5px; color: var(--dim-text); line-height: 1.45; }
 .s-models-toolbar { display: flex; align-items: center; gap: 14px; padding: 12px 18px 8px; }
@@ -2635,6 +2671,7 @@ body.sizing-sidebar .sidebar-edge::after { background: color-mix(in srgb, var(--
   .settings-pane { padding: 18px 16px 24px; }
   .s-row { grid-template-columns: 1fr; }
   .s-row-control { justify-content: flex-start; }
+  .s-value { text-align: left; }
   .s-model { grid-template-columns: 18px 26px minmax(0, 1fr) auto; }
   .s-model-id, .s-model-caps { display: none; }
 }
@@ -3417,6 +3454,50 @@ button.bench-status:hover { background: var(--well); color: var(--bone); }
 .model-picker-connect { min-height: 32px; padding: 0 14px; font: 500 12.5px var(--font-ui); }
 /* A search across providers names each result's provider. */
 .model-provider { flex: none; margin-left: auto; color: var(--dim-text); font-size: 11.5px; white-space: nowrap; }
+
+/* The first start on the new build's screen (SetupStatus): a heading, how
+   many steps are done, and one row per step in a card like Connect an AI's,
+   the step under way in the brightest text. */
+.setup { margin: auto; width: min(100%, 460px); display: grid; gap: 14px; padding: 24px 0; }
+.setup-head { display: grid; gap: 6px; text-align: center; }
+.setup .big { color: var(--bone); font: 620 20px/1.25 var(--font-body); letter-spacing: -0.4px; }
+.setup-sub { color: var(--ash); font-size: 13px; line-height: 1.5; text-wrap: balance; }
+.setup-overall { display: flex; align-items: center; gap: 10px; }
+.setup-bar { flex: 1; height: 4px; border-radius: 2px; overflow: hidden; background: color-mix(in srgb, var(--bone) 10%, transparent); }
+.setup-bar span { display: block; height: 100%; background: var(--ash); transition: width 400ms var(--ease); }
+.setup-count { color: var(--dim-text); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.setup-steps { margin: 0; padding: 6px 0; list-style: none; border-radius: 10px; background: var(--well); box-shadow: inset 0 0 0 1px var(--line); }
+.setup-step { display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; align-items: center; column-gap: 10px; padding: 6px 14px; font-size: 13px; }
+.setup-mark { display: grid; place-items: center; height: 18px; color: var(--dim-text); }
+.setup-label { min-width: 0; color: var(--ash); }
+.setup-value { color: var(--dim-text); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.setup-step.running .setup-label { color: var(--bone); }
+.setup-step.running .setup-value { color: var(--ash); }
+.setup-step.done .setup-label { color: var(--dim-text); }
+.setup-step.failed .setup-mark, .setup-step.failed .setup-label, .setup-step.failed .setup-value { color: var(--err-text); }
+.setup-optional { margin-left: 8px; color: var(--dim-text); font-size: 11.5px; }
+.setup-note { grid-column: 2 / -1; margin-top: 3px; color: var(--dim-text); font-size: 12px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; }
+.setup-step.failed .setup-note { color: var(--err-text); }
+.setup-note a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+.setup-note a:hover { color: var(--bone); }
+.setup-dot { width: 6px; height: 6px; border-radius: 50%; box-shadow: inset 0 0 0 1px var(--dim-text); }
+.setup-dash { width: 8px; height: 1.5px; background: var(--dim-text); }
+.setup-failed { display: flex; align-items: center; justify-content: center; gap: 10px; color: var(--err-text); font-size: 12.5px; }
+.setup-failed .btn { min-height: 30px; padding: 0 12px; font: 500 12.5px var(--font-ui); }
+.setup .connect-hint { margin-top: 2px; }
+.setup .empty-sub { text-align: center; }
+/* Narrow windows: the world pane sits above the chat, so the steps take
+   less height to keep the one under way in view. */
+@media (max-width: 980px) {
+  .setup { gap: 10px; padding: 0 0 12px; }
+  .setup .big { font-size: 17px; }
+  .setup-sub { font-size: 12px; }
+  .setup-steps { padding: 3px 0; }
+  .setup-step { padding: 3px 14px; }
+}
+/* A send held until the app is ready, over the composer. */
+.composer-held { display: flex; align-items: center; gap: 8px; padding: 0 4px; color: var(--ash); font-size: 12.5px; }
+.composer-held .text-link { margin-left: auto; white-space: nowrap; }
 
 /* Settings' Connect an AI pane: one card per way in, with a button to each
    provider pane that sets it up. */

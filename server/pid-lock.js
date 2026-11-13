@@ -3,6 +3,7 @@
 // process that holds it. A lock whose process is gone (killed, crashed) is
 // taken over; one whose process lives fails. Answers the release.
 const fs = require('node:fs');
+const path = require('node:path');
 
 function alive(pid) {
   try { process.kill(pid, 0); return true; } catch (error) { return error.code === 'EPERM'; }
@@ -57,4 +58,26 @@ function pidLock(file, waits = 0) {
   }
 }
 
-module.exports = { pidLock, alive };
+// Runs `work` while this process holds the file `lock`, which another
+// process waits for (every 200 ms). A lock whose holder is gone is taken over.
+async function withLock(lock, work) {
+  fs.mkdirSync(path.dirname(lock), { recursive: true });
+  for (;;) {
+    try {
+      fs.writeFileSync(lock, String(process.pid), { flag: 'wx' });
+      break;
+    } catch (error) {
+      if (error.code !== 'EEXIST') throw error;
+      const holder = Number(fs.readFileSync(lock, 'utf8'));
+      try { process.kill(holder, 0); } catch { fs.rmSync(lock, { force: true }); continue; }
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    }
+  }
+  try {
+    return await work();
+  } finally {
+    fs.rmSync(lock, { force: true });
+  }
+}
+
+module.exports = { pidLock, alive, withLock };

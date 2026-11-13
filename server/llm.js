@@ -35,7 +35,7 @@ function resolveProvider(providerId) {
   const apiKey = settings.get().providers[providerId].apiKey || (process.env[envKey] || '').trim();
   const state = settings.publicSettings().providers[providerId];
   if (!state.enabled) throw new Error(`${label} is disabled in Settings`);
-  if (!state.connected) throw new Error(state.auth === 'cli-login' ? `${label} is not signed in: run ${state.login}` : `Connect ${label} in Settings`);
+  if (!state.connected) throw new Error(state.auth === 'cli-login' ? `${label} is not signed in: sign in to it in Settings` : `Connect ${label} in Settings`);
   return { id: providerId, name: label, apiKey, ...PROVIDERS[providerId] };
 }
 

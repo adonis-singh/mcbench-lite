@@ -5,14 +5,14 @@
 // and the verifier's Paper runtime all run on its classpath) and its
 // libraries.
 
-const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const { execFile } = require('child_process');
 const { promisify } = require('util');
 
 const { MC_VERSION } = require('./assets');
-const { downloadFile } = require('./bluemap');
+const tools = require('./tools');
+const setup = require('./setup');
 const { graalvmHome } = require('./engine');
 const { readZipEntry } = require('./zip-entry');
 
@@ -48,7 +48,7 @@ class PaperFiles {
   constructor({
     minecraftVersion = MC_VERSION,
     paperDir = PAPER_DIR,
-    download = downloadFile,
+    download = tools.download,
     runJava = java,
   } = {}) {
     if (!PAPER[minecraftVersion]) throw new Error('Unsupported Minecraft runtime version');
@@ -74,19 +74,12 @@ class PaperFiles {
     const { jar, sha256, url } = PAPER[this.minecraftVersion];
     const target = path.join(this.paperDir, jar);
     fs.mkdirSync(this.paperDir, { recursive: true });
-    if (!fs.existsSync(target)) {
-      const downloaded = `${target}.download`;
-      await this.download(url, downloaded);
-      if (crypto.createHash('sha256').update(fs.readFileSync(downloaded)).digest('hex') !== sha256) {
-        fs.rmSync(downloaded, { force: true });
-        throw new Error(`Downloaded ${jar} failed its checksum`);
-      }
-      fs.renameSync(downloaded, target);
-    }
+    if (!fs.existsSync(target)) await this.download(url, target, { sha256, onProgress: setup.progress('minecraft') });
     const list = (name, folder) => readZipEntry(target, `META-INF/${name}`).toString('utf8').trim().split('\n')
       .map((line) => `${folder}/${line.split('\t')[2]}`);
     const classpath = [...list('versions.list', 'versions'), ...list('libraries.list', 'libraries')];
     if (!classpath.every((file) => fs.existsSync(path.join(this.paperDir, file)))) {
+      setup.report('minecraft', { detail: "Paper's launcher is downloading the Minecraft server and its libraries from Mojang", progress: undefined });
       await this.runJava(['-Dpaperclip.patchonly=true', '-jar', jar], { cwd: this.paperDir, timeout: 300_000 });
     }
     for (const file of classpath) {

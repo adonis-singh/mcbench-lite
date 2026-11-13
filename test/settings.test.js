@@ -23,7 +23,6 @@ test('settings expose provider connections without chat defaults', () => {
     connected: require('../server/codex-cli').storedLogin(),
     envKey: undefined,
     auth: 'cli-login',
-    login: 'npm run codex:login',
     harness: false,
     enabled: true,
     hiddenModels: [],
@@ -33,7 +32,7 @@ test('settings expose provider connections without chat defaults', () => {
   for (const id of ['claude-code', 'codex-cli']) {
     assert.strictEqual(publicSettings.providers[id].auth, 'cli-login');
     assert.strictEqual(publicSettings.providers[id].envKey, undefined);
-    assert.strictEqual(typeof publicSettings.providers[id].login, 'string');
+    assert.strictEqual(publicSettings.providers[id].login, undefined);
     assert.deepStrictEqual(settings.get().providers[id], { enabled: true, hiddenModels: [], modelOrder: [] });
   }
   // Cursor is a harness too (SDK agent, key or login), grouped with the CLIs.

@@ -8,6 +8,7 @@ import { PromptSync, promptsLoaded } from '/prompt-sync.mjs';
 import { RESOLUTIONS, resolutionStop, resolutionHelp } from '/resolution.mjs';
 import { Favorites } from '/favorites.mjs';
 import { CLOSED, panelTo, panelEdit, panelDraft, withTitleModel, withShareRepo, usable, CONNECT, firstPane, connectWays } from '/settings-panel.mjs';
+import { megabytes, setupStatus, heldLine, linkParts } from '/setup-status.mjs';
 import { SHARE_UNKNOWN, shareKey, shareUrl, shareReading, shareRead, shareUnread, sharePublishing, shareStep, shareFailed, shareStoppedEarly, shareRemoving, shareRemoved, shareKept, sharePublishingNow, shareStepText, postUrl, readShareStream } from '/share.mjs';
 import { detailsReading, detailsRead, detailsFailed, detailsVotes } from '/bench-details.mjs';
 import { paintUpload } from '/upload-image.mjs';
@@ -633,18 +634,15 @@ function Toggle({ on, onChange, label }) {
   ><span></span></button>`;
 }
 
-function CopyCommand({ command }) {
+function CopyButton({ text, label }) {
   const [copied, setCopied] = useState(false);
-  const copy = () => navigator.clipboard.writeText(command)
+  const copy = () => navigator.clipboard.writeText(text)
     .then(() => { setCopied(true); setTimeout(() => setCopied(false), 1200); })
     .catch(() => {});
   return html`
-    <span class="cmd-chip">
-      <code>${command}</code>
-      <button type="button" title=${copied ? 'Copied' : 'Copy command'} aria-label="Copy command" onClick=${copy}>
-        <${Icon} name=${copied ? 'check' : 'copy'} size="13" />
-      </button>
-    </span>
+    <button type="button" class="copy-btn" title=${copied ? 'Copied' : label} aria-label=${label} onClick=${copy}>
+      <${Icon} name=${copied ? 'check' : 'copy'} size="13" />
+    </button>
   `;
 }
 
@@ -891,8 +889,175 @@ const RUNTIME_NOTES = {
   codex: [['Requests', 'Sent with your Codex login from inside the mcbench server; nothing listens on a port.']],
 };
 
-function ProviderPane({ id, connection, favorites, onToggleFavorite, onChange, checkedAt, onRecheck }) {
+// The sign-in methods' names on their buttons (server/provider-login.js).
+const SIGN_IN_METHODS = { claudeai: 'Claude subscription', console: 'Anthropic Console' };
+const SIGN_IN_HELP = {
+  'claude-code': 'Sign in with your Claude subscription or with an Anthropic Console account. The sign-in page opens in a new tab.',
+  codex: 'Sign in with your ChatGPT account. The sign-in page opens in a new tab and asks for a one-time code shown here.',
+  'codex-cli': 'Sign in with your ChatGPT account. The sign-in page opens in a new tab and asks for a one-time code shown here.',
+  cursor: 'Sign in with your Cursor account instead of a key. The sign-in page opens in a new tab.',
+};
+const SIGN_IN_NEXT = {
+  'claude-code': 'Sign in there. The page then shows a code: paste it below.',
+  codex: 'Sign in there and enter the one-time code below. This pane updates when you are done.',
+  'codex-cli': 'Sign in there and enter the one-time code below. This pane updates when you are done.',
+  cursor: 'Sign in there. This pane updates when you are done.',
+};
+
+// Signing in from Settings: the server runs the provider's own login
+// (server/provider-login.js), and this shows what the login printed, the
+// address to open and the one-time code, and passes on the code the person
+// pastes when the CLI asks for one. `signIn` is the latest sign-in as the
+// server reports it, or null; it is read when the pane opens (ChatGPT and
+// Codex CLI share one), again each second while it runs, and one that is
+// done reads Settings again, which then show the account.
+//
+// A login whose CLI is not on this machine installs it first, from the same
+// button (server/cli-install.js): `install` is the latest install as the
+// server reports it, read each second while it runs, and `after` the
+// sign-in that starts once Settings, read again, find the CLI installed
+// (`{ method }`), or null. `startWith`, when set, is a button pressed from
+// Connect an AI: `{ method }`, started once when the pane opens.
+function SignInRows({ id, connection, startWith, onStarted, onInstalled, onSignedIn, onError }) {
+  const { methods, program, installed } = connection.signIn;
+  const [signIn, setSignIn] = useState(connection.signIn.current);
+  const [code, setCode] = useState('');
+  const [install, setInstall] = useState(null);
+  const [after, setAfter] = useState(null);
+  useEffect(() => {
+    setSignIn(connection.signIn.current);
+    setCode('');
+    api(`/api/provider-logins/${id}`).then(setSignIn).catch(onError);
+    if (program) api(`/api/cli-installs/${program.name}`).then(setInstall).catch(onError);
+  }, [id]);
+  const running = signIn?.state === 'starting' || signIn?.state === 'waiting';
+  useEffect(() => {
+    if (!running) return undefined;
+    let live = true;
+    const timer = setInterval(() => {
+      api(`/api/provider-logins/${id}`).then((next) => {
+        if (!live) return;
+        setSignIn(next);
+        if (next?.state === 'done') onSignedIn();
+      }).catch(onError);
+    }, 1000);
+    return () => { live = false; clearInterval(timer); };
+  }, [id, running]);
+  const installing = install?.state === 'running';
+  useEffect(() => {
+    if (!installing) return undefined;
+    let live = true;
+    const timer = setInterval(() => {
+      api(`/api/cli-installs/${program.name}`).then((next) => {
+        if (!live) return;
+        setInstall(next);
+        if (next.state === 'done') onInstalled();
+        if (next.state === 'failed') setAfter(null);
+      }).catch(onError);
+    }, 1000);
+    return () => { live = false; clearInterval(timer); };
+  }, [id, installing]);
+  const post = (path, body) => api(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  const start = (method) => post('/api/provider-logins', { provider: id, method }).then(setSignIn).catch(onError);
+  useEffect(() => {
+    if (!installed || !after) return;
+    setAfter(null);
+    start(after.method);
+  }, [installed, after]);
+  // The one button: the sign-in, after installing the CLI when it is missing.
+  const begin = (method) => {
+    if (installed) return start(method);
+    setAfter({ method });
+    return post('/api/cli-installs', { program: program.name }).then(setInstall).catch((error) => { setAfter(null); onError(error); });
+  };
+  useEffect(() => {
+    if (!startWith) return;
+    onStarted();
+    begin(startWith.method);
+  }, [startWith]);
+  const cancel = () => api(`/api/provider-logins/${id}`, { method: 'DELETE' }).then(setSignIn).catch(onError);
+  const send = (evt) => {
+    evt.preventDefault();
+    post(`/api/provider-logins/${id}/input`, { text: code }).then((next) => { setCode(''); setSignIn(next); }).catch(onError);
+  };
+
+  if (installing || (after && install?.state === 'done')) {
+    return html`
+      <${SettingsRow}
+        title=${`Installing ${program.title}`}
+        help=${`${install.state === 'done' ? 'Installed.' : install.progress ? `Downloading, ${megabytes(install.progress)}.` : 'Starting the download.'}${after ? ' The sign-in starts when it is done.' : ''}`}
+      >
+        <span class="working-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+      <//>
+    `;
+  }
+  if (signIn?.state === 'starting') {
+    return html`
+      <${SettingsRow} title="Starting the sign-in" help="Waiting for the sign-in address.">
+        <button type="button" class="btn" onClick=${cancel}>Cancel</button>
+      <//>
+    `;
+  }
+  if (signIn?.state === 'waiting') {
+    return html`
+      <div class="s-row s-signin">
+        <div class="s-row-text">
+          <div class="s-row-title">Open the sign-in page</div>
+          <div class="s-row-help">${SIGN_IN_NEXT[id]}</div>
+          <div class="s-signin-link">
+            <a href=${signIn.url} target="_blank" rel="noreferrer">${signIn.url}</a>
+            <${CopyButton} text=${signIn.url} label="Copy address" />
+          </div>
+        </div>
+        <div class="s-row-control">
+          <button type="button" class="btn" onClick=${cancel}>Cancel</button>
+        </div>
+      </div>
+      ${signIn.userCode && html`
+        <${SettingsRow} title="One-time code" help="Enter this code on the sign-in page.">
+          <span class="cmd-chip s-signin-code"><code>${signIn.userCode}</code><${CopyButton} text=${signIn.userCode} label="Copy code" /></span>
+        <//>
+      `}
+      ${signIn.wantsInput && html`
+        <${SettingsRow} title="Code from the sign-in page" help=${signIn.message || 'Paste the code the page shows after you sign in.'}>
+          <form class="s-signin-form" onSubmit=${send}>
+            <input
+              id=${`sign-in-code-${id}`}
+              class="s-input mono"
+              autocomplete="off"
+              spellcheck="false"
+              placeholder="Paste the code"
+              value=${code}
+              onInput=${(evt) => setCode(evt.target.value)}
+            />
+            <button type="submit" class="btn gold" disabled=${!code.trim()}>Submit</button>
+          </form>
+        <//>
+      `}
+    `;
+  }
+  const failure = install?.state === 'failed' ? `${program.title} was not installed: ${install.error}`
+    : signIn?.state === 'failed' ? signIn.error : null;
+  return html`
+    <${SettingsRow}
+      title=${connection.envKey ? 'Cursor login' : 'Not signed in'}
+      help=${html`${SIGN_IN_HELP[id]}${!installed && ` The app installs ${program.title} first, about ${program.mb} MB.`}${failure && html`<span class="s-signin-error">${failure}</span>`}`}
+    >
+      <div class="s-signin-start">
+        ${methods
+          ? methods.map((method, i) => html`<button type="button" class="btn ${i === 0 ? 'gold' : ''}" onClick=${() => begin(method)}>${SIGN_IN_METHODS[method]}</button>`)
+          : html`<button type="button" class="btn gold" onClick=${() => begin()}>Sign in</button>`}
+      </div>
+    <//>
+  `;
+}
+
+function ProviderPane({ id, connection, favorites, onToggleFavorite, onChange, checkedAt, onRecheck, startWith, onStarted, onError }) {
   const runtime = connection.runtime;
+  // Cursor's sign-in is beside its key; the others are their only connection.
+  const signedIn = connection.envKey ? connection.signedIn : connection.connected;
+  const signOut = () => api('/api/provider-logouts', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ provider: id }) })
+    .then(onRecheck).catch(onError);
   return html`
     <div class="pane-head">
       <${Logo} name=${id} size="22" />
@@ -904,16 +1069,12 @@ function ProviderPane({ id, connection, favorites, onToggleFavorite, onChange, c
     </div>
 
     <${SettingsSection} title="Account">
-      ${connection.account && html`
-        <${SettingsRow} title=${connection.account} help=${[connection.plan, id === 'codex' || id === 'codex-cli' ? 'ChatGPT login through the Codex CLI' : 'Claude login through Claude Code'].filter(Boolean).join(' · ')}>
-          <${CopyCommand} command=${connection.login} />
+      ${signedIn && !connection.envKey && html`
+        <${SettingsRow} title=${connection.account || 'Signed in'} help=${[connection.plan, id === 'codex' || id === 'codex-cli' ? 'ChatGPT login through the Codex CLI' : 'Claude login through Claude Code'].filter(Boolean).join(' · ')}>
+          <button type="button" class="btn" onClick=${signOut}>Sign out</button>
         <//>
       `}
-      ${!connection.account && connection.login && !connection.envKey && html`
-        <${SettingsRow} title="Not signed in" help="Run this once in a terminal, then check again.">
-          <${CopyCommand} command=${connection.login} />
-        <//>
-      `}
+      ${!signedIn && !connection.envKey && html`<${SignInRows} id=${id} connection=${connection} startWith=${startWith} onStarted=${onStarted} onInstalled=${onRecheck} onSignedIn=${onRecheck} onError=${onError} />`}
       ${connection.envKey && html`
         <${SettingsRow}
           title="API key"
@@ -932,18 +1093,18 @@ function ProviderPane({ id, connection, favorites, onToggleFavorite, onChange, c
           />
         <//>
       `}
-      ${connection.envKey && connection.login && html`
-        <${SettingsRow} title=${connection.signedIn ? 'Signed in with Cursor' : 'Cursor login'} help=${connection.signedIn ? 'Used when no key is set.' : 'An alternative to a key.'}>
-          <${CopyCommand} command=${connection.login} />
+      ${connection.envKey && connection.signIn && (signedIn ? html`
+        <${SettingsRow} title="Signed in with Cursor" help="Used when no key is set.">
+          <button type="button" class="btn" onClick=${signOut}>Sign out</button>
         <//>
-      `}
+      ` : html`<${SignInRows} id=${id} connection=${connection} startWith=${startWith} onStarted=${onStarted} onInstalled=${onRecheck} onSignedIn=${onRecheck} onError=${onError} />`)}
     <//>
 
     <${ModelsSection} id=${id} connection=${connection} favorites=${favorites} onToggleFavorite=${onToggleFavorite} onChange=${onChange} checkedAt=${checkedAt} />
 
     <${SettingsSection} title="Runtime">
       ${runtime && html`
-        <${SettingsRow} title="Binary" help=${`Set by ${runtime.binaryEnv} in the server's environment; unset, ${runtime.binary} on PATH.`}>
+        <${SettingsRow} title="Binary" help=${`Set by ${runtime.binaryEnv} in the server's environment; unset, ${runtime.binary} on PATH, else the one the app installed.`}>
           <span class="s-value mono">${runtime.binaryValue || runtime.binary}</span>
         <//>
         <${SettingsRow} title="Config directory" help=${`Set by ${runtime.homeEnv} in the server's environment. Login and sessions live here.`}>
@@ -959,8 +1120,10 @@ function ProviderPane({ id, connection, favorites, onToggleFavorite, onChange, c
 }
 
 // Settings' Connect an AI pane: each way to give mcbench a model, what it
-// needs and who bills it, with a button to each provider pane that sets it up.
-function ConnectPane({ providers, onSelect }) {
+// needs and who bills it, with a button to each provider pane that sets it
+// up. A subscription not signed in (a CLI's login) is one button: it opens
+// its pane on its sign-in, installing the CLI first when it is missing.
+function ConnectPane({ providers, onSelect, onConnect }) {
   return html`
     <div class="pane-head"><${Icon} name="plug" size="20" /><h3>Connect an AI</h3></div>
     <p class="connect-intro">mcbench builds with a model you connect. Choose one way in; you can add others later.</p>
@@ -971,16 +1134,68 @@ function ConnectPane({ providers, onSelect }) {
           <p class="connect-way-need">${way.need.split('`').map((part, i) => (i % 2 ? html`<code>${part}</code>` : part))}</p>
           <div class="connect-way-panes">
             ${way.panes.map(({ id, connection }) => html`
-              <button type="button" class="connect-pane ${usable(connection) ? 'connected' : ''}" data-pane=${id} onClick=${() => onSelect(id)}>
+              <button type="button" class="connect-pane ${usable(connection) ? 'connected' : ''}" data-pane=${id}
+                onClick=${() => (connection.auth === 'cli-login' && !connection.connected ? onConnect(id) : onSelect(id))}>
                 <${Logo} name=${id} size="16" />
                 <span class="connect-pane-name">${connection.label}</span>
-                <span class="connect-pane-state">${connection.summary}</span>
+                <span class="connect-pane-state">${connection.auth === 'cli-login' && !connection.connected ? 'Sign in' : connection.summary}</span>
                 <${Icon} name="forward" size="13" />
               </button>
             `)}
           </div>
         </section>
       `)}
+    </div>
+  `;
+}
+
+// The first start on the new build's screen (setup-status.mjs): each step
+// and the one under way, how many of the steps the app needs are done, and
+// what to do meanwhile: connect an AI, or write the first build, which is
+// sent once the app is ready. A failed step is tried again from here
+// (POST /api/setup/retry).
+function SetupStatus({ status, noAI, onConnect, onRetry }) {
+  const mark = {
+    waiting: html`<span class="setup-dot"></span>`,
+    running: html`<span class="working-dots"><i></i><i></i><i></i></span>`,
+    done: html`<${Icon} name="check" size="13" />`,
+    failed: html`<${Icon} name="x" size="13" />`,
+    unavailable: html`<span class="setup-dash"></span>`,
+  };
+  return html`
+    <div class="setup">
+      <div class="setup-head">
+        <div class="big">Getting ready</div>
+        <div class="setup-sub">The first start downloads and builds what the app needs. This happens once.</div>
+      </div>
+      <div class="setup-overall">
+        <div class="setup-bar"><span style=${`width: ${(100 * status.done) / status.total}%`}></span></div>
+        <span class="setup-count" role="status">${status.done} of ${status.total} done</span>
+      </div>
+      ${status.failed && html`
+        <div class="setup-failed">
+          <span>A step failed.</span>
+          <button type="button" class="btn" onClick=${onRetry}>Try again</button>
+        </div>
+      `}
+      <ol class="setup-steps">
+        ${status.rows.map((row) => html`
+          <li class="setup-step ${row.state}" key=${row.id}>
+            <span class="setup-mark" aria-hidden="true">${mark[row.state]}</span>
+            <span class="setup-label">${row.label}${row.optional && html`<span class="setup-optional">Optional</span>`}</span>
+            <span class="setup-value">${row.value}</span>
+            ${row.note && html`<span class="setup-note">${linkParts(row.note).map((part) => (part.url
+              ? html`<a href=${part.url} target="_blank" rel="noreferrer">${part.url}</a>`
+              : part.text))}</span>`}
+          </li>
+        `)}
+      </ol>
+      ${noAI ? html`
+        <div class="connect-hint">
+          <div class="connect-hint-text">Connect an AI while this runs</div>
+          <button type="button" class="btn gold connect-hint-button" onClick=${onConnect}>Connect an AI</button>
+        </div>
+      ` : html`<div class="empty-sub">You can send your first build now. It starts when the app is ready.</div>`}
     </div>
   `;
 }
@@ -1060,6 +1275,10 @@ function ModelPicker({
   // Opens Settings on a pane: the rail's set-up button and, while no AI is
   // connected, the picker's Connect an AI button open Connect an AI.
   onSetup,
+  // Set, the picker opens by itself as its button would open it, then
+  // `onOpened` is called.
+  openNow = false,
+  onOpened = null,
 }) {
   const { open, setOpen, closing, closePicker, rootRef } = usePopover(120);
   const usableIds = Object.keys(providers).filter((id) => usable(providers[id]));
@@ -1082,6 +1301,12 @@ function ModelPicker({
   }, [activeProvider, providers]);
   const [query, setQuery] = useState('');
   const needle = query.trim().toLowerCase();
+  useEffect(() => {
+    if (!openNow) return;
+    onOpened();
+    setActiveProvider(openingTab());
+    setOpen(true);
+  }, [openNow]);
 
   // An open popover moves sideways, if it must, to stay 8px inside the window
   // (an anchored one would hang off a phone's edge). Measured from its centre
@@ -3002,6 +3227,9 @@ function App() {
   // The providers and favorites as the server has them, read at boot:
   // loading, loaded, or failed (`error` says why), when they can be read again.
   const [config, setConfig] = useState({ phase: 'loading', error: null });
+  // An instance behind the hosted sign-in gateway, whose /account page signs
+  // out of the website and deletes the workspace (/api/config).
+  const [hosted, setHosted] = useState(false);
   // The providers are read and none can be used: the empty screens, the
   // sidebar and the pickers point to Settings' Connect an AI.
   const noAI = config.phase === 'loaded' && !Object.values(providers).some(usable);
@@ -3066,6 +3294,9 @@ function App() {
   // The Settings panel (settings-panel.mjs): closed, opening, open or saving.
   // The ref is current between renders, for async results.
   const [panel, setPanelState] = useState(CLOSED);
+  // A sign-in asked for from Connect an AI, { id, method }, until its
+  // provider pane has started it.
+  const [signInStart, setSignInStart] = useState(null);
   const panelRef = useRef(CLOSED);
   // Every change of it goes through the phase table: an illegal one throws.
   function setPanel(next) {
@@ -3492,6 +3723,7 @@ function App() {
     setConfig({ phase: 'loading', error: null });
     api('/api/config').then((data) => {
       setProviders(data.providers);
+      setHosted(data.hosted === true);
       favoriteSyncRef.current.load(data.modelFavorites);
       setConfig({ phase: 'loaded', error: null });
       // Warm every model catalog so pickers open already filled.
@@ -3504,6 +3736,53 @@ function App() {
     }).catch(showError);
   }
   useEffect(loadConfig, []);
+
+  // The first start's steps (server/setup.js), read each second until the
+  // app is ready: a later start is ready at the first read, and the page
+  // never shows them. Null until that read.
+  const [setup, setSetup] = useState(null);
+  useEffect(() => {
+    let live = true;
+    let timer = null;
+    const read = () => api('/api/setup').then((view) => {
+      if (!live) return;
+      setSetup(view);
+      if (!view.ready) timer = setTimeout(read, 1000);
+    }, showError);
+    read();
+    return () => { live = false; clearTimeout(timer); };
+  }, []);
+  const preparing = setup && !setup.ready ? setupStatus(setup) : null;
+  // A send before the app is ready is held (submit) until it is: the draft
+  // it came from, or null. A held draft not on screen when the app is ready
+  // stays unsent.
+  const [held, setHeld] = useState(null);
+  useEffect(() => {
+    if (!held || !setup?.ready) return;
+    setHeld(null);
+    if (where().draftKey === held) submit().catch(showError);
+  }, [held, setup?.ready]);
+  // Settings closing with an AI connected and no chat model chosen for the
+  // composer (`provider` and `model`, as send() needs them) open the chat
+  // model picker by itself, so that choice is the next thing in view. A
+  // chosen model is kept (mcb-last-model), so this happens only until one is.
+  const [askModel, setAskModel] = useState(false);
+  const askedModelRef = useRef(false); // the picker open now opened by itself
+  const settingsWereOpenRef = useRef(false);
+  useEffect(() => {
+    const closed = panel.phase === 'closed';
+    if (closed && settingsWereOpenRef.current && !noAI && !(provider && model) && where().mode === 'build') setAskModel(true);
+    settingsWereOpenRef.current = !closed;
+  }, [panel.phase]);
+  // The first build: the app is ready, an AI is connected, a chat model is
+  // chosen and there is no chat yet, so the prompt box is where to start.
+  // Again each time Settings close on that screen, as after connecting, and
+  // once the model picker that opened then has a model chosen.
+  const firstBuild = setup?.ready === true && config.phase === 'loaded' && !noAI && Boolean(provider && model)
+    && conversations.length === 0 && place.kind === 'new-chat' && panel.phase === 'closed';
+  useEffect(() => {
+    if (firstBuild) composerRef.current?.focus();
+  }, [firstBuild]);
 
   // What is on screen counts as seen. A turn this page is not following
   // (started from another window) is joined as soon as the list shows it.
@@ -4788,8 +5067,15 @@ function App() {
     return drawn;
   }, [appMode, activeId, minecraftLive.yOffset, selections, hoveredSelection]);
 
+  // A send before the app is ready is held, and goes once it is: a build
+  // started earlier finds no engine to build with. A Build send with no
+  // model goes on to say so.
   function submit() {
     const at = placeRef.current;
+    if (preparing && !(where().mode === 'build' && (!provider || !model))) {
+      if (hasText || attachments.length) setHeld(where().draftKey);
+      return Promise.resolve();
+    }
     if (where().mode === 'build') return send();
     if (at.kind === 'new-bench') return runBench();
     return sendRound(at.benchId);
@@ -5814,11 +6100,16 @@ function App() {
             // The model chosen last is the one a fresh page starts with.
             localStorage.setItem('mcb-last-model', JSON.stringify({ provider: next.provider, model: next.model }));
             setModelChoice({ provider: next.provider, model: next.model, effort: '', resolution });
+            // Chosen in the picker that opened by itself: the prompt is next.
+            if (askedModelRef.current) requestAnimationFrame(() => composerRef.current?.focus());
+            askedModelRef.current = false;
           }}
           favorites=${favorites}
           onToggleFavorite=${toggleFavorite}
           requireTools=${true}
           label="Chat model"
+          openNow=${askModel}
+          onOpened=${() => { setAskModel(false); askedModelRef.current = true; }}
           footer=${{ label: 'Compare several in Bench', icon: 'bench', onSelect: benchFromBuild }}
           onSetup=${(view) => openSettings(view).catch(showError)}
         />
@@ -5841,7 +6132,7 @@ function App() {
             title="Send message"
             aria-label="Send message"
             disabled=${(!hasText && attachments.length === 0) || !provider || !model || restoring || reading.length > 0}
-            onClick=${() => send().catch(showError)}
+            onClick=${() => submit().catch(showError)}
           >
             <${Icon} name="send" size="15" />
           </button>`}
@@ -6111,13 +6402,16 @@ function App() {
           />
         `}
         ${transcriptShown && html`<div class="messages" ref=${messagesRef}>
-          ${!benchMode && transcriptState.phase === 'shown' && items.length === 0 && !busy && html`
+          ${!benchMode && transcriptState.phase === 'shown' && items.length === 0 && !busy && (preparing ? html`
+            <${SetupStatus} status=${preparing} noAI=${noAI} onConnect=${connectAI}
+              onRetry=${() => api('/api/setup/retry', { method: 'POST' }).then(setSetup).catch(showError)} />
+          ` : html`
             <div class="empty-hint">
               ${grassBlock(56)}
               <div class="big">What should we build?</div>
               ${noAI ? connectHint : html`<div class="empty-sub">Or have several models build it in <button type="button" class="text-link" onClick=${benchFromBuild}>Bench</button></div>`}
             </div>
-          `}
+          `)}
           ${transcript}
           ${transcriptState.phase === 'failed' && html`
             <div class="msg error" role="alert">
@@ -6196,6 +6490,13 @@ function App() {
           </div>
         `}
         ${composerShown && html`<div class="composer">
+          ${held === draftKey && preparing && html`
+            <div class="composer-held" role="status">
+              ${!preparing.failed && html`<span class="working-dots" aria-hidden="true"><i></i><i></i><i></i></span>`}
+              <span>${heldLine(preparing)}</span>
+              <button type="button" class="text-link" onClick=${() => setHeld(null)}>Don't send</button>
+            </div>
+          `}
           <div class="composer-box ${busy ? 'busy' : ''}" ref=${composerBoxRef}>
             ${palette && html`
               <${PromptPalette}
@@ -6309,7 +6610,7 @@ function App() {
           activeId=${viewKey}
           labels=${viewerLabels}
           focus=${viewerFocus}
-          emptyText=${benchMode ? null : 'Open a chat to view its world.'}
+          emptyText=${benchMode ? null : preparing ? 'The world shows here once the app is ready.' : 'Open a chat to view its world.'}
           selections=${viewerSelections}
           onSelect=${benchMode ? null : (box) => addSelection(box).catch(showError)}
           onDeselect=${(key) => removeSelection(key.slice('draft-'.length))}
@@ -6367,6 +6668,13 @@ function App() {
               <div class="settings-pane">
                 ${panel.view === 'general' ? html`
                   <div class="pane-head"><h3>General</h3></div>
+                  ${hosted && html`
+                    <${SettingsSection} title="Account">
+                      <${SettingsRow} title="Your account" help="Sign out of the website, or delete this workspace and everything in it.">
+                        <a class="btn" href="/account">Manage account</a>
+                      <//>
+                    <//>
+                  `}
                   <${SettingsSection} title="Conversations">
                     <${SettingsRow} title="Title model" tip="Names each new chat from its first message">
                       <div class="title-model-controls">
@@ -6461,7 +6769,8 @@ function App() {
                     onError=${showError}
                   />
                 ` : panel.view === CONNECT ? html`
-                  <${ConnectPane} providers=${settings.providers} onSelect=${showSettingsPane} />
+                  <${ConnectPane} providers=${settings.providers} onSelect=${showSettingsPane}
+                    onConnect=${(id) => { setSignInStart({ id, method: settings.providers[id].signIn.methods?.[0] }); showSettingsPane(id); }} />
                 ` : html`
                   <${ProviderPane}
                     id=${panel.view}
@@ -6471,6 +6780,9 @@ function App() {
                     onChange=${(field, value) => updateConnection(panel.view, field, value)}
                     checkedAt=${settings.checkedAt}
                     onRecheck=${() => recheckSettings().catch(showError)}
+                    startWith=${signInStart?.id === panel.view ? signInStart : null}
+                    onStarted=${() => setSignInStart(null)}
+                    onError=${showError}
                   />
                 `}
               </div>

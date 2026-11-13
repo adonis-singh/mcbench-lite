@@ -61,7 +61,7 @@ export const CONNECT = 'connect';
 export const firstPane = (providers) => (Object.values(providers).some(usable) ? 'general' : CONNECT);
 
 // Each way in: what it is, what the person needs and who bills it (commands
-// to run between backticks), and the provider panes (server/settings.js ids)
+// between backticks), and the provider panes (server/settings.js ids)
 // that set it up, first the one most people want.
 export const CONNECT_WAYS = Object.freeze([
   {
@@ -73,19 +73,19 @@ export const CONNECT_WAYS = Object.freeze([
   {
     key: 'claude',
     title: 'Your Claude subscription, through Claude Code',
-    need: 'Needs the claude program installed and signed in once with `claude auth login`. Usage counts against your Claude plan.',
+    need: 'Sign in with your Claude subscription, or an Anthropic Console account from the Claude Code pane. The app installs Claude Code first if this machine does not have it. Usage counts against that plan or account.',
     panes: ['claude-code'],
   },
   {
     key: 'chatgpt',
     title: 'Your ChatGPT subscription, through Codex CLI or ChatGPT sign-in',
-    need: 'Codex CLI needs the codex program installed and signed in with `codex login`; ChatGPT sign-in needs `npm run codex:login` once. Usage counts against your ChatGPT plan.',
+    need: 'Sign in with your ChatGPT account from either; one sign-in serves both. The app installs Codex CLI first if this machine does not have it. Usage counts against your ChatGPT plan.',
     panes: ['codex-cli', 'codex'],
   },
   {
     key: 'cursor',
     title: 'Cursor',
-    need: 'Needs a Cursor API key, or a sign-in once with `npm run cursor:login`. Usage counts against your Cursor account.',
+    need: 'Needs a Cursor API key, or a sign-in from the Cursor pane. Usage counts against your Cursor account.',
     panes: ['cursor'],
   },
 ]);

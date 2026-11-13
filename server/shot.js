@@ -2,6 +2,7 @@
 
 const { World } = require('./world');
 const { token } = require('./auth');
+const tools = require('./tools');
 
 // see_build screenshots: a headless Chromium runs web/shot.html, a deepslate
 // pipeline with custom shaders, ambient occlusion and voxel lighting. A shot
@@ -60,7 +61,7 @@ const GPU_ARGS = process.platform === 'linux' ? ['--use-angle=vulkan', '--enable
 async function openPage(run) {
   const { chromium } = require('playwright-core');
   run.browser = await chromium.launch({
-    executablePath: process.env.SHOT_CHROMIUM,
+    executablePath: await tools.headlessShell(),
     args: [...GPU_ARGS, '--enable-unsafe-swiftshader'],
   });
   // A run left while Chromium launched has no use for it.

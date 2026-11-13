@@ -34,6 +34,13 @@ function configure({ binary, home }) {
   runtime.home = home ? harness.expandHome(home) : null;
 }
 const configDir = () => runtime.home || process.env.CLAUDE_CONFIG_DIR || os.homedir();
+// The config directory the CLI is given: the one configDir() reads the
+// account from. Unset, the CLI keeps its own default, whose Keychain entry
+// differs from the one an explicit CLAUDE_CONFIG_DIR=~ would name.
+function configEnv() {
+  const dir = runtime.home || process.env.CLAUDE_CONFIG_DIR;
+  return dir ? { CLAUDE_CONFIG_DIR: dir } : {};
+}
 
 const version = () => execFileSync(runtime.binary, ['--version'], { encoding: 'utf8', timeout: 5000 }).trim();
 
@@ -91,9 +98,17 @@ function claudeArgs({ model, effort, systemPrompt, allowedTools, socket, session
 // Claude Code records how it was started (CLAUDE_CODE_ENTRYPOINT); the app
 // names itself there instead of the SDK label Claude Code gives a -p run.
 function claudeEnv() {
-  return harness.cliEnv({ ...(runtime.home ? { CLAUDE_CONFIG_DIR: runtime.home } : {}), MCP_TOOL_TIMEOUT: '2147483647', MCP_TIMEOUT: '120000',
+  return harness.cliEnv({ ...configEnv(), MCP_TOOL_TIMEOUT: '2147483647', MCP_TIMEOUT: '120000',
     MAX_MCP_OUTPUT_TOKENS: '200000', CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1', DISABLE_AUTOUPDATER: '1',
     CLAUDE_CODE_ENABLE_FINE_GRAINED_TOOL_STREAMING: '1', CLAUDE_CODE_ENTRYPOINT: 'mcbench-lite', CLAUDE_CODE_DISABLE_AUTO_MEMORY: '1' });
+}
+
+// `claude auth login` and `claude auth logout`, run for Settings
+// (provider-login.js). The CLI opens its sign-in address with the program
+// BROWSER names; `true` opens nothing, so the page opens the address, on this
+// machine and on a hosted one alike.
+function authCommand(args) {
+  return { file: runtime.binary, args: ['auth', ...args], env: harness.cliEnv({ ...configEnv(), BROWSER: 'true' }) };
 }
 
 // Claude Code files a session's transcript in its config folder (the one the
@@ -412,5 +427,5 @@ class ClaudeCodeSession extends harness.RelaySession {
 
 const { completion, closeSession } = harness.sessionRelay(ClaudeCodeSession);
 
-module.exports = { completion, closeSession, storedLogin, account, version, configure, configDir, runtime, relayEvent, contextTokensOf, claudeArgs, claudeEnv, checkInit, usageOf, PREFIX };
+module.exports = { completion, closeSession, storedLogin, account, version, configure, configDir, authCommand, runtime, relayEvent, contextTokensOf, claudeArgs, claudeEnv, checkInit, usageOf, PREFIX };
 module.exports._internal = { ClaudeCodeSession, streamInput, processes, CWD, transcriptFile };

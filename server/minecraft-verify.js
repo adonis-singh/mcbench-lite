@@ -11,6 +11,7 @@ const { coreEngine } = require('./engine');
 const { importCommands } = require('./live-placement');
 const { World } = require('./world');
 const { MC_VERSION } = require('./assets');
+const { JAVAC } = require('./tools');
 const { MIN_MC_Y, MAX_MC_Y, Y_OFFSET, validateWorldHeight } = require('./minecraft-dimension');
 
 const execFileAsync = promisify(execFile);
@@ -202,7 +203,7 @@ async function compilePlugin(paperDir, { signal, sources = pluginSources(), mine
   });
   const serverJar = path.join(paperDir, 'versions', minecraftVersion, `paper-${minecraftVersion}.jar`);
   const dependencies = [serverJar, ...jars(path.join(paperDir, 'libraries'))];
-  const compiler = process.env.MCBENCH_JAVAC || 'javac';
+  const compiler = process.env.MCBENCH_JAVAC || JAVAC;
   compilerVersions[compiler] ||= execFileAsync(compiler, ['-version'], { timeout: 30_000 }).catch((error) => {
     delete compilerVersions[compiler];
     throw error;

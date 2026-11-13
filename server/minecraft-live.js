@@ -6,7 +6,9 @@ const path = require('path');
 const { execFile } = require('child_process');
 const { promisify } = require('util');
 
-const { blueMap: viewerAssets, checkJdk, JAVA, JAVAC } = require('./bluemap');
+const { blueMap: viewerAssets } = require('./bluemap');
+const { installJdk, JAVA, JAVAC } = require('./tools');
+const setup = require('./setup');
 const { Y_OFFSET } = require('./minecraft-dimension');
 const { importCommands } = require('./live-placement');
 const { coreEngine } = require('./engine');
@@ -33,8 +35,9 @@ const execFileAsync = promisify(execFile);
 const RETRY_MS = 30_000;
 
 // Java programs over Paper's files (its launcher, the block table) run on
-// the JDK the viewer's bake runs on (bluemap.js), in Paper's folder.
+// the app's JDK (tools.js), in Paper's folder.
 async function runJdk(args, { cwd, timeout }) {
+  await installJdk();
   await execFileAsync(JAVA, args, { cwd, timeout, maxBuffer: 16 * 1024 * 1024 });
 }
 
@@ -111,7 +114,7 @@ class MinecraftLive extends PaperFiles {
   // failure is shown in the viewer's place.
   prepareViewer() {
     if (['preparing', 'ready'].includes(this.viewer.name)) return this.viewer.done;
-    const done = this.blockTable().then((table) => this.blueMap.prepare(table));
+    const done = this.blockTable().then((table) => setup.track('viewer', () => this.blueMap.prepare(table)));
     this.moveViewer(['idle', 'failed'], { name: 'preparing', done });
     done.then(
       () => this.moveViewer(['preparing'], { name: 'ready', done }),
@@ -125,7 +128,7 @@ class MinecraftLive extends PaperFiles {
   // own classes.
   async blockTable() {
     this.table ||= (async () => {
-      await checkJdk();
+      await installJdk();
       const classpath = await this.ensurePaper();
       const source = path.join(__dirname, 'McbenchBlockTable.java');
       const format = crypto.createHash('sha256').update(fs.readFileSync(source)).digest('hex').slice(0, 8);
@@ -151,25 +154,26 @@ class MinecraftLive extends PaperFiles {
   }
 
   // Paper's files, saying so in the terminal while they are downloaded.
+  // Paper's launcher runs on the app's JDK (runJdk), installed first.
   ensurePaper() {
     if (this.paper) return this.paper;
-    return step(`[minecraft] downloading Paper ${this.minecraftVersion} (about 55 MB), which downloads the Minecraft server from Mojang (about 60 MB) and its libraries (about 75 MB)`,
-      '[minecraft] Paper downloaded', () => super.ensurePaper());
+    return setup.track('minecraft', () => step(`[minecraft] downloading Paper ${this.minecraftVersion} (about 55 MB), which downloads the Minecraft server from Mojang (about 60 MB) and its libraries (about 75 MB)`,
+      '[minecraft] Paper downloaded', () => super.ensurePaper()));
   }
 
   // Makes the tables of Minecraft the engine is built with
   // (core/minecraft/<version>/) from the server jar, once, unless they are
   // there: the engine is built after this.
   minecraftTables() {
-    if (!missingTables(this.minecraftVersion).length) return Promise.resolve();
+    if (!missingTables(this.minecraftVersion).length) return setup.track('tables', () => {});
     this.tables ||= (async () => {
-      await checkJdk();
+      await installJdk();
       const classpath = (await this.ensurePaper()).map((file) => path.join(this.paperDir, file));
       const target = tablesFolder(this.minecraftVersion);
-      await step("[minecraft] reading Minecraft's block, loot and data fixer tables from the server jar", "[minecraft] Minecraft's tables written", async () => {
+      await setup.track('tables', () => step("[minecraft] reading Minecraft's block, loot and data fixer tables from the server jar", "[minecraft] Minecraft's tables written", async () => {
         await writeRegistry({ classpath, minecraftVersion: this.minecraftVersion, target, java: JAVA, javac: JAVAC });
         await writeDataFix({ classpath, target, java: JAVA, javac: JAVAC });
-      });
+      }));
     })().finally(() => {
       this.tables = null;
     });
