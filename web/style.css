@@ -3484,7 +3484,10 @@ button.bench-status:hover { background: var(--well); color: var(--bone); }
 .setup-dash { width: 8px; height: 1.5px; background: var(--dim-text); }
 .setup-failed { display: flex; align-items: center; justify-content: center; gap: 10px; color: var(--err-text); font-size: 12.5px; }
 .setup-failed .btn { min-height: 30px; padding: 0 12px; font: 500 12.5px var(--font-ui); }
-.setup .connect-hint { margin-top: 2px; }
+/* No AI connected while the app prepares: one line that opens Settings'
+   Connect an AI. */
+.setup-connect { margin-top: 2px; padding: 2px 4px; border: 0; background: transparent; color: var(--ash); font: 13px var(--font-ui); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.setup-connect:hover { color: var(--bone); }
 .setup .empty-sub { text-align: center; }
 /* Narrow windows: the world pane sits above the chat, so the steps take
    less height to keep the one under way in view. */

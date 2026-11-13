@@ -1191,10 +1191,7 @@ function SetupStatus({ status, noAI, onConnect, onRetry }) {
         `)}
       </ol>
       ${noAI ? html`
-        <div class="connect-hint">
-          <div class="connect-hint-text">Connect an AI while this runs</div>
-          <button type="button" class="btn gold connect-hint-button" onClick=${onConnect}>Connect an AI</button>
-        </div>
+        <button type="button" class="setup-connect" onClick=${onConnect}>Connect an AI while this runs</button>
       ` : html`<div class="empty-sub">You can send your first build now. It starts when the app is ready.</div>`}
     </div>
   `;
