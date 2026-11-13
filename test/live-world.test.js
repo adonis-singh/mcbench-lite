@@ -154,6 +154,37 @@ test('another build is placed afresh and its ticks counted again', async (t) => 
   assert.strictEqual(live.state.blockCount, 1);
 });
 
+test('a restart keeps the player standing where it was, its look, flight and keys, and the count starts again', async (t) => {
+  const world = build3(...Array.from({ length: 25 }, (_, i) => [i % 5, 0, Math.floor(i / 5), 'minecraft:stone']));
+  const { live } = open(t, () => ({ world, layout: null }));
+  const views = [];
+  live.onFrame(({ view, ticks }) => { if (view) views.push({ view: Array.from(view), ticks }); });
+  let gone = 0;
+  live.onPlayerGone(() => { gone += 1; });
+  await live.show('chat');
+  await until(() => live.ticks >= 2, 'ticks');
+  await live.spawnPlayer({ x: 2.5, y: 70, z: 2.5, yaw: 90, pitch: 20, flying: true });
+  // Forward, flying: it moves along -x at yaw 90.
+  await live.setPlayerInput({ keys: 1, taps: 0, yaw: 90, pitch: 20 });
+  await until(() => views.length >= 10, 'the player moving');
+  await live.control('pause');
+  const before = Array.from(live.playerView);
+  assert.ok(before[0] < 2.5, `it moved (${before[0]})`);
+  await live.control('restart');
+  await until(() => live.ticks === 0 && live.phase === 'waiting' && !live.restarting, 'placed afresh');
+  assert.strictEqual(gone, 0, 'the viewer is not told the player is gone');
+  assert.strictEqual(live.player, 'standing');
+  const after = Array.from(live.playerView);
+  assert.deepStrictEqual(after.slice(0, 3), before.slice(0, 3), 'the same position');
+  assert.deepStrictEqual([after[9], after[10], after[17]], [before[9], before[10], 1], 'the same look, flying');
+  // The keys it held still move it: the engine holds them after the placement.
+  views.length = 0;
+  await live.control('play');
+  await until(() => views.length >= 5, 'ticks after the restart');
+  assert.ok(views[0].ticks <= 2, 'the count started again');
+  assert.ok(views.at(-1).view[0] < before[0], `still moving forward (${views.at(-1).view[0]} from ${before[0]})`);
+});
+
 test('an edit that reaches what the engine does not model stops the world with the reason; a restart places it afresh', async (t) => {
   let world = build3([0, 0, 0, 'minecraft:stone']);
   const { live } = open(t, () => ({ world, layout: null }));

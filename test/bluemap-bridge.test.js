@@ -373,6 +373,27 @@ test('the answer to a spawn superseded by a later one, and the ticks before it, 
   assert.equal(manager.position.placed[0], 21);
 });
 
+test('a restart of the same build keeps player mode: a new base, and ticks counting again from 1, move the player on', async (t) => {
+  const b = bridge(t);
+  const app = b.ready();
+  await b.until(() => b.of('mcbench-lite:bluemap-ready').length === 1, 'ready');
+  b.send({ type: 'mcbench-lite:refresh', key: 'a:1', blueprint: 'blob:1', fresh: true });
+  await b.until(() => b.of('mcbench-lite:refreshed').length === 1, 'a shown');
+  const manager = b.enterPlayer(app);
+  b.send({ type: 'mcbench-lite:player', view: view(10) });
+  b.send({ type: 'mcbench-lite:player', view: view(11), tick: 400 });
+  // The world placed afresh: a new base of the same build, and the player's ticks from 1.
+  b.send({ type: 'mcbench-lite:refresh', key: 'a:2', blueprint: 'blob:2', fresh: false });
+  await b.until(() => b.of('mcbench-lite:refreshed').length === 2, 'the new base shown');
+  b.send({ type: 'mcbench-lite:player', view: view(12), tick: 1 });
+  manager.controls.update();
+  assert.equal(manager.controls, app.freeFlightControls, 'still in player mode');
+  assert.equal(manager.position.placed[0], 12);
+  assert.equal(app.perspectiveViews, 0, 'the camera stays with the player');
+  assert.equal(b.hud().querySelector('.mcbench-player-note').hidden, true, 'no note');
+  assert.equal(b.of('mcbench-lite:player-leave').length, 0);
+});
+
 test('a player note replaces the one before, and the earlier one\'s timer with it', async (t) => {
   const b = bridge(t);
   const app = b.ready();

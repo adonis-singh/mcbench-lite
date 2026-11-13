@@ -76,11 +76,11 @@ class FakeEngine extends Gates {
   input() { return this.request('input', [], () => undefined); }
   spawnPlayer(spawn) {
     this.player = true;
-    return this.request('spawn', [spawn.x], () => new Float64Array(28).fill(spawn.x));
+    return this.request('spawn', [spawn.x, spawn], () => new Float64Array(28).fill(spawn.x));
   }
-  setPlayerInput() {
+  setPlayerInput(input) {
     const { player } = this;
-    return this.request('playerInput', [], () => { if (!player) throw new Error('The engine failed: There is no player in the world'); });
+    return this.request('playerInput', [input], () => { if (!player) throw new Error('The engine failed: There is no player in the world'); });
   }
   removePlayer() {
     this.player = false;
@@ -457,7 +457,25 @@ test('a spawn answered after a switch of view leaves no player in the new view, 
   assert.ok(!engine.calls.some(([type]) => type === 'removePlayer'));
 });
 
-test('the world letting its player go on its own is told, a removal is not', async (t) => {
+// The engine's requests after the world first ran, by type, with what a
+// spawn or input was asked with.
+const playerCalls = (engine) => engine.calls
+  .filter(([type]) => ['place', 'spawn', 'playerInput', 'removePlayer', 'run'].includes(type))
+  .slice(2)
+  .map(([type, ...args]) => (type === 'spawn' ? ['spawn', args[1]] : type === 'playerInput' ? ['playerInput', args[0]] : [type, ...args]));
+
+// A view of the player, 28 numbers (CoreWorld.spawnPlayer): at x, y, z,
+// looking as yaw and pitch say, flying or not.
+function playerView(x, y, z, yaw, pitch, flying) {
+  const view = new Float64Array(28);
+  view.set([x, y, z, x, y, z], 0);
+  view[9] = yaw;
+  view[10] = pitch;
+  view[17] = flying ? 1 : 0;
+  return view;
+}
+
+test('the world letting its player go on its own is told; a removal is not, nor a restart, which keeps it standing', async (t) => {
   const { live, h } = open(t);
   const engine = await running(live, h);
   let gone = 0;
@@ -469,85 +487,145 @@ test('the world letting its player go on its own is told, a removal is not', asy
   assert.ok(live.playerView);
   await live.control('restart');
   await until(() => engine.calls.filter(([type, fresh]) => type === 'place' && fresh).length === 2 && live.state.status === 'running', 'placed afresh');
-  assert.equal(live.playerView, null);
-  assert.equal(gone, 1, 'a fresh placement took it');
-  await live.spawnPlayer({ x: 4 });
+  assert.equal(live.player, 'standing');
+  assert.equal(engine.player, true, 'spawned again in the placed world');
+  assert.equal(gone, 0, 'a fresh placement keeps the player');
   engine.dead = new Error('The engine worker failed: out of memory');
   engine.onfailed(engine.dead.message);
-  assert.equal(gone, 2, 'so did the engine\'s end');
+  assert.equal(gone, 1, 'the engine\'s end lets it go');
   assert.equal(live.engine, null);
 });
 
-test('input asked while a fresh placement is on its way reaches no player: the world lets it go first', async (t) => {
+test('a restart spawns the standing player again where its latest tick has it, with what it held, before the world runs', async (t) => {
   const { live, h } = open(t);
   const engine = await running(live, h);
+  let gone = 0;
+  live.onPlayerGone(() => { gone += 1; });
+  await live.spawnPlayer({ x: 3 });
+  await live.setPlayerInput({ keys: 1, taps: 16, yaw: 30, pitch: -10 });
+  engine.onframe({ ticks: 40, bytes: patchBytes(), entities: '[]', view: playerView(7.5, 66.25, -2, 30, -10, true) });
+  const placing = engine.gate('place');
+  await live.control('restart');
+  await until(() => engine.waiting.has('place'), 'the fresh placement');
+  assert.equal(live.player, 'standing', 'it stands throughout the placement');
+  // A tick the engine ran before the placement is the player's latest view.
+  engine.onframe({ ticks: 41, bytes: patchBytes(), entities: '[]', view: playerView(8, 66.25, -2, 45, -10, true) });
+  // Input asked during the placement waits for the respawn.
+  const input = live.setPlayerInput({ keys: 8, taps: 0, yaw: 50, pitch: 5 });
+  await pause(10);
+  assert.equal(engine.calls.filter(([type]) => type === 'playerInput').length, 1, 'no input reaches the engine before the placement is answered');
+  placing.resolve();
+  await input;
+  await until(() => live.state.status === 'running' && engine.ran().length === 2, 'running again');
+  assert.deepEqual(playerCalls(engine), [
+    ['spawn', { x: 3 }],
+    ['playerInput', { keys: 1, taps: 16, yaw: 30, pitch: -10 }],
+    ['place', true],
+    ['spawn', { x: 8, y: 66.25, z: -2, yaw: 45, pitch: -10, flying: true }],
+    ['playerInput', { keys: 1, taps: 0, yaw: 30, pitch: -10 }],
+    ['run', true],
+    ['playerInput', { keys: 8, taps: 0, yaw: 50, pitch: 5 }],
+  ], 'the respawn and the keys it held (its taps spent) come before the world runs, the input asked meanwhile after the respawn');
+  assert.equal(gone, 0);
+  assert.equal(engine.player, true);
+  assert.deepEqual(live.playerInput, { keys: 8, taps: 0, yaw: 50, pitch: 5 });
+  assert.equal(live.ticks, 0, 'the count starts again');
+  engine.frame(1);
+  assert.equal(live.ticks, 1);
+});
+
+test('a player who gave no input since its spawn is spawned again with none, and a paused world stays paused', async (t) => {
+  const { live, h } = open(t);
+  const engine = await running(live, h);
+  await live.spawnPlayer({ x: 3 });
+  await live.control('pause');
+  await live.control('restart');
+  await until(() => engine.calls.filter(([type, fresh]) => type === 'place' && fresh).length === 2 && live.phase === 'waiting', 'placed afresh');
+  assert.deepEqual(playerCalls(engine), [
+    ['spawn', { x: 3 }],
+    ['run', false],
+    ['place', true],
+    ['spawn', { x: 3, y: 3, z: 3, yaw: 3, pitch: 3, flying: false }],
+  ], 'the spawn\'s view (all 3s) is where it stands; no input to give, and no run');
+  assert.equal(live.state.live.playing, false);
+  assert.equal(live.player, 'standing');
+});
+
+test('a spawn on its way when a fresh placement is asked stands, and the placement spawns it again where it stood', async (t) => {
+  const { live, h } = open(t);
+  const engine = await running(live, h);
+  let gone = 0;
+  live.onPlayerGone(() => { gone += 1; });
+  await live.spawnPlayer({ x: 3 });
+  // The viewer's respawn reaches the engine; the restart's placement waits for it.
+  const spawning = engine.gate('spawn');
+  const respawned = live.spawnPlayer({ x: 4 });
+  await until(() => engine.waiting.has('spawn'), 'the respawn');
+  await live.control('restart');
+  await pause(10);
+  assert.equal(engine.calls.filter(([type, fresh]) => type === 'place' && fresh).length, 1, 'the placement waits for the spawn before it');
+  spawning.resolve();
+  await respawned;
+  await until(() => live.state.status === 'running' && engine.ran().length === 2, 'running again');
+  assert.deepEqual(engine.calls.filter(([type]) => type === 'spawn' || type === 'place').slice(1).map(([type, x]) => [type, x]), [['spawn', 3], ['spawn', 4], ['place', true], ['spawn', 4]]);
+  assert.equal(live.player, 'standing');
+  assert.equal(engine.player, true);
+  assert.equal(gone, 0);
+});
+
+test('a first spawn on its way when a fresh placement is asked stands in the placed world', async (t) => {
+  const { live, h } = open(t);
+  const engine = await running(live, h);
+  let gone = 0;
+  live.onPlayerGone(() => { gone += 1; });
+  const spawning = engine.gate('spawn');
+  const spawned = live.spawnPlayer({ x: 3 });
+  await until(() => engine.waiting.has('spawn'), 'the spawn');
+  await live.control('restart');
+  spawning.resolve();
+  await spawned;
+  await until(() => live.state.status === 'running' && engine.ran().length === 2, 'running again');
+  assert.deepEqual(engine.calls.filter(([type]) => type === 'spawn' || type === 'place').slice(1).map(([type, x]) => [type, x]), [['spawn', 3], ['place', true], ['spawn', 3]]);
+  assert.equal(live.player, 'standing');
+  assert.equal(engine.player, true, 'the page and the engine agree the player stands');
+  await live.setPlayerInput({ keys: 1, taps: 0, yaw: 0, pitch: 0 });
+  assert.ok(engine.calls.some(([type]) => type === 'playerInput'), 'input reaches it');
+  assert.equal(gone, 0);
+});
+
+test('a fresh placement that fails lets the player go and tells the viewer', async (t) => {
+  const { live, h } = open(t);
+  const engine = await running(live, h);
+  let gone = 0;
+  live.onPlayerGone(() => { gone += 1; });
+  await live.spawnPlayer({ x: 3 });
+  engine.refuse = 'The engine failed: unported: a block';
+  await live.control('restart');
+  await until(() => live.phase === 'failed', 'the failed placement');
+  assert.equal(live.player, 'none');
+  assert.equal(live.playerView, null);
+  assert.equal(gone, 1);
+  assert.equal(engine.calls.filter(([type]) => type === 'spawn').length, 1, 'no respawn on a world that was not placed');
+  await live.setPlayerInput({ keys: 1, taps: 0, yaw: 0, pitch: 0 });
+  assert.ok(!engine.calls.some(([type]) => type === 'playerInput'), 'input for no player goes nowhere');
+});
+
+test('another view switched to during a fresh placement spawns no player in it', async (t) => {
+  const { live, h } = open(t);
+  const engine = await running(live, h, 'a');
   let gone = 0;
   live.onPlayerGone(() => { gone += 1; });
   await live.spawnPlayer({ x: 3 });
   const placing = engine.gate('place');
   await live.control('restart');
   await until(() => engine.waiting.has('place'), 'the fresh placement');
-  assert.equal(gone, 1, 'let go as the placement is asked');
-  assert.equal(live.playerView, null);
-  // A tick the engine ran before the placement still carries the player.
-  engine.onframe({ ticks: 7, bytes: patchBytes(), entities: '[]', view: new Float64Array(28) });
-  assert.equal(live.playerView, null, 'a tick of the player let go does not stand it in the world again');
-  // The engine drops its player with the placement: input for it would fail.
-  await live.setPlayerInput({ keys: 1, taps: 0, yaw: 0, pitch: 0 });
-  assert.ok(!engine.calls.some(([type]) => type === 'playerInput'), 'no input for the player the placement takes');
+  const switching = live.show('b');
   placing.resolve();
-  await until(() => live.state.status === 'running' && engine.ran().length === 2, 'running again');
-  assert.equal(gone, 1);
-});
-
-test('a respawn answered after the world let its player go stands no one: the placement that followed it took it', async (t) => {
-  const { live, h } = open(t);
-  const engine = await running(live, h);
-  await live.spawnPlayer({ x: 3 });
-  // The respawn reaches the engine before the fresh placement, and its answer
-  // comes after the world let the player go.
-  const spawning = engine.gate('spawn');
-  const respawned = live.spawnPlayer({ x: 4 });
-  await until(() => engine.waiting.has('spawn'), 'the respawn');
-  await live.control('restart');
-  await until(() => engine.calls.filter(([type, fresh]) => type === 'place' && fresh).length === 2, 'the fresh placement');
-  // The viewer, told the player is gone, leaves player mode and sends its leave.
-  const removed = live.removePlayer();
-  spawning.resolve();
-  await assert.rejects(respawned, /The world let the player go before it stood in it/);
-  await removed;
-  assert.equal(live.playerView, null);
-  assert.equal(engine.player, false);
-  assert.deepEqual(engine.calls.filter(([type]) => type === 'spawn' || type === 'removePlayer').map(([type]) => type), ['spawn', 'spawn'], 'no player to take out');
-});
-
-test('a first spawn a fresh placement takes is let go and told: the page and the engine agree no player stands', async (t) => {
-  const { live, h } = open(t);
-  const engine = await running(live, h);
-  let gone = 0;
-  live.onPlayerGone(() => { gone += 1; });
-  // The spawn reaches the engine, then the fresh placement, which takes the
-  // player; the spawn's answer comes after the placement was asked.
-  const spawning = engine.gate('spawn');
-  const spawned = live.spawnPlayer({ x: 3 });
-  await until(() => engine.waiting.has('spawn'), 'the spawn');
-  await live.control('restart');
-  await until(() => engine.calls.filter(([type, fresh]) => type === 'place' && fresh).length === 2, 'the fresh placement');
-  assert.equal(gone, 1, 'the viewer is told, and leaves player mode');
-  spawning.resolve();
-  await assert.rejects(spawned, /The world let the player go before it stood in it/);
+  await switching;
+  await until(() => live.state.conversationId === 'b' && live.state.status === 'running', 'b running');
+  assert.equal(engine.calls.filter(([type]) => type === 'spawn').length, 1, 'no respawn');
   assert.equal(live.player, 'none');
-  assert.equal(live.playerView, null);
-  assert.equal(engine.player, false, 'the engine holds none either');
-  // Input goes nowhere, not to an engine that would refuse it.
-  await live.setPlayerInput({ keys: 1, taps: 0, yaw: 0, pitch: 0 });
-  assert.ok(!engine.calls.some(([type]) => type === 'playerInput'));
-  // A spawn after the placement stands in the new world.
-  await until(() => live.state.status === 'running', 'placed');
-  await live.spawnPlayer({ x: 5 });
-  assert.equal(live.player, 'standing');
-  assert.equal(engine.player, true);
-  assert.equal(gone, 1);
+  assert.equal(gone, 0, 'another view is not the world letting the player go');
 });
 
 test('a first spawn that fails stands no one, and the player goes only where its states allow', async (t) => {

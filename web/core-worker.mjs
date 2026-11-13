@@ -69,7 +69,9 @@ function to(next) {
   running = next;
 }
 
-// The player in the world, and what it holds.
+// The player in the world, and what it holds. A fresh placement takes it:
+// the page spawns it again where it stood and gives it what it held
+// (live-world.mjs placeAfresh).
 let player = null; // { keys, taps, yaw, pitch }
 
 function frame(result) {

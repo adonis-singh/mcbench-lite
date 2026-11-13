@@ -194,9 +194,11 @@
       return;
     }
     if (data.type === 'mcbench-lite:player') {
-      // The world let the player go (placed afresh, or its engine gone):
-      // player mode ends. Its leave still goes to the page, which then takes
-      // out any player a spawn still on its way stands in the world.
+      // The world let the player go (its engine gone, or a fresh placement
+      // that failed): player mode ends. Its leave still goes to the page,
+      // which then takes out any player a spawn still on its way stands in
+      // the world. A fresh placement that succeeds keeps the player, and its
+      // ticks count again from 1.
       if (data.gone) {
         leavePlayerMode('The player is no longer in the world.');
         return;

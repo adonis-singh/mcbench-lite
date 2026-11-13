@@ -2811,8 +2811,9 @@ function BlueMapViewer({ live, world, exportName, onError, activeId, labels, foc
     return () => window.removeEventListener('message', onMessage);
   }, [refresh, syncUi]);
 
-  // The world dropped the player itself (a fresh placement, another engine
-  // module, a dead worker): the viewer leaves player mode too.
+  // The world dropped the player itself (another engine module, a dead
+  // worker, a fresh placement that failed): the viewer leaves player mode
+  // too. A fresh placement keeps the player standing where it was.
   useEffect(() => world.onPlayerGone(() => postPlayer({ gone: true })), [world]);
 
   // Unconfirmed refreshes retry once a second until the iframe answers for

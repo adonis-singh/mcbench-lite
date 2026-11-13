@@ -55,8 +55,10 @@ const RUN_NEXT = {
 // order the page asks them):
 //   none       no player
 //   spawning   its first spawn is asked of the engine and not answered yet
-//   standing   it stands in the world (`playerView` is what it was last
-//              spawned with); a respawn keeps it standing
+//   standing   it stands in the world (`playerView` is its latest view: what
+//              it was last spawned with, then each tick's); a respawn keeps
+//              it standing, and so does a fresh placement of the view on
+//              show, which spawns it again where it stood (placeAfresh)
 const PLAYER_NEXT = {
   none: ['spawning'],
   spawning: ['standing', 'none'],
@@ -117,7 +119,8 @@ export class LiveWorld {
     this.inputs = new InputBlocks();
     this.syncError = null;
     this.player = 'none';
-    this.playerView = null; // the view the creative player was spawned with, while it stands in the world
+    this.playerView = null; // the creative player's latest view, while it stands in the world
+    this.playerInput = null; // what the standing player holds, once input is given after its spawn
   }
 
   to(phase, failure = null) {
@@ -134,11 +137,14 @@ export class LiveWorld {
     this.engineError = reason;
   }
 
+  // A spawn holds no keys in the engine (core-worker.mjs), so each
+  // transition lets the input go.
   playerTo(player, view = null) {
     if (!PLAYER_NEXT[this.player].includes(player)) throw new Error(`The player cannot go from ${this.player} to ${player}`);
     if ((player === 'standing') !== (view !== null)) throw new Error('A standing player, and only one, has a view');
     this.player = player;
     this.playerView = view;
+    this.playerInput = null;
   }
 
   // The status the page draws from (app.js): the shape the server's live
@@ -390,16 +396,13 @@ export class LiveWorld {
         this.base.view = view;
         this.receive(this.ticks, bytes, entities);
       } else {
-        // A world placed afresh holds no player: it is let go before the
-        // placement is asked, so no input asked after it reaches a player
-        // the placement took. The world held goes with it, and the restart
-        // is carried out.
+        // A world placed afresh lets the world held go, and the restart is
+        // carried out.
         if (fresh) {
-          this.playerGone();
           this.version = null;
           if (restart) this.restarting = false;
         }
-        blueprint = await engine.place(imported.commands, { fresh });
+        blueprint = fresh ? await this.placeAfresh(engine, imported.commands, generation) : await engine.place(imported.commands, { fresh });
         if (generation !== this.generation) return;
       }
     }
@@ -415,6 +418,36 @@ export class LiveWorld {
     this.to('waiting');
     this.emit();
     this.pump();
+  }
+
+  // Places `commands` on an empty world. The engine's fresh placement holds
+  // no player (core-worker.mjs), and a player who stands in the view on show
+  // stays in it: the placement is a player request, after those asked before
+  // it, and spawns the player again where its latest view has it, looking the
+  // same way and flying or not, with the keys and look it last held, before
+  // the world runs. It stays standing throughout, so the viewer stays in
+  // player mode, and the input, spawns and removals asked meanwhile reach the
+  // engine after the respawn. A view switched to meanwhile has no player to
+  // spawn. A placement or respawn that fails lets the player go.
+  placeAfresh(engine, commands, generation) {
+    return this.playerTurn(async () => {
+      try {
+        const blueprint = await engine.place(commands, { fresh: true });
+        if (generation === this.generation && this.player === 'standing') {
+          const [x, y, z] = this.playerView;
+          const input = this.playerInput;
+          this.playerTo('standing', await engine.spawnPlayer({ x, y, z, yaw: this.playerView[9], pitch: this.playerView[10], flying: this.playerView[17] === 1 }));
+          if (input) {
+            await engine.setPlayerInput({ ...input, taps: 0 });
+            this.playerInput = input;
+          }
+        }
+        return blueprint;
+      } catch (error) {
+        this.playerGone();
+        throw error;
+      }
+    });
   }
 
   // A build with no blocks has nothing to place and nothing to tick: the
@@ -448,12 +481,15 @@ export class LiveWorld {
 
   // --- frames ---
 
-  // A tick of the world: its patch. Ticks the engine ran before it heard of
-  // another view (or of an empty one) are of a world no longer on show.
+  // A tick of the world: its patch, and the player's view when one is in it,
+  // kept as the standing player's latest. Ticks the engine ran before it
+  // heard of another view (or of an empty one) are of a world no longer on
+  // show, and a tick of a player let go stands no one in the world.
   receive(ticks, bytes, entities, view = null) {
     if (!this.base || this.base.empty) return;
     this.ticks = ticks;
     this.entities = entities;
+    if (view && this.player === 'standing') this.playerView = view;
     const patch = readPatch(bytes);
     this.changes.add(patch);
     this.inputs.apply(patch);
@@ -487,15 +523,16 @@ export class LiveWorld {
   // onFrame get `view`, 28 numbers, see CoreWorld.spawnPlayer). Player
   // requests run one after another.
 
-  // `listener()` when the world lets its player go on its own (placed afresh,
-  // or its engine gone), not on removePlayer or another view.
+  // `listener()` when the world lets its player go on its own (its engine
+  // gone, or a fresh placement that failed), not on removePlayer or another
+  // view. A fresh placement keeps the player (placeAfresh).
   onPlayerGone(listener) {
     this.goneListeners.add(listener);
     return () => this.goneListeners.delete(listener);
   }
 
   // A spawn not answered yet is let go too: the engine takes requests in
-  // order, so the placement (or the end) that lets it go comes after it.
+  // order, so the end that lets it go comes after it.
   playerGone() {
     if (this.player === 'none') return;
     this.playerTo('none');
@@ -509,7 +546,8 @@ export class LiveWorld {
   }
 
   // Rejects when the player does not stand in the world on show: the spawn
-  // failed, or the world let the player go before the engine answered.
+  // failed, or the world let the player go (another view, its engine gone)
+  // before the engine answered.
   spawnPlayer(spawn) {
     return this.playerTurn(async () => {
       const engine = this.shownEngine();
@@ -527,11 +565,14 @@ export class LiveWorld {
     });
   }
 
-  // Input for a player no longer in the world (a fresh placement took it)
-  // goes nowhere.
+  // What the player holds, kept for a fresh placement to give its respawn
+  // (taps are spent by the next tick). Input for a player no longer in the
+  // world (another view, its engine gone) goes nowhere.
   setPlayerInput(input) {
     return this.playerTurn(async () => {
-      if (this.playerView) await this.engine.setPlayerInput(input);
+      if (this.player !== 'standing') return;
+      await this.engine.setPlayerInput(input);
+      if (this.player === 'standing') this.playerInput = input;
     });
   }
 
@@ -608,6 +649,7 @@ export class LiveWorld {
     this.base = null;
     this.player = 'none';
     this.playerView = null;
+    this.playerInput = null;
     this.listeners.clear();
     this.frameListeners.clear();
     this.goneListeners.clear();
