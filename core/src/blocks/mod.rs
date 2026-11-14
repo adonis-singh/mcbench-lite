@@ -566,6 +566,12 @@ pub fn trigger_event(l: &mut Level, state: State, pos: Pos, a: i32, b: i32) -> b
     }
 }
 
+// Whether the class of `state`'s block overrides canSurvive: every other
+// state survives anywhere (BlockBehaviour.canSurvive is true).
+pub fn may_not_survive(l: &Level, state: State) -> bool {
+    l.blocks.overrides[l.block(state) as usize] & bit("canSurvive") != 0
+}
+
 pub fn can_survive(l: &mut Level, state: State, pos: Pos) -> bool {
     match behaviour(l, state).can_survive {
         Some(f) => f(l, state, pos),

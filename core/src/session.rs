@@ -134,6 +134,13 @@ impl Session {
         Ok((ticked, self.player_view()))
     }
 
+    // The blocks of the world that cannot survive where they are
+    // (engine::unsupported), a line "x y z" each.
+    pub fn unsupported(&mut self) -> String {
+        self.level.reported = None;
+        engine::unsupported(&mut self.level)
+    }
+
     // What the world holds besides its blocks (McbenchEngine.state).
     pub fn state(&mut self) -> String {
         self.level.state_text()

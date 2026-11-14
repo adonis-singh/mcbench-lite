@@ -20,6 +20,8 @@ const { randomUUID } = require('crypto');
 const { minecraftVerifier, callTests } = require('./minecraft-verify');
 const { TEST_BUILD_TOOL, testBuildTool, MAX_INLINE_BYTES } = require('./verification-contract');
 const promptLibrary = require('./prompts');
+const facts = require('./minecraft-facts');
+const { World } = require('./world');
 const DEFAULT_SHOTS = [{ view: 'iso_se' }, { view: 'iso_nw' }];
 const MAX_SHOTS = 6;
 const MAX_ERROR_CHARS = 8000; // a build error's message and stack, as the model sees it
@@ -169,6 +171,55 @@ function minecraftReport({ world, changes, ticks }) {
   return { ticks, blocks: world.size(), removed: changes.removed, added: changes.added, replaced: changes.replaced, examples: changes.examples };
 }
 
+const FACING_STEP = { north: [0, 0, -1], south: [0, 0, 1], east: [1, 0, 0], west: [-1, 0, 0] };
+const SHOWN_BLOCKS = 8;
+const spec = ({ id, states }) => `${id.replace(/^minecraft:/, '')}${Object.keys(states).length ? `[${Object.entries(states).map(([k, v]) => `${k}=${v}`).join(',')}]` : ''}`;
+
+// A bed is two blocks of one colour and facing: the head sits one block from
+// the foot in the direction the bed faces. Minecraft keeps a half whose
+// partner is missing or mismatched, and shows it as a broken bed; the build
+// tool asks for both halves. A bed is a block of Minecraft's BedBlock. The
+// beds looked at are those in the chunks `near` names.
+function incompleteBed(world, near) {
+  const isBed = (id) => facts.minecraftFacts().is(id, 'BedBlock');
+  if (!world.palette.entries.some((entry) => entry && isBed(entry.id))) return null;
+  for (const key of near) {
+    let found = null;
+    world.forEachInChunk(key, (x, y, z, block) => {
+      if (found || !isBed(block.id)) return;
+      const { facing, part } = { ...facts.minecraftFacts().defaults(block.id), ...block.states };
+      const partner = part === 'foot' ? 'head' : 'foot';
+      const step = part === 'foot' ? 1 : -1;
+      const at = [x + FACING_STEP[facing][0] * step, y, z + FACING_STEP[facing][2] * step];
+      const other = world.get(at[0], at[1], at[2]);
+      const otherStates = other && { ...facts.minecraftFacts().defaults(other.id), ...other.states };
+      if (other?.id === block.id && otherStates.part === partner && otherStates.facing === facing) return;
+      found = `Incomplete bed at [${x}, ${y}, ${z}]: ${block.id.replace('minecraft:', '')}[part=${part},facing=${facing}] needs its ${partner} at [${at.join(', ')}]`
+        + ' with the same facing (a bed faces from its foot toward its head)';
+    });
+    if (found) return found;
+  }
+  return null;
+}
+
+// The blocks of a settled build, in the chunks `near` names, that cannot
+// survive where they are (Minecraft's Block.canSurvive, which the engine
+// answers with its SURVIVE): a player could not place one there, and the
+// first update that asks it again removes it. A build with one is refused,
+// saying where a full block beside each would hold it.
+function unsupportedBlocks({ world, unsupported }, near) {
+  const found = unsupported.filter(([x, y, z]) => near.has(World.keyOf(x >> 4, y >> 4, z >> 4)));
+  if (!found.length) return null;
+  const shown = found.slice(0, SHOWN_BLOCKS).map(([x, y, z]) => {
+    const block = world.get(x, y, z);
+    const holders = facts.minecraftFacts().heldBy(block.id, block.states).map(([dx, dy, dz]) => `[${x + dx}, ${y + dy}, ${z + dz}]`);
+    return `${spec(block)} at [${x}, ${y}, ${z}]: ${holders.length ? `a full block at ${holders.join(' or ')} would hold it` : 'no full block beside it would hold it'}`;
+  });
+  const more = found.length > SHOWN_BLOCKS ? `; and ${found.length - SHOWN_BLOCKS} more` : '';
+  return `Minecraft cannot keep ${found.length === 1 ? 'a block' : `${found.length} blocks`} of this build where ${found.length === 1 ? 'it is' : 'they are'}`
+    + ` (Block.canSurvive: a player could not place ${found.length === 1 ? 'it' : 'them'} there, and the first update that asks again removes ${found.length === 1 ? 'it' : 'one'}): ${shown.join('; ')}${more}`;
+}
+
 // The program runs in an isolated process (server/build-sandbox.js). Minecraft
 // settles the world it starts from (kept from the last build's settle) for
 // mc.settled, and a program that changes the world is settled before it is
@@ -216,16 +267,23 @@ async function executeBuild(conversation, args, blockRegistry) {
   }
   const diff = candidate.diff(before);
   const changed = diff.added + diff.removed + diff.changed > 0;
+  const aborted = (error) => ({ ok: false, error, ...(logs.length ? { logs } : {}), note: 'program aborted — no blocks or files were changed' });
   let minecraft;
   if (changed) {
+    const near = candidate.nearChangedChunks();
+    const bed = incompleteBed(candidate, near);
+    if (bed) return aborted(bed);
     candidate.finalize();
+    let settled;
     try {
-      const settled = (await settle(conversation.id, candidate, [settleTicks], { primary: settleTicks })).get(settleTicks);
+      settled = (await settle(conversation.id, candidate, [settleTicks], { primary: settleTicks })).get(settleTicks);
       minecraft = minecraftReport(settled);
       console.log(`[build] ${candidate.size()} blocks, settle ${Object.entries(settled.timings).map(([name, value]) => `${name} ${typeof value === 'number' ? `${Math.round(value)} ms` : value}`).join(', ')}`);
     } catch (err) {
       return { ok: false, error: `Minecraft could not settle this build: ${String(err && err.message || err)}`, note: 'program aborted — no blocks or files were changed' };
     }
+    const unsupported = unsupportedBlocks(settled, near);
+    if (unsupported) return aborted(unsupported);
   }
   // What the build writes counts against the chat's storage budget before any
   // of it is applied: its /work files, then the chunk files of its world.

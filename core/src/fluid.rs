@@ -637,3 +637,19 @@ pub fn named(l: &Level) -> &'static Named {
         }
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // The port's fluid rules against Minecraft's in the overworld (the table's
+    // fluidrule lines, McbenchEngine.dump).
+    #[test]
+    fn the_fluid_rules_are_minecrafts() {
+        let (reg, _) = crate::boot();
+        for (key, fluid) in [("minecraft:water", Fluid::Water), ("minecraft:flowing_water", Fluid::FlowingWater), ("minecraft:lava", Fluid::Lava), ("minecraft:flowing_lava", Fluid::FlowingLava)] {
+            assert_eq!(reg.fluid_rules[key], [tick_delay(fluid), drop_off(fluid), slope_find_distance(fluid)], "{key}");
+        }
+        assert_eq!(reg.fluid_rules.len(), 4);
+    }
+}

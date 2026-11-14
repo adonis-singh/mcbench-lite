@@ -4,7 +4,7 @@ const fs = require('fs');
 
 // What the pinned Minecraft says of each of its block states, read from the
 // block table (McbenchBlockTable.java) and the render layers
-// (McbenchRenderLayers.java), by state id (the table's order, which is
+// (McbenchClient.java), by state id (the table's order, which is
 // Minecraft's registry order, air first): the light it emits, the light it
 // blocks, its full faces, the face shapes Paper's light engine tests light
 // through, with whether each pair of face shapes occludes; its fluid,

@@ -114,6 +114,20 @@ test('the viewer\'s assets are baked once per content, and older bakes and app f
   assert.strictEqual(fs.existsSync(path.join(root, assets.id)), false);
 });
 
+test('two processes baking one folder at once bake it once: the second waits and finds it', async (t) => {
+  const { root, blueMap, runs, table } = bakery(t);
+  const slow = blueMap.run;
+  blueMap.run = async (...args) => { await new Promise((resolve) => setTimeout(resolve, 300)); return slow(...args); };
+  // Another process's BlueMap on the same folder, its runs counted with this one's.
+  const other = new BlueMap({ root, run: blueMap.run });
+  other.ensureJar = async () => {};
+  const [first, second] = await Promise.all([blueMap.prepare(table, LIBRARIES), other.prepare(table, LIBRARIES)]);
+  assert.deepStrictEqual(second, first);
+  assert.strictEqual(runs.filter((run) => run.args.includes('McbenchBake')).length, 1);
+  assert.deepStrictEqual(fs.readdirSync(root).sort(), [first.id, 'bluemap-5.22-cli.jar'].sort());
+  assert.strictEqual(fs.existsSync(`${root}.lock`), false, 'the lock is given back');
+});
+
 test('a failed bake leaves nothing behind and is tried again', async (t) => {
   const { root, blueMap, table } = bakery(t);
   const run = blueMap.run;

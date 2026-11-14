@@ -10,9 +10,6 @@ const REGISTRY = {
   oak_planks: [{}, {}],
   stone: [{}, {}],
   oak_stairs: [{ facing: ['north', 'south', 'east', 'west'], half: ['top', 'bottom'] }, { facing: 'north', half: 'bottom' }],
-  torch: [{}, {}],
-  wall_torch: [{ facing: ['north', 'south', 'east', 'west'] }, { facing: 'north' }],
-  red_bed: [{ facing: ['north', 'south', 'east', 'west'], part: ['head', 'foot'], occupied: ['true', 'false'] }, { facing: 'north', part: 'foot', occupied: 'false' }],
 };
 
 function run(src, world = new World()) {
@@ -44,27 +41,6 @@ test('block state validation rejects unknown states', () => {
     () => run('module.exports = (mc) => mc.set([0,0,0], "oak_stairs[facing=up]")'),
     /facing=up is invalid/,
   );
-});
-
-test('torches fail fast without the correct support', () => {
-  assert.throws(
-    () => run('module.exports = (mc) => { mc.set([0,0,0], "stone"); mc.set([0,1,0], "wall_torch[facing=east]"); }'),
-    /wall torch at \[0, 1, 0\].*needs a block at \[-1, 1, 0\]/,
-  );
-  assert.throws(
-    () => run('module.exports = (mc) => mc.set([0,1,0], "torch")'),
-    /floor torch at \[0, 1, 0\].*needs a block at \[0, 0, 0\]/,
-  );
-});
-
-test('floor and wall torches accept support in the correct cell', () => {
-  const { world } = run(`module.exports = (mc) => {
-    mc.set([0,0,0], "stone");
-    mc.set([0,1,0], "torch");
-    mc.set([2,1,0], "stone");
-    mc.set([3,1,0], "wall_torch[facing=east]");
-  }`);
-  assert.strictEqual(world.size(), 4);
 });
 
 test('a throwing program leaves the passed world untouched (caller swaps clones)', () => {
@@ -142,15 +118,6 @@ test('bulk replacements preserve checkpoints, carry compatible states, and count
   assert.strictEqual(candidate.size(), 1);
   assert.deepStrictEqual(candidate.bounds(), { min: [32, 0, 0], max: [32, 0, 0] });
   assert.strictEqual(base.size(), 901);
-});
-
-test('bulk replacement still rejects removing a torch support across a chunk boundary', () => {
-  const base = new World();
-  base.set(15, 0, 0, 'minecraft:stone');
-  base.set(16, 0, 0, 'minecraft:wall_torch', { facing: 'east' });
-  base.finalize();
-  assert.throws(() => run('module.exports = mc => mc.replace("stone", "air")', base.clone()), /Unsupported wall torch/);
-  assert.strictEqual(base.size(), 2);
 });
 
 test('outline matches edge geometry for volumes, planes, lines, and single blocks', () => {
@@ -276,22 +243,6 @@ test('failed programs carry their logs and a build.js stack frame', () => {
     assert.match(formatted, /build\.js:4/);
     assert.doesNotMatch(formatted, /node:vm|bootstrap\.js/);
   }
-});
-
-test('a bed needs its other half one block toward its facing', () => {
-  const placed = run(`module.exports = (mc) => {
-    mc.set([0,0,0], "red_bed[facing=south,part=foot]");
-    mc.set([0,0,1], "red_bed[facing=south,part=head]");
-  }`).world;
-  assert.equal(placed.get(0, 0, 1).states.part, 'head');
-  // The head on the wrong side of the foot: what a model built facing south.
-  assert.throws(
-    () => run('module.exports = (mc) => { mc.set([0,0,-2], "red_bed[facing=south,part=head]"); mc.set([0,0,-1], "red_bed[facing=south,part=foot]"); }'),
-    /Incomplete bed at \[0, 0, -2\]: red_bed\[part=head,facing=south\] needs its foot at \[0, 0, -3\]/,
-  );
-  assert.throws(() => run('module.exports = (mc) => { mc.set([0,0,0], "red_bed[facing=east,part=foot]"); }'), /needs its head at \[1, 0, 0\]/);
-  // Across a chunk border.
-  run(`module.exports = (mc) => { mc.set([15,0,0], "red_bed[facing=east,part=foot]"); mc.set([16,0,0], "red_bed[facing=east,part=head]"); }`);
 });
 
 test('mc.settled reads the settled world at mc.get coordinates, offsets included', () => {

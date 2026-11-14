@@ -18,7 +18,7 @@ process.env.MCBENCH_DATA_DIR = dataDir;
 const shotWorld = require('../server/shot-world');
 shotWorld.currentTicks = () => 0;
 shotWorld.settle = async (id, world, ticks) => new Map(ticks.map((tick) => [tick, {
-  world, ticks: tick, changes: { removed: 0, added: 0, replaced: 0, examples: [] }, timings: {}, cached: false,
+  world, ticks: tick, changes: { removed: 0, added: 0, replaced: 0, examples: [] }, unsupported: [], timings: {}, cached: false,
 }]));
 const llm = require('../server/llm');
 let respond;

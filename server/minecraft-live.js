@@ -165,6 +165,13 @@ class MinecraftLive extends PaperFiles {
   // and the colours the client tints each state with in the world
   // (McbenchClient.java), by the block table's states: read from the client
   // jar in the viewer's bake.
+  // A file of the bake for the block table the data folder holds
+  // (blockTableFile, which must be there), whether made yet or not: what a
+  // reader that makes neither reads.
+  bakedFile(name) {
+    return path.join(this.blueMap.bakeFolder(this.blockTableFile()), name);
+  }
+
   async renderLayers() {
     await this.prepareViewer();
     return this.blueMap.baked('render-layers.tsv');

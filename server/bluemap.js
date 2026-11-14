@@ -26,6 +26,7 @@ const { JAVA, JAVAC } = require('./tools');
 const { BIOME } = require('./minecraft-dimension');
 const tools = require('./tools');
 const setup = require('./setup');
+const { withLock } = require('./pid-lock');
 
 const execFileAsync = promisify(execFile);
 const DATA_DIR = process.env.MCBENCH_DATA_DIR
@@ -187,11 +188,27 @@ class BlueMap {
     return this.preparing;
   }
 
+  // The folder of the bake for `blockTable` and these sources, whether
+  // made yet or not.
+  bakeFolder(blockTable) {
+    const files = configFiles(path.join(this.root, DOWNLOADS));
+    return path.join(this.root, sha256(JSON.stringify([JAR_SHA256, MC_VERSION, BIOME, BAKE.map((file) => sha256(fs.readFileSync(file))), sha256(fs.readFileSync(blockTable)), files])).slice(0, 16));
+  }
+
+  // One process bakes in the folder at a time, under bluemap.lock beside
+  // it: the app holds its data folder alone, but a script or a test reading
+  // the block states of the same data folder bakes too, and two bakes would
+  // share the staging folder (and each remove the other's as an old bake).
+  // One that waited finds the bake made.
   async bake(blockTable, libraries) {
     await this.ensureJar();
+    return withLock(`${this.root}.lock`, () => this.bakeAlone(blockTable, libraries));
+  }
+
+  async bakeAlone(blockTable, libraries) {
     const files = configFiles(path.join(this.root, DOWNLOADS));
-    const id = sha256(JSON.stringify([JAR_SHA256, MC_VERSION, BIOME, BAKE.map((file) => sha256(fs.readFileSync(file))), sha256(fs.readFileSync(blockTable)), files])).slice(0, 16);
-    const folder = path.join(this.root, id);
+    const folder = this.bakeFolder(blockTable);
+    const id = path.basename(folder);
     // Everything else here is an older bake, or files of an older app.
     for (const name of fs.readdirSync(this.root)) {
       if (![JAR_NAME, DOWNLOADS, id].includes(name)) fs.rmSync(path.join(this.root, name), { recursive: true, force: true });

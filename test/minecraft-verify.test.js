@@ -5,6 +5,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { test } = require('node:test');
+require('./helpers/fake-facts').installFakeFacts();
 const { World } = require('../server/world');
 const { MC_VERSION } = require('../server/assets');
 const { BUDGETS, readBudgets } = require('../server/verification-contract');

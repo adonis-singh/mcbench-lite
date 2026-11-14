@@ -989,7 +989,8 @@ impl Experiment {
                 return Err("No previously removed source book is available for this lectern".into());
             }
             let reg = level.reg;
-            if carried.count != 1 || (carried.item != reg.item_by_key["minecraft:written_book"] && carried.item != reg.item_by_key["minecraft:writable_book"]) {
+            // LecternBlock.useItemOn takes the items of the tag minecraft:lectern_books.
+            if carried.count != 1 || !reg.item_tags["minecraft:lectern_books"][carried.item as usize] {
                 return Err("Lectern supply requires exactly one native book".into());
             }
             let placed = blocks::lectern::try_place_book(level, player, pos, state, &mut carried);

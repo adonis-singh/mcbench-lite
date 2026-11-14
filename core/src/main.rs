@@ -13,7 +13,13 @@
 //   PREMOVE <id>
 //
 // PTICK answers as TICK does and writes the player's view (28 doubles, little
-// endian, Session::player_view) to its last file.
+// endian, Session::player_view) to its last file. And for the settles of
+// builds:
+//
+//   SURVIVE <id> <file>
+//
+// writes the blocks of the world that cannot survive where they are, a line
+// "x y z" each (Session::unsupported).
 //
 // with the same replies and the same files, byte for byte (and STATE, for
 // the parity scripts). The engine itself is the library (lib.rs); this only
@@ -80,7 +86,7 @@ fn serve() {
         let (ok, fail) = match request[0] {
             "PLACE" => ("MCBENCH_PLACED", "MCBENCH_PLACE_FAILED"),
             "TICK" | "PTICK" => ("MCBENCH_TICKED", "MCBENCH_TICK_FAILED"),
-            "INPUT" | "STATE" | "PSPAWN" | "PREMOVE" => ("MCBENCH_DONE", "MCBENCH_FAILED"),
+            "INPUT" | "STATE" | "PSPAWN" | "PREMOVE" | "SURVIVE" => ("MCBENCH_DONE", "MCBENCH_FAILED"),
             "VERIFY" => ("MCBENCH_VERIFIED", "MCBENCH_VERIFY_FAILED"),
             other => {
                 writeln!(out, "MCBENCH_FAILED {id} unknown request {other}").unwrap();
@@ -160,6 +166,11 @@ fn serve() {
                 "STATE" => {
                     let file = word(2)?;
                     std::fs::write(file, session.state()).expect("write");
+                    Ok(())
+                }
+                "SURVIVE" => {
+                    let file = word(2)?;
+                    save(file, session.unsupported().as_bytes());
                     Ok(())
                 }
                 "INPUT" => {

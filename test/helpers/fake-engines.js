@@ -15,6 +15,9 @@ class FakeEngines {
 
   static places = [];
 
+  // unsupported(blocks): the "x,y,z" keys of the blocks that cannot survive.
+  static unsupported = () => [];
+
   // The ticks of each TICK request.
   static ticks = [];
 
@@ -94,6 +97,12 @@ class FakeEngines {
     fs.writeFileSync(blueprintFile, blocksBlueprint([...this.blocks].map(([key, spec]) => [...key.split(',').map(Number), spec])));
   }
 
+  // As the engine's SURVIVE: the blocks `FakeEngines.unsupported(blocks)`
+  // names ("x,y,z" keys of the block map), a line "x y z" each.
+  async unsupported(file) {
+    fs.writeFileSync(file, FakeEngines.unsupported(this.blocks).map((key) => `${key.split(',').join(' ')}\n`).join(''));
+  }
+
   async tick(ticks) {
     FakeEngines.ticks.push(ticks);
     for (let i = 0; i < ticks; i += 1) FakeEngines.rules(this.blocks);
@@ -102,9 +111,10 @@ class FakeEngines {
   async stop() { this.child = null; }
 }
 
-// Installs FakeEngines as the Rust engine, and a Paper that needs no
-// download. Returns the class.
+// Installs FakeEngines as the Rust engine, a Paper that needs no download
+// and the stand-in for the engine's table (fake-facts.js). Returns the class.
 function installFakeEngines() {
+  require('./fake-facts').installFakeFacts();
   require('../../server/engine').coreEngine = () => new FakeEngines();
   require('../../server/minecraft-live').minecraftLive.ensurePaper = async () => [];
   return FakeEngines;

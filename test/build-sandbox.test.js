@@ -84,7 +84,6 @@ test('mc.readFile is served over the channel and its errors reach the program', 
 
 test('validation and error formatting are identical to the in-process runtime', async () => {
   await assert.rejects(run('module.exports = mc => mc.set([0,0,0], "oak_stairs[facing=up]")'), /facing=up is invalid/);
-  await assert.rejects(run('module.exports = mc => mc.set([0,1,0], "torch")'), /floor torch at \[0, 1, 0\]/);
   await assert.rejects(run('module.exports = async mc => mc.set([0,0,0],"stone")'), /synchronous/);
 
   const src = "module.exports = (mc) => {\n  mc.log('phase 1 done');\n  const parts = [{ h: 2 }];\n  mc.set([0, parts[1].h, 0], 'stone');\n};";

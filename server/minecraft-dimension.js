@@ -12,10 +12,14 @@ const Y_OFFSET = Number(process.env.MCBENCH_MC_Y_OFFSET || 64);
 const BIOME = 'minecraft:plains';
 // The ticks Minecraft runs on a placed build before it is read back, unless
 // the model asks for another number (build's settle_ticks, see_build's tick):
-// 210 is 7 steps of overworld lava, which moves a step (a block down or a
-// block across) every 30 ticks (FlowingFluid's tick delay), so lava runs its
-// 7 steps before the build is read. Water (5 ticks a step), falling blocks
-// and scheduled ticks are done sooner.
+// the longest spread of a fluid across flat ground, water's 7 steps (its
+// source's amount, 8, less its drop-off, 1, a block across, down to 1), at
+// the slowest fluid's tick delay, lava's 30 in the overworld: every fluid
+// spreads as far as flat ground lets it, and lava goes 7 steps, a block down
+// or across each, before the build is read. Falling blocks and scheduled
+// ticks are done sooner. Minecraft's own rules are the engine's table's
+// (FlowingFluid.getTickDelay and getDropOff, McbenchEngine.dump's fluidrule
+// lines); test/settle-ticks-minecraft.test.js holds the number to them.
 const DEFAULT_SETTLE_TICKS = 210;
 
 function validateWorldHeight(world, yOffset = Y_OFFSET) {

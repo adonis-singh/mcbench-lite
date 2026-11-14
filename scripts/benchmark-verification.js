@@ -27,6 +27,7 @@ const { EngineVerifier } = require('../server/minecraft-verify');
 const { Engine, coreEngine, jvmEngine } = require('../server/engine');
 const { minecraftLive } = require('../server/minecraft-live');
 const { World } = require('../server/world');
+const facts = require('../server/minecraft-facts').minecraftFacts();
 const { corpusArtifacts } = require('./corpus');
 
 const option = (name, fallback) => {
@@ -123,8 +124,8 @@ function community(file, ticks, chunks = 0) {
         const pos = shift(block.pos);
         world.set(pos[0], pos[1], pos[2], block.id, block.states || {});
         if (COMPONENTS.test(block.id) && probes.length < 8) probes.push(pos);
-        if (block.id === 'minecraft:lever') actions.push({ tick: 2, type: 'toggle', at: pos });
-        else if (block.id.endsWith('_button')) actions.push({ tick: 4, type: 'press', at: pos });
+        if (facts.is(block.id, 'LeverBlock')) actions.push({ tick: 2, type: 'toggle', at: pos });
+        else if (facts.is(block.id, 'ButtonBlock')) actions.push({ tick: 4, type: 'press', at: pos });
       }
     }
   }

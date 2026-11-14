@@ -157,7 +157,8 @@ function clipWorld(world, clip, previous) {
 // Settles `world` for each of `ticks` (sorted, no repeats, each checked) in
 // one run of the engine, and answers { ticks: { world: the engine's World
 // after that many ticks, changes: which block ids changed from `world`,
-// timings (ms) } }. `chat` is what is kept of the conversation (`kept`).
+// unsupported: the positions of its blocks that cannot survive where they
+// are (the engine's SURVIVE), timings (ms) } }. `chat` is what is kept of the conversation (`kept`).
 function runSettle(chat, conversationId, world, ticks) {
   const pool = shotPool();
   const job = async (member) => {
@@ -169,6 +170,7 @@ function runSettle(chat, conversationId, world, ticks) {
       return result;
     };
     const files = new Map();
+    const unsupported = new Map();
     let scratch = null;
     try {
       // The engine refuses a placement of no blocks; an empty world settles to itself.
@@ -201,6 +203,9 @@ function runSettle(chat, conversationId, world, ticks) {
               await time('write', () => engine.place(file('none.txt'), file(`settled-${tick}.bin`), { fresh: false }));
             }
             files.set(tick, tick === 0 ? file('placed.bin') : file(`settled-${tick}.bin`));
+            await time('survive', () => engine.unsupported(file(`unsupported-${tick}.txt`)));
+            unsupported.set(tick, fs.readFileSync(file(`unsupported-${tick}.txt`), 'utf8').split('\n').filter(Boolean)
+              .map((line) => line.split(' ').map(Number)).map(([x, y, z]) => [x, y - minecraftLive.yOffset, z]));
           }
         } catch (error) {
           // An engine that stopped (it ran out of memory, or was killed) is
@@ -220,7 +225,7 @@ function runSettle(chat, conversationId, world, ticks) {
           return out;
         });
         const changes = await time('compare', async () => idChanges(world, settled));
-        const result = { world: settled, changes, timings, ticks: tick, clips: new Map(), previousClips: previous?.clips || new Map() };
+        const result = { world: settled, changes, unsupported: unsupported.get(tick) || [], timings, ticks: tick, clips: new Map(), previousClips: previous?.clips || new Map() };
         chat.latest = result;
         results[tick] = result;
       }

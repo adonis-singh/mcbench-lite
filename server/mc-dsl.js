@@ -12,23 +12,6 @@ const MAX_FIND_RESULTS = 500;
 const SCRIPT_TIMEOUT_MS = 5000;
 const MAX_WRITE_FILES = 16;
 const MAX_WRITE_TOTAL = 32 * 1024 * 1024;
-const FLOOR_TORCHES = new Set([
-  'minecraft:torch',
-  'minecraft:soul_torch',
-  'minecraft:redstone_torch',
-]);
-const WALL_TORCHES = new Set([
-  'minecraft:wall_torch',
-  'minecraft:soul_wall_torch',
-  'minecraft:redstone_wall_torch',
-]);
-const FACING_VECTOR = {
-  north: [0, 0, -1],
-  south: [0, 0, 1],
-  east: [1, 0, 0],
-  west: [-1, 0, 0],
-};
-
 function isPlainObject(value) {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
     && Object.prototype.toString.call(value) === '[object Object]';
@@ -92,72 +75,6 @@ function createBlockNormalizer(blockRegistry) {
     return { id: `minecraft:${name}`, states: normalizedStates };
   }
   return normalize;
-}
-
-// Changed chunks and their face neighbours: a block whose partner or support
-// is one block away can only have been affected there.
-function nearChangedChunks(world) {
-  const keys = new Set();
-  for (const key of world.changedChunks) {
-    const [cx, cy, cz] = World.coordsOf(key);
-    keys.add(key);
-    keys.add(World.keyOf(cx + 1, cy, cz)); keys.add(World.keyOf(cx - 1, cy, cz));
-    keys.add(World.keyOf(cx, cy + 1, cz)); keys.add(World.keyOf(cx, cy - 1, cz));
-    keys.add(World.keyOf(cx, cy, cz + 1)); keys.add(World.keyOf(cx, cy, cz - 1));
-  }
-  return keys;
-}
-
-function validateTorchSupport(world, blockRegistry) {
-  if (!world.palette.entries.some((entry) => entry
-    && (FLOOR_TORCHES.has(entry.id) || WALL_TORCHES.has(entry.id)))) return;
-  for (const key of nearChangedChunks(world)) {
-    world.forEachInChunk(key, (x, y, z, block) => {
-      let support;
-      if (FLOOR_TORCHES.has(block.id)) {
-        support = [x, y - 1, z];
-      } else if (WALL_TORCHES.has(block.id)) {
-        const name = block.id.slice('minecraft:'.length);
-        const facing = block.states.facing || blockRegistry[name][1].facing;
-        const outward = FACING_VECTOR[facing];
-        support = [x - outward[0], y, z - outward[2]];
-      } else {
-        return;
-      }
-      if (!world.get(support[0], support[1], support[2])) {
-        const kind = WALL_TORCHES.has(block.id) ? 'wall torch' : 'floor torch';
-        throw new Error(
-          `Unsupported ${kind} at [${x}, ${y}, ${z}]: ${block.id.replace('minecraft:', '')}`
-          + ` needs a block at [${support.join(', ')}]`
-        );
-      }
-    });
-  }
-}
-
-// A bed is two blocks of one colour and facing: the head sits one block from
-// the foot in the direction the bed faces. Minecraft keeps a half whose
-// partner is missing or mismatched, and shows it as a broken bed.
-function validateBeds(world, blockRegistry) {
-  if (!world.palette.entries.some((entry) => entry?.id.endsWith('_bed'))) return;
-  for (const key of nearChangedChunks(world)) {
-    world.forEachInChunk(key, (x, y, z, block) => {
-      if (!block.id.endsWith('_bed')) return;
-      const name = block.id.slice('minecraft:'.length);
-      const defaults = blockRegistry[name][1];
-      const facing = block.states.facing || defaults.facing;
-      const part = block.states.part || defaults.part;
-      const partner = part === 'foot' ? 'head' : 'foot';
-      const step = part === 'foot' ? 1 : -1;
-      const at = [x + FACING_VECTOR[facing][0] * step, y, z + FACING_VECTOR[facing][2] * step];
-      const other = world.get(at[0], at[1], at[2]);
-      if (other?.id === block.id && (other.states.part || defaults.part) === partner && (other.states.facing || defaults.facing) === facing) return;
-      throw new Error(
-        `Incomplete bed at [${x}, ${y}, ${z}]: ${name}[part=${part},facing=${facing}] needs its ${partner} at [${at.join(', ')}]`
-        + ` with the same facing (a bed faces from its foot toward its head)`
-      );
-    });
-  }
 }
 
 function normVec3(raw, label) {
@@ -631,8 +548,6 @@ function runProgram(source, world, blockRegistry, readFile, settled) {
   try {
     new vm.Script(wrapped, { filename: 'build.js' }).runInContext(context, { timeout: SCRIPT_TIMEOUT_MS });
     validateWorldHeight(world);
-    validateTorchSupport(world, blockRegistry);
-    validateBeds(world, blockRegistry);
   } catch (err) {
     // Logs written before the failure are debugging gold for the retry; hang
     // them on the error since the world/file changes are discarded anyway.

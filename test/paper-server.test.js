@@ -8,6 +8,7 @@ const zlib = require('zlib');
 const { EventEmitter } = require('node:events');
 const { test } = require('node:test');
 
+require('./helpers/fake-facts').installFakeFacts();
 const { PaperServer } = require('../server/paper-server');
 const { PaperFiles } = require('../server/paper-files');
 const { World } = require('../server/world');

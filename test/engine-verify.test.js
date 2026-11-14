@@ -5,6 +5,7 @@ const assert = require('node:assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+require('./helpers/fake-facts').installFakeFacts();
 const { EngineVerifier, WallBudgetError } = require('../server/minecraft-verify');
 const { BUDGETS } = require('../server/verification-contract');
 const { World } = require('../server/world');

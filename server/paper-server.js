@@ -371,12 +371,14 @@ class PaperServer extends PaperFiles {
     this.placementFailed = null;
   }
 
-  async applyWorld(world, { resumeTicks = true } = {}) {
+  // `placed`: the world's palette as Minecraft places it (engine.js
+  // fixedPalette, for a world written at an older data version).
+  async applyWorld(world, { resumeTicks = true, placed = world.palette } = {}) {
     const run = this.state;
     if (run.name === 'stopping') throw new PaperServerCancelled('The Paper server was stopped');
     if (this.placementFailed) throw new Error(`An earlier placement failed part-way, so what Paper's world holds is unknown: ${this.placementFailed.message}`);
     validateWorldHeight(world, this.yOffset);
-    const { keys, commands } = importCommands(world, this.appliedWorld, this.yOffset);
+    const { keys, commands } = importCommands(world, this.appliedWorld, this.yOffset, placed);
     const total = commands.length;
     let applied = 0;
     this.progress = { applied, total };

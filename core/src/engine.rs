@@ -138,6 +138,37 @@ pub fn update_from_neighbour_shapes(level: &mut Level, mut state: State, pos: Po
     state
 }
 
+// The blocks of the level that cannot survive where they are
+// (BlockState.canSurvive with the blocks around them, which a player's
+// placement asks and the updates of many blocks ask again): their positions
+// as lines "x y z", in the order the level's chunks and sections hold them.
+pub fn unsupported(level: &mut Level) -> String {
+    let mut asked = Vec::new();
+    for key in level.world.chunk_keys().collect::<Vec<_>>() {
+        let chunk = level.world.chunk(key);
+        for i in 0..SECTIONS {
+            let Some(section) = &chunk.sections[i] else { continue };
+            if section.non_air == 0 {
+                continue;
+            }
+            let (sx, sy, sz) = (chunk.x, (MIN_Y >> 4) + i as i32, chunk.z);
+            for at in 0..4096usize {
+                let state = section.blocks[at];
+                if blocks::may_not_survive(level, state) {
+                    asked.push((Pos::new(sx * 16 + (at & 15) as i32, sy * 16 + (at >> 8) as i32, sz * 16 + ((at >> 4) & 15) as i32), state));
+                }
+            }
+        }
+    }
+    let mut out = String::new();
+    for (pos, state) in asked {
+        if !blocks::can_survive(level, state, pos) {
+            out.push_str(&format!("{} {} {}\n", pos.x(), pos.y(), pos.z()));
+        }
+    }
+    out
+}
+
 struct Out(Vec<u8>);
 
 impl Out {
@@ -472,5 +503,93 @@ mod tests {
         assert_eq!(click(&mut l, pos, 0.0), Ok(None));
         assert!(input(&mut l, "use", pos, 0.0).is_err());
         assert_eq!(l.get(pos), door);
+    }
+
+    // What each block state placed alone does, asked of the engine as
+    // McbenchEngine.alone asks Minecraft, against what the table says
+    // Minecraft does: its placement by the import, the shape updates from its
+    // absent neighbours one after another, a neighbour update, and the block
+    // and fluid ticks those updates leave it, each set at a spot of its own;
+    // and where a block of stone alone lets a state that cannot survive
+    // survive. A state of a block the port refuses is left out.
+    #[test]
+    fn each_state_placed_alone_does_what_the_table_says_minecraft_does() {
+        use crate::level::UPDATE_CLIENTS;
+        let (reg, _) = BOOT.with(|boot| *boot);
+        assert_eq!(reg.alone.len(), reg.states.len());
+        let mut wrong = Vec::new();
+        let mut refused = 0;
+        let mut l = level();
+        let still = UPDATE_CLIENTS | 816;
+        let stone = reg.parse_state("minecraft:stone").0;
+        let air = l.known.air;
+        let air_block = reg.block(air);
+        for id in 0..reg.states.len() {
+            let state = id as State;
+            let at = Pos::new(4 * (id as i32 % 256), 64, 4 * (id as i32 / 256));
+            let quiet = Pos::new(at.x(), 128, at.z());
+            let block = reg.block(state);
+            let probe = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                place_commands(&mut l, &[format!("setblock {} {} {} {}", at.x(), at.y(), at.z(), reg.describe(state))], false);
+                let placed = l.get(at);
+                let mut bits = if reg.block(placed) == block { 0 } else { 1 };
+                l.set(quiet, state, still);
+                let shaped = update_from_neighbour_shapes(&mut l, state, quiet);
+                if reg.block(shaped) != block {
+                    bits |= 2;
+                }
+                blocks::neighbor_changed(&mut l, state, quiet, air_block, false);
+                let changed = l.get(quiet);
+                if reg.block(changed) != block {
+                    bits |= 4;
+                }
+                if bits == 0 && l.has_scheduled_tick(quiet, block) {
+                    blocks::tick(&mut l, state, quiet);
+                    let ticked = l.get(quiet);
+                    if reg.block(ticked) != block {
+                        bits |= 8;
+                    }
+                }
+                let fluid = l.fluid_state(quiet);
+                if bits == 0 && fluid != 0 && l.fluid_ticks.has_scheduled_tick(quiet, reg.fluids[fluid as usize].fluid) {
+                    let here = l.get(quiet);
+                    crate::fluid::tick(&mut l, quiet, here, fluid);
+                    let flowed = l.get(quiet);
+                    if reg.block(flowed) != block {
+                        bits |= 16;
+                    }
+                }
+                l.set(quiet, state, still);
+                let mut held = 0;
+                if !blocks::can_survive(&mut l, state, quiet) {
+                    for (i, dir) in crate::dir::ALL.iter().enumerate() {
+                        l.set(quiet.relative(*dir), stone, still);
+                        if blocks::can_survive(&mut l, state, quiet) {
+                            held |= 1 << i;
+                        }
+                        l.set(quiet.relative(*dir), air, still);
+                    }
+                }
+                (bits, held)
+            }));
+            match probe {
+                Ok((bits, held)) => {
+                    if bits != reg.alone[id] || held != reg.held[id] {
+                        wrong.push(format!("{}: {bits} {held}, the table {} {}", reg.describe(state), reg.alone[id], reg.held[id]));
+                    }
+                }
+                Err(payload) if crate::is_refusal(&*payload) => {
+                    refused += 1;
+                    l = level();
+                }
+                Err(payload) => std::panic::resume_unwind(payload),
+            }
+        }
+        assert!(refused < 400, "the port refuses {refused} states");
+        let bits = |text: &str| reg.alone[reg.parse_state(text).0 as usize];
+        assert_eq!((bits("minecraft:stone"), bits("minecraft:candle")), (0, 0), "stone and a candle stay");
+        assert_eq!((bits("minecraft:torch"), bits("minecraft:sand"), bits("minecraft:water[level=1]")), (2, 8, 16));
+        assert!(reg.alone.iter().filter(|&&bits| bits != 0).count() > 5000);
+        assert!(wrong.is_empty(), "{} states: {:#?}", wrong.len(), &wrong[..wrong.len().min(40)]);
     }
 }

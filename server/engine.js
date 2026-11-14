@@ -376,6 +376,12 @@ class Engine {
     return this.request('INPUT', type, x, y, z, yaw);
   }
 
+  // Writes the blocks of the world that cannot survive where they are to
+  // `file`, a line "x y z" each (the Rust engine's SURVIVE, core/src/main.rs).
+  unsupported(file) {
+    return this.request('SURVIVE', file);
+  }
+
   // Writes what the world holds besides its blocks to `file`
   // (McbenchEngine.state).
   state(file) {
@@ -544,6 +550,43 @@ function buildCore() {
   return coreBuild;
 }
 
+// `palette` (server/world.js PaletteStore) as the engine places the blocks
+// of a world written at Minecraft data version `dataVersion`: each entry as
+// the engine's port of Minecraft's data fixer upgrades a block state from
+// that version (DataFixer.update of block_state, which the engine's VERIFY
+// runs on every command's block before it places it), read from the native
+// program's --datafix lines. As DataFixer.update does, the fixer leaves the
+// blocks of the pinned version or a later one as they are, so their palette
+// is the one placed (VERIFY refuses a later version before it places).
+async function fixedPalette(palette, dataVersion) {
+  const { MC_DATA_VERSION } = require('./assets');
+  if (dataVersion >= MC_DATA_VERSION) return palette;
+  const binary = await buildCore();
+  const quote = (text) => JSON.stringify(String(text));
+  const lines = palette.entries.slice(1).map(({ id, states }) => {
+    const properties = Object.entries(states).map(([key, value]) => `${quote(key)}:${quote(value)}`).join(',');
+    return `block_state ${dataVersion} {Name:${quote(id)}${properties ? `,Properties:{${properties}}` : ''}}\n`;
+  });
+  const answer = await new Promise((resolve, reject) => {
+    const child = spawn(binary, ['--datafix'], { stdio: ['pipe', 'pipe', 'pipe'] });
+    const out = [];
+    const err = [];
+    child.stdout.on('data', (data) => out.push(data));
+    child.stderr.on('data', (data) => err.push(data));
+    child.on('error', reject);
+    child.on('close', (code) => (code === 0 ? resolve(Buffer.concat(out).toString('utf8')) : reject(new Error(`The engine's data fixer failed (code ${code}): ${Buffer.concat(err).toString('utf8').trim()}`))));
+    child.stdin.end(lines.join(''));
+  });
+  const entries = [null];
+  for (const line of answer.split('\n').filter(Boolean)) {
+    const fixed = /^ok \{Name:"([^"]*)"(?:,Properties:\{(.*)\})?\}$/.exec(line);
+    if (!fixed) throw new Error(`The engine's data fixer answered ${line}`);
+    entries.push({ id: fixed[1], states: Object.fromEntries([...(fixed[2] ?? '').matchAll(/"?([a-z0-9_]+)"?:"([^"]*)"/g)].map(([, key, value]) => [key, value])) });
+  }
+  if (entries.length !== palette.entries.length) throw new Error(`The engine's data fixer answered ${entries.length - 1} of ${palette.entries.length - 1} block states`);
+  return { entries };
+}
+
 // The Rust engine: speaks the Java engine's protocol (Engine) and writes the
 // same files. It reads nothing of the server's jars, so warm() needs only
 // `folder`.
@@ -551,4 +594,4 @@ function coreEngine() {
   return new Engine({ build: buildCore });
 }
 
-module.exports = { Engine, SOURCES, buildCore, coreBuildArgs, coreProfile, coreEngine, installRust, rust, CORE, buildEngine, compileEngine, compileNative, engineName, engineEnv, jvmEngine, graalvmHome, NATIVE, PROFILE, RELEASES };
+module.exports = { Engine, SOURCES, buildCore, fixedPalette, coreBuildArgs, coreProfile, coreEngine, installRust, rust, CORE, buildEngine, compileEngine, compileNative, engineName, engineEnv, jvmEngine, graalvmHome, NATIVE, PROFILE, RELEASES };

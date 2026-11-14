@@ -450,6 +450,17 @@ pub struct Registry {
     // Mth.ASIN_TAB and Mth.COS_TAB.
     pub asin_tab: Vec<f64>,
     pub cos_tab: Vec<f64>,
+    // By state, what changes its block when it is placed alone in an empty
+    // level (0: nothing; bits 1 its placement, 2 a shape update from an
+    // absent neighbour, 4 a neighbour update, 8 the scheduled tick they
+    // leave, 16 the fluid tick), and the directions in which a block of
+    // stone alone lets one that cannot survive survive (McbenchEngine.alone).
+    pub alone: Vec<u8>,
+    pub held: Vec<u8>,
+    // FlowingFluid's tick delay, drop off and slope find distance of each
+    // flowing fluid in the overworld, by fluid key (McbenchEngine.dump's
+    // fluidrule lines): what the engine's fluid code is checked against.
+    pub fluid_rules: HashMap<String, [i32; 3]>,
 }
 
 impl Registry {
@@ -512,6 +523,9 @@ impl Registry {
             paintings: Vec::new(),
             asin_tab: Vec::new(),
             cos_tab: Vec::new(),
+            alone: Vec::new(),
+            held: Vec::new(),
+            fluid_rules: HashMap::new(),
             occlusion: Occlusion { faces: Vec::new(), shapes: 0, occludes: Vec::new() },
         };
         let mut result_texts: Vec<&str> = Vec::new();
@@ -784,6 +798,21 @@ impl Registry {
                     });
                 }
                 "occludes" => occludes_rows.push((p[1].parse().unwrap(), p[2].parse().unwrap(), p[3])),
+                // What a state set alone in an empty level does and where a
+                // full block holds it (McbenchEngine.alone): the server orders
+                // an import by them; the engine's tests check its own blocks
+                // against them.
+                "alone" => registry.alone = p[1].split(',').map(|bits| u8::from_str_radix(bits, 16).unwrap()).collect(),
+                "fluidrule" => {
+                    registry.fluid_rules.insert(p[1].to_string(), [p[2].parse().unwrap(), p[3].parse().unwrap(), p[4].parse().unwrap()]);
+                }
+                "held" => {
+                    registry.held = vec![0; registry.states.len()];
+                    for entry in p[1].split(',').filter(|entry| !entry.is_empty()) {
+                        let (state, directions) = entry.split_once(':').unwrap();
+                        registry.held[state.parse::<usize>().unwrap()] = directions.parse().unwrap();
+                    }
+                }
                 other => panic!("unknown registry line {other}"),
             }
         }

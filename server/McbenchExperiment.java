@@ -829,7 +829,7 @@ public final class McbenchExperiment {
                 if (present && !lectern.hasBook()) {
                     var carried = supplied ? suppliedStack(level, input) : heldLecternBooks.get(pos);
                     if (carried == null || carried.isEmpty()) throw new IOException("No previously removed source book is available for this lectern");
-                    if (carried.getCount() != 1 || !(carried.is(net.minecraft.world.item.Items.WRITTEN_BOOK) || carried.is(net.minecraft.world.item.Items.WRITABLE_BOOK))) throw new IOException("Lectern supply requires exactly one native book");
+                    if (carried.getCount() != 1 || !carried.is(net.minecraft.tags.ItemTags.LECTERN_BOOKS)) throw new IOException("Lectern supply requires exactly one native book");
                     if (!net.minecraft.world.level.block.LecternBlock.tryPlaceBook(interactionPlayer, level, pos, state, carried) || !lectern.hasBook()) throw new IOException("Native book replacement failed");
                     if (!carried.isEmpty()) throw new IOException("Native book replacement did not consume the carried book");
                     heldLecternBooks.remove(pos);

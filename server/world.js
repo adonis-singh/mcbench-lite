@@ -689,6 +689,21 @@ class World {
     };
   }
 
+  // The chunks changed since the world was last finalized and their face
+  // neighbours: a block whose partner or support is one block away can only
+  // have been affected there.
+  nearChangedChunks() {
+    const keys = new Set();
+    for (const key of this.changedChunks) {
+      const [cx, cy, cz] = coordsOf(key);
+      keys.add(key);
+      keys.add(keyOf(cx + 1, cy, cz)); keys.add(keyOf(cx - 1, cy, cz));
+      keys.add(keyOf(cx, cy + 1, cz)); keys.add(keyOf(cx, cy - 1, cz));
+      keys.add(keyOf(cx, cy, cz + 1)); keys.add(keyOf(cx, cy, cz - 1));
+    }
+    return keys;
+  }
+
   diff(before) {
     if (this.base !== before) throw new Error('World.diff requires a direct clone of the previous world');
     let added = 0; let removed = 0; let changed = 0;

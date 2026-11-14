@@ -3,6 +3,7 @@
 const assert = require('node:assert');
 const { test } = require('node:test');
 
+require('./helpers/fake-facts').installFakeFacts();
 const { LiveViews } = require('../server/live-views');
 const { World } = require('../server/world');
 

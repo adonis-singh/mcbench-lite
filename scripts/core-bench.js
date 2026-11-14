@@ -34,6 +34,7 @@ const { MinecraftVerifier } = require('../server/minecraft-verify');
 const { importCommands } = require('../server/live-placement');
 const { Y_OFFSET } = require('../server/minecraft-dimension');
 const { World } = require('../server/world');
+const facts = require('../server/minecraft-facts').minecraftFacts();
 const { corpusArtifacts } = require('./corpus');
 
 const option = (name, fallback) => {
@@ -123,8 +124,8 @@ function experiment(blocks, first, ticks) {
   for (const block of blocks) {
     if (!COMPONENTS.test(block.id)) continue;
     if (probes.length < 256 && !containers.includes(block.pos)) probes.push(block.pos);
-    if (block.id === 'minecraft:lever') actions.push({ tick: 2, type: 'toggle', at: block.pos }, { tick: Math.floor(ticks / 2), type: 'toggle', at: block.pos });
-    else if (block.id.endsWith('_button')) actions.push({ tick: 4, type: 'press', at: block.pos });
+    if (facts.is(block.id, 'LeverBlock')) actions.push({ tick: 2, type: 'toggle', at: block.pos }, { tick: Math.floor(ticks / 2), type: 'toggle', at: block.pos });
+    else if (facts.is(block.id, 'ButtonBlock')) actions.push({ tick: 4, type: 'press', at: block.pos });
   }
   containers.slice(0, 8).forEach((at, index) => actions.push({ tick: 3 + index, type: 'insert', at, slot: 0, count: 16, item: 'minecraft:cobblestone' }));
   const hopper = blocks.find((block) => block.id === 'minecraft:hopper');
@@ -190,9 +191,9 @@ async function runItem(engine, item, prepared, scratch) {
     const toggles = [];
     for (const block of prepared.blocks) {
       const at = [block.pos[0], block.pos[1] + Y_OFFSET, block.pos[2]];
-      if (kind === 'start' && block.id === 'minecraft:lever') toggles.push(['toggle', ...at, 0]);
-      if (kind === 'start' && block.id.endsWith('_button')) toggles.push(['press', ...at, 0]);
-      if (kind === 'middle' && block.id === 'minecraft:lever') toggles.push(['toggle', ...at, 0]);
+      if (kind === 'start' && facts.is(block.id, 'LeverBlock')) toggles.push(['toggle', ...at, 0]);
+      if (kind === 'start' && facts.is(block.id, 'ButtonBlock')) toggles.push(['press', ...at, 0]);
+      if (kind === 'middle' && facts.is(block.id, 'LeverBlock')) toggles.push(['toggle', ...at, 0]);
     }
     return toggles;
   };

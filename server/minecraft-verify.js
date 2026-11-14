@@ -7,10 +7,11 @@ const { execFile } = require('child_process');
 const { promisify } = require('util');
 const os = require('os');
 const { PaperServer } = require('./paper-server');
-const { coreEngine } = require('./engine');
+const { coreEngine, fixedPalette } = require('./engine');
 const { importCommands } = require('./live-placement');
+const facts = require('./minecraft-facts');
 const { World } = require('./world');
-const { MC_VERSION } = require('./assets');
+const { MC_VERSION, MC_DATA_VERSION } = require('./assets');
 const { JAVAC } = require('./tools');
 const { MIN_MC_Y, MAX_MC_Y, Y_OFFSET, validateWorldHeight } = require('./minecraft-dimension');
 
@@ -128,7 +129,8 @@ function validateRequest(world, args, yOffset = Y_OFFSET, budgets = BUDGETS) {
     const result = { tick: integer(action.tick, 0, samples.at(-1), 'action tick'), type: action.type, at: drop ? entityPosition(action.at) : position(action.at) };
     if (action.type === 'book') { if (typeof action.present !== 'boolean') throw new Error('book present must be boolean'); result.present = action.present; }
     if (suppliedBook) {
-      if (!action.present || !['minecraft:written_book','minecraft:writable_book'].includes(action.item) || action.count !== 1) throw new Error('Book supply requires present:true and exactly one written or writable book');
+      // The books a lectern takes are Minecraft's item tag minecraft:lectern_books (LecternBlock.useItemOn).
+      if (!action.present || !facts.minecraftFacts().itemTag('minecraft:lectern_books').has(action.item) || action.count !== 1) throw new Error('Book supply requires present:true and exactly one written or writable book');
       result.item = action.item; result.count = 1;
     }
     if (action.type === 'page') result.page = integer(action.page, 0, 2147483547, 'page');
@@ -509,7 +511,7 @@ class MinecraftVerifier extends Experiments {
       phase('resetMs');
       signal.throwIfAborted();
       onUpdate({ phase: 'placing', message: `Importing blueprint revision ${world.revision}` });
-      await live.applyWorld(world, { resumeTicks: false });
+      await live.applyWorld(world, { resumeTicks: false, placed: await fixedPalette(world.palette, request.block_data_version ?? MC_DATA_VERSION) });
       phase('placementMs');
       signal.throwIfAborted();
       onUpdate({ phase: 'running', message: 'Running Minecraft inputs and observations' });
@@ -688,7 +690,8 @@ class EngineVerifier extends Experiments {
       const requestFile = path.join(folder, 'request.json');
       const commandsFile = path.join(folder, 'commands.txt');
       fs.writeFileSync(requestFile, JSON.stringify(this.transport(request)));
-      fs.writeFileSync(commandsFile, `${importCommands(world, null, Y_OFFSET).commands.join('\n')}\n`);
+      const placed = await fixedPalette(world.palette, request.block_data_version ?? MC_DATA_VERSION);
+      fs.writeFileSync(commandsFile, `${importCommands(world, null, Y_OFFSET, placed).commands.join('\n')}\n`);
       onUpdate({ phase: 'running', message: 'Running Minecraft inputs and observations' });
       const progressFile = path.join(folder, 'progress.json');
       let lastProgress = '';

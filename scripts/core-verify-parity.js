@@ -45,7 +45,8 @@ const crypto = require('crypto');
 const { execFileSync, spawn } = require('child_process');
 const ROOT = path.join(__dirname, '..');
 const { minecraftLive } = require('../server/minecraft-live');
-const { Engine, engineEnv, jvmEngine, coreBuildArgs, rust, installRust } = require('../server/engine');
+const { Engine, engineEnv, jvmEngine, coreBuildArgs, rust, installRust, fixedPalette } = require('../server/engine');
+const { MC_DATA_VERSION } = require('../server/assets');
 const { MinecraftVerifier } = require('../server/minecraft-verify');
 const { importCommands } = require('../server/live-placement');
 const { Y_OFFSET } = require('../server/minecraft-dimension');
@@ -573,7 +574,7 @@ async function main() {
     // report does not show.
     fs.writeFileSync(requestFile, JSON.stringify({ ...(recorded ? request : verifier.transport(request)), ...(process.argv.includes('--no-trace') ? {} : { entity_trace: true }) }));
     if (recorded) fs.copyFileSync(path.join(recorded, 'commands.txt'), commandsFile);
-    else fs.writeFileSync(commandsFile, `${importCommands(loaded.world, null, Y_OFFSET).commands.join('\n')}\n`);
+    else fs.writeFileSync(commandsFile, `${importCommands(loaded.world, null, Y_OFFSET, await fixedPalette(loaded.world.palette, request.block_data_version ?? MC_DATA_VERSION)).commands.join('\n')}\n`);
     const rustRun = await runOn(rust, requestFile, commandsFile, path.join(folder, 'rust'));
     const refusal = rustRun.failed?.startsWith('unported:');
     if (refusal) {

@@ -40,8 +40,7 @@ function encodeBlueprint(palette, sections, bounds) {
 }
 
 // Gathers blocks into sections and a palette: `add(x, y, z, name)` for one
-// non-air block, `addSection` for a section of them, then `encode()`. An
-// empty world spans one position.
+// non-air block, then `encode()`. An empty world spans one position.
 function collector() {
   const palette = [AIR];
   const index = new Map([[AIR, 0]]);
@@ -70,18 +69,6 @@ function collector() {
     add(x, y, z, name) {
       section(x >> 4, y >> 4, z >> 4)[(y & 15) << 8 | (z & 15) << 4 | (x & 15)] = intern(name);
       extend(x, y, z);
-    },
-    // `names`: the section's palette; `indices`: its 4096 indices into it,
-    // or null when the section is all names[0].
-    addSection([sx, sy, sz], names, indices) {
-      const values = names.map((name) => (name === AIR ? 0 : intern(name)));
-      const target = section(sx, sy, sz);
-      for (let i = 0; i < 4096; i += 1) {
-        const value = values[indices ? indices[i] : 0];
-        if (!value) continue;
-        target[i] = value;
-        extend(sx * 16 + (i & 15), sy * 16 + (i >> 8), sz * 16 + ((i >> 4) & 15));
-      }
     },
     encode() {
       return encodeBlueprint(palette, [...sections.values()], sections.size ? bounds : [0, 0, 0, 0, 0, 0]);

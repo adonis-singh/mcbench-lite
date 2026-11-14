@@ -976,7 +976,95 @@ public class McbenchEngine {
       .forEach(holder -> curses.add(holder.unwrapKey().orElseThrow().location().toString()));
     java.util.Collections.sort(curses);
     out.append("entries\t#minecraft:enchantment/curse\t").append(String.join(",", curses)).append('\n');
+    alone(out);
+    // fluidrule: each flowing fluid's rules in the engine's overworld level, as
+    // FlowingFluid asks them: its tick delay (getTickDelay), the amount it
+    // loses a block across (getDropOff) and how far it looks for a way down
+    // (getSlopeFindDistance).
+    //   fluidrule <fluid key> <tick delay> <drop off> <slope find distance>
+    var dropOff = net.minecraft.world.level.material.FlowingFluid.class.getDeclaredMethod("getDropOff", net.minecraft.world.level.LevelReader.class);
+    var slopeFindDistance = net.minecraft.world.level.material.FlowingFluid.class.getDeclaredMethod("getSlopeFindDistance", net.minecraft.world.level.LevelReader.class);
+    dropOff.setAccessible(true);
+    slopeFindDistance.setAccessible(true);
+    for (var fluid : BuiltInRegistries.FLUID) {
+      if (!(fluid instanceof net.minecraft.world.level.material.FlowingFluid flowing)) continue;
+      out.append("fluidrule\t").append(BuiltInRegistries.FLUID.getKey(fluid)).append('\t').append(flowing.getTickDelay(level)).append('\t')
+        .append(dropOff.invoke(flowing, level)).append('\t').append(slopeFindDistance.invoke(flowing, level)).append('\n');
+    }
     Files.writeString(target, out);
+  }
+
+  // What Minecraft does to each block state placed alone in an empty level,
+  // the import's order is made from (server/live-placement.js):
+  //   alone <a hex number per state, comma-separated, in Block.BLOCK_STATE_REGISTRY order>
+  // 0 for a state that stays as placed whatever its neighbours do, else the
+  // bits of what changes its block:
+  //   1 its own placement (the import's setblock: a rail with nothing under
+  //     it leaves at its onPlace),
+  //   2 shape updates from its absent neighbours, one after another
+  //     (Block.updateFromNeighbourShapes: a torch with nothing under it, a
+  //     bed half without its other half, a nether portal without its frame,
+  //     glow lichen with nothing to cling to),
+  //   4 a neighbour update (neighborChanged with air: redstone dust, a
+  //     repeater),
+  //   8 the scheduled tick those updates leave it (it falls, as sand does, or
+  //     breaks, as sugar cane does, or dries, as coral does),
+  //   16 the fluid tick they leave it (a flowing fluid nothing feeds drains).
+  // The ticks are those the updates schedule, not the block's own onPlace
+  // (a sniffer egg's hatching). Each state is placed four blocks from the
+  // last, so none reaches another.
+  //   held <state id>:<directions>,...
+  // for each state that cannot survive alone (canSurvive), the directions
+  // (bits over Direction.ordinal()) in which a block of stone, alone beside
+  // it, lets it survive: where a full block holds it.
+  static void alone(StringBuilder out) throws Exception {
+    McbenchLevel scratch = McbenchLevel.create(0);
+    BlockState air = Blocks.AIR.defaultBlockState();
+    BlockState stone = Blocks.STONE.defaultBlockState();
+    int still = Block.UPDATE_CLIENTS | 816;
+    var directions = net.minecraft.core.Direction.values();
+    var why = new StringBuilder();
+    var held = new ArrayList<String>();
+    int n = 0;
+    for (BlockState state : Block.BLOCK_STATE_REGISTRY) {
+      // Placed by the import at `at`; set without updates or onPlace at
+      // `quiet` for the updates from absent neighbours, so that the ticks
+      // there are those the updates schedule.
+      BlockPos at = new BlockPos(4 * (n % 256), 64, 4 * (n / 256));
+      BlockPos quiet = at.above(64);
+      n++;
+      Block block = state.getBlock();
+      placeAll(scratch, List.of("setblock " + at.getX() + " " + at.getY() + " " + at.getZ() + " " + BlockStateParser.serialize(state)), false);
+      int bits = scratch.getBlockState(at).is(block) ? 0 : 1;
+      scratch.setBlock(quiet, state, still);
+      // Block.updateFromNeighbourShapes: a shape update from each absent
+      // neighbour in turn, as they would come one after another.
+      if (!Block.updateFromNeighbourShapes(state, scratch, quiet).is(block)) bits |= 2;
+      state.handleNeighborChanged(scratch, quiet, Blocks.AIR, null, false);
+      if (!scratch.getBlockState(quiet).is(block)) bits |= 4;
+      if (bits == 0 && scratch.getBlockTicks().hasScheduledTick(quiet, block)) {
+        state.tick(scratch, quiet, scratch.getRandom());
+        if (!scratch.getBlockState(quiet).is(block)) bits |= 8;
+      }
+      var fluid = scratch.getFluidState(quiet);
+      if (bits == 0 && !fluid.isEmpty() && scratch.getFluidTicks().hasScheduledTick(quiet, fluid.getType())) {
+        fluid.tick(scratch, quiet, state);
+        if (!scratch.getBlockState(quiet).is(block)) bits |= 16;
+      }
+      scratch.setBlock(quiet, state, still);
+      if (!state.canSurvive(scratch, quiet)) {
+        int holding = 0;
+        for (var direction : directions) {
+          scratch.setBlock(quiet.relative(direction), stone, still);
+          if (state.canSurvive(scratch, quiet)) holding |= 1 << direction.ordinal();
+          scratch.setBlock(quiet.relative(direction), air, still);
+        }
+        held.add(Block.getId(state) + ":" + holding);
+      }
+      why.append(Integer.toHexString(bits)).append(',');
+    }
+    out.append("alone\t").append(why, 0, why.length() - 1).append('\n');
+    out.append("held\t").append(String.join(",", held)).append('\n');
   }
 
   // A stack as ItemStack.CODEC writes it to NBT, as text.

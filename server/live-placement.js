@@ -7,8 +7,7 @@
 
 const { CHUNK_SIZE, World } = require('./world');
 const { Y_OFFSET } = require('./minecraft-dimension');
-
-const FRAGILE_BLOCK = /(?:^|:)(?:.*(?:torch|lantern|ladder|vine|button|lever|sign|banner|rail|carpet|flower|sapling|bush|roots|sprouts|fungus|candle|door|bed|sand|gravel|concrete_powder|anvil|water|lava|kelp|seagrass|lily_pad|sugar_cane|cactus|bamboo|scaffolding|tripwire|pressure_plate|coral|snow)$)/;
+const facts = require('./minecraft-facts');
 
 function blockSpec(entry) {
   const states = Object.entries(entry.states || {})
@@ -26,8 +25,14 @@ function cubeCommand(spec, from, to) {
 
 // Greedy exact cuboids inside one 16³ chunk. A solid chunk becomes one fill;
 // detailed surfaces remain setblocks. This keeps normal LLM edits fast without
-// installing/reloading a datapack or restarting the Minecraft server.
-function compileChunk(world, key, yOffset = Y_OFFSET, previousWorld = null) {
+// installing/reloading a datapack or restarting the Minecraft server. Each
+// cuboid's command is a removal (air), a block that stays as placed alone
+// whatever its neighbours do (`alone`), or one that does not (`supported`:
+// Minecraft's table of what each state placed alone does, McbenchEngine.alone),
+// as the engine places it: `placed` is the world's palette after Minecraft's
+// data fix of its blocks' version (engine.js fixedPalette), index for index.
+function compileChunk(world, key, yOffset = Y_OFFSET, previousWorld = null, placed = world.palette) {
+  const last = facts.minecraftFacts().lastPass(placed);
   const chunk = world.chunks.get(key);
   const previous = previousWorld?.chunks.get(key);
   const current = chunk ? chunk.view() : new Uint16Array(CHUNK_SIZE ** 3);
@@ -51,8 +56,8 @@ function compileChunk(world, key, yOffset = Y_OFFSET, previousWorld = null) {
   const [cx, cy, cz] = World.coordsOf(key);
   const ox = cx * CHUNK_SIZE; const oy = cy * CHUNK_SIZE; const oz = cz * CHUNK_SIZE;
   const removed = [];
-  const solid = [];
-  const fragile = [];
+  const alone = [];
+  const supported = [];
   for (let y = 0; y < CHUNK_SIZE; y += 1) {
     for (let z = 0; z < CHUNK_SIZE; z += 1) {
       for (let x = 0; x < CHUNK_SIZE; x += 1) {
@@ -96,11 +101,11 @@ function compileChunk(world, key, yOffset = Y_OFFSET, previousWorld = null) {
           [ox + x, oy + y + yOffset, oz + z],
           [ox + x2, oy + y2 + yOffset, oz + z2],
         );
-        (paletteIndex === 0 ? removed : FRAGILE_BLOCK.test(spec.split('[')[0]) ? fragile : solid).push(command);
+        (paletteIndex === 0 ? removed : last[paletteIndex] ? supported : alone).push(command);
       }
     }
   }
-  return { key, removed, solid, fragile };
+  return { key, removed, alone, supported };
 }
 
 function chunksEqual(leftWorld, rightWorld, key) {
@@ -158,13 +163,22 @@ function groupPlansByColumn(plans) {
 }
 
 // Every command that takes `appliedWorld` to `world`, in the order the live
-// import runs them: removals, then solid blocks, then blocks that need
-// support, each pass column by column from the bottom up.
-function importCommands(world, appliedWorld, yOffset) {
+// import runs them: removals, then the blocks that stay as placed alone, then
+// the others, each pass column by column from the bottom up. A block of the
+// last pass is placed when every block of the first is in place, so the
+// update a later command sends it finds what it stands on, hangs from or
+// leans on there (a block it needs that is of the last pass too is below it
+// in its column, which is placed first, or is placed later beside or above
+// it); a block of the first pass needs nothing around it. A block's pass is
+// that of the state the engine places (`placed`, see compileChunk): a world
+// written at an older Minecraft version is ordered by its blocks as the data
+// fixer brings them forward, while its commands keep the blocks as written,
+// which the engine fixes as it places them.
+function importCommands(world, appliedWorld, yOffset, placed = world.palette) {
   const keys = changedKeys(appliedWorld, world);
-  const columns = groupPlansByColumn(keys.map((key) => compileChunk(world, key, yOffset, appliedWorld)));
+  const columns = groupPlansByColumn(keys.map((key) => compileChunk(world, key, yOffset, appliedWorld, placed)));
   const commands = [];
-  for (const kind of ['removed', 'solid', 'fragile']) {
+  for (const kind of ['removed', 'alone', 'supported']) {
     for (const column of columns) for (const plan of column.plans) commands.push(...plan[kind]);
   }
   return { keys, commands };

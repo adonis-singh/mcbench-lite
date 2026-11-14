@@ -3,6 +3,7 @@
 const assert = require('node:assert');
 const { test } = require('node:test');
 
+require('./helpers/fake-facts').installFakeFacts();
 const { blockSpec, changedKeys, compileChunk } = require('../server/live-placement');
 const { validateWorldHeight } = require('../server/minecraft-dimension');
 const { World } = require('../server/world');
@@ -11,8 +12,8 @@ test('solid chunks compile to one direct fill without a datapack reload', () => 
   const world = new World();
   world.fill([0, 0, 0], [15, 15, 15], 'minecraft:stone', {});
   const plan = compileChunk(world, World.keyOf(0, 0, 0), 64);
-  assert.deepStrictEqual(plan.solid, ['fill 0 64 0 15 79 15 minecraft:stone']);
-  assert.deepStrictEqual(plan.fragile, []);
+  assert.deepStrictEqual(plan.alone, ['fill 0 64 0 15 79 15 minecraft:stone']);
+  assert.deepStrictEqual(plan.supported, []);
 });
 
 test('compiled cuboids reproduce mixed blocks and states exactly in a negative chunk', () => {
@@ -24,7 +25,7 @@ test('compiled cuboids reproduce mixed blocks and states exactly in a negative c
   world.set(-16, -15, -16, 'minecraft:oak_stairs', { half: 'bottom', facing: 'south' });
   const plan = compileChunk(world, World.keyOf(-1, -1, -1), 64);
   const placed = new Map();
-  for (const command of [...plan.solid, ...plan.fragile]) {
+  for (const command of [...plan.alone, ...plan.supported]) {
     const tokens = command.split(' ');
     const from = tokens.slice(1, 4).map(Number);
     const to = tokens[0] === 'fill' ? tokens.slice(4, 7).map(Number) : from;
@@ -38,7 +39,7 @@ test('compiled cuboids reproduce mixed blocks and states exactly in a negative c
   const expected = new Map();
   world.forEach((x, y, z, entry) => expected.set(`${x},${y},${z}`, blockSpec(entry)));
   assert.deepStrictEqual(placed, expected);
-  assert.deepStrictEqual(plan.fragile, ['setblock -8 53 -12 minecraft:torch']);
+  assert.deepStrictEqual(plan.supported, ['setblock -8 53 -12 minecraft:torch']);
 });
 
 test('height validation explains builds that cannot fit in a real world', () => {
@@ -59,7 +60,7 @@ test('one block edit emits one placement without clearing or rebuilding its neig
   next.set(8, 8, 8, 'minecraft:gold_block');
   next.finalize();
   const plan = compileChunk(next, ORIGIN, 64, before);
-  assert.deepStrictEqual(plan, { key: ORIGIN, removed: [], solid: ['setblock 8 72 8 minecraft:gold_block'], fragile: [] });
+  assert.deepStrictEqual(plan, { key: ORIGIN, removed: [], alone: ['setblock 8 72 8 minecraft:gold_block'], supported: [] });
 });
 
 test('incremental cuboids reconstruct additions, removals, and states across independent palettes', () => {
@@ -80,7 +81,7 @@ test('incremental cuboids reconstruct additions, removals, and states across ind
     before.forEach((x, y, z, entry) => placed.set(`${x},${y},${z}`, blockSpec(entry)));
     for (const key of changedKeys(before, after)) {
       const plan = compileChunk(after, key, 64, before);
-      for (const command of [...plan.removed, ...plan.solid, ...plan.fragile]) {
+      for (const command of [...plan.removed, ...plan.alone, ...plan.supported]) {
         const tokens = command.split(' ');
         const from = tokens.slice(1, 4).map(Number);
         const to = tokens[0] === 'fill' ? tokens.slice(4, 7).map(Number) : from;
@@ -98,7 +99,7 @@ test('incremental cuboids reconstruct additions, removals, and states across ind
     for (const key of after.chunks.keys()) {
       const plan = compileChunk(empty, key, 64, after);
       assert.ok(plan.removed.length > 0);
-      assert.strictEqual(plan.solid.length + plan.fragile.length, 0);
+      assert.strictEqual(plan.alone.length + plan.supported.length, 0);
     }
   }
 });

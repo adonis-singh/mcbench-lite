@@ -7,8 +7,6 @@ const zlib = require('node:zlib');
 const { test } = require('node:test');
 
 const { minecraftLive } = require('../server/minecraft-live');
-const { PAPER } = require('../server/paper-files');
-const { JAVA } = require('../server/tools');
 const { MC_VERSION } = require('../server/assets');
 const { BIOME } = require('../server/minecraft-dimension');
 const { BlockStates } = require('../server/block-states');
@@ -22,14 +20,14 @@ const { blockIcon, _internal: { decodePng, icon, loadAssets } } = require('../se
 // client jar's colour maps decoded here (not by ImageIO, which the program
 // decodes them with in NativeImage's place) and looked up by its biome's
 // climate, its item definitions' tints, its biome's water colour, its own
-// formulas for dust and stems. It runs where the bake can be made without a
-// download: the data folder (MCBENCH_DATA_DIR) holds Paper laid out and the
-// client jar BlueMap downloads, and the tools folder (MCBENCH_TOOLS_DIR) the
-// JDK; it makes the bake if there is none.
+// formulas for dust and stems. It reads the bake the data folder
+// (MCBENCH_DATA_DIR) holds for its block table, and the client jar beside it
+// (the app's first start makes both), and is skipped without them: a test
+// makes no bake, so two test files never make one at once.
 const client = path.join(minecraftLive.blueMap.root, 'data', `minecraft-client-${MC_VERSION}.jar`);
-const ready = fs.existsSync(path.join(minecraftLive.paperDir, PAPER[minecraftLive.minecraftVersion].jar))
-  && fs.existsSync(path.join(minecraftLive.paperDir, 'versions')) && fs.existsSync(JAVA) && fs.existsSync(client);
-const skip = !ready && 'needs Paper laid out and the client jar in the data folder, and the JDK in the tools folder';
+const TABLE = minecraftLive.blockTableFile();
+const TINTS = fs.existsSync(TABLE) && minecraftLive.bakedFile('tints.tsv');
+const skip = !(TINTS && fs.existsSync(TINTS) && fs.existsSync(client)) && 'needs the viewer\'s bake of the current sources in the data folder (the app\'s first start makes it)';
 
 const jarJson = (name) => JSON.parse(readZipEntry(client, name).toString('utf8'));
 
@@ -84,9 +82,9 @@ function dust(power) {
 // An item definition's first tint source's constant, as 0xRRGGBB.
 const itemConstant = (item) => jarJson(`assets/minecraft/items/${item}.json`).model.tints[0].value & 0xffffff;
 
-test('the tints are Minecraft\'s client\'s, in the world\'s biome', { skip, timeout: 600000 }, async () => {
-  const [table, tintsFile] = await Promise.all([minecraftLive.blockTable(), minecraftLive.blockTints()]);
-  const states = new BlockStates(fs.readFileSync(table, 'utf8'), fs.readFileSync(await minecraftLive.renderLayers(), 'utf8'));
+test('the tints are Minecraft\'s client\'s, in the world\'s biome', { skip }, async () => {
+  const tintsFile = TINTS;
+  const states = new BlockStates(fs.readFileSync(TABLE, 'utf8'), fs.readFileSync(minecraftLive.bakedFile('render-layers.tsv'), 'utf8'));
   const tints = new BlockTints(fs.readFileSync(tintsFile, 'utf8'), states);
   const lines = fs.readFileSync(tintsFile, 'utf8').split('\n').filter(Boolean).slice(1).map((line) => line.split('\t'));
   const of = (block, properties = {}) => {
@@ -215,9 +213,9 @@ function packTints(pack) {
   return byName;
 }
 
-test('the live viewer\'s pack tints every state Minecraft\'s client tints in the client\'s colour', { skip, timeout: 600000 }, async () => {
-  const lines = fs.readFileSync(await minecraftLive.blockTints(), 'utf8').split('\n').filter(Boolean).slice(1).map((line) => line.split('\t'));
-  const pack = packTints(fs.readFileSync(minecraftLive.blueMap.baked('web/mcbench-pack.bin')));
+test('the live viewer\'s pack tints every state Minecraft\'s client tints in the client\'s colour', { skip }, async () => {
+  const lines = fs.readFileSync(TINTS, 'utf8').split('\n').filter(Boolean).slice(1).map((line) => line.split('\t'));
+  const pack = packTints(fs.readFileSync(minecraftLive.bakedFile('web/mcbench-pack.bin')));
   let compared = 0;
   for (const [name, world, , , faces] of lines) {
     const colors = world.split(',');
@@ -230,7 +228,8 @@ test('the live viewer\'s pack tints every state Minecraft\'s client tints in the
   assert.equal(pack.get('minecraft:redstone_wire[east=none,north=none,power=7,south=none,west=none]'), dust(7));
 });
 
-test('a block\'s icon is multiplied by its breaking particles\' colour, and a name of no block has none', { skip, timeout: 600000 }, async () => {
+// Through the app's own path, which finds the bake there and makes none.
+test('a block\'s icon is multiplied by its breaking particles\' colour, and a name of no block has none', { skip }, async () => {
   const loaded = await loadAssets();
   const tints = (await require('../server/block-tints').blockTints());
   const states = await require('../server/block-states').blockStates();

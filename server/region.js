@@ -8,6 +8,8 @@ const fs = require('fs');
 const path = require('path');
 const zlib = require('zlib');
 
+const facts = require('./minecraft-facts');
+
 // NBT, with long arrays kept as their big-endian bytes: a section's block
 // data is read straight from them (sectionStates).
 function readNbt(buffer) {
@@ -101,7 +103,8 @@ function sectionIndices(section) {
   return indices;
 }
 
-// Map of "x,y,z" -> state name for every non-air block.
+// Map of "x,y,z" -> state name for every block that is not air to Minecraft
+// (air, cave air and void air are; minecraft-facts.js isAir).
 function readBlockStates(folder) {
   const states = new Map();
   for (const chunk of readChunks(folder)) {
@@ -109,11 +112,12 @@ function readBlockStates(folder) {
       const palette = section.block_states?.palette || [];
       if (!palette.length) continue;
       const names = palette.map(stateName);
+      const air = palette.map((entry) => facts.minecraftFacts().isAir(entry.Name));
       const indices = sectionIndices(section);
       const origin = [chunk.xPos * 16, section.Y * 16, chunk.zPos * 16];
       for (let i = 0; i < 4096; i += 1) {
-        const name = names[indices ? indices[i] : 0];
-        if (name !== 'minecraft:air') states.set(`${origin[0] + (i & 15)},${origin[1] + (i >> 8)},${origin[2] + ((i >> 4) & 15)}`, name);
+        const at = indices ? indices[i] : 0;
+        if (!air[at]) states.set(`${origin[0] + (i & 15)},${origin[1] + (i >> 8)},${origin[2] + ((i >> 4) & 15)}`, names[at]);
       }
     }
   }

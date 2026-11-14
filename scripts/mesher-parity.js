@@ -114,12 +114,13 @@ async function engineSteps(engine, blocks, ticks) {
   }
   world.finalize();
   const steps = [{ kind: 'blueprint', bytes: (await engine.place(importCommands(world, null, Y_OFFSET).commands.map((line) => `${line}\n`).join(''))).bytes }];
-  const inputs = [...blocks].filter(([, name]) => /^minecraft:lever\b|_button\b/.test(name));
+  const facts = require('../server/minecraft-facts').minecraftFacts();
+  const inputs = [...blocks].filter(([, name]) => facts.is(name.split('[')[0], 'LeverBlock') || facts.is(name.split('[')[0], 'ButtonBlock'));
   for (let t = 1; t <= ticks; t += 1) {
     for (const [key, name] of inputs) {
       const [x, y, z] = key.split(',').map(Number);
-      if (name.startsWith('minecraft:lever') && (t === 2 || t === Math.floor(ticks / 2))) await engine.input('toggle', x, y, z).catch(() => {});
-      if (/_button\b/.test(name) && t === 4) await engine.input('press', x, y, z).catch(() => {});
+      if (facts.is(name.split('[')[0], 'LeverBlock') && (t === 2 || t === Math.floor(ticks / 2))) await engine.input('toggle', x, y, z).catch(() => {});
+      if (facts.is(name.split('[')[0], 'ButtonBlock') && t === 4) await engine.input('press', x, y, z).catch(() => {});
     }
     steps.push({ kind: 'patch', bytes: (await engine.tick(1)).bytes });
   }

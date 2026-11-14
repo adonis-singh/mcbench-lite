@@ -13,11 +13,13 @@ const { opaqueStates } = require('./helpers/block-table');
 
 // What the pinned Minecraft says of block states, in the block table
 // minecraftLive.blockTable() makes from Paper's own classes, and in the
-// render layers minecraftLive.renderLayers() reads from its client jar. It
-// runs where they can be made without a download: the data folder
+// render layers the viewer's bake reads from its client jar. The table's
+// tests run where it can be made without a download: the data folder
 // (MCBENCH_DATA_DIR) holds Paper laid out (its jar and its versions folder)
-// and the tools folder (MCBENCH_TOOLS_DIR) the JDK; the render layers'
-// test also needs the client jar there.
+// and the tools folder (MCBENCH_TOOLS_DIR) the JDK. The render layers' test
+// reads the bake the data folder holds (the app's first start makes it) and
+// is skipped without it: a test makes no bake, so two test files never make
+// one at once.
 const ready = fs.existsSync(path.join(minecraftLive.paperDir, PAPER[minecraftLive.minecraftVersion].jar))
   && fs.existsSync(path.join(minecraftLive.paperDir, 'versions')) && fs.existsSync(JAVA);
 
@@ -120,11 +122,12 @@ test('the block table holds Minecraft\'s fluids, render shapes and skipRendering
   for (const block of ['minecraft:stone', 'minecraft:glass', 'minecraft:kelp', 'minecraft:chest']) assert.equal(states.draw[id(block)] & 1, 1, block);
 });
 
-// The client jar BlueMap's bake downloads, which the render layers are read from.
-const client = path.join(path.dirname(minecraftLive.paperDir), 'bluemap', 'data', `minecraft-client-${minecraftLive.minecraftVersion}.jar`);
+// The block table and the render layers of the bake for it, as the data
+// folder holds them.
+const table = minecraftLive.blockTableFile();
+const layers = fs.existsSync(table) && minecraftLive.bakedFile('render-layers.tsv');
 
-test('the render layers are Minecraft\'s client\'s', { skip: !(ready && fs.existsSync(client)) && 'needs Paper laid out and the client jar in the data folder, and the JDK in the tools folder', timeout: 600000 }, async () => {
-  const [table, layers] = await Promise.all([minecraftLive.blockTable(), minecraftLive.renderLayers()]);
+test('the render layers are Minecraft\'s client\'s', { skip: !(layers && fs.existsSync(layers)) && 'needs the viewer\'s bake of the current sources in the data folder (the app\'s first start makes it)' }, async () => {
   const text = fs.readFileSync(layers, 'utf8');
   const states = new BlockStates(fs.readFileSync(table, 'utf8'), text);
   const lines = text.split('\n').filter(Boolean);
