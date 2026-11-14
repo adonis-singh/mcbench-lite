@@ -6,6 +6,7 @@ import { EMPTY_DRAFT, draftEmpty, draftFiles, holdsRead, beginRead, endRead, Dra
 import { placeKeys, withRow, asChat, chatDraft, benchDraft, NEW_CHAT_DRAFT, NEW_BENCH_DRAFT } from '/place.mjs';
 import { PromptSync, promptsLoaded } from '/prompt-sync.mjs';
 import { RESOLUTIONS, resolutionStop, resolutionHelp } from '/resolution.mjs';
+import { GROUPS, NO_FILTERS, filtering, toggled, chatFacets, benchFacets, listed, offered, inEffect } from '/filters.mjs';
 import { Favorites } from '/favorites.mjs';
 import { CLOSED, panelTo, panelEdit, panelDraft, withTitleModel, withShareRepo, usable, CONNECT, firstPane, connectWays } from '/settings-panel.mjs';
 import { megabytes, setupStatus, heldLine, linkParts } from '/setup-status.mjs';
@@ -2001,6 +2002,151 @@ function PromptsSection({ prompts, onCreate, ...list }) {
   `;
 }
 
+// The sidebar search's filters (filters.mjs): a button at the end of the
+// search box opens a menu of three groups, each choice toggled in place, and
+// the choices in effect show as chips under the box. The arrow keys, Home
+// and End move through the choices, Tab too; Escape closes the menu and
+// gives the focus back to the button, as a click outside closes it.
+const FILTER_GROUPS = { size: 'Size', prompt: 'Prompt', model: 'Model' };
+
+// Each value's text in the menu and on its chip, and its full name for a
+// hover. A model's provider is named only where two providers offer a model
+// of the same name.
+function filterLabels(offer, providers) {
+  const name = (key) => modelLabel(key.slice(key.indexOf('::') + 2));
+  const names = offer.model.map(name);
+  const provider = (key) => key.slice(0, key.indexOf('::'));
+  const providerLabel = (key) => providers[provider(key)]?.label ?? provider(key);
+  return {
+    size: new Map(offer.size.map((value) => {
+      const stop = resolutionStop(value);
+      return [value, { text: stop.label, chip: value === 1 ? stop.label : stop.short, full: `Size: ${stop.label}` }];
+    })),
+    prompt: new Map(offer.prompt.map((entry) => {
+      const title = entry.title || 'Untitled prompt';
+      return [entry.id, { text: title, chip: title, note: entry.deleted ? 'Deleted' : null, full: `Prompt: ${title}${entry.deleted ? ' (deleted from the library)' : ''}` }];
+    })),
+    model: new Map(offer.model.map((key, index) => {
+      const shared = names.indexOf(names[index]) !== names.lastIndexOf(names[index]);
+      const id = key.slice(key.indexOf('::') + 2);
+      return [key, { text: names[index], chip: names[index], note: shared ? providerLabel(key) : null, logo: vendorIcon(provider(key), id), full: `Model: ${id} (${providerLabel(key)})` }];
+    })),
+  };
+}
+
+function FindFilter({ offer, labels, filters, emptyPrompts, buttonRef, onToggle }) {
+  const { open, setOpen, closing, closePicker, rootRef } = usePopover(110);
+  const menuRef = useRef(null);
+  const chosen = GROUPS.reduce((count, group) => count + filters[group].length, 0);
+  const items = () => [...menuRef.current.querySelectorAll('[role="menuitemcheckbox"]')];
+
+  useLayoutEffect(() => {
+    if (open) items()[0].focus();
+  }, [open]);
+
+  const close = () => {
+    closePicker();
+    buttonRef.current.focus();
+  };
+  function onKeyDown(evt) {
+    if (evt.key === 'Escape') {
+      evt.stopPropagation();
+      close();
+      return;
+    }
+    const list = items();
+    const at = list.indexOf(document.activeElement);
+    const to = { ArrowDown: at + 1, ArrowUp: at - 1, Home: 0, End: list.length - 1 }[evt.key];
+    if (to === undefined) return;
+    evt.preventDefault();
+    list[(to + list.length) % list.length].focus();
+  }
+  // Tab out of the menu closes it, as a click outside does.
+  function onFocusOut(evt) {
+    if (evt.relatedTarget && !rootRef.current.contains(evt.relatedTarget)) closePicker();
+  }
+
+  return html`
+    <div class="find-filter" ref=${rootRef} onFocusOut=${onFocusOut}>
+      <button
+        ref=${buttonRef}
+        type="button"
+        class="side-filter-button find-filter-button ${chosen ? 'active' : ''}"
+        title="Filter"
+        aria-label=${chosen ? `Filter, ${chosen} chosen` : 'Filter'}
+        aria-haspopup="menu"
+        aria-expanded=${open}
+        onClick=${() => (open ? closePicker() : setOpen(true))}
+      ><${Icon} name="filter" size="14" /></button>
+      ${open && html`
+        <div class="tag-menu find-menu ${closing ? 'closing' : ''}" role="menu" aria-label="Filter" ref=${menuRef} onKeyDown=${onKeyDown}>
+          ${GROUPS.map((group) => html`
+            <div class="find-menu-group" role="group" aria-labelledby=${`find-group-${group}`} key=${group}>
+              <div class="pp-label" id=${`find-group-${group}`}>${FILTER_GROUPS[group]}</div>
+              ${group === 'prompt' && !offer.prompt.length && html`<div class="find-menu-empty">${emptyPrompts}</div>`}
+              ${(group === 'prompt' ? offer.prompt.map((entry) => entry.id) : offer[group]).map((value) => {
+                const label = labels[group].get(value);
+                const on = filters[group].includes(value);
+                return html`
+                  <button
+                    type="button"
+                    role="menuitemcheckbox"
+                    aria-checked=${on}
+                    class=${on ? 'selected' : ''}
+                    title=${label.full}
+                    key=${value}
+                    onClick=${() => onToggle(group, value)}
+                  >
+                    ${label.logo && html`<${Logo} name=${label.logo} size="14" />`}
+                    <span>${label.text}</span>
+                    ${label.note && html`<em>${label.note}</em>`}
+                    <${Icon} name="check" size="13" />
+                  </button>
+                `;
+              })}
+            </div>
+          `)}
+        </div>
+      `}
+    </div>
+  `;
+}
+
+// The filters in effect, one chip each, every chip removed by its own
+// button, and one button that clears them all. The focus stays in the row,
+// on the chip after the one removed (or before it), and goes back to the
+// filter button with the last.
+function FilterChips({ labels, filters, buttonRef, onToggle, onClear }) {
+  const rootRef = useRef(null);
+  const remove = (evt, group, value) => {
+    const buttons = [...rootRef.current.querySelectorAll('.find-chip button')];
+    const at = buttons.indexOf(evt.currentTarget);
+    onToggle(group, value);
+    (buttons[at + 1] || buttons[at - 1] || buttonRef.current).focus();
+  };
+  const clear = () => {
+    onClear();
+    buttonRef.current.focus();
+  };
+  return html`
+    <div class="find-chips" role="group" aria-label="Filters" ref=${rootRef}>
+      ${GROUPS.flatMap((group) => filters[group].map((value) => {
+        const label = labels[group].get(value);
+        return html`
+          <span class="find-chip" key=${`${group}:${value}`} title=${label.full}>
+            ${label.logo && html`<${Logo} name=${label.logo} size="12" />`}
+            <span class="find-chip-text">${label.chip}</span>
+            <button type="button" aria-label=${`Remove filter ${label.full}`} onClick=${(evt) => remove(evt, group, value)}>
+              <${Icon} name="x" size="11" />
+            </button>
+          </span>
+        `;
+      }))}
+      <button type="button" class="find-clear" onClick=${clear}>Clear all</button>
+    </div>
+  `;
+}
+
 // Obsidian-style prompt editor pane, opened from Bench. The prompt list
 // itself lives in the app sidebar (PromptList); this renders the active one.
 function PromptEditor({
@@ -3422,6 +3568,11 @@ function App() {
   const [binds, setBinds] = useState(() => ({ ...DEFAULT_BINDS, ...storedJson('mcb-binds', {}) }));
   useEffect(() => { localStorage.setItem('mcb-binds', JSON.stringify(binds)); }, [binds]);
   const [find, setFind] = useState('');
+  // The sidebar's filters (filters.mjs), beside the search text, and the
+  // title each prompt a listed row came from was last sent under.
+  const [filters, setFilters] = useState(NO_FILTERS);
+  const [promptTitles, setPromptTitles] = useState({});
+  const filterButtonRef = useRef(null);
   const [found, setFound] = useState(null);
   const findRef = useRef(null);
   const [openBenches, setOpenBenches] = useState(() => new Set(storedJson('mcb-open-benches', [])));
@@ -3682,9 +3833,10 @@ function App() {
     // One notice per outage, not one per retry.
     let failing = false;
     // A list from the server, and on the first one, where the page opens.
-    const receiveLists = ({ conversations: rows, benches: benchRows, archived }) => {
+    const receiveLists = ({ conversations: rows, benches: benchRows, promptTitles: titles, archived }) => {
       receiveConversations(rows);
       receiveBenches(benchRows, first);
+      setPromptTitles(titles);
       receiveArchivedCounts(archived);
       openRestored();
       if (!first) return;
@@ -4863,7 +5015,11 @@ function App() {
     }, 90);
     return () => { current = false; clearTimeout(timer); };
   }, [find, appMode]);
-  useEffect(() => { setFind(''); }, [appMode]);
+  // Like the search text, the filters are the mode's own.
+  useEffect(() => {
+    setFind('');
+    setFilters(NO_FILTERS);
+  }, [appMode]);
 
   // What the composer would send for a bench, taken out of it, or null.
   // A request that fails puts it back (putBack).
@@ -4873,7 +5029,7 @@ function App() {
     if (!message || (!message.text && attachments.length === 0) || restoringRef.current === key || draftRef.current.reading.length) return null;
     const draft = { ...currentDraft(), segments: message.segments };
     applyDraft(EMPTY_DRAFT);
-    return { text: message.text, draft, key, navigation: navigationRef.current };
+    return { text: message.text, prompts: message.prompts, draft, key, navigation: navigationRef.current };
   }
 
   async function runBench() {
@@ -4882,7 +5038,7 @@ function App() {
     if (!sent) return;
     let id;
     try {
-      ({ id } = await postJson('/api/benches', { text: sent.text, files: sent.draft.attachments, members: benchModels, blind: benchBlind, resolution: benchResolution }));
+      ({ id } = await postJson('/api/benches', { text: sent.text, prompts: sent.prompts, files: sent.draft.attachments, members: benchModels, blind: benchBlind, resolution: benchResolution }));
     } catch (error) {
       putBack(sent.key, sent.draft);
       throw error;
@@ -4896,7 +5052,7 @@ function App() {
     if (!sent) return;
     let rounds;
     try {
-      ({ rounds } = await postJson(`/api/benches/${benchId}/rounds`, { text: sent.text, files: sent.draft.attachments }));
+      ({ rounds } = await postJson(`/api/benches/${benchId}/rounds`, { text: sent.text, prompts: sent.prompts, files: sent.draft.attachments }));
     } catch (error) {
       putBack(sent.key, sent.draft);
       throw error;
@@ -5222,7 +5378,7 @@ function App() {
       res = await fetch(`/api/conversations/${conversationId}/chat`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ text, provider, model, files: draft.attachments, selections: draft.selections, effort: modelCaps ? effortFor(modelCaps, effort) : effort, resolution }),
+        body: JSON.stringify({ text, prompts: message.prompts, provider, model, files: draft.attachments, selections: draft.selections, effort: modelCaps ? effortFor(modelCaps, effort) : effort, resolution }),
         signal: controller.signal,
       });
       if (!res.ok) throw new Error((await res.json()).error || `HTTP ${res.status}`);
@@ -5334,7 +5490,8 @@ function App() {
   }
 
   // What a send carries, or null while a fill-in box is still empty: that box
-  // takes the focus and flashes instead.
+  // takes the focus and flashes instead. `prompts` is the library prompts it
+  // was inserted from, which the server records with it.
   function composedMessage() {
     const { text, segments, emptyField } = composer.read(composerRef.current);
     if (emptyField) {
@@ -5344,7 +5501,7 @@ function App() {
       emptyField.focus();
       return null;
     }
-    return { text: text.trim(), segments };
+    return { text: text.trim(), segments, prompts: composer.promptLinks(segments) };
   }
 
   // A picked prompt replaces the "/query" that summoned it (or lands at the
@@ -5859,12 +6016,22 @@ function App() {
   const otherWaiting = otherStates.filter((state) => state === 'unread').length;
   const otherDot = otherWaiting ? 'unread' : otherStates.includes('running') ? 'running' : null;
 
-  // Search results in rank order, each with the snippet that matched.
+  // Search results in rank order, each with the snippet that matched, and
+  // narrowed by the filters in effect (filters.mjs).
   const snippets = new Map((found || []).map((result) => [result.id, result.snippet]));
-  const buildRows = found
-    ? found.map((result) => conversations.find((row) => row.id === result.id && !row.benchId)).filter(Boolean)
-    : conversations.filter((row) => !row.benchId);
-  const benchRows = found ? found.map((result) => benches.find((bench) => bench.id === result.id)).filter(Boolean) : benches;
+  const filterView = useMemo(() => {
+    const chats = conversations.filter((row) => !row.benchId);
+    const members = new Map(benches.map((bench) => [bench.id, []]));
+    for (const row of conversations) if (row.benchId) members.get(row.benchId)?.push(row);
+    const benchFacetsOf = (bench) => benchFacets(bench, members.get(bench.id));
+    const offer = offered(benchMode ? benches.map(benchFacetsOf) : chats.map(chatFacets), promptsReady ? prompts : [], promptTitles);
+    return { chats, benchFacetsOf, offer, labels: filterLabels(offer, providers) };
+  }, [conversations, benches, benchMode, prompts, promptsReady, promptTitles, providers]);
+  const shownFilters = filtering(filters) ? inEffect(filters, filterView.offer) : filters;
+  const narrowed = Boolean(found) || filtering(shownFilters);
+  const buildRows = listed(filterView.chats, found, shownFilters, chatFacets);
+  const benchRows = listed(benches, found, shownFilters, filterView.benchFacetsOf);
+  const toggleFilter = (group, value) => setFilters((current) => toggled(current, group, value));
   // The sidebar is narrow: a snippet starts a few words before its first match.
   const marked = (snippet) => {
     const first = snippet.indexOf('\u0001');
@@ -6215,19 +6382,32 @@ function App() {
             </button>
           </div>
         </div>
-        <label class="side-find">
-          <${Icon} name="search" size="14" />
-          <input
-            ref=${findRef}
-            value=${find}
-            placeholder="Search"
-            aria-label=${benchMode ? 'Search benches' : 'Search chats'}
-            onInput=${(evt) => setFind(evt.target.value)}
-            onKeyDown=${(evt) => { if (evt.key === 'Escape') { setFind(''); evt.currentTarget.blur(); } }}
+        <div class="side-find">
+          <label class="side-find-field">
+            <${Icon} name="search" size="14" />
+            <input
+              ref=${findRef}
+              value=${find}
+              placeholder="Search"
+              aria-label=${benchMode ? 'Search benches' : 'Search chats'}
+              onInput=${(evt) => setFind(evt.target.value)}
+              onKeyDown=${(evt) => { if (evt.key === 'Escape') { setFind(''); evt.currentTarget.blur(); } }}
+            />
+          </label>
+          <${FindFilter}
+            offer=${filterView.offer}
+            labels=${filterView.labels}
+            filters=${shownFilters}
+            emptyPrompts=${benchMode ? 'No bench was sent from a library prompt yet' : 'No chat was sent from a library prompt yet'}
+            buttonRef=${filterButtonRef}
+            onToggle=${toggleFilter}
           />
-        </label>
+        </div>
+        ${filtering(shownFilters) && html`
+          <${FilterChips} labels=${filterView.labels} filters=${shownFilters} buttonRef=${filterButtonRef} onToggle=${toggleFilter} onClear=${() => setFilters(NO_FILTERS)} />
+        `}
         ${!benchMode && html`<div class="conv-list">
-          ${found && !buildRows.length && html`<div class="side-empty">No matches</div>`}
+          ${narrowed && !buildRows.length && html`<div class="side-empty">No matches</div>`}
           ${buildRows.map((c) => {
             // Running pulses; finished and not yet looked at is solid; the
             // rest are hollow. The open chat is always looked at.
@@ -6251,13 +6431,13 @@ function App() {
         </div>`}
         ${!benchMode && renderArchive('build')}
         ${benchMode && html`
-          ${!found && html`
+          ${!narrowed && html`
             <div
               class="conv-item leaderboard-row ${place.kind === 'leaderboard' ? 'active' : ''}"
               onClick=${() => showBenchView({ kind: 'leaderboard' })}
             ><${Icon} name="trophy" size="14" /><span class="title">Leaderboard</span></div>
           `}
-          ${found && !benchRows.length && html`<div class="side-empty">No matches</div>`}
+          ${narrowed && !benchRows.length && html`<div class="side-empty">No matches</div>`}
           ${benchRows.length > 0 && html`<div class="conv-list bench-list">${benchRows.map(renderBenchGroup)}</div>`}
           ${renderArchive('bench')}
           ${promptsReady && html`

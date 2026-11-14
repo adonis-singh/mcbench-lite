@@ -8,6 +8,8 @@ const Database = require('better-sqlite3');
 const { World } = require('./world');
 const storage = require('./storage');
 const harness = require('./harness');
+const promptLibrary = require('./prompts');
+const { certainPrompt } = require('./prompt-match');
 
 const dataDir = storage.DATA_DIR;
 const databaseFile = path.join(dataDir, 'mcbench.sqlite3');
@@ -17,7 +19,7 @@ const attachmentsDir = path.join(dataDir, 'attachments');
 const ARCHIVE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const MAX_ATTACHMENT_BYTES = 100 * 1024 * 1024;
 const MAX_MESSAGE_ATTACHMENT_BYTES = 200 * 1024 * 1024;
-const SCHEMA_VERSION = 13;
+const SCHEMA_VERSION = 14;
 // Input the server refuses: the HTTP layer answers it 400, or `statusCode`.
 const refused = (message, statusCode = 400) => Object.assign(new Error(message), { statusCode });
 
@@ -201,6 +203,56 @@ const LOOKUP_INDEXES = `
   CREATE INDEX search_docs_owner ON search_docs(owner);
 `;
 
+// The library prompts each stored message was sent from, one row per
+// message and prompt, with the prompt's title as it was then: the chat list
+// reads which prompts each chat came from here instead of from every
+// message's payload, which holds the same links (`prompts` on a user
+// message). Rows go with their message.
+const MESSAGE_PROMPTS_TABLE = `
+  CREATE TABLE message_prompts (
+    message_id TEXT NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+    prompt_id TEXT NOT NULL,
+    title TEXT NOT NULL,
+    UNIQUE (message_id, prompt_id)
+  );
+`;
+const LINK_PROMPT = 'INSERT OR IGNORE INTO message_prompts (message_id, prompt_id, title) VALUES (?, ?, ?)';
+
+// v14: messages and bench rounds stored before they recorded their prompts
+// are linked to the library prompt they were certainly sent from
+// (prompt-match.js), as the library is now. A bench model's prompt takes its
+// round's links, as one sent now does.
+function linkStoredPrompts() {
+  const sentFrom = certainPrompt(promptLibrary.list());
+  const linksOf = (text) => {
+    const prompt = sentFrom(text);
+    return prompt ? [{ id: prompt.id, title: prompt.title }] : null;
+  };
+  const rounds = new Map();
+  for (const bench of database.prepare('SELECT id, rounds_json FROM benches').all()) {
+    const nodes = JSON.parse(bench.rounds_json).map((node) => {
+      const links = linksOf(messageText({ role: 'user', content: node.content }));
+      if (!links) return node;
+      rounds.set(node.id, links);
+      return { ...node, prompts: links };
+    });
+    database.prepare('UPDATE benches SET rounds_json = ? WHERE id = ?').run(JSON.stringify(nodes), bench.id);
+  }
+  const setPayload = database.prepare('UPDATE messages SET payload_json = ? WHERE id = ?');
+  const linkPrompt = database.prepare(LINK_PROMPT);
+  let messages = 0;
+  for (const row of database.prepare(`SELECT id, payload_json FROM messages WHERE json_extract(payload_json, '$.role') = 'user'`).all()) {
+    const payload = JSON.parse(row.payload_json);
+    if (payload.seeBuild) continue;
+    const links = payload.round ? rounds.get(payload.round) : linksOf(messageText(payload));
+    if (!links) continue;
+    setPayload.run(JSON.stringify({ ...payload, prompts: links }), row.id);
+    for (const link of links) linkPrompt.run(row.id, link.id, link.title);
+    messages += 1;
+  }
+  console.log(`[store] linked ${messages} stored messages and ${rounds.size} bench rounds to the library prompts they were sent from`);
+}
+
 // v7: a bench's rounds form a tree, edits branching like a chat's messages.
 // Rounds get ids and parents, the bench a head, and each model's prompt the
 // id of the round it answers.
@@ -355,6 +407,14 @@ function initialize() {
         WHERE json_extract(payload_json, '$.telemetry.provider') = 'claude-code'
           AND json_type(payload_json, '$.telemetry.contextTokens') IS NOT NULL;
       `);
+      database.pragma('user_version = 13');
+    })();
+    version = 13;
+  }
+  if (version === 13) {
+    database.transaction(() => {
+      database.exec(MESSAGE_PROMPTS_TABLE);
+      linkStoredPrompts();
       database.pragma(`user_version = ${SCHEMA_VERSION}`);
     })();
     return;
@@ -401,6 +461,7 @@ function initialize() {
 
       ${SEARCH_TABLES}
       ${LOOKUP_INDEXES}
+      ${MESSAGE_PROMPTS_TABLE}
     `);
     database.pragma(`user_version = ${SCHEMA_VERSION}`);
   })();
@@ -814,6 +875,7 @@ const upsertMessage = database.prepare(`
 const setHeadWorld = database.prepare(`
   UPDATE messages SET world_manifest_json = ? WHERE id = ? AND conversation_id = ?
 `);
+const linkPrompt = database.prepare(LINK_PROMPT);
 
 // Writes the conversation row, the current head's world, and only the
 // messages appended or changed since the last save. Message rows are
@@ -861,8 +923,10 @@ function save(conversation) {
       for (const row of rows) {
         const written = upsertMessage.run(row.id, conversation.id, row.parentId, row.position, row.payload, row.checkpoint);
         if (written.changes !== 1) throw new Error(`Message ${row.id} belongs to another conversation`);
-        const text = messageText(conversation.messages.find((message) => message.id === row.id));
+        const message = conversation.messages.find((entry) => entry.id === row.id);
+        const text = messageText(message);
         if (text.trim()) indexDoc.run(conversation.id, `message:${row.id}`, text);
+        for (const link of message.prompts || []) linkPrompt.run(row.id, link.id, link.title);
       }
       indexDoc.run(conversation.id, `title:${conversation.id}`, conversation.title);
       if (head) setHeadWorld.run(worldJson, head, conversation.id);
@@ -1069,7 +1133,18 @@ function listBenchIds() {
     .map((row) => ({ id: row.id, archived: Boolean(row.archived) }));
 }
 
+// `prompts` is the ids of the library prompts any of the chat's messages, on
+// any branch, was sent from (the sidebar filters by them).
+const chatPrompts = database.prepare(`
+  SELECT DISTINCT m.conversation_id, p.prompt_id FROM message_prompts p JOIN messages m ON m.id = p.message_id
+`).raw();
+
 function listConversations() {
+  const prompts = new Map();
+  for (const [chat, prompt] of chatPrompts.all()) {
+    if (!prompts.has(chat)) prompts.set(chat, []);
+    prompts.get(chat).push(prompt);
+  }
   return database.prepare(`
     SELECT id, title, provider, model, effort, resolution, created_at AS createdAt,
       bench_id AS benchId, bench_slot AS benchSlot,
@@ -1078,7 +1153,23 @@ function listConversations() {
     FROM conversations
     WHERE archived_at IS NULL AND NOT (${emptyChat('conversations')})
     ORDER BY created_at DESC
-  `).all().map((row) => ({ ...row, effort: row.effort || null, unread: Boolean(row.unread) }));
+  `).all().map((row) => ({ ...row, effort: row.effort || null, unread: Boolean(row.unread), prompts: prompts.get(row.id) || [] }));
+}
+
+// The title each prompt a listed chat or bench came from was last sent
+// under: the sidebar names a prompt deleted from the library by it.
+function promptTitles() {
+  const titles = new Map(database.prepare(`
+    SELECT p.prompt_id, p.title FROM message_prompts p
+    JOIN messages m ON m.id = p.message_id
+    JOIN conversations c ON c.id = m.conversation_id
+    WHERE c.archived_at IS NULL
+    ORDER BY p.rowid
+  `).raw().all());
+  for (const nodes of database.prepare('SELECT rounds_json FROM benches WHERE archived_at IS NULL ORDER BY created_at').pluck().all()) {
+    for (const node of JSON.parse(nodes)) for (const link of node.prompts || []) titles.set(link.id, link.title);
+  }
+  return Object.fromEntries(titles);
 }
 
 // A bench is one prompt and its follow-ups (rounds), each sent unchanged to
@@ -1087,7 +1178,7 @@ function listConversations() {
 // files are already stored under `id`) and its models' chats, or not at all.
 // Blind letters run in a random order, so the order models were added in
 // tells nothing.
-function createBench(id, { title, blind, resolution, content, members }) {
+function createBench(id, { title, blind, resolution, content, prompts, members }) {
   const chats = members.map(({ provider, model, effort }, slot) => newConversation(provider, model, { title, effort, resolution, benchId: id, benchSlot: slot }));
   const order = chats.map((chat) => chat.id);
   if (blind) {
@@ -1096,7 +1187,7 @@ function createBench(id, { title, blind, resolution, content, members }) {
       [order[i], order[j]] = [order[j], order[i]];
     }
   }
-  const round = { id: crypto.randomUUID(), parentId: null, content, createdAt: new Date().toISOString() };
+  const round = roundNode(null, content, prompts);
   try {
     database.transaction(() => {
       database.prepare(`
@@ -1327,8 +1418,13 @@ function leaderboard() {
     .sort((a, b) => b.rating - a.rating);
 }
 
-function appendRound(bench, content) {
-  const node = { id: crypto.randomUUID(), parentId: bench.head, content, createdAt: new Date().toISOString() };
+// A round, with the library prompts it was sent from when there are any.
+function roundNode(parentId, content, prompts) {
+  return { id: crypto.randomUUID(), parentId, content, ...(prompts.length ? { prompts } : {}), createdAt: new Date().toISOString() };
+}
+
+function appendRound(bench, content, prompts) {
+  const node = roundNode(bench.head, content, prompts);
   database.transaction(() => {
     database.prepare('UPDATE benches SET rounds_json = ?, head_round_id = ? WHERE id = ?').run(JSON.stringify([...bench.nodes, node]), node.id, bench.id);
     indexDoc.run(bench.id, `round:${bench.id}:${node.id}`, messageText({ role: 'user', content }));
@@ -1447,13 +1543,18 @@ function listBenches() {
       -- A bench's resolution is its models' chats': all are made with the bench's.
       (SELECT max(resolution) FROM conversations WHERE conversations.bench_id = benches.id) AS resolution
     FROM benches WHERE archived_at IS NULL ORDER BY created_at DESC
-  `).all().map(({ rounds_json: nodes, blind, revealed_at: revealedAt, order_json: order, ...row }) => ({
-    ...row,
-    rounds: roundChain(JSON.parse(nodes), row.head).length,
-    blind: Boolean(blind),
-    revealed: revealedAt !== null,
-    order: JSON.parse(order),
-  }));
+  `).all().map(({ rounds_json: json, blind, revealed_at: revealedAt, order_json: order, ...row }) => {
+    const nodes = JSON.parse(json);
+    return {
+      ...row,
+      rounds: roundChain(nodes, row.head).length,
+      // The library prompts any of its rounds, on any branch, was sent from.
+      prompts: [...new Set(nodes.flatMap((node) => (node.prompts || []).map((link) => link.id)))],
+      blind: Boolean(blind),
+      revealed: revealedAt !== null,
+      order: JSON.parse(order),
+    };
+  });
 }
 
 function benchMembers(benchId) {
@@ -1531,7 +1632,7 @@ function close() {
 module.exports = {
   createConversation, getConversation, appendMessage, dismissError, messagePayload, publicMessages, save, revert,
   messageTree, activateBranch, setTitle, repeatsLatestRootPrompt,
-  archiveConversation, clearExpiredArchive, listArchive, restoreConversation, restoreBench, deleteConversation, deleteBench, listConversations, listConversationIds, listBenchIds, markFinished, markSeen, close,
+  archiveConversation, clearExpiredArchive, listArchive, restoreConversation, restoreBench, deleteConversation, deleteBench, listConversations, promptTitles, listConversationIds, listBenchIds, markFinished, markSeen, close,
   createBench, getBench, appendRound, revertBenchRound, followBenchBranch, retryBenchRound, revealBench, castVote, clearVote, voteCount, clearAllVotes, leaderboard, setBenchTitle, listBenches, benchMembers, archiveBench, forkConversation,
   shareAttachment, benchProgress, endTurn, unansweredResult, endUnfinishedTurn, interruptUnfinished, INTERRUPTED, UNSAVED, search, collectChunks, persistWorld, reportReferences,
   saveImages, readImage, imageFile, saveAttachment, saveAttachments, discardAttachments, readAttachment, attachmentFile,

@@ -33,7 +33,7 @@ function sql() {
 test('a fresh database is created at the current schema version', () => {
   const db = sql();
   try {
-    assert.equal(db.pragma('user_version', { simple: true }), 13);
+    assert.equal(db.pragma('user_version', { simple: true }), 14);
     assert.equal(db.pragma('auto_vacuum', { simple: true }), 2);
     assert.deepEqual(store.listConversations(), []);
   } finally {
@@ -316,7 +316,7 @@ test('a chat joins the list only once it has a message', () => {
 });
 
 const newBench = (title, content, models, { blind = false } = {}) => store.createBench(crypto.randomUUID(), {
-  title, blind, content, members: models.map((model) => (typeof model === 'string' ? { provider: 'openrouter', model, effort: null } : { provider: 'openrouter', ...model })),
+  title, blind, content, prompts: [], members: models.map((model) => (typeof model === 'string' ? { provider: 'openrouter', model, effort: null } : { provider: 'openrouter', ...model })),
 });
 
 test('a bench keeps its rounds and runs each model as a chat outside the build list', () => {
@@ -333,12 +333,12 @@ test('a bench keeps its rounds and runs each model as a chat outside the build l
   store.appendMessage(third, { role: 'assistant', content: '(stopped by user)', stopped: true });
   store.save(third);
   store.setBenchTitle(bench, 'Stormy lighthouse');
-  store.appendRound(bench, 'Add a keeper');
+  store.appendRound(bench, 'Add a keeper', []);
 
   reopenStore();
   assert.deepEqual(store.getBench(bench.id).rounds.map((round) => round.content), ['A lighthouse', 'Add a keeper']);
   assert.deepEqual(store.listBenches().find((entry) => entry.id === bench.id), {
-    id: bench.id, title: 'Stormy lighthouse', createdAt: bench.createdAt, head: bench.head, rounds: 2, blind: false, revealed: false, resolution: 1, order: [first.id, second.id, third.id],
+    id: bench.id, title: 'Stormy lighthouse', createdAt: bench.createdAt, head: bench.head, rounds: 2, blind: false, revealed: false, resolution: 1, prompts: [], order: [first.id, second.id, third.id],
   });
   const rows = store.listConversations().filter((row) => row.benchId === bench.id).sort((a, b) => a.benchSlot - b.benchSlot);
   assert.deepEqual(rows.map((row) => [row.model, row.benchSlot, row.title]), [['a/model', 0, 'Stormy lighthouse'], ['b/model', 1, 'Stormy lighthouse'], ['c/model', 2, 'Stormy lighthouse']]);
@@ -419,14 +419,14 @@ test('an edited bench round branches, and each model follows the branch it answe
   };
   const [first] = bench.rounds;
   turn(first, 'minecraft:stone');
-  store.appendRound(bench, 'Add a roof');
+  store.appendRound(bench, 'Add a roof', []);
   const roof = bench.rounds[1];
   turn(roof, 'minecraft:oak_planks');
 
   // Editing the second round: back to before it, then a new version.
   assert.deepEqual(store.revertBenchRound(bench, 1), [member]);
   assert.deepEqual(bench.rounds.map((round) => round.content), ['A tower']);
-  store.appendRound(bench, 'Add a spire');
+  store.appendRound(bench, 'Add a spire', []);
   const spire = bench.rounds[1];
   turn(spire, 'minecraft:cobblestone');
   assert.deepEqual(spire.branch, { index: 1, count: 2, previousId: roof.id, nextId: null });
@@ -447,7 +447,7 @@ test('an edited bench round branches, and each model follows the branch it answe
 test('blind votes rank the models; a bench that shows its names takes no votes', () => {
   const { bench, members: [a, b, c] } = newBench('Votes', 'A castle', ['a/model', 'b/model', { model: 'b/model', effort: 'high' }], { blind: true });
   const first = bench.rounds[0].id;
-  store.appendRound(bench, 'Add a moat');
+  store.appendRound(bench, 'Add a moat', []);
   const second = bench.rounds[1].id;
   store.castVote(bench, first, a.id, [a.id, b.id, c.id]);
   store.castVote(bench, second, null, [a.id, b.id, c.id]);
@@ -493,14 +493,14 @@ test('startup removes chunk files no stored world names and folders of deleted c
 test('a bench is written whole or not at all', () => {
   const before = store.listBenches().length;
   const members = [{ provider: 'openrouter', model: 'a/model', effort: null }, { provider: null, model: 'b/model', effort: null }];
-  assert.throws(() => store.createBench(crypto.randomUUID(), { title: 'Broken', blind: false, content: 'A hut', members }), /provider and model are required/);
+  assert.throws(() => store.createBench(crypto.randomUUID(), { title: 'Broken', blind: false, content: 'A hut', prompts: [], members }), /provider and model are required/);
   members[1].provider = 'openrouter';
   const id = crypto.randomUUID();
   const db = new Database(store.DATABASE_FILE);
   // The second chat's insert fails inside the bench's transaction.
   db.exec(`CREATE TRIGGER refuse_second BEFORE INSERT ON conversations WHEN NEW.bench_slot = 1 BEGIN SELECT RAISE(ABORT, 'refused'); END`);
   try {
-    assert.throws(() => store.createBench(id, { title: 'Half', blind: false, content: 'A hut', members }), /refused/);
+    assert.throws(() => store.createBench(id, { title: 'Half', blind: false, content: 'A hut', prompts: [], members }), /refused/);
   } finally {
     db.exec('DROP TRIGGER refuse_second');
     db.close();
@@ -508,7 +508,7 @@ test('a bench is written whole or not at all', () => {
   assert.equal(store.getBench(id), null);
   assert.equal(store.listBenches().length, before);
   assert.deepEqual(store.benchMembers(id), []);
-  const { bench, members: chats } = store.createBench(id, { title: 'Whole', blind: false, content: 'A hut', members });
+  const { bench, members: chats } = store.createBench(id, { title: 'Whole', blind: false, content: 'A hut', prompts: [], members });
   assert.deepEqual(bench.rounds.map((round) => round.content), ['A hut']);
   assert.deepEqual(store.benchMembers(id).map((member) => member.id), chats.map((chat) => chat.id));
 });
@@ -611,7 +611,7 @@ test('a bench round edit, branch switch or retry is stored whole or not at all',
     store.save(member);
   };
   for (const member of [first, second]) turn(member, bench.rounds[0]);
-  store.appendRound(bench, 'Add a roof');
+  store.appendRound(bench, 'Add a roof', []);
   const roof = bench.rounds[1];
   for (const member of [first, second]) turn(member, roof);
   store.castVote(bench, roof.id, first.id, [first.id, second.id]);
@@ -640,7 +640,7 @@ test('a bench round edit, branch switch or retry is stored whole or not at all',
   assert.deepEqual(lines(), before);
 
   store.revertBenchRound(bench, 1);
-  store.appendRound(bench, 'Add a spire');
+  store.appendRound(bench, 'Add a spire', []);
   for (const member of store.benchMembers(bench.id)) turn(member, bench.rounds[1]);
   const onSpire = lines();
   assert.throws(() => failingSave(second.id, () => store.followBenchBranch(bench, roof.id)), /the disk is full/);
@@ -760,8 +760,8 @@ test("a chat's resolution is stored with it, listed, and kept by its fork", () =
 
 test("a bench's resolution is every model's chat's, and is listed with it", () => {
   const members = [{ provider: 'openrouter', model: 'test/one', effort: null }, { provider: 'openrouter', model: 'test/two', effort: null }];
-  const fine = store.createBench(crypto.randomUUID(), { title: 'Fine bench', blind: false, resolution: 10, content: 'A cathedral', members });
-  const plain = store.createBench(crypto.randomUUID(), { title: 'Plain bench', blind: false, resolution: 1, content: 'A shed', members });
+  const fine = store.createBench(crypto.randomUUID(), { title: 'Fine bench', blind: false, resolution: 10, content: 'A cathedral', prompts: [], members });
+  const plain = store.createBench(crypto.randomUUID(), { title: 'Plain bench', blind: false, resolution: 1, content: 'A shed', prompts: [], members });
   assert.deepEqual(fine.members.map((chat) => chat.resolution), [10, 10]);
   assert.deepEqual(plain.members.map((chat) => chat.resolution), [1, 1]);
   const listed = store.listBenches();
@@ -776,13 +776,14 @@ test('a version 10 database gains a resolution, with every chat at Standard', ()
   store.close();
   const db = new Database(path.join(dataDir, 'mcbench.sqlite3'));
   db.exec('ALTER TABLE conversations DROP COLUMN resolution');
+  db.exec('DROP TABLE message_prompts');
   db.pragma('user_version = 10');
   db.close();
   delete require.cache[require.resolve('../server/store')];
   store = require('../server/store');
   const check = sql();
   try {
-    assert.equal(check.pragma('user_version', { simple: true }), 13);
+    assert.equal(check.pragma('user_version', { simple: true }), 14);
   } finally {
     check.close();
   }
@@ -803,13 +804,14 @@ test('a version 11 database turns extra mode into the highest resolution and dro
     ALTER TABLE conversations ADD COLUMN extra INTEGER NOT NULL DEFAULT 0;
   `);
   db.prepare('UPDATE conversations SET extra = 1 WHERE id = ?').run(extra.id);
+  db.exec('DROP TABLE message_prompts');
   db.pragma('user_version = 11');
   db.close();
   delete require.cache[require.resolve('../server/store')];
   store = require('../server/store');
   const check = sql();
   try {
-    assert.equal(check.pragma('user_version', { simple: true }), 13);
+    assert.equal(check.pragma('user_version', { simple: true }), 14);
     assert.ok(!check.prepare('PRAGMA table_info(conversations)').all().some((column) => column.name === 'extra'));
   } finally {
     check.close();
@@ -830,13 +832,14 @@ test("a version 12 database drops Claude Code's context readings and keeps every
   const db = new Database(path.join(dataDir, 'mcbench.sqlite3'));
   const payloads = () => Object.fromEntries(db.prepare('SELECT id, payload_json FROM messages WHERE conversation_id = ?').all(conversation.id).map((row) => [row.id, JSON.parse(row.payload_json)]));
   const before = payloads();
+  db.exec('DROP TABLE message_prompts');
   db.pragma('user_version = 12');
   db.close();
   delete require.cache[require.resolve('../server/store')];
   store = require('../server/store');
   const check = sql();
   try {
-    assert.equal(check.pragma('user_version', { simple: true }), 13);
+    assert.equal(check.pragma('user_version', { simple: true }), 14);
     const after = Object.fromEntries(check.prepare('SELECT id, payload_json FROM messages WHERE conversation_id = ?').all(conversation.id).map((row) => [row.id, JSON.parse(row.payload_json)]));
     assert.equal(before[summed.id].telemetry.contextTokens, 21798);
     const { contextTokens, ...rest } = before[summed.id].telemetry;
@@ -847,4 +850,160 @@ test("a version 12 database drops Claude Code's context readings and keeps every
   } finally {
     check.close();
   }
+});
+
+// Prompt links: a sent message records the library prompts it was inserted
+// from.
+const CASTLE = { id: 'castle', title: 'Castle', text: 'Build a castle with a moat and four towers.' };
+const TOWER = { id: 'tower', title: 'Tower', text: 'Build a {{size}} tower with a spiral stair inside.' };
+
+test('a message sent from library prompts stores and returns its links, and its fork keeps them', () => {
+  const conversation = store.createConversation('openrouter', 'test/model');
+  const links = [{ id: CASTLE.id, title: CASTLE.title }, { id: TOWER.id, title: 'Tall tower' }];
+  store.appendMessage(conversation, { role: 'user', content: 'Build a castle with a moat and four towers.', prompts: links }, conversation.world.reference());
+  store.appendMessage(conversation, { role: 'assistant', content: 'Built.' });
+  store.save(conversation);
+  const plain = store.createConversation('openrouter', 'test/model');
+  store.appendMessage(plain, { role: 'user', content: 'A shed' }, plain.world.reference());
+  store.save(plain);
+
+  reopenStore();
+  assert.deepEqual(store.getConversation(conversation.id).messages[0].prompts, links);
+  assert.equal(store.getConversation(plain.id).messages[0].prompts, undefined);
+  const fork = store.forkConversation(store.getConversation(conversation.id), 2, store.getConversation(conversation.id).world);
+  reopenStore();
+  assert.deepEqual(store.getConversation(fork.id).messages[0].prompts, links);
+});
+
+
+test('a bench round stores the library prompts it was sent from', () => {
+  const members = [{ provider: 'openrouter', model: 'test/one', effort: null }, { provider: 'openrouter', model: 'test/two', effort: null }];
+  const { bench } = store.createBench(crypto.randomUUID(), { title: 'Linked bench', blind: false, resolution: 1, content: CASTLE.text, prompts: [{ id: CASTLE.id, title: CASTLE.title }], members });
+  assert.deepEqual(bench.rounds[0].prompts, [{ id: CASTLE.id, title: CASTLE.title }]);
+  store.appendRound(bench, 'Add a keep', []);
+  store.appendRound(bench, 'Build a huge tower with a spiral stair inside.', [{ id: TOWER.id, title: TOWER.title }]);
+  reopenStore();
+  assert.deepEqual(store.getBench(bench.id).rounds.map((round) => round.prompts), [[{ id: CASTLE.id, title: CASTLE.title }], undefined, [{ id: TOWER.id, title: TOWER.title }]]);
+});
+
+// The chat list carries the ids of the prompts each chat and bench came
+// from, and the title each was last sent under, so the sidebar filters by
+// them and names one since deleted from the library.
+test('the chat list carries the prompts of every branch of a chat, and each prompt\'s latest title', () => {
+  const [castle, tower] = [crypto.randomUUID(), crypto.randomUUID()];
+  const conversation = store.createConversation('openrouter', 'test/model');
+  const first = store.appendMessage(conversation, { role: 'user', content: CASTLE.text, prompts: [{ id: castle, title: 'Old castle' }] }, conversation.world.reference());
+  store.save(conversation);
+  store.revert(conversation, first.id);
+  store.appendMessage(conversation, { role: 'user', content: 'Build a huge tower with a spiral stair inside.', prompts: [{ id: tower, title: 'Tower' }] }, conversation.world.reference());
+  store.save(conversation);
+  const plain = store.createConversation('openrouter', 'test/model');
+  store.appendMessage(plain, { role: 'user', content: 'A shed' }, plain.world.reference());
+  store.save(plain);
+  const rows = () => store.listConversations();
+  assert.deepEqual(rows().find((row) => row.id === conversation.id).prompts.sort(), [castle, tower].sort(), 'the reverted message still counts');
+  assert.deepEqual(rows().find((row) => row.id === plain.id).prompts, []);
+  assert.equal(store.promptTitles()[castle], 'Old castle');
+
+  const later = store.createConversation('openrouter', 'test/model');
+  store.appendMessage(later, { role: 'user', content: CASTLE.text, prompts: [{ id: castle, title: 'Castle' }] }, later.world.reference());
+  store.save(later);
+  assert.equal(store.promptTitles()[castle], 'Castle', 'the title it was last sent under');
+  const fork = store.forkConversation(store.getConversation(later.id), 1, store.getConversation(later.id).world);
+  assert.deepEqual(rows().find((row) => row.id === fork.id).prompts, [castle]);
+  for (const id of [later.id, fork.id]) store.archiveConversation(id);
+  assert.equal(store.promptTitles()[castle], 'Old castle', 'an archived chat is not listed, nor are its titles');
+  store.archiveConversation(conversation.id);
+  assert.equal(store.promptTitles()[tower], undefined);
+});
+
+test('a bench is listed with the prompts any of its rounds came from', () => {
+  const castle = crypto.randomUUID();
+  const members = [{ provider: 'openrouter', model: 'test/one', effort: null }, { provider: 'openrouter', model: 'test/two', effort: null }];
+  const { bench } = store.createBench(crypto.randomUUID(), { title: 'Listed bench', blind: false, resolution: 1, content: CASTLE.text, prompts: [{ id: castle, title: 'Bench castle' }], members });
+  store.appendRound(bench, 'Add a keep', []);
+  store.appendRound(bench, CASTLE.text, [{ id: castle, title: 'Bench castle' }]);
+  assert.deepEqual(store.listBenches().find((row) => row.id === bench.id).prompts, [castle]);
+  assert.equal(store.promptTitles()[castle], 'Bench castle', 'a round not yet sent to any model is named too');
+  store.archiveBench(bench.id);
+  assert.equal(store.promptTitles()[castle], undefined);
+});
+
+// v14 links what was stored before: only where the library makes the prompt
+// certain (prompt-match.js).
+test('a version 13 database links stored messages and bench rounds to the prompts they were certainly sent from', () => {
+  const library = require('../server/prompts');
+  const bridge = { id: 'bridge', title: 'Bridge', text: 'Build a {{material}} bridge over the river.' };
+  const crossing = { id: 'crossing', title: 'Crossing', text: 'Build a stone {{thing}} over the river.' };
+  const anything = { id: 'anything', title: 'Anything', text: '{{subject}}' };
+  const gone = { id: 'gone', title: 'Gone', text: 'Build a windmill beside a wheat field.' };
+  library.save([CASTLE, TOWER, bridge, crossing, anything, gone]);
+  const sent = {};
+  const chat = (name, content, extra = {}) => {
+    const conversation = store.createConversation('openrouter', 'test/model');
+    sent[name] = store.appendMessage(conversation, { role: 'user', content, ...extra }, conversation.world.reference());
+    store.appendMessage(conversation, { role: 'assistant', content: CASTLE.text });
+    store.save(conversation);
+    return conversation;
+  };
+  chat('castle', `  ${CASTLE.text}\n`);
+  chat('castleWithFile', [{ type: 'text', text: CASTLE.text }, { type: 'attachment', attachment: { name: 'a.png', type: 'image/png', size: 1, url: '/api/attachments/x/a.png' } }]);
+  chat('castleEdited', `${CASTLE.text} Add a drawbridge.`);
+  chat('tower', 'Build a huge, crooked tower with a spiral stair inside.');
+  chat('towerBlank', 'Build a   tower with a spiral stair inside.');
+  // "stone" for Bridge's material, or "bridge" for Crossing's thing.
+  chat('either', 'Build a stone bridge over the river.');
+  chat('hand', 'A hut by the sea');
+  chat('windmill', gone.text);
+  const seeBuild = chat('seeBuild', 'Build a castle with a moat and four towers.', { seeBuild: true });
+  const members = [{ provider: 'openrouter', model: 'test/one', effort: null }, { provider: 'openrouter', model: 'test/two', effort: null }];
+  const { bench, members: chats } = store.createBench(crypto.randomUUID(), { title: 'Old bench', blind: false, resolution: 1, content: TOWER.text.replace('{{size}}', 'short'), prompts: [], members });
+  store.appendRound(bench, 'Make it taller', []);
+  for (const member of chats) {
+    sent[member.id] = store.appendMessage(member, { role: 'user', content: bench.rounds[0].content, round: bench.rounds[0].id }, member.world.reference());
+    store.save(member);
+  }
+  // The windmill prompt leaves the library before the upgrade.
+  library.save([CASTLE, TOWER, bridge, crossing, anything]);
+  store.close();
+  // As version 13 stored them: no message or round records a prompt.
+  const db = new Database(path.join(dataDir, 'mcbench.sqlite3'));
+  db.exec(`
+    DROP TABLE message_prompts;
+    UPDATE messages SET payload_json = json_remove(payload_json, '$.prompts');
+  `);
+  for (const row of db.prepare('SELECT id, rounds_json FROM benches').all()) {
+    db.prepare('UPDATE benches SET rounds_json = ? WHERE id = ?').run(JSON.stringify(JSON.parse(row.rounds_json).map(({ prompts, ...node }) => node)), row.id);
+  }
+  db.pragma('user_version = 13');
+  db.close();
+  delete require.cache[require.resolve('../server/store')];
+  store = require('../server/store');
+
+  const check = sql();
+  try {
+    assert.equal(check.pragma('user_version', { simple: true }), 14);
+    const mine = new Set(Object.values(sent).map((message) => message.id));
+    const linked = Object.fromEntries(check.prepare('SELECT message_id, prompt_id, title FROM message_prompts').all()
+      .filter((row) => mine.has(row.message_id)).map((row) => [row.message_id, [row.prompt_id, row.title]]));
+    const expected = {
+      [sent.castle.id]: [CASTLE.id, CASTLE.title],
+      [sent.castleWithFile.id]: [CASTLE.id, CASTLE.title],
+      [sent.tower.id]: [TOWER.id, TOWER.title],
+      [sent[chats[0].id].id]: [TOWER.id, TOWER.title],
+      [sent[chats[1].id].id]: [TOWER.id, TOWER.title],
+    };
+    assert.deepEqual(linked, expected, 'only the certain matches are linked');
+    const payload = (message) => JSON.parse(check.prepare('SELECT payload_json FROM messages WHERE id = ?').pluck().get(message.id));
+    assert.deepEqual(payload(sent.castle).prompts, [{ id: CASTLE.id, title: CASTLE.title }]);
+    for (const name of ['castleEdited', 'towerBlank', 'either', 'hand', 'windmill', 'seeBuild']) assert.equal(payload(sent[name]).prompts, undefined, name);
+    assert.ok(seeBuild);
+  } finally {
+    check.close();
+  }
+  const rounds = store.getBench(bench.id).rounds;
+  assert.deepEqual(rounds[0].prompts, [{ id: TOWER.id, title: TOWER.title }]);
+  assert.equal(rounds[1].prompts, undefined);
+  assert.deepEqual(store.listBenches().find((row) => row.id === bench.id).prompts, [TOWER.id]);
+  assert.deepEqual(store.getConversation(chats[0].id).messages[0].prompts, [{ id: TOWER.id, title: TOWER.title }]);
 });

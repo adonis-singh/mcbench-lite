@@ -267,7 +267,7 @@ test('/api/activity is busy while work is held or a bench round is queued, idle 
   assert.deepEqual((await call('GET', '/api/activity')).body, { busy: false });
   // A bench whose first round no model has started yet.
   const { bench } = store.createBench(crypto.randomUUID(), {
-    title: 'Queued', blind: false, content: 'A well',
+    title: 'Queued', blind: false, content: 'A well', prompts: [],
     members: [{ provider: 'openrouter', model: 'queued/a', effort: null }, { provider: 'openrouter', model: 'queued/b', effort: null }],
   });
   assert.deepEqual((await call('GET', '/api/activity')).body, { busy: true });

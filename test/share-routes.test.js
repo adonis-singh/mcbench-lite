@@ -220,6 +220,7 @@ function newBench(built, { blind = false } = {}) {
     blind,
     resolution: 1,
     content: 'Build a bridge',
+    prompts: [],
     members: ['a', 'b', 'c'].map((name) => ({ provider: 'openrouter', model: `model/${name}` })),
   });
   for (const member of members) {

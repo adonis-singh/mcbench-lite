@@ -53,6 +53,14 @@ const waits = (gate, reply = { content: 'Done.' }) => (options) => new Promise((
   gate.then(() => resolve(reply));
 });
 
+// The list every page reads: the stream's first line, the stream then closed.
+async function listed() {
+  const watcher = request('GET', '/api/conversations/stream');
+  await tick();
+  watcher.emit('close');
+  return watcher.lines[0];
+}
+
 // A request through handleApi, answered as route() answers a thrown error.
 function request(method, pathname, body) {
   const req = Readable.from(body === undefined ? [] : [Buffer.from(JSON.stringify(body))]);
@@ -239,6 +247,35 @@ test('a bench round edit holds the bench: its head moves first, and no round is 
   for (const id of Object.values(ids)) assert.equal(prompts(id).length, 1);
 });
 
+// The composer sends the library prompts a message was inserted from; the
+// chat's prompt, a bench's round and each bench model's prompt record them,
+// and the list every page reads carries their ids and titles.
+test('a message, a bench and a round store the library prompts they were sent from, and the list carries them', async () => {
+  const castle = { id: 'castle', title: 'Castle' };
+  const id = await newChat();
+  const refused = await call('POST', `/api/conversations/${id}/chat`, { provider: 'openrouter', model: 'chat/model', resolution: 1, text: 'Build', prompts: [{ id: 'castle' }] });
+  assert.deepEqual([refused.status, refused.body.error], [400, 'Each prompt a message came from needs its id and title']);
+  assert.deepEqual(store.getConversation(id).messages, []);
+  await call('POST', `/api/conversations/${id}/chat`, { provider: 'openrouter', model: 'chat/model', resolution: 1, text: 'Build a castle', prompts: [castle] });
+  await free(id);
+  assert.deepEqual(prompts(id)[0].prompts, [castle]);
+  await call('POST', `/api/conversations/${id}/chat`, { provider: 'openrouter', model: 'chat/model', resolution: 1, text: 'Add a moat' });
+  await free(id);
+  assert.equal(prompts(id)[1].prompts, undefined, 'a message typed by hand records none');
+  assert.deepEqual((await listed()).conversations.find((row) => row.id === id).prompts, ['castle']);
+
+  const tower = { id: 'tower', title: 'Tower' };
+  const { bench, ids } = await newBench({ text: 'Build a castle', prompts: [castle] }, 'linked/a', 'linked/b');
+  await Promise.all(Object.values(ids).map(free));
+  await call('POST', `/api/benches/${bench.id}/rounds`, { text: 'Build a tall tower', prompts: [tower] });
+  await Promise.all(Object.values(ids).map(free));
+  assert.deepEqual(store.getBench(bench.id).rounds.map((round) => round.prompts), [[castle], [tower]]);
+  for (const member of Object.values(ids)) assert.deepEqual(prompts(member).map((message) => message.prompts), [[castle], [tower]]);
+  const list = await listed();
+  assert.deepEqual(list.benches.find((row) => row.id === bench.id).prompts, ['castle', 'tower']);
+  assert.deepEqual([list.promptTitles.castle, list.promptTitles.tower], ['Castle', 'Tower']);
+});
+
 test('a bench whose message is refused leaves nothing saved', async () => {
   const before = store.listBenches().length;
   const { status, body } = await call('POST', '/api/benches', { text: '  ', resolution: 1, members: [{ provider: 'openrouter', model: 'x/a' }, { provider: 'openrouter', model: 'x/b' }] });
@@ -249,7 +286,7 @@ test('a bench whose message is refused leaves nothing saved', async () => {
 test('after a restart a crashed model reads as failed and can be retried, and queued rounds start', async () => {
   const id = crypto.randomUUID();
   const { bench, members: [crashed, queued] } = store.createBench(id, {
-    title: 'Crash', blind: false, content: 'A well',
+    title: 'Crash', blind: false, content: 'A well', prompts: [],
     members: [{ provider: 'openrouter', model: 'crash/a', effort: null }, { provider: 'openrouter', model: 'crash/b', effort: null }],
   });
   // The server died during the first model's turn, before the second started.
@@ -375,7 +412,7 @@ test('a bench round that cannot start is stored as that model\'s failed round, w
 
 test('a bench round whose prompt cannot be saved is stored as failed once the store takes it', async (t) => {
   const { bench, members: [unsaved, other] } = store.createBench(crypto.randomUUID(), {
-    title: 'Full', blind: false, content: 'A well',
+    title: 'Full', blind: false, content: 'A well', prompts: [],
     members: [{ provider: 'openrouter', model: 'full/a', effort: null }, { provider: 'openrouter', model: 'full/b', effort: null }],
   });
   // The disk is full for the prompt, and has room again right after.
@@ -489,7 +526,7 @@ test('a turn whose end could not be saved is ended before its chat takes the nex
 
 test('a bench model whose turn end was not saved holds its queue as failed, and can be retried', async () => {
   const { bench, members: [unsaved, queued] } = store.createBench(crypto.randomUUID(), {
-    title: 'Unsaved', blind: false, content: 'A well',
+    title: 'Unsaved', blind: false, content: 'A well', prompts: [],
     members: [{ provider: 'openrouter', model: 'unsaved/a', effort: null }, { provider: 'openrouter', model: 'unsaved/b', effort: null }],
   });
   store.appendMessage(unsaved, { role: 'user', content: 'A well', round: bench.rounds[0].id }, unsaved.world.reference());
@@ -730,7 +767,7 @@ test('a revert, branch switch or dismissal that cannot be saved is a 500; one th
 
 test('a bench whose model cannot be loaded is logged by its id when it is advanced, and other benches carry on', async (t) => {
   const make = (name) => store.createBench(crypto.randomUUID(), {
-    title: name, blind: false, content: 'A well',
+    title: name, blind: false, content: 'A well', prompts: [],
     members: [{ provider: 'openrouter', model: `${name}/a`, effort: null }, { provider: 'openrouter', model: `${name}/b`, effort: null }],
   });
   const broken = make('unloadable');

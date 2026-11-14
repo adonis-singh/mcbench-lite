@@ -3,7 +3,10 @@
 // text; a field is a small box to type into, made from a prompt's
 // {{fill-in}}. The DOM is the source of truth while typing; segments are its
 // serializable form for drafts:
-//   { type: 'text', text } | { type: 'prompt', id, title, text } | { type: 'field', name, value }
+//   { type: 'text', text } | { type: 'prompt', id, title, text } | { type: 'field', name, value, from }
+// A field's `from` is the library prompt it came from ({ id, title }): the
+// prompt's own text around its boxes is plain text the user may edit, so
+// its boxes are what still carries the prompt in the message.
 
 export const FILL_IN = /\{\{([^{}\n]*)\}\}/g;
 
@@ -12,17 +15,29 @@ export const FILL_IN = /\{\{([^{}\n]*)\}\}/g;
 export function promptSegments(prompt) {
   const text = prompt.text || '';
   FILL_IN.lastIndex = 0;
-  if (!FILL_IN.test(text)) return [{ type: 'prompt', id: prompt.id, title: prompt.title || 'Untitled prompt', text }];
+  if (!FILL_IN.test(text)) return [{ type: 'prompt', id: prompt.id, title: prompt.title, text }];
   const segments = [];
   let last = 0;
   FILL_IN.lastIndex = 0;
   for (const match of text.matchAll(FILL_IN)) {
     if (match.index > last) segments.push({ type: 'text', text: text.slice(last, match.index) });
-    segments.push({ type: 'field', name: match[1].trim(), value: '' });
+    segments.push({ type: 'field', name: match[1].trim(), value: '', from: { id: prompt.id, title: prompt.title } });
     last = match.index + match[0].length;
   }
   if (last < text.length) segments.push({ type: 'text', text: text.slice(last) });
   return segments;
+}
+
+// The library prompts a message holding `segments` was inserted from, in the
+// order they appear, each once: a prompt counts while its token, or any of
+// its fill-in boxes, is still in the message, whatever was typed around it.
+export function promptLinks(segments) {
+  const links = new Map();
+  for (const segment of segments) {
+    const link = segment.type === 'prompt' ? { id: segment.id, title: segment.title } : segment.type === 'field' ? segment.from : null;
+    if (link && !links.has(link.id)) links.set(link.id, link);
+  }
+  return [...links.values()];
 }
 
 function sizeField(input) {
@@ -42,15 +57,17 @@ function atom(segment) {
     remove.type = 'button';
     remove.tabIndex = -1;
     remove.className = 'ce-remove';
-    remove.setAttribute('aria-label', `Remove /${segment.title}`);
+    remove.setAttribute('aria-label', `Remove /${segment.title || 'Untitled prompt'}`);
     remove.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>';
     const slash = document.createElement('span');
     slash.className = 'ce-slash';
     slash.textContent = '/';
     slash.append(remove);
-    node.append(slash, segment.title);
+    node.append(slash, segment.title || 'Untitled prompt');
   } else {
     node.className = 'ce-field';
+    node.dataset.prompt = segment.from.id;
+    node.dataset.promptTitle = segment.from.title;
     const input = document.createElement('input');
     input.className = 'ce-field-input';
     input.placeholder = segment.name;
@@ -94,7 +111,7 @@ export function read(root) {
         text += node.dataset.text;
       } else if (node.classList?.contains('ce-field')) {
         const input = node.querySelector('input');
-        segments.push({ type: 'field', name: input.placeholder, value: input.value });
+        segments.push({ type: 'field', name: input.placeholder, value: input.value, from: { id: node.dataset.prompt, title: node.dataset.promptTitle } });
         if (!input.value.trim()) emptyField ??= input;
         text += input.value;
       } else {

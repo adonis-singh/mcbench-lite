@@ -169,6 +169,7 @@ function listPayload() {
   return {
     conversations: conversationList(),
     benches: store.listBenches(),
+    promptTitles: store.promptTitles(),
     archived: { conversations: archive.conversations.length, benches: archive.benches.length },
   };
 }
@@ -366,19 +367,27 @@ function readResolution(body) {
   return body.resolution;
 }
 
+// The library prompts a message was inserted from, as the composer knows
+// them: each prompt's id and its title then.
+function readPromptLink(link) {
+  if (typeof link?.id !== 'string' || !link.id || typeof link.title !== 'string') throw httpError(400, 'Each prompt a message came from needs its id and title');
+  return { id: link.id, title: link.title };
+}
+
 function readMessage(body) {
   const text = String(body.text || '').trim();
   const selections = (Array.isArray(body.selections) ? body.selections : []).map(readSelection);
   const files = Array.isArray(body.files) ? body.files : [];
+  const prompts = (Array.isArray(body.prompts) ? body.prompts : []).map(readPromptLink);
   if (files.length > 8) throw httpError(400, 'A message supports at most 8 attachments');
   if (!text && files.length === 0) throw httpError(400, 'Message text or an attachment is required');
-  return { text, selections, files };
+  return { text, selections, files, prompts };
 }
 
 // Saves a checked message's files under `owner`, then runs `write` with them
 // and the message's content: it saves the row that names them. The files
 // come first, so if `write` throws they are removed and nothing is left.
-function storeMessage({ text, selections, files }, owner, write) {
+function storeMessage({ text, selections, files, prompts }, owner, write) {
   const saved = store.saveAttachments(owner, files);
   const content = saved.length > 0 || selections.length > 0
     ? [
@@ -388,7 +397,7 @@ function storeMessage({ text, selections, files }, owner, write) {
     ]
     : text;
   try {
-    return write({ files: saved, content });
+    return write({ files: saved, content, prompts });
   } catch (error) {
     store.discardAttachments(owner, saved);
     throw error;
@@ -424,7 +433,7 @@ async function handleChat(req, res, id) {
     if (!model) throw httpError(400, 'Choose a model');
     const resolution = readResolution(body);
     const message = readMessage(body);
-    storeMessage(message, id, ({ files, content }) => {
+    storeMessage(message, id, ({ files, content, prompts }) => {
       sandbox.syncAttachments(id, store.ATTACHMENTS_DIR);
       if (typeof body.effort === 'string') conversation.effort = body.effort.trim() || null;
       // The resolution (web/resolution.mjs) is chosen with each message, as the model is.
@@ -440,7 +449,7 @@ async function handleChat(req, res, id) {
       // No prompt goes on a turn still under way: this hold shows none is
       // running, so one left there (its end was not saved) is ended first.
       store.endUnfinishedTurn(conversation, store.UNSAVED);
-      const prompt = store.appendMessage(conversation, { role: 'user', content }, conversation.world.reference());
+      const prompt = store.appendMessage(conversation, { role: 'user', content, ...(prompts.length ? { prompts } : {}) }, conversation.world.reference());
       store.save(conversation);
       if (untitled) title = { prompt: prompt.id, text: titleSource(message.text, files), images: titleImages(message.files), model: { provider, model } };
     });
@@ -495,8 +504,11 @@ function memberProgress(id) {
 function startRound(bench, member, index) {
   const [turn] = reservations.take([member.id], () => new TurnStream(), 'This model is already running');
   const round = bench.rounds[index];
-  // The bench's own copy of the round, until this model has its files.
+  // The bench's own copy of the round, until this model has its files. The
+  // model's prompt names the library prompts the round came from, so a build
+  // continued from it in Build is found under them too.
   let { content } = round;
+  const sent = { role: 'user', round: round.id, ...(round.prompts ? { prompts: round.prompts } : {}) };
   try {
     if (typeof content !== 'string') {
       content = content.map((part) => (
@@ -504,14 +516,14 @@ function startRound(bench, member, index) {
       ));
     }
     sandbox.syncAttachments(member.id, store.ATTACHMENTS_DIR);
-    store.appendMessage(member, { role: 'user', content, round: round.id }, member.world.reference());
+    store.appendMessage(member, { ...sent, content }, member.world.reference());
     store.save(member);
   } catch (error) {
     console.error(`[bench] ${member.model} could not start round ${index + 1}:`, error);
     try {
       // A failed save dropped the chat (store.js): the round goes on what is stored.
       const stored = store.getConversation(member.id);
-      store.appendMessage(stored, { role: 'user', content, round: round.id }, stored.world.reference());
+      store.appendMessage(stored, { ...sent, content }, stored.world.reference());
       store.endTurn(stored, { role: 'error', content: String(error.message || error) });
       store.markFinished(member.id);
     } finally {
@@ -895,7 +907,7 @@ async function handleApi(req, res, url) {
     if (body.selections?.length) return sendJson(res, 400, { error: 'Selections belong to one build, not a bench' });
     const resolution = readResolution(body);
     const id = crypto.randomUUID();
-    storeMessage(readMessage(body), id, ({ content }) => store.createBench(id, { title: BENCH_TITLE, blind: body.blind === true, resolution, content, members }));
+    storeMessage(readMessage(body), id, ({ content, prompts }) => store.createBench(id, { title: BENCH_TITLE, blind: body.blind === true, resolution, content, prompts, members }));
     advanceBench(id);
     titleBench(id);
     return sendJson(res, 200, { id });
@@ -1031,7 +1043,7 @@ async function handleApi(req, res, url) {
     if (req.method === 'POST' && parts[3] === 'rounds') {
       if (body.selections?.length) return sendJson(res, 400, { error: 'Selections belong to one build, not a bench' });
       if (reservations.has(benchKey(bench.id))) return sendJson(res, 409, { error: 'Wait for the round edit to finish' });
-      storeMessage(readMessage(body), bench.id, ({ content }) => store.appendRound(bench, content));
+      storeMessage(readMessage(body), bench.id, ({ content, prompts }) => store.appendRound(bench, content, prompts));
       advanceBench(bench.id);
       titleBench(bench.id);
       return sendJson(res, 200, { rounds: bench.rounds.length });
