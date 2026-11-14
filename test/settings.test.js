@@ -4,6 +4,8 @@ const { test } = require('node:test');
 // A fresh data directory: these tests must not read the developer's own settings.
 process.env.MCBENCH_SETTINGS_FILE = require('node:path').join(require('node:fs').mkdtempSync(require('node:path').join(require('node:os').tmpdir(), 'mcbench-settings-test-')), 'settings.json');
 const assert = require('node:assert');
+// A scratch tools folder: which CLIs are installed is the test's.
+process.env.MCBENCH_TOOLS_DIR = require('node:path').join(require('node:fs').mkdtempSync(require('node:path').join(require('node:os').tmpdir(), 'mcbench-settings-tools-')), 'tools');
 
 const settings = require('../server/settings');
 const { normalizeModelFavorites } = settings._internal;
@@ -20,7 +22,7 @@ test('settings expose provider connections without chat defaults', () => {
   }
   assert.deepStrictEqual(publicSettings.providers.codex, {
     label: 'ChatGPT',
-    connected: require('../server/codex-cli').storedLogin(),
+    connected: require('../server/codex-cli').storedLogin() && require('../server/tools').cliInstalled('codex', 'MCBENCH_CODEX_BINARY'),
     envKey: undefined,
     auth: 'cli-login',
     harness: false,
@@ -50,11 +52,97 @@ test('the Settings screen gets one short state line per provider', () => {
   assert.strictEqual(summary('cursor', { enabled: true, envKey: 'CURSOR_API_KEY', keySource: null, signedIn: true }), 'Signed in with Cursor');
   assert.strictEqual(summary('cursor', { enabled: true, envKey: 'CURSOR_API_KEY', keySource: null, signedIn: false }), 'No key or login');
   assert.strictEqual(summary('codex-cli', { enabled: true, account: null }), 'Not signed in');
+  assert.strictEqual(summary('codex-cli', { enabled: true, auth: 'cli-login', connected: false, signedIn: true, account: 'a@b.c', plan: 'ChatGPT Pro' }), 'CLI not installed');
   const details = settings.details();
   for (const [id, entry] of Object.entries(details.providers)) {
     assert.strictEqual(typeof entry.summary, 'string', id);
     assert.strictEqual(typeof entry.connected, 'boolean', id);
   }
+});
+
+test('a CLI login is connected only when its CLI is there to run', (t) => {
+  const fs = require('node:fs');
+  const os = require('node:os');
+  const path = require('node:path');
+  const tools = require('../server/tools');
+  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'mcbench-settings-cli-'));
+  const codexHome = path.join(scratch, 'codex');
+  const claudeHome = path.join(scratch, 'claude');
+  const bin = path.join(scratch, 'bin');
+  for (const dir of [codexHome, claudeHome, bin]) fs.mkdirSync(dir);
+  const names = ['PATH', 'CODEX_HOME', 'CLAUDE_CONFIG_DIR', 'MCBENCH_CODEX_BINARY', 'MCBENCH_CLAUDE_BINARY'];
+  const previous = Object.fromEntries(names.map((name) => [name, process.env[name]]));
+  t.after(() => {
+    for (const name of names) {
+      if (previous[name] === undefined) delete process.env[name];
+      else process.env[name] = previous[name];
+    }
+    settings.refreshRuntimes();
+    fs.rmSync(scratch, { recursive: true, force: true });
+  });
+  // PATH keeps the system folders: the Codex CLI's version is read through `which`.
+  Object.assign(process.env, { PATH: [bin, '/usr/bin', '/bin'].join(path.delimiter), CODEX_HOME: codexHome, CLAUDE_CONFIG_DIR: claudeHome });
+  delete process.env.MCBENCH_CODEX_BINARY;
+  delete process.env.MCBENCH_CLAUDE_BINARY;
+  const program = (file) => {
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, '#!/bin/sh\necho 9.9.9\n', { mode: 0o755 });
+  };
+  const ids = ['codex', 'codex-cli', 'claude-code'];
+  // What Settings and /api/config say after the CLIs or their logins moved.
+  const read = () => {
+    settings.refreshRuntimes();
+    const providers = settings.details().providers;
+    assert.deepStrictEqual(Object.fromEntries(ids.map((id) => [id, settings.publicSettings().providers[id].connected])),
+      Object.fromEntries(ids.map((id) => [id, providers[id].connected])));
+    return providers;
+  };
+
+  // A CLI with no login is not connected.
+  program(path.join(bin, 'codex'));
+  program(path.join(bin, 'claude'));
+  for (const id of ids) {
+    assert.strictEqual(read()[id].connected, false, id);
+    assert.strictEqual(read()[id].summary, 'Not signed in', id);
+  }
+  fs.rmSync(path.join(bin, 'codex'));
+  fs.rmSync(path.join(bin, 'claude'));
+
+  // A login with no CLI is not connected, and Settings offers the install.
+  fs.writeFileSync(path.join(codexHome, 'auth.json'), '{}');
+  fs.writeFileSync(path.join(claudeHome, '.claude.json'), JSON.stringify({ oauthAccount: { emailAddress: 'a@b.c' } }));
+  for (const id of ids) {
+    const entry = read()[id];
+    assert.strictEqual(entry.connected, false, id);
+    assert.strictEqual(entry.signIn.installed, false, id);
+    assert.strictEqual(entry.summary, 'CLI not installed', id);
+  }
+
+  // The CLI in the tools folder, on PATH, or the file its variable names.
+  for (const name of ['codex', 'claude']) program(tools.installed(name).program);
+  for (const id of ids) assert.strictEqual(read()[id].connected, true, `${id} in the tools folder`);
+  assert.strictEqual(read()['claude-code'].summary, 'Signed in as a@b.c');
+  for (const name of ['codex', 'claude']) fs.rmSync(tools.installed(name).folder, { recursive: true });
+  for (const id of ids) assert.strictEqual(read()[id].connected, false, id);
+
+  program(path.join(bin, 'codex'));
+  program(path.join(bin, 'claude'));
+  for (const id of ids) assert.strictEqual(read()[id].connected, true, `${id} on PATH`);
+  fs.rmSync(path.join(bin, 'codex'));
+  fs.rmSync(path.join(bin, 'claude'));
+
+  program(path.join(scratch, 'my-codex'));
+  process.env.MCBENCH_CODEX_BINARY = path.join(scratch, 'my-codex');
+  assert.deepStrictEqual(ids.map((id) => read()[id].connected), [true, true, false]);
+  process.env.MCBENCH_CODEX_BINARY = path.join(scratch, 'no-codex');
+  assert.deepStrictEqual(ids.map((id) => read()[id].connected), [false, false, false]);
+
+  // A bare command in the variable is run through PATH, so it must be there.
+  program(path.join(bin, 'codex-beta'));
+  process.env.MCBENCH_CODEX_BINARY = 'codex-beta';
+  assert.deepStrictEqual(ids.map((id) => read()[id].connected), [true, true, false]);
+  process.env.MCBENCH_CODEX_BINARY = 'codex-nowhere';
+  assert.deepStrictEqual(ids.map((id) => read()[id].connected), [false, false, false]);
 });
 
 test('model favorites are normalized before persistence', () => {

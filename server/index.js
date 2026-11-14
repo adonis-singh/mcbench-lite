@@ -1390,7 +1390,6 @@ function prepare() {
   // the screenshot browser once they are done, so it does not share the line
   // with them. A failure among them stops nothing that waits here.
   const browser = Promise.allSettled([tools.installJdk(), minecraftLive.ensurePaper(), rust]).then(() => tools.headlessShell());
-  browserReady = browser;
   Promise.allSettled([
     rust.catch(tell('[rust]')),
     minecraftLive.warm(),
@@ -1398,7 +1397,12 @@ function prepare() {
     tables.then(() => minecraftVerifier.warm()).catch(tell('[verify]')),
     // Every build is settled on these engines (shot-world.js).
     tables.then(() => warmShotEngines()).catch(tell('[settle]')),
-    browser.catch(tell('[see_build]')),
+    // see_build's page is this server's own: once the browser is installed
+    // and the server listens, the renderer is warmed, after the first start
+    // and after a retry alike. The ready line does not wait for it.
+    browser.then(() => {
+      listening.then(() => warmRenderer()).catch((error) => console.error('[see_build]', error.message));
+    }, tell('[see_build]')),
     // The page's block data, every file of it.
     setup.track('blocks', async () => {
       await Promise.all(Object.keys(ASSETS).filter((name) => name !== 'blocks.json').map((name) => getAsset(name)));
@@ -1414,8 +1418,9 @@ function prepare() {
   sandbox.ensureImage().catch((error) => console.log('[sandbox]', error.message));
 }
 
-// The screenshot browser's install, which prepare starts (see there).
-let browserReady = null;
+// Resolves once the server listens (startHttpServer), for prepare's warm-up.
+let listened;
+const listening = new Promise((resolve) => { listened = resolve; });
 
 async function startHttpServer() {
   // Turns the last run of the server stopped in the middle of end as errors.
@@ -1429,9 +1434,7 @@ async function startHttpServer() {
     console.log(`mcbench-lite chat builder on ${auth.link(PORT)}`);
     // Turns read the model catalog fetched now and refreshed on a timer.
     startCatalog();
-    // see_build's page is this server's own: it is opened once the server
-    // listens and its browser is installed.
-    browserReady.then(() => warmRenderer()).catch((error) => console.error('[see_build]', error.message));
+    listened();
     // Benches carry on with the rounds they had queued.
     for (const bench of store.listBenches()) advanceBench(bench.id);
   });

@@ -154,10 +154,16 @@ function updateModelFavorites(value) {
   return settings.modelFavorites;
 }
 
-// ChatGPT sign-in and the CLI harnesses are connected when their CLI login exists.
+// ChatGPT sign-in and the CLI harnesses are connected when their CLI login
+// exists and the CLI is there to run (tools.cliInstalled): ChatGPT sign-in
+// lists its models and refreshes its login with the Codex CLI.
+const LOGIN_CLI = { codex: 'codex-cli', 'codex-cli': 'codex-cli', 'claude-code': 'claude-code' };
 function connected(id) {
   const provider = PROVIDERS[id];
-  if (provider.auth === 'cli-login') return LOGINS[id]();
+  if (provider.auth === 'cli-login') {
+    const { binary, binaryEnv } = PROVIDERS[LOGIN_CLI[id]].runtime;
+    return LOGINS[id]() && tools.cliInstalled(binary, binaryEnv);
+  }
   return Boolean(keySource(id)) || (provider.auth === 'api-key-or-login' && LOGINS[id]());
 }
 
@@ -214,6 +220,7 @@ function details({ refresh = false } = {}) {
       entry.runtime = { ...provider.runtime, binaryValue: process.env[provider.runtime.binaryEnv] || '',
         resolvedHome: RUNTIMES[id] === claudeCode ? claudeCode.configDir() : codexCli.codexHome() };
     }
+    if (provider.auth === 'cli-login') entry.signedIn = LOGINS[id]();
     if (id === 'codex' || id === 'codex-cli') Object.assign(entry, { account: codex?.email || null, plan: codex?.plan || null, version: cliVersion('codex', codexCli.version, /(\d+\.\d+\.\d+)/) });
     if (id === 'claude-code') Object.assign(entry, { account: claude?.email || null, plan: claude?.plan || null, version: cliVersion('claude', claudeCode.version, /(\d+\.\d+\.\d+)/) });
     if (id === 'cursor') Object.assign(entry, { signedIn: cursor.storedLogin(), version: cliVersion('cursor', cursor.version, /(.+)/) });
@@ -227,13 +234,15 @@ function details({ refresh = false } = {}) {
 }
 
 // One short line per provider for the Settings list; the plan says more at a
-// glance than the address, which the detail pane shows.
+// glance than the address, which the detail pane shows. A CLI login is not
+// connected without its CLI, whose install the pane offers, and says so.
 function summary(id, entry) {
   if (!entry.enabled) return 'Disabled';
+  if (entry.auth === 'cli-login' && entry.signedIn && !entry.connected) return 'CLI not installed';
   if (entry.account) return entry.plan ? `Signed in · ${entry.plan}` : `Signed in as ${entry.account}`;
   if (entry.keySource === 'saved') return 'Key saved';
   if (entry.keySource === 'env') return `Key from ${entry.envKey}`;
-  if (entry.signedIn) return 'Signed in with Cursor';
+  if (id === 'cursor' && entry.signedIn) return 'Signed in with Cursor';
   if (entry.envKey) return id === 'cursor' ? 'No key or login' : 'No key';
   return 'Not signed in';
 }

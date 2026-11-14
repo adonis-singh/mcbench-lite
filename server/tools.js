@@ -324,6 +324,16 @@ function cliProgram(program) {
   return onPath(program) ? program : installed(program).program;
 }
 
+// Whether the program the app runs for a CLI harness is there to run: the
+// one its environment variable names (a path that exists, or a bare command
+// on PATH, as the runtimes run it), else one on PATH, else the tools
+// folder's. No process is spawned, so /api/config can ask on every read.
+function cliInstalled(program, binaryEnv) {
+  const named = process.env[binaryEnv];
+  if (named) return named.includes('/') ? fs.existsSync(named) : onPath(named);
+  return onPath(program) || fs.existsSync(installed(program).program);
+}
+
 // Whether `program` is on PATH, as a spawn would find it.
 function onPath(program) {
   return (process.env.PATH || '').split(path.delimiter).filter(Boolean).some((folder) => {
@@ -338,5 +348,5 @@ function onPath(program) {
 
 module.exports = {
   PINS, PLATFORM, TOOLS_DIR, JAVA, JAVAC, RUST_ENV, RUSTUP, CHROMIUM_SHA256,
-  download, install, installed, installJdk, installRustup, headlessShell, checkShell, onPath, cliProgram,
+  download, install, installed, installJdk, installRustup, headlessShell, checkShell, onPath, cliProgram, cliInstalled,
 };

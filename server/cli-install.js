@@ -14,7 +14,6 @@
 // download), done or failed (`error`). The latest install of each CLI stays
 // until the next one starts, so the page can show how it ended.
 
-const fs = require('fs');
 const tools = require('./tools');
 const settings = require('./settings');
 const { httpError } = require('./http-guard');
@@ -36,7 +35,7 @@ function start(name) {
   program(name);
   const running = installs.get(name);
   if (running?.state === 'running') return view(running);
-  if (process.env[PROGRAMS[name]] || tools.onPath(name) || fs.existsSync(tools.installed(name).folder)) throw httpError(409, `${name} is installed already, and the app runs that one`);
+  if (process.env[PROGRAMS[name]] || tools.cliInstalled(name, PROGRAMS[name])) throw httpError(409, `${name} is installed already, and the app runs that one`);
   const install = { state: 'running', progress: null, error: null };
   installs.set(name, install);
   console.log(`[tools] installing ${tools.PINS[name].title} (about ${tools.PINS[name].mb} MB) into ${tools.TOOLS_DIR}`);

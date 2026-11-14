@@ -69,6 +69,30 @@ test('an install that fails says why, and can be started again', async (t) => {
   assert.equal(fs.existsSync(tools.installed('codex').folder), false);
 });
 
+test('a login whose CLI is installed from the app is connected, with no restart', async (t) => {
+  const settings = require('../server/settings');
+  const home = path.join(scratch, 'codex-home');
+  fs.mkdirSync(home);
+  fs.writeFileSync(path.join(home, 'auth.json'), '{}');
+  const previous = process.env.CODEX_HOME;
+  process.env.CODEX_HOME = home;
+  t.after(() => {
+    if (previous === undefined) delete process.env.CODEX_HOME;
+    else process.env.CODEX_HOME = previous;
+  });
+  const connected = () => ['codex', 'codex-cli'].map((id) => settings.publicSettings().providers[id].connected);
+  assert.deepStrictEqual(connected(), [false, false]);
+  assert.deepStrictEqual(['codex', 'codex-cli'].map((id) => settings.details().providers[id].summary), ['CLI not installed', 'CLI not installed']);
+  const release = fakeInstall(t);
+  cliInstall.start('codex');
+  release();
+  await settled();
+  assert.deepStrictEqual(cliInstall.state('codex'), { state: 'done', progress: null, error: null });
+  assert.deepStrictEqual(connected(), [true, true]);
+  assert.throws(() => cliInstall.start('codex'), { statusCode: 409 }, 'installed in the tools folder already');
+  fs.rmSync(tools.installed('codex').folder, { recursive: true });
+});
+
 test('a CLI on PATH, or named by its variable, is the one the app runs, and is not installed', (t) => {
   fs.writeFileSync(path.join(bin, 'codex'), '#!/bin/sh\n', { mode: 0o755 });
   t.after(() => fs.rmSync(path.join(bin, 'codex')));
