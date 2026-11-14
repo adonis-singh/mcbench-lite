@@ -44,25 +44,50 @@ function resolveProvider(providerId) {
 // reasoning efforts they support. Native provider slugs are normalized to
 // catalog ids so the same source answers for every provider.
 const CATALOG_URL = 'https://openrouter.ai/api/v1/models';
-const CATALOG_TTL_MS = 5 * 60 * 1000;
+const CATALOG_REFRESH_MS = 5 * 60 * 1000;
 const EFFORT_ORDER = ['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'];
-let catalogCache = { at: 0, byId: null };
-let catalogLoading = null; // callers while it is fetched share the one fetch
+// The catalog is fetched when the server starts and again every
+// CATALOG_REFRESH_MS (startCatalog); a turn reads the one fetched last and
+// never waits for a refresh. Until one fetch has succeeded, a reader waits
+// for the fetch under way, or starts one: a catalog that could not be
+// fetched fails the reader with the fetch's error, as no catalog is there to
+// read. A refresh that fails is logged and leaves the last catalog.
+let catalogById = null;
+let catalogLoading = null; // readers and the timer while it is fetched share the one fetch
+let catalogTimer = null;
+// Each provider's own model list, kept for five minutes.
+const MODEL_LIST_TTL_MS = 5 * 60 * 1000;
 const modelListCache = new Map();
 // Gemini's own model list: unlike its OpenAI-compatible /models it says which
 // models generate content. Its key goes in x-goog-api-key, not as a Bearer.
 const GOOGLE_MODELS_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
 
-async function catalog() {
-  if (catalogCache.byId && Date.now() - catalogCache.at <= CATALOG_TTL_MS) return catalogCache.byId;
+function fetchCatalog() {
   catalogLoading ||= (async () => {
     const res = await fetch(CATALOG_URL, { signal: AbortSignal.timeout(10000) });
     if (!res.ok) throw new Error(`Model catalog fetch failed with status ${res.status}`);
     const { data } = await res.json();
-    catalogCache = { at: Date.now(), byId: new Map(data.map((m) => [m.id, m])) };
-    return catalogCache.byId;
+    catalogById = new Map(data.map((m) => [m.id, m]));
+    return catalogById;
   })().finally(() => { catalogLoading = null; });
   return catalogLoading;
+}
+
+async function catalog() {
+  return catalogById ?? fetchCatalog();
+}
+
+// Fetches the catalog now and every CATALOG_REFRESH_MS until stopCatalog.
+function startCatalog() {
+  const refresh = () => fetchCatalog().catch((error) => console.error('[model-catalog]', error.message));
+  refresh();
+  catalogTimer = setInterval(refresh, CATALOG_REFRESH_MS);
+  catalogTimer.unref();
+}
+
+function stopCatalog() {
+  clearInterval(catalogTimer);
+  catalogTimer = null;
 }
 
 function catalogIds(providerId, model) {
@@ -178,7 +203,7 @@ async function listModels(providerId) {
     return codexCli.listModels();
   }
   const cached = modelListCache.get(providerId);
-  if (cached && Date.now() - cached.at < CATALOG_TTL_MS) return cached.models;
+  if (cached && Date.now() - cached.at < MODEL_LIST_TTL_MS) return cached.models;
   const provider = resolveProvider(providerId);
   if (providerId === 'qwencloud') {
     const payload = await providerJson(provider, '/models');
@@ -629,7 +654,7 @@ function closeHarnessSession(conversationId) {
   cursor.closeSession(conversationId);
 }
 
-module.exports = { chatCompletion, closeHarnessSession, resolveProvider, modelInfo, listModels, PROVIDERS };
+module.exports = { chatCompletion, closeHarnessSession, resolveProvider, modelInfo, listModels, startCatalog, stopCatalog, PROVIDERS };
 module.exports._internal = {
   anthropicRequest, anthropicBody, dataImage, remoteMessages, readSse, providerErrorMessage, catalogIds, infoFromCatalogEntry, normalizeUsage, claudeCodeModels, codexHandlers,
 };

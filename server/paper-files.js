@@ -50,12 +50,16 @@ class PaperFiles {
     paperDir = PAPER_DIR,
     download = tools.download,
     runJava = java,
+    // Resolves once runJava can run: the jar downloads without waiting
+    // for it, and Paper's launcher runs after it.
+    javaReady = async () => {},
   } = {}) {
     if (!PAPER[minecraftVersion]) throw new Error('Unsupported Minecraft runtime version');
     this.minecraftVersion = minecraftVersion;
     this.paperDir = path.resolve(paperDir);
     this.download = download;
     this.runJava = runJava;
+    this.javaReady = javaReady;
   }
 
   // The server's classpath, relative to the data folder: Paper's patched
@@ -79,7 +83,9 @@ class PaperFiles {
       .map((line) => `${folder}/${line.split('\t')[2]}`);
     const classpath = [...list('versions.list', 'versions'), ...list('libraries.list', 'libraries')];
     if (!classpath.every((file) => fs.existsSync(path.join(this.paperDir, file)))) {
-      setup.report('minecraft', { detail: "Paper's launcher is downloading the Minecraft server and its libraries from Mojang", progress: undefined });
+      setup.report('minecraft', { detail: "Paper is downloaded; its launcher runs once Java is installed", progress: undefined });
+      await this.javaReady();
+      setup.report('minecraft', { detail: "Paper's launcher is downloading the Minecraft server from Mojang and unpacking the libraries", progress: undefined });
       await this.runJava(['-Dpaperclip.patchonly=true', '-jar', jar], { cwd: this.paperDir, timeout: 300_000 });
     }
     for (const file of classpath) {

@@ -23,7 +23,7 @@ const os = require('os');
 const path = require('path');
 const { execFileSync } = require('child_process');
 const { prepare } = require('./movement-ref');
-const { jvmEngine, rust } = require('../server/engine');
+const { jvmEngine, rust, installRust } = require('../server/engine');
 const { minecraftLive } = require('../server/minecraft-live');
 const { importCommands } = require('../server/live-placement');
 const { Y_OFFSET } = require('../server/minecraft-dimension');
@@ -703,6 +703,8 @@ function compare(rust, java, show = 3) {
 }
 
 async function main() {
+  // rust() answers the toolchain installRust found.
+  await installRust();
   const dataDir = process.env.MCBENCH_DATA_DIR;
   if (!dataDir) throw new Error('MCBENCH_DATA_DIR is not set (a scratch copy of data/, never the real one)');
   const ref = await prepare(dataDir);

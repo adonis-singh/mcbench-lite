@@ -235,7 +235,12 @@
     // loading loads once. Any other is loaded, the one on show and the one
     // that failed included.
     if (link.key === data.key && (link.state === 'queued' || link.state === 'loading')) link.patches = [];
-    else queueView(data);
+    else {
+      // Another view: what the mesher still makes for the one before is not
+      // waited for (BlueMapTileSync.cancel).
+      if (sync && link.key !== data.key) sync.cancel();
+      queueView(data);
+    }
     drive();
   });
 
@@ -270,10 +275,12 @@
   // The entity layer (entities.mjs), and the latest list streamed before it was ready.
   var entityLayer = null;
   var entityFrame = null;
+  // The tile sync, once the boot has made it.
+  var sync = null;
   var syncPromise = waitForBlueMap().then(async function (app) {
     var module = await import('/bluemap-tiles.mjs');
     var spawn = function () { return new Worker('/mesher-worker.mjs', { type: 'module' }); };
-    var sync = new module.BlueMapTileSync(app, new module.MesherClient(spawn, module.MesherClient.poolSize(navigator.hardwareConcurrency)));
+    var made = sync = new module.BlueMapTileSync(app, new module.MesherClient(spawn, module.MesherClient.poolSize(navigator.hardwareConcurrency)));
     (await import('/bluemap-view.mjs')).patchViewer(app, function () { return uiState.bounds; });
     installFlightModes(app);
     var entities = await import('/entities.mjs');
@@ -283,7 +290,7 @@
     app.mapViewer.markers.add(overlay);
     schedulePanel();
     drawOverlay();
-    return sync;
+    return made;
   });
   syncPromise.then(
     function () { bootTo('ready', null); },

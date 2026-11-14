@@ -251,3 +251,60 @@ test('an entity is drawn again when what it looks like changes, not when it move
   assert.notEqual(appearance(base), appearance({ ...base, item: 'minecraft:stone' }));
   assert.notEqual(appearance(base), appearance({ ...base, count: 20 }));
 });
+
+// ---- the layer's frames ----
+
+// Just enough of BlueMap's three.js for the layer to make box entities.
+function fakeBlueMap() {
+  class Object3D {
+    constructor() { this.children = []; this.userData = {}; this.matrix = { elements: new Array(16).fill(0) }; this.visible = true; }
+    add(...objects) { this.children.push(...objects); }
+    remove(object) { this.children = this.children.filter((child) => child !== object); }
+    traverse(visit) { visit(this); for (const child of this.children) child.traverse ? child.traverse(visit) : visit(child); }
+  }
+  class Thing { constructor(...args) { this.args = args; } }
+  class HtmlMarker extends Object3D {
+    constructor(id) { super(); this.id = id; this.isHtmlMarker = true; this.elementObject = { element: { remove() {} } }; }
+    updateFromData() {}
+  }
+  const Three = {
+    Group: Object3D, Mesh: Object3D, LineSegments: Object3D,
+    Texture: Thing, ShaderMaterial: Thing, MeshBasicMaterial: Thing, LineBasicMaterial: Thing, BoxGeometry: Thing, EdgesGeometry: Thing, Color: Thing,
+    NearestFilter: 0, ClampToEdgeWrapping: 0, DoubleSide: 0,
+  };
+  return { Three, HtmlMarker, HIRES_VERTEX_SHADER: 'void main() { vNormal = normal; }', HIRES_FRAGMENT_SHADER: '' };
+}
+
+async function entityLayer() {
+  global.document ??= { getElementById: () => ({}), createElement: () => ({}), head: { appendChild() {} } };
+  const { EntityLayer } = await import('../web/entities.mjs');
+  const viewer = { markers: { add() {}, remove() {} }, data: { uniforms: {} }, redraws: 0, redraw() { this.redraws += 1; } };
+  const layer = new EntityLayer({ BlueMap: fakeBlueMap(), app: { mapViewer: viewer, events: new EventTarget() }, assets: { index: entityIndex(), atlas: {} } });
+  return { layer, viewer };
+}
+
+test('a frame asks the viewer for a frame only when its entity list differs from the last one', async () => {
+  const { layer, viewer } = await entityLayer();
+  const zombie = (pos) => entity(1, { type: 'minecraft:zombie', width: 0.6, height: 1.95, pos });
+  layer.set([], 0);
+  assert.equal(viewer.redraws, 1, 'the first frame is drawn');
+  layer.set([], 50);
+  layer.set([], 100);
+  assert.equal(viewer.redraws, 1, 'a still world with no entities draws nothing more');
+  layer.set([zombie([0, 0, 0])], 150);
+  assert.ok(viewer.redraws > 1, 'an entity appearing is drawn');
+  let before = viewer.redraws;
+  layer.set([zombie([0, 0, 0])], 400);
+  assert.equal(viewer.redraws, before, 'the same entity standing where it stood, its glide over, draws nothing');
+  layer.set([zombie([1, 0, 0])], 450);
+  assert.ok(viewer.redraws > before, 'a move is drawn');
+  before = viewer.redraws;
+  layer.update(470);
+  assert.ok(viewer.redraws > before, 'and keeps asking for frames while it glides');
+  before = viewer.redraws;
+  layer.set([zombie([1, 0, 0])], 480);
+  assert.ok(viewer.redraws > before, 'an unchanged list that arrives mid-glide still draws the glide');
+  before = viewer.redraws;
+  layer.set([], 600);
+  assert.ok(viewer.redraws > before, 'an entity leaving is drawn');
+});

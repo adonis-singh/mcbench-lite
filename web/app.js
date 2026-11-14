@@ -3197,9 +3197,39 @@ function App() {
   // of events in one task applies each on top of the last.
   const [items, setItemsState] = useState([]);
   const itemsRef = useRef(items);
+  // Streamed events arrive several times a frame. One after a quiet frame is
+  // drawn at once; while more keep coming, the frame draws them all, once.
+  // Any other change is drawn at once, with whatever waits.
+  const itemsFrameRef = useRef(0); // the frame awaited while the stream is busy
+  const itemsHeldRef = useRef(false); // a change waits for that frame
   function setItems(update) {
     itemsRef.current = typeof update === 'function' ? update(itemsRef.current) : update;
+    itemsHeldRef.current = false;
     setItemsState(itemsRef.current);
+  }
+  function itemsFrame() {
+    itemsFrameRef.current = requestAnimationFrame(() => {
+      if (!itemsHeldRef.current) {
+        itemsFrameRef.current = 0;
+        return;
+      }
+      itemsHeldRef.current = false;
+      setItemsState(itemsRef.current);
+      itemsFrame();
+    });
+  }
+  function setItemsNextFrame(update) {
+    itemsRef.current = update(itemsRef.current);
+    if (itemsFrameRef.current) {
+      itemsHeldRef.current = true;
+      return;
+    }
+    setItemsState(itemsRef.current);
+    itemsFrame();
+  }
+  // What waits for the next frame is drawn now.
+  function drawItems() {
+    if (itemsHeldRef.current) setItems(itemsRef.current);
   }
   const [messageTree, setMessageTree] = useState({ headId: null, messages: [] });
   const [provider, setProvider] = useState(initialModelSelection.provider);
@@ -4320,6 +4350,8 @@ function App() {
       if (error instanceof SyntaxError) broken = error;
     }
     if (turnRef.current.controller !== controller) return;
+    // The stream's last events are drawn before what its end does.
+    drawItems();
     if (!broken && !finished) return lostStream(controller, id);
     if (broken) showError(broken);
     // A sent turn's start is the one the list shows for it.
@@ -4385,7 +4417,9 @@ function App() {
     }
     if (event.type === 'tool_result' && event.ok && event.name === 'prompt_library') reloadPrompts();
     if (event.type === 'tool_result' && event.ok && event.name === 'build') liveWorldRef.current.wake();
-    setItems((prev) => applyEvent(prev, event));
+    // A turn's text and tool calls arrive many times a frame: they are
+    // drawn once a frame. Its error ends it, and is drawn at once.
+    (event.type === 'error' ? setItems : setItemsNextFrame)((prev) => applyEvent(prev, event));
   }
 
   function createConversation() {

@@ -127,6 +127,13 @@ window.__shot = {
     return viewer.pending();
   },
 
+  // One frame drawn and read back at a shot's size, with nothing loaded,
+  // and let go: the canvas, its buffers and the drawing are made before the
+  // first shot needs them.
+  warm(spec) {
+    this.frame(spec);
+  },
+
   // The shots of one world, in one task: each JPEG data URL.
   frames(specs) {
     return specs.map((spec) => this.frame(spec));

@@ -4,8 +4,8 @@
 // runs the real web/core-worker.mjs: the worker's code outside a browser, for
 // the tests and the parity scripts.
 
+const fs = require('fs');
 const path = require('path');
-const { pathToFileURL } = require('url');
 const { Worker } = require('worker_threads');
 
 class NodeWorker {
@@ -24,9 +24,12 @@ class NodeWorker {
   }
 }
 
+// Each module file compiled once, as the page compiles each module once.
+const modules = new Map();
 async function startNodeEngine(wasmFile) {
   const { CoreEngine } = await import('../web/core-engine.mjs');
-  return CoreEngine.start(pathToFileURL(wasmFile).href, new NodeWorker());
+  if (!modules.has(wasmFile)) modules.set(wasmFile, WebAssembly.compile(fs.readFileSync(wasmFile)));
+  return CoreEngine.load(await modules.get(wasmFile), new NodeWorker());
 }
 
 module.exports = { startNodeEngine };

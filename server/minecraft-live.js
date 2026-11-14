@@ -50,7 +50,7 @@ class MinecraftLive extends PaperFiles {
     runJava = runJdk,
     ...files
   } = {}) {
-    super({ runJava, ...files });
+    super({ runJava, javaReady: installJdk, ...files });
     if (blockTable) this.blockTable = blockTable;
     this.engine = engine;
     this.yOffset = yOffset;
@@ -128,8 +128,8 @@ class MinecraftLive extends PaperFiles {
   // own classes.
   async blockTable() {
     this.table ||= (async () => {
-      await installJdk();
       const classpath = await this.ensurePaper();
+      await installJdk();
       const source = path.join(__dirname, 'McbenchBlockTable.java');
       const format = crypto.createHash('sha256').update(fs.readFileSync(source)).digest('hex').slice(0, 8);
       const name = `block-table-${PAPER[this.minecraftVersion].jar.replace(/\.jar$/, '')}-${format}.tsv`;
@@ -157,7 +157,7 @@ class MinecraftLive extends PaperFiles {
   // Paper's launcher runs on the app's JDK (runJdk), installed first.
   ensurePaper() {
     if (this.paper) return this.paper;
-    return setup.track('minecraft', () => step(`[minecraft] downloading Paper ${this.minecraftVersion} (about 55 MB), which downloads the Minecraft server from Mojang (about 60 MB) and its libraries (about 75 MB)`,
+    return setup.track('minecraft', () => step(`[minecraft] downloading Paper ${this.minecraftVersion} (about 55 MB), which downloads the Minecraft server from Mojang (about 59 MB); the libraries come inside the two`,
       '[minecraft] Paper downloaded', () => super.ensurePaper()));
   }
 
@@ -167,12 +167,15 @@ class MinecraftLive extends PaperFiles {
   minecraftTables() {
     if (!missingTables(this.minecraftVersion).length) return setup.track('tables', () => {});
     this.tables ||= (async () => {
-      await installJdk();
       const classpath = (await this.ensurePaper()).map((file) => path.join(this.paperDir, file));
+      await installJdk();
       const target = tablesFolder(this.minecraftVersion);
       await setup.track('tables', () => step("[minecraft] reading Minecraft's block, loot and data fixer tables from the server jar", "[minecraft] Minecraft's tables written", async () => {
-        await writeRegistry({ classpath, minecraftVersion: this.minecraftVersion, target, java: JAVA, javac: JAVAC });
-        await writeDataFix({ classpath, target, java: JAVA, javac: JAVAC });
+        // Two JVMs at once: the tables are separate files from the same jars.
+        await Promise.all([
+          writeRegistry({ classpath, minecraftVersion: this.minecraftVersion, target, java: JAVA, javac: JAVAC }),
+          writeDataFix({ classpath, target, java: JAVA, javac: JAVAC }),
+        ]);
       }));
     })().finally(() => {
       this.tables = null;

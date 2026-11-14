@@ -77,6 +77,7 @@ function bridge(t, { broken = null, clock = Date } = {}) {
         if (broken) throw new Error(broken);
         return {
           BlueMapTileSync: class {
+            cancel() {}
             async refresh(view, options) {
               refreshes.push({ view, options });
               await tiles.held;

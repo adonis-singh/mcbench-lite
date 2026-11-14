@@ -71,6 +71,10 @@ export class LiveWorld {
   //   startEngine(wasmUrl) -> a CoreEngine
   //   blobUrl(bytes) / revoke(url) -> a URL for a blueprint's bytes
   //   sleep(ms) -> a promise
+  //   digest(text) -> a promise of the text's SHA-256, hex
+  //   placements: the views' last fresh placements, kept across page loads
+  //     get(key) -> a promise of { core, digest, bytes } or null
+  //     put(key, entry) -> a promise, once it is kept
   constructor(host) {
     this.host = host;
     this.listeners = new Set();
@@ -80,9 +84,11 @@ export class LiveWorld {
     // Bumped when what is in flight stops counting (another view, another
     // engine, the end): each reply checks the generation it was asked in.
     this.generation = 0;
-    // The engine, once one is asked for: { address, started, engine } (engine
-    // null until started resolves).
+    // The engine of the view on show, once one is asked for: { address,
+    // starting, started, engine } (engine null until started resolves); and
+    // the spare, started ahead for the next view, of the same shape.
     this.slot = null;
+    this.spare = null;
     this.server = { assets: {}, core: null, coreError: null };
     this.pollError = null; // why the last look at the server failed
     this.bases = 0;
@@ -180,7 +186,7 @@ export class LiveWorld {
       blockCount: view?.blockCount ?? null,
       layout: view?.layout ?? null,
       previewView: false,
-      live: this.base && !this.base.empty ? { playing: this.running === 'playing', stopped: this.running === 'stopped', ticks: this.ticks } : null,
+      live: this.base && !this.base.empty && !this.base.provisional ? { playing: this.running === 'playing', stopped: this.running === 'stopped', ticks: this.ticks } : null,
     };
   }
 
@@ -222,7 +228,7 @@ export class LiveWorld {
   // the base later: the patch of everything that happened since (null when
   // nothing did) and the entities.
   accumulated() {
-    if (!this.base || this.base.empty) return null;
+    if (!this.base || this.base.empty || this.base.provisional) return null;
     return { base: this.base.number, patch: this.changes.bounds ? this.changes.patch() : null, entities: this.entities };
   }
 
@@ -253,19 +259,19 @@ export class LiveWorld {
   }
 
   // Shows the view `key` (a conversation id or a bench round) from now on, or
-  // none: the world held for the view before is let go.
+  // none: the world held for the view before is let go with its engine, at
+  // once, whatever it was doing (a placement, the first tick's light), so the
+  // next view never waits behind it. Every view is placed afresh in an
+  // engine of its own: the spare, started ahead of it.
   async show(key) {
     if (key === this.key) return;
     this.generation += 1;
     this.key = key;
-    // Asked before anything of the new view, so the old world's last frames
-    // come before it.
-    const paused = this.engine?.run(false);
+    if (this.slot) this.dropEngine();
     const urls = this.urls.splice(0);
     this.reset();
     this.emit();
     this.wake();
-    await paused;
     for (const url of urls) this.host.revoke(url);
   }
 
@@ -331,18 +337,27 @@ export class LiveWorld {
 
   // --- the engines ---
 
-  // The engine of the server's module, started on the first sync that needs
-  // it. A failed start is tried again by the next sync that needs one.
+  // The engine of the server's module, taken on the first sync that needs it
+  // from the spare started ahead, while another spare starts for the next
+  // view. A failed start is tried again by the next sync that needs one.
   engineReady() {
     if (!this.slot) {
-      const slot = { address: this.server.core, started: null, engine: null };
-      slot.started = this.host.startEngine(slot.address).then((engine) => {
+      const spare = this.spare;
+      const slot = spare?.address === this.server.core ? spare : this.startSlot();
+      if (spare && spare !== slot) spare.starting.then((engine) => engine.terminate(), () => {});
+      this.spare = this.startSlot();
+      slot.started = slot.starting.then((engine) => {
         engine.onframe = (frame) => this.receive(frame.ticks, frame.bytes, JSON.parse(frame.entities), frame.view);
         engine.onfailed = (message) => this.stopped(engine, message);
         slot.engine = engine;
         return engine;
       }, (error) => {
-        if (this.slot === slot) this.slot = null;
+        // The spare started with it is let go too: the next try starts afresh.
+        if (this.slot === slot) {
+          this.slot = null;
+          this.spare?.starting.then((engine) => engine.terminate(), () => {});
+          this.spare = null;
+        }
         throw error;
       });
       this.slot = slot;
@@ -350,9 +365,17 @@ export class LiveWorld {
     return this.slot.started;
   }
 
+  // An engine of the server's module, starting. One that fails says so when
+  // a sync takes it.
+  startSlot() {
+    const starting = this.host.startEngine(this.server.core);
+    starting.catch(() => {});
+    return { address: this.server.core, starting, started: null, engine: null };
+  }
+
   // The engine goes (once started, if it is starting); nothing more comes from it.
   dropEngine() {
-    this.slot.started.then((engine) => engine.terminate(), () => {});
+    this.slot.starting.then((engine) => engine.terminate(), () => {});
     this.slot = null;
   }
 
@@ -376,6 +399,21 @@ export class LiveWorld {
       return;
     }
     const { fresh } = imported;
+    // The view's last fresh placement, of these very commands (by their
+    // digest: a restarted server numbers its versions afresh) in this
+    // engine, kept by this page or one loaded before it, goes to the viewer
+    // while the engine places them again.
+    // Until that placement is in and is the same blueprint byte for byte the
+    // base is provisional: no input, control, tick or player reaches the
+    // world through it, as none could before there was a base.
+    const digest = fresh && imported.blockCount > 0 ? await this.host.digest(imported.commands) : null;
+    const kept = digest && !restart && held === null ? await this.host.placements.get(this.key) : null;
+    if (generation !== this.generation) return;
+    const early = kept && kept.core === this.server.core && kept.digest === digest ? kept : null;
+    if (early) {
+      this.publishBase(early.bytes, view, true);
+      this.emit();
+    }
     // A world placed afresh starts over: one that stopped on an error plays again.
     if (fresh && this.running === 'stopped') {
       this.running = 'playing';
@@ -409,10 +447,16 @@ export class LiveWorld {
     if (fresh) this.ticks = 0;
     this.version = imported.version;
     this.shownVersion = imported.version;
-    if (blueprint) this.publishBase(blueprint, view);
+    if (early) this.confirmBase(blueprint);
+    else if (blueprint) this.publishBase(blueprint, view);
     // A world placed afresh runs (a paused one stays paused).
     if (fresh && this.running === 'playing') {
       await engine.run(true);
+      if (generation !== this.generation) return;
+    }
+    // A placement already kept is that one, byte for byte (confirmBase).
+    if (fresh && blueprint && !early) {
+      await this.host.placements.put(this.key, { core: this.server.core, digest, bytes: blueprint });
       if (generation !== this.generation) return;
     }
     this.to('waiting');
@@ -469,15 +513,30 @@ export class LiveWorld {
   // A new base for the viewer: the blueprint a placement wrote, to be loaded.
   // The caller emits it once the sync has ended, so the page never sees a
   // base still marked syncing.
-  publishBase(blueprint, view) {
+  // A provisional base is shown before the engine has placed it: its blocks
+  // take no input until confirmBase.
+  publishBase(blueprint, view, provisional = false) {
     this.bases += 1;
     const url = this.host.blobUrl(blueprint);
     this.urls.push(url);
     while (this.urls.length > BASES_KEPT) this.host.revoke(this.urls.shift());
-    this.base = { number: this.bases, url, view, empty: false };
+    this.base = { number: this.bases, url, view, empty: false, provisional, bytes: provisional ? blueprint : null };
     this.changes = new Changes();
+    if (!provisional) this.inputs.load(readBlueprint(blueprint));
+  }
+
+  // The engine's own placement is in: the provisional base must be it, byte
+  // for byte, or what the viewer showed was not the world, and the sync fails.
+  confirmBase(blueprint) {
+    const shown = this.base.bytes;
+    let same = blueprint.length === shown.length;
+    for (let i = 0; same && i < shown.length; i += 1) same = blueprint[i] === shown[i];
+    if (!same) throw new Error('The world placed again differs from the one shown while it was placed');
+    this.base.provisional = false;
+    this.base.bytes = null;
     this.inputs.load(readBlueprint(blueprint));
   }
+
 
   // --- frames ---
 
@@ -486,7 +545,8 @@ export class LiveWorld {
   // heard of another view (or of an empty one) are of a world no longer on
   // show, and a tick of a player let go stands no one in the world.
   receive(ticks, bytes, entities, view = null) {
-    if (!this.base || this.base.empty) return;
+    // Before a provisional base is placed, the engine's ticks are of the world before it.
+    if (!this.base || this.base.empty || this.base.provisional) return;
     this.ticks = ticks;
     this.entities = entities;
     if (view && this.player === 'standing') this.playerView = view;
@@ -513,7 +573,7 @@ export class LiveWorld {
 
   // The engine of the world on show.
   shownEngine() {
-    if (!this.engine || !this.base || this.base.empty) throw new Error('There is no live world on show');
+    if (!this.engine || !this.base || this.base.empty || this.base.provisional) throw new Error('There is no live world on show');
     return this.engine;
   }
 
@@ -645,6 +705,8 @@ export class LiveWorld {
     this.generation += 1;
     this.wake();
     if (this.slot) this.dropEngine();
+    this.spare?.starting.then((engine) => engine.terminate(), () => {});
+    this.spare = null;
     for (const url of this.urls.splice(0)) this.host.revoke(url);
     this.base = null;
     this.player = 'none';

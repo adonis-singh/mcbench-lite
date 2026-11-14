@@ -22,7 +22,7 @@ const os = require('os');
 const path = require('path');
 const { execFileSync, spawnSync } = require('child_process');
 
-const { coreProfile, rust } = require('../server/engine');
+const { coreProfile, rust, installRust } = require('../server/engine');
 
 const ROOT = path.join(__dirname, '..');
 const CORE = path.join(ROOT, 'core');
@@ -65,26 +65,32 @@ function run(command, args, options) {
   execFileSync(command, args, { stdio: 'inherit', ...options });
 }
 
-const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'mcbench-pgo-'));
-try {
-  const raw = path.join(scratch, 'raw');
-  const target = path.join(scratch, 'target');
-  // RUSTFLAGS replaces the config's flags (the profile to use), which an
-  // instrumented build must not have.
-  run(rust().cargo, ['build', '--release', '--quiet'], { cwd: CORE, env: { ...rust().env, RUSTFLAGS: `-Cprofile-generate=${raw}`, CARGO_TARGET_DIR: target } });
-  const binary = path.join(target, 'release', 'mcbench-core');
-  const bench = (...args) => run('node', [path.join(__dirname, 'core-bench.js'), '--engines', `pgo=${binary}`, '--rounds', '1', '--warmup', '0', '--graceful', ...args]);
-  bench('--worlds', 'all');
-  const fuzz = option('fuzz', '200');
-  bench('--fuzz', fuzz, '--seed', '1', '--ticks', '100');
-  bench('--fuzz', fuzz, '--seed', '100000', '--ticks', '100', '--drops', '--flow');
-  bench('--fuzz', fuzz, '--seed', '200000', '--ticks', '60', '--shift');
-  const profiles = fs.readdirSync(raw).filter((name) => name.endsWith('.profraw')).map((name) => path.join(raw, name));
-  if (!profiles.length) throw new Error('the instrumented engine recorded no profile');
-  const output = coreProfile();
-  fs.mkdirSync(path.dirname(output), { recursive: true });
-  run(llvmProfdata(), ['merge', '-o', output, ...profiles]);
-  console.log(`${output}: ${fs.statSync(output).size} bytes from ${profiles.length} runs`);
-} finally {
-  fs.rmSync(scratch, { recursive: true, force: true });
-}
+// rust() answers the toolchain installRust found.
+installRust().then(() => {
+  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'mcbench-pgo-'));
+  try {
+    const raw = path.join(scratch, 'raw');
+    const target = path.join(scratch, 'target');
+    // RUSTFLAGS replaces the config's flags (the profile to use), which an
+    // instrumented build must not have.
+    run(rust().cargo, ['build', '--release', '--quiet'], { cwd: CORE, env: { ...rust().env, RUSTFLAGS: `-Cprofile-generate=${raw}`, CARGO_TARGET_DIR: target } });
+    const binary = path.join(target, 'release', 'mcbench-core');
+    const bench = (...args) => run('node', [path.join(__dirname, 'core-bench.js'), '--engines', `pgo=${binary}`, '--rounds', '1', '--warmup', '0', '--graceful', ...args]);
+    bench('--worlds', 'all');
+    const fuzz = option('fuzz', '200');
+    bench('--fuzz', fuzz, '--seed', '1', '--ticks', '100');
+    bench('--fuzz', fuzz, '--seed', '100000', '--ticks', '100', '--drops', '--flow');
+    bench('--fuzz', fuzz, '--seed', '200000', '--ticks', '60', '--shift');
+    const profiles = fs.readdirSync(raw).filter((name) => name.endsWith('.profraw')).map((name) => path.join(raw, name));
+    if (!profiles.length) throw new Error('the instrumented engine recorded no profile');
+    const output = coreProfile();
+    fs.mkdirSync(path.dirname(output), { recursive: true });
+    run(llvmProfdata(), ['merge', '-o', output, ...profiles]);
+    console.log(`${output}: ${fs.statSync(output).size} bytes from ${profiles.length} runs`);
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+  }
+}).catch((error) => {
+  console.error(error);
+  process.exit(1);
+});

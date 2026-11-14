@@ -321,6 +321,22 @@ function resolveShot(spec, world, sizes = SIZES) {
   return { width, height, camera, clip, grid, described };
 }
 
+// Runs `attempt`, and once more after `discard` when the first run fails
+// on a lost WebGL context: a lost context invalidates all cached GPU
+// resources, and the first launch of a newly installed headless shell on
+// macOS loses it right after the viewer starts. A second loss, any other
+// error or an abort fails as it is.
+async function retryLostContext(attempt, discard, signal) {
+  for (let tries = 0; ; tries++) {
+    try {
+      return await attempt();
+    } catch (error) {
+      if (signal?.aborted || tries > 0 || !String(error.message).includes('Screenshot WebGL context lost')) throw error;
+      discard();
+    }
+  }
+}
+
 const groupKey = (shot) => `${shot.tick ?? ''}@${shot.clip ? `${shot.clip.min.join(',')}:${shot.clip.max.join(',')}` : ''}`;
 
 // Renders resolved shots (resolveShot, each with the `tick` of the engine
@@ -337,19 +353,9 @@ function renderShots(conversationId, shots, signal, timings = {}) {
   });
   let activePage, run;
   const discardPage = () => { if (run) leave(run); };
-  const job = queue.then(async () => {
-    // A lost WebGL context invalidates all cached GPU resources. Start a fresh
-    // page and reload the complete world; never reuse its chunk-version cache.
-    for (let attempt = 0; ; attempt++) {
-      try {
-        return await capture();
-      } catch (error) {
-        if (signal?.aborted || attempt > 0 || !String(error.message).includes('Screenshot WebGL context lost')) throw error;
-        discardPage();
-        activePage = null;
-      }
-    }
-  });
+  // A fresh page reloads the complete world; it never reuses the lost
+  // page's chunk-version cache.
+  const job = queue.then(() => retryLostContext(capture, () => { discardPage(); activePage = null; }, signal));
   async function capture() {
     signal?.throwIfAborted();
     run = currentRun();
@@ -447,11 +453,20 @@ function composeMontage(tiles, cells, [width, height]) {
 // so the queue behind it moves on.
 function warmRenderer() {
   let run;
-  const job = queue.then(async () => {
+  // A context lost while warming ends the run and warms a fresh renderer, as
+  // a screenshot does, so the first see_build does not pay a browser start.
+  const job = queue.then(() => retryLostContext(warm, () => leave(run)));
+  async function warm() {
     run = currentRun();
     const page = await stage('startup', () => run.page, null);
     await stage('initialization', () => page.evaluate(() => window.__shot.init()), page);
-  });
+    // The first shot of a large size otherwise sizes the canvas and makes
+    // its buffers itself (60 to 400 ms on the first see_build).
+    const [width, height] = SIZES.large;
+    await stage('warm frame', () => page.evaluate((spec) => window.__shot.warm(spec), {
+      camera: { yaw: 0, pitch: 0, focus: [0, 0, 0], focusDist: 10, fov: DEFAULT_FOV }, width, height, supersample: SUPERSAMPLE, grid: null,
+    }), page);
+  }
   queue = job.catch(() => { if (run) leave(run); });
   return job;
 }

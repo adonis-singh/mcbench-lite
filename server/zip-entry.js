@@ -2,8 +2,8 @@
 
 // Files of a zip (or jar), read through its central directory: the names of
 // its entries (zipNames), one file's bytes without unpacking the rest
-// (readZipEntry), or every file unpacked into a folder with its Unix mode and
-// symbolic links (extractZip).
+// (readZipEntry), the bytes of many (readZipEntries), or every file
+// unpacked into a folder with its Unix mode and symbolic links (extractZip).
 
 const fs = require('fs');
 const path = require('path');
@@ -13,8 +13,11 @@ const { pipeline } = require('stream/promises');
 const S_IFMT = 0o170000;
 const S_IFLNK = 0o120000;
 
-// The archive's entries: name, compression method, compressed size, Unix
-// mode (0 when the archive was not made on Unix), and where its data starts.
+// The archive's entries from its central directory, read in one pass: name,
+// compression method, compressed size, Unix mode (0 when the archive was not
+// made on Unix) and where its local header is. Where an entry's data starts
+// is read from that local header (dataStart) only for an entry whose bytes
+// are read: a jar holds thousands of entries.
 function entries(descriptor, file) {
   const { size } = fs.fstatSync(descriptor);
   // The end-of-central-directory record sits in the last 64 KiB (plus its
@@ -31,45 +34,66 @@ function entries(descriptor, file) {
   const list = [];
   for (let at = 0, index = 0; index < count; index += 1) {
     const nameLength = directory.readUInt16LE(at + 28);
-    const offset = directory.readUInt32LE(at + 42);
-    const local = Buffer.alloc(30);
-    fs.readSync(descriptor, local, 0, 30, offset);
     list.push({
       name: directory.toString('utf8', at + 46, at + 46 + nameLength),
       method: directory.readUInt16LE(at + 10),
       compressed: directory.readUInt32LE(at + 20),
       mode: directory.readUInt8(at + 5) === 3 ? directory.readUInt32LE(at + 38) >>> 16 : 0,
-      data: offset + 30 + local.readUInt16LE(26) + local.readUInt16LE(28),
+      header: directory.readUInt32LE(at + 42),
     });
     at += 46 + nameLength + directory.readUInt16LE(at + 30) + directory.readUInt16LE(at + 32);
   }
   return list;
 }
 
-// The names of the archive's entries, in the central directory's order (the
-// order `unzip -Z1` lists them in).
-function zipNames(file) {
+// Where `entry`'s data starts: after its local header, whose name and extra
+// field lengths can differ from the central directory's.
+function dataStart(descriptor, entry) {
+  const local = Buffer.alloc(30);
+  fs.readSync(descriptor, local, 0, 30, entry.header);
+  return entry.header + 30 + local.readUInt16LE(26) + local.readUInt16LE(28);
+}
+
+// `entry`'s bytes, unpacked.
+function readData(descriptor, file, entry) {
+  const data = Buffer.alloc(entry.compressed);
+  fs.readSync(descriptor, data, 0, entry.compressed, dataStart(descriptor, entry));
+  if (entry.method === 0) return data;
+  if (entry.method === 8) return zlib.inflateRawSync(data);
+  throw new Error(`${entry.name} in ${file} uses unsupported compression ${entry.method}`);
+}
+
+// Runs `use(descriptor)` on `file` opened for reading.
+function withArchive(file, use) {
   const descriptor = fs.openSync(file, 'r');
   try {
-    return entries(descriptor, file).map((entry) => entry.name);
+    return use(descriptor);
   } finally {
     fs.closeSync(descriptor);
   }
 }
 
+// The names of the archive's entries, in the central directory's order (the
+// order `unzip -Z1` lists them in).
+function zipNames(file) {
+  return withArchive(file, (descriptor) => entries(descriptor, file).map((entry) => entry.name));
+}
+
 function readZipEntry(file, name) {
-  const descriptor = fs.openSync(file, 'r');
-  try {
+  return withArchive(file, (descriptor) => {
     const entry = entries(descriptor, file).find((candidate) => candidate.name === name);
     if (!entry) throw new Error(`${file} has no ${name}`);
-    const data = Buffer.alloc(entry.compressed);
-    fs.readSync(descriptor, data, 0, entry.compressed, entry.data);
-    if (entry.method === 0) return data;
-    if (entry.method === 8) return zlib.inflateRawSync(data);
-    throw new Error(`${name} in ${file} uses unsupported compression ${entry.method}`);
-  } finally {
-    fs.closeSync(descriptor);
-  }
+    return readData(descriptor, file, entry);
+  });
+}
+
+// The bytes of every entry whose name `wanted(name)` accepts, as a Map from
+// name to bytes in the central directory's order: the directory is read
+// once, however many entries are read.
+function readZipEntries(file, wanted) {
+  return withArchive(file, (descriptor) => new Map(entries(descriptor, file)
+    .filter((entry) => wanted(entry.name))
+    .map((entry) => [entry.name, readData(descriptor, file, entry)])));
 }
 
 // Unpacks every entry of `file` into `folder`, streamed, keeping each file's
@@ -85,7 +109,8 @@ async function extractZip(file, folder) {
       }
       fs.mkdirSync(path.dirname(target), { recursive: true });
       if (![0, 8].includes(entry.method)) throw new Error(`${entry.name} in ${file} uses unsupported compression ${entry.method}`);
-      const source = () => fs.createReadStream(null, { fd: descriptor, autoClose: false, start: entry.data, end: entry.data + entry.compressed - 1 });
+      const start = dataStart(descriptor, entry);
+      const source = () => fs.createReadStream(null, { fd: descriptor, autoClose: false, start, end: start + entry.compressed - 1 });
       if ((entry.mode & S_IFMT) === S_IFLNK) {
         const chunks = [];
         await pipeline(source(), ...(entry.method === 8 ? [zlib.createInflateRaw()] : []), async function* collect(stream) {
@@ -103,4 +128,4 @@ async function extractZip(file, folder) {
   }
 }
 
-module.exports = { zipNames, readZipEntry, extractZip };
+module.exports = { zipNames, readZipEntry, readZipEntries, extractZip };

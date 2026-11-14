@@ -29,7 +29,7 @@ const crypto = require('crypto');
 const { execFileSync, spawn } = require('child_process');
 const ROOT = path.join(__dirname, '..');
 const { minecraftLive } = require('../server/minecraft-live');
-const { Engine, engineEnv, coreBuildArgs, rust } = require('../server/engine');
+const { Engine, engineEnv, coreBuildArgs, rust, installRust } = require('../server/engine');
 const { MinecraftVerifier } = require('../server/minecraft-verify');
 const { importCommands } = require('../server/live-placement');
 const { Y_OFFSET } = require('../server/minecraft-dimension');
@@ -239,6 +239,8 @@ async function runItem(engine, item, prepared, scratch) {
 }
 
 async function main() {
+  // rust() answers the toolchain installRust found.
+  await installRust();
   const specs = option('engines', 'java,rust').split(',');
   const rounds = Number(option('rounds', 5));
   const warmup = Number(option('warmup', 1));

@@ -19,7 +19,7 @@ process.env.MCBENCH_TOOLS_DIR = path.join(scratch, 'default-tools');
 after(() => fs.rmSync(scratch, { recursive: true, force: true }));
 
 const tools = require('../server/tools');
-const { zipNames, extractZip } = require('../server/zip-entry');
+const { zipNames, readZipEntry, readZipEntries, extractZip } = require('../server/zip-entry');
 
 const sha256 = (bytes) => crypto.createHash('sha256').update(bytes).digest('hex');
 
@@ -242,6 +242,32 @@ test('a zip is listed in its central directory\'s order and unpacked with its fi
   assert.equal(fs.readFileSync(path.join(folder, 'chrome', 'empty'), 'utf8'), '');
   assert.equal(fs.readlinkSync(path.join(folder, 'chrome', 'libGLESv2.so')), 'lib/libGLESv2.so');
   assert.equal(fs.readFileSync(path.join(folder, 'chrome', 'libGLESv2.so'), 'utf8'), 'library');
+});
+
+// The server jar holds 18,236 entries, and the tables read 1,083 of them: a
+// read that went over every entry's local header for each entry it read took
+// 18 s there (about 20 million reads).
+test('a zip\'s central directory is read once per use, and a local header only for an entry whose bytes are read', (t) => {
+  const archive = path.join(scratch, 'many.zip');
+  const files = Array.from({ length: 3000 }, (_, index) => ({ name: `data/${String(index).padStart(4, '0')}.json`, data: Buffer.from(`{"n":${index}}`), mode: 0o100644, deflate: index % 2 === 0 }));
+  fs.writeFileSync(archive, zip(files));
+  const reads = { count: 0 };
+  const readSync = fs.readSync;
+  fs.readSync = (...args) => { reads.count += 1; return readSync(...args); };
+  t.after(() => { fs.readSync = readSync; });
+  const counted = (work) => {
+    reads.count = 0;
+    const result = work();
+    return { result, reads: reads.count };
+  };
+  // The directory's end, the directory, then the entry's local header and its data.
+  assert.deepEqual(counted(() => readZipEntry(archive, 'data/2999.json').toString()), { result: '{"n":2999}', reads: 4 });
+  assert.equal(counted(() => zipNames(archive)).reads, 2);
+  const wanted = (name) => Number(name.slice(5, 9)) % 3 === 0;
+  const { result: many, reads: manyReads } = counted(() => readZipEntries(archive, wanted));
+  assert.equal(manyReads, 2 + 2 * 1000);
+  assert.deepEqual([...many.keys()], files.map((file) => file.name).filter(wanted));
+  for (const [name, bytes] of many) assert.deepEqual(bytes, readZipEntry(archive, name));
 });
 
 test('a CLI on PATH is the one the app runs; without one, the tools folder\'s', (t) => {

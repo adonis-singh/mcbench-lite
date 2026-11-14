@@ -19,7 +19,7 @@ const { execFile } = require('child_process');
 const { promisify } = require('util');
 
 const { jvmEngine } = require('./engine');
-const { zipNames, readZipEntry } = require('./zip-entry');
+const { readZipEntries } = require('./zip-entry');
 
 const execFileAsync = promisify(execFile);
 const TABLES = ['blocks.txt', 'loot.json', 'datafix.txt'];
@@ -70,9 +70,10 @@ async function writeRegistry({ classpath, minecraftVersion, target, java, javac 
     }
     const jar = classpath.find((file) => path.basename(file) === `paper-${minecraftVersion}.jar`);
     const prefix = 'data/minecraft/loot_table/blocks/';
-    const names = zipNames(jar).filter((name) => name.startsWith(prefix) && name.endsWith('.json')).sort();
+    const tables = readZipEntries(jar, (name) => name.startsWith(prefix) && name.endsWith('.json'));
+    const names = [...tables.keys()].sort();
     const loot = {};
-    for (const name of names) loot[`minecraft:${name.slice(prefix.length, -'.json'.length)}`] = JSON.parse(readZipEntry(jar, name).toString('utf8'));
+    for (const name of names) loot[`minecraft:${name.slice(prefix.length, -'.json'.length)}`] = JSON.parse(tables.get(name).toString('utf8'));
     writeWhole(path.join(target, 'blocks.txt'), lines.join('\n'));
     writeWhole(path.join(target, 'loot.json'), `${JSON.stringify(loot)}\n`);
     return names.length;

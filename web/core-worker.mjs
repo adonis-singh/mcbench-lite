@@ -1,8 +1,8 @@
 // The live world's engine, off the page's main thread: the Rust engine as
 // WebAssembly (core-world.mjs) in a Web Worker. It takes requests one at a
 // time, in order, each answered with { id, ... } or { id, error }:
-//   { id, type: 'load', wasm }
-//       the first request: fetches and compiles the module
+//   { id, type: 'load', module }
+//       the first request: the module, compiled once by the page
 //   { id, type: 'place', commands, fresh }
 //       places the commands (text, one per line) on an empty world or on the
 //       world as it is; answers { bytes } with the blueprint
@@ -127,9 +127,7 @@ function run(start = performance.now(), n = 0) {
 
 async function handle(request) {
   if (request.type === 'load') {
-    const response = await fetch(request.wasm);
-    if (!response.ok) throw new Error(`${request.wasm} is unavailable (HTTP ${response.status})`);
-    world = new CoreWorld(await WebAssembly.compile(await response.arrayBuffer()));
+    world = new CoreWorld(request.module);
     return [{}];
   }
   switch (request.type) {

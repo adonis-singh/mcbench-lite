@@ -30,19 +30,22 @@ const execFileAsync = promisify(execFile);
 
 const TARGET = 'wasm32-unknown-unknown';
 
-function sourcesHash(features) {
+// Read without blocking: the server's start checks it while it answers.
+async function sourcesHash(features) {
   const files = ['Cargo.toml', 'Cargo.lock', '.cargo/config.toml', 'rust-toolchain.toml'];
-  for (const root of ['src', 'minecraft']) {
-    (function walk(relative) {
-      for (const entry of fs.readdirSync(path.join(CORE, relative), { withFileTypes: true })) {
-        const name = path.posix.join(relative, entry.name);
-        if (entry.isDirectory()) walk(name);
-        else files.push(name);
-      }
-    })(root);
-  }
+  const walk = async (relative) => {
+    for (const entry of await fs.promises.readdir(path.join(CORE, relative), { withFileTypes: true })) {
+      const name = path.posix.join(relative, entry.name);
+      if (entry.isDirectory()) await walk(name);
+      else files.push(name);
+    }
+  };
+  await walk('src');
+  await walk('minecraft');
+  files.sort();
+  const contents = await Promise.all(files.map((name) => fs.promises.readFile(path.join(CORE, name))));
   const hash = crypto.createHash('sha256').update(`${features}\0`);
-  for (const name of files.sort()) hash.update(`${name}\0`).update(fs.readFileSync(path.join(CORE, name))).update('\0');
+  files.forEach((name, index) => hash.update(`${name}\0`).update(contents[index]).update('\0'));
   return hash.digest('hex');
 }
 
@@ -54,7 +57,7 @@ async function build({ jmath = null } = {}) {
   const folder = path.join(CORE, 'target', jmath ? `wasm-${jmath}` : 'wasm-default');
   const module = path.join(folder, 'mcbench-core.wasm');
   const stamp = `${module}.sources`;
-  const hash = sourcesHash(features);
+  const hash = await sourcesHash(features);
   const fresh = () => fs.existsSync(module) && fs.existsSync(stamp) && fs.readFileSync(stamp, 'utf8') === hash;
   if (fresh()) return module;
   fs.mkdirSync(folder, { recursive: true });

@@ -1,6 +1,8 @@
 'use strict';
 
 const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
 const sandbox = require('./sandbox');
 
 const MAX_CONTEXT_BYTES = Number(process.env.MCBENCH_CONTEXT_MAX_BYTES || 512_000);
@@ -11,7 +13,38 @@ if (!Number.isSafeInteger(MAX_CONTEXT_BYTES) || MAX_CONTEXT_BYTES < 16_000) {
 // What a message costs in the budget: its JSON, and for each image about the
 // text a provider charges for one screenshot.
 const IMAGE_BYTES = 6_000;
+// A stored message does not change, so what is worked out from it is kept
+// with it: its size, and each tool exchange's archive (keyed by its first
+// message, and kept only while the exchange holds the same messages).
+const sizes = new WeakMap();
+const archives = new WeakMap();
+// Every request writes the archives it replaces into /work, so they are
+// there as archived whatever the model did to them. A file this process
+// wrote and that is still the file it wrote (the same inode, size,
+// modification and change times) holds that text already; any other is
+// written again.
+const written = new Map(); // conversation id + file -> the file's stat as written
+function fileStat(file) {
+  try {
+    const stat = fs.lstatSync(file, { bigint: true });
+    return `${stat.ino}:${stat.size}:${stat.mtimeNs}:${stat.ctimeNs}`;
+  } catch {
+    return null;
+  }
+}
+function writeArchive(conversationId, dir, file, text) {
+  const key = `${conversationId}\n${file}`;
+  const at = path.join(dir, file);
+  const known = written.get(key);
+  if (known && known === fileStat(at)) return;
+  sandbox.writeWorkFile(conversationId, file, text);
+  written.set(key, fileStat(at));
+}
 function messageBytes(message) {
+  if (!sizes.has(message)) sizes.set(message, measure(message));
+  return sizes.get(message);
+}
+function measure(message) {
   const images = Array.isArray(message.content)
     ? message.content.filter(part => part.type === 'image_url' || (part.type === 'attachment' && part.attachment.type.startsWith('image/'))).length
     : 0;
@@ -31,6 +64,12 @@ function toolExchanges(conversation, messages) {
     if (end - i - 1 !== ids.size) continue;
     while (end < messages.length && messages[end].seeBuild) end++;
     const original = messages.slice(i, end);
+    const known = archives.get(first);
+    if (known && known.original.length === original.length && known.original.every((m, k) => m === original[k])) {
+      exchanges.push({ start: i, end, ...known.archive });
+      i = end - 1;
+      continue;
+    }
     const text = JSON.stringify(original);
     const file = `context/${crypto.createHash('sha256').update(text).digest('hex').slice(0, 24)}.json`;
     const outcomes = original.filter(m => m.role === 'tool').map(m => {
@@ -46,8 +85,10 @@ function toolExchanges(conversation, messages) {
       `${typeof first.content === 'string' ? first.content : ''}\n[Earlier tool exchange archived at /work/${file}. Outcomes: ${JSON.stringify(outcomes)}. Read that file with bash if the original program, observations, or output is needed.]` };
     const bytes = original.reduce((sum, m) => sum + messageBytes(m), 0);
     // An already compact exchange is kept as it is.
-    const saves = Math.max(0, bytes - messageBytes(replacement));
-    exchanges.push({ start: i, end, text, file, replacement, saves });
+    const saves = Math.max(0, bytes - measure(replacement));
+    const archive = { text, file, replacement, saves };
+    archives.set(first, { original, archive });
+    exchanges.push({ start: i, end, ...archive });
     i = end - 1;
   }
   return exchanges;
@@ -84,9 +125,11 @@ function contextMessages(conversation, { maxBytes = MAX_CONTEXT_BYTES, keepExcha
   }
   const output = [];
   let index = 0;
-  for (const exchange of exchanges.slice(0, archived).filter(e => e.saves > 0)) {
+  const replaced = exchanges.slice(0, archived).filter(e => e.saves > 0);
+  const dir = replaced.length ? sandbox.workDir(conversation.id) : null;
+  for (const exchange of replaced) {
     output.push(...messages.slice(index, exchange.start));
-    sandbox.writeWorkFile(conversation.id, exchange.file, exchange.text);
+    writeArchive(conversation.id, dir, exchange.file, exchange.text);
     output.push(exchange.replacement);
     index = exchange.end;
   }

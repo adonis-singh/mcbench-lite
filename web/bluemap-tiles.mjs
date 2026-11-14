@@ -75,7 +75,7 @@ export class MesherClient {
   send(worker, message, transfer = []) {
     return new Promise((resolve, reject) => {
       const id = ++this.next;
-      this.requests.set(id, { resolve, reject });
+      this.requests.set(id, { resolve, reject, type: message.type });
       worker.postMessage({ ...message, id }, transfer);
     });
   }
@@ -129,6 +129,23 @@ export class MesherClient {
       this.queue.push({ ...operation, resolve, reject });
       this.pump();
     });
+  }
+
+  // Another view is coming. Tiles not yet given to a worker are not made,
+  // and a load still running (hundreds of ms for millions of blocks) is let
+  // go with the pool, so the next load does not wait behind it: what was
+  // asked of the pool fails, and the next load starts a new one. A pool
+  // drawing its last tiles is kept: starting another costs more.
+  cancel() {
+    const error = new Error('Another view was shown');
+    this.queue = this.queue.filter((operation) => {
+      if (!operation.draw) return true;
+      operation.reject(error);
+      return false;
+    });
+    if (!this.pool || ![...this.requests.values()].some((request) => request.type === 'load')) return;
+    for (const operation of this.queue.splice(0)) operation.reject(error);
+    this.fail(error);
   }
 
   // Makes `view`'s blueprint the world to draw (see Mesher.finish).
@@ -226,6 +243,13 @@ export class BlueMapTileSync {
   // again, and loaded ones are swapped in together once all are drawn.
   refresh(view, options) {
     return this.alone(() => this.load(view, options));
+  }
+
+  // Another chat's world is coming: the mesher lets go of what it still
+  // makes for this one (MesherClient.cancel), and the refresh waiting on it
+  // fails, so the next one does not wait.
+  cancel() {
+    this.mesher.cancel();
   }
 
   async alone(work) {

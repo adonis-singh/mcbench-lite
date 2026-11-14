@@ -190,7 +190,7 @@ class CursorSession extends RelaySession {
 
   // Creates the agent and sends the prompt. A stop during either await is
   // honored once it returns: what it opened is closed and start throws.
-  async start({ model: id, effort, tools = [], messages }, provider) {
+  async start({ model: id, effort, tools = [], messages, onStarted }, provider) {
     const { text, images } = renderPrompt(messages);
     const model = (await models(provider.apiKey || null)).get(id);
     if (!model) throw new Error(`Unknown Cursor model: ${id}`);
@@ -208,6 +208,7 @@ class CursorSession extends RelaySession {
       throw this.closeReason();
     }
     this.agent = agent;
+    onStarted?.();
     const run = await agent.send(images.length ? { text, images } : text, { onDelta: ({ update }) => this.update(update) });
     // Closing meanwhile closed the agent, which ends the run.
     this.throwIfClosed();

@@ -9,6 +9,7 @@ const { EventEmitter } = require('node:events');
 const { test } = require('node:test');
 
 const { PaperServer } = require('../server/paper-server');
+const { PaperFiles } = require('../server/paper-files');
 const { World } = require('../server/world');
 
 // A zip of uncompressed entries.
@@ -504,4 +505,32 @@ test('the state says where the server is: booting is not a lost RCON connection,
   assert.equal(live.state.name, 'stopped');
   assert.equal(live.server, null);
   assert.deepEqual(options.servers.started[0].signals, ['SIGTERM']);
+});
+
+test("Paper's jar downloads without waiting for Java, and its launcher runs once Java is ready", async () => {
+  const paperDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mcbench-lite-paper-order-'));
+  const events = [];
+  let javaInstalled;
+  const files = new PaperFiles({
+    paperDir,
+    download: async () => {
+      events.push('download');
+      writePaperJar(paperDir);
+    },
+    javaReady: () => {
+      events.push('waiting for Java');
+      return new Promise((resolve) => { javaInstalled = resolve; });
+    },
+    runJava: async (args) => {
+      events.push(`java ${args.join(' ')}`);
+      layOutPaper(paperDir);
+    },
+  });
+  const laidOut = files.ensurePaper();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepStrictEqual(events, ['download', 'waiting for Java']);
+  javaInstalled();
+  assert.deepStrictEqual(await laidOut, PAPER_FILES);
+  assert.deepStrictEqual(events, ['download', 'waiting for Java', 'java -Dpaperclip.patchonly=true -jar paper-1.21.10-130.jar']);
+  fs.rmSync(paperDir, { recursive: true, force: true });
 });

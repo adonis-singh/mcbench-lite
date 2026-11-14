@@ -290,6 +290,7 @@ class ClaudeProcess {
     const session = this.session;
     if (event.type === 'system' && event.subtype === 'init') {
       checkInit(event, session.allowed, session.builtins);
+      session.onStarted?.();
       // Claude Code has taken this turn's request into its session, so the
       // next turn resumes the session however this one ends. Tested on
       // Claude Code 2.1.322: a session killed in the middle of a tool call
@@ -380,7 +381,8 @@ class ClaudeCodeSession extends harness.RelaySession {
     this.process = null;
   }
 
-  async start({ conversation, conversationId, messages, tools, model, effort, chat }) {
+  async start({ conversation, conversationId, messages, tools, model, effort, chat, onStarted }) {
+    this.onStarted = onStarted;
     this.allowed = tools.map(t => PREFIX + t.function.name);
     this.builtins = chat ? CHAT_BUILTINS : [];
     this.conversation = conversation;

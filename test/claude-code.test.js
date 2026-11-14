@@ -155,9 +155,12 @@ test('a first turn starts a saved session, relays its tool call through the comp
   const conversation = { messages: [{ id: 'u1', role: 'user', content: 'Build a hut.' }] };
   const messages = [{ role: 'system', content: 'You build.' }, { role: 'user', content: 'Build a hut.' }];
   const session = new ClaudeCodeSession();
-  await session.start({ conversation, conversationId: 'conv-1', messages, tools: [TOOL], model: 'claude-opus-5-5', effort: 'high', chat: true });
+  let started = 0;
+  await session.start({ conversation, conversationId: 'conv-1', messages, tools: [TOOL], model: 'claude-opus-5-5', effort: 'high', chat: true, onStarted: () => { started += 1; } });
   const deltas = [];
   const first = await session.next((delta) => deltas.push(delta));
+  // Told once the CLI reported its start (init), before its first output.
+  assert.equal(started, 1);
   assert.equal(first.reasoning, 'plan');
   assert.equal(first.finish_reason, 'tool_calls');
   assert.equal(first.tool_calls[0].function.name, 'build');

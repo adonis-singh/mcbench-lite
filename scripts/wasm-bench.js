@@ -19,6 +19,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { nativeEngine } = require('./wasm-native');
+const { installRust } = require('../server/engine');
 const { build: buildWasm } = require('./build-wasm');
 const { communityCases, option } = require('./core-parity');
 const { openPage } = require('./wasm-chrome');
@@ -230,6 +231,8 @@ async function chromeRun(loads, wasmFile) {
 }
 
 async function main() {
+  // nativeEngine's rust() answers the toolchain installRust found.
+  await installRust();
   const jmath = option('jmath', 'intel');
   const wasmFile = await buildWasm({ jmath });
   const module = await WebAssembly.compile(fs.readFileSync(wasmFile));

@@ -77,7 +77,7 @@ const os = require('os');
 const { execFileSync, spawn } = require('child_process');
 const ROOT = path.join(__dirname, '..');
 const { minecraftLive } = require('../server/minecraft-live');
-const { Engine, engineEnv, jvmEngine, coreBuildArgs, rust } = require('../server/engine');
+const { Engine, engineEnv, jvmEngine, coreBuildArgs, rust, installRust } = require('../server/engine');
 const { importCommands } = require('../server/live-placement');
 const { Y_OFFSET } = require('../server/minecraft-dimension');
 const { World } = require('../server/world');
@@ -1449,6 +1449,8 @@ function rustEngine() {
 }
 
 async function main() {
+  // rust() answers the toolchain installRust found.
+  await installRust();
   const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'mcbench-core-parity-'));
   const classpath = (await minecraftLive.ensurePaper()).map((file) => path.join(minecraftLive.paperDir, file));
   const native = process.argv.includes('--native');

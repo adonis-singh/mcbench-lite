@@ -90,6 +90,8 @@ function mapConfig(mask = null) {
     'remove-caves-below-y: -10000',
     'render-edges: true',
     'enable-hires: true',
+    // The viewers draw hires tiles only (bluemap-view.mjs): no lowres layer.
+    'lod-count: 0',
     'storage: "file"',
     'ignore-missing-light-data: true',
     ...(mask ? ['render-mask: [{', `  min-x: ${mask.minX}`, `  max-x: ${mask.maxX}`, `  min-z: ${mask.minZ}`, `  max-z: ${mask.maxZ}`, '}]'] : []),
@@ -160,8 +162,8 @@ class BlueMap {
   }
 
   async ensureJar() {
-    if (fs.existsSync(this.jar) && sha256(fs.readFileSync(this.jar)) === JAR_SHA256) return;
-    fs.rmSync(this.jar, { force: true });
+    // The download appears whole only once its checksum matched.
+    if (fs.existsSync(this.jar)) return;
     await step(`[viewer] downloading BlueMap ${VERSION} (about ${JAR_MB} MB)`, `[viewer] BlueMap downloaded`,
       () => this.download(JAR_URL, this.jar, { sha256: JAR_SHA256, onProgress: setup.progress('viewer') }));
   }

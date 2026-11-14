@@ -314,6 +314,40 @@ test('stopping a turn does not stop its title, and a chat still untitled gets on
   delete models['chat/model'];
 });
 
+test('a harness chat\'s title starts once its CLI has started, and a turn that ends first is titled too', async () => {
+  const id = await newChat();
+  const asked = [];
+  title = async (options) => { asked.push(titled(options)); return { content: 'Stone hut' }; };
+  const started = deferred();
+  const gate = deferred();
+  models['harness/model'] = async (options) => {
+    await started.promise;
+    options.onStarted();
+    await gate.promise;
+    return { content: 'Done.' };
+  };
+  const turn = request('POST', `/api/conversations/${id}/chat`, { provider: 'claude-code', model: 'harness/model', resolution: 1, text: 'Build a hut' });
+  for (let i = 0; i < 5; i++) await tick();
+  assert.deepEqual(asked, [], 'no title while the CLI starts');
+  started.resolve();
+  for (let i = 0; i < 5; i++) await tick();
+  assert.deepEqual(asked, ['Build a hut']);
+  gate.resolve();
+  await turn.done;
+  await free(id);
+  assert.equal(store.getConversation(id).title, 'Stone hut');
+
+  // A CLI that never starts: the title comes with the turn's end.
+  const other = await newChat();
+  models['harness/model'] = async () => { throw new Error('Claude Code exited 1 without a result'); };
+  await call('POST', `/api/conversations/${other}/chat`, { provider: 'claude-code', model: 'harness/model', resolution: 1, text: 'Build a tower' });
+  await free(other);
+  for (let i = 0; i < 5; i++) await tick();
+  assert.deepEqual(asked, ['Build a hut', 'Build a tower']);
+  delete models['harness/model'];
+  title = async () => ({ content: 'A title' });
+});
+
 test('a bench round that cannot start is stored as that model\'s failed round, which a retry runs again', async (t) => {
   const share = store.shareAttachment;
   let full = true;

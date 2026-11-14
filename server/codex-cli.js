@@ -281,7 +281,7 @@ class CodexSession extends harness.RelaySession {
     this.run = null;
   }
 
-  async start({ conversation, conversationId, messages, tools, model, effort }) {
+  async start({ conversation, conversationId, messages, tools, model, effort, onStarted }) {
     const launcher = LAUNCHERS[process.platform];
     if (!launcher) throw new Error(`The Codex CLI harness runs on Linux (in a container) or macOS (on the host), not ${process.platform}`);
     const record = conversationId ? harness.readSession(conversationId, NAME) : null;
@@ -338,6 +338,7 @@ class CodexSession extends harness.RelaySession {
         // 0.167.1: a thread killed in the middle of a tool call resumes with
         // that call answered as aborted, and the tool does not run again.
         if (event.type === 'thread.started') {
+          onStarted?.();
           state.threadId = event.thread_id;
           if (conversation) harness.writeSession(conversationId, NAME, { threadId: state.threadId, home: 'chat', ...terms, lastSeen: request });
         }

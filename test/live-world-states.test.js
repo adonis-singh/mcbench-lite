@@ -129,6 +129,8 @@ function fakeHost({ sleep = (ms) => new Promise((resolve) => setTimeout(resolve,
       return engine;
     },
     blobUrl: (() => { let n = 0; return () => `blob:${n += 1}`; })(),
+    digest: async (text) => `digest of ${text}`,
+    placements: { kept: new Map(), async get(key) { return this.kept.get(key) ?? null; }, async put(key, entry) { this.kept.set(key, entry); } },
     revoke() {},
     sleep,
     imports() { return h.calls.filter((call) => call.startsWith('import')); },
@@ -158,8 +160,8 @@ function open(t, options) {
 async function running(live, h, key = 'chat') {
   live.begin();
   await live.show(key);
-  await until(() => live.state.status === 'running' && live.state.conversationId === key && h.engines.at(-1)?.ran().at(-1) === true, 'the world running');
-  return h.engines.at(-1);
+  await until(() => live.state.status === 'running' && live.state.conversationId === key && live.engine?.ran().at(-1) === true, 'the world running');
+  return live.engine;
 }
 
 test('an engine that stopped the world keeps its error through polls, and a restart plays the world again', async (t) => {
@@ -214,7 +216,7 @@ test('a first sync that failed has nothing on show and says so, and a restart tr
   assert.equal(h.imports().length, tries, 'the polls do not try the version that failed again');
   h.importFails = null;
   await live.control('restart');
-  await until(() => live.state.status === 'running' && h.engines.at(-1)?.ran().at(-1) === true, 'placed and running');
+  await until(() => live.state.status === 'running' && live.engine?.ran().at(-1) === true, 'placed and running');
   assert.equal(h.imports().length, tries + 1, 'one more try, the restart\'s');
   // What the page draws its way out from, with no base for the live controls.
   assert.equal(failed, true, 'the page was told the sync failed');
@@ -226,16 +228,16 @@ test('a failed sync is not tried again until the server has another version or a
   live.begin();
   h.startFails = null;
   await live.show('chat');
-  await until(() => h.engines.length === 1, 'the engine');
+  const engine = await until(() => live.engine, 'the engine');
   await until(() => live.state.status === 'running', 'running');
-  h.engines[0].refuse = 'The engine failed: unported: a block';
+  engine.refuse = 'The engine failed: unported: a block';
   h.server.version = 2;
   await until(() => live.state.status === 'error', 'the failure');
   const tries = h.imports().length;
   await pause(60);
   assert.equal(h.imports().length, tries, 'no sync again for the version that failed');
   assert.equal(live.phase, 'failed');
-  h.engines[0].refuse = null;
+  engine.refuse = null;
   h.server.version = 3;
   await until(() => live.state.status === 'running' && live.shownVersion === 3, 'the next version');
   assert.equal(h.imports().length, tries + 1);
@@ -249,21 +251,21 @@ test('a failed engine start is tried again by a restart, not by every poll', asy
   await until(() => live.state.status === 'error', 'the failed start');
   assert.equal(live.state.error, 'The module is unavailable');
   await pause(60);
-  assert.equal(h.starts, 1);
+  assert.equal(h.starts, 2, 'the engine and the spare started with it');
   h.startFails = null;
   await live.control('restart');
   await until(() => live.state.status === 'running', 'started');
-  assert.equal(h.starts, 2);
+  assert.equal(h.starts, 4, 'an engine and a spare, afresh');
 });
 
 test('another engine module ends the engine and places the view afresh in a new one', async (t) => {
   const { live, h } = open(t);
   const first = await running(live, h);
   h.server.core = 'core-b';
-  await until(() => h.engines.length === 2 && live.state.status === 'running' && h.engines[1].ran().at(-1) === true, 'the new engine');
+  await until(() => live.engine?.address === 'core-b' && live.state.status === 'running' && live.engine.ran().at(-1) === true, 'the new engine');
   assert.ok(first.dead, 'the old engine is ended');
-  assert.equal(h.engines[1].address, 'core-b');
-  assert.deepEqual(h.engines[1].calls[0], ['place', true]);
+  assert.ok(h.engines.filter((engine) => engine.address === 'core-a').every((engine) => engine.dead), 'and the spare of the old module');
+  assert.deepEqual(live.engine.calls[0], ['place', true]);
 });
 
 test('a restart during a sync runs after it', async (t) => {
@@ -380,10 +382,10 @@ test('a delta asked for before the engine\'s worker failed is not placed as the 
   engine.dead = new Error('The engine worker failed: out of memory');
   engine.onfailed(engine.dead.message);
   held.resolve();
-  await until(() => h.engines.length === 2 && h.engines[1].placed.length === 1, 'the next engine\'s placement');
-  assert.deepEqual(h.engines[1].placed, [{ commands: WHOLE, fresh: true }], 'the whole world, asked for again');
+  const next = await until(() => live.engine !== engine && live.engine?.placed.length === 1 && live.engine, 'the next engine\'s placement');
+  assert.deepEqual(next.placed, [{ commands: WHOLE, fresh: true }], 'the whole world, asked for again');
   assert.equal(h.imports().at(-1), 'import chat');
-  await until(() => live.state.status === 'running' && live.shownVersion === 2 && h.engines[1].ran().at(-1) === true, 'version 2 running');
+  await until(() => live.state.status === 'running' && live.shownVersion === 2 && next.ran().at(-1) === true, 'version 2 running');
 });
 
 test('a restart whose import failed is still asked for, with the world it would have replaced still held', async (t) => {
@@ -448,7 +450,8 @@ test('a spawn answered after a switch of view leaves no player in the new view, 
   await until(() => engine.waiting.has('spawn'), 'the spawn');
   const switching = live.show('b');
   spawning.resolve();
-  await assert.rejects(spawned, /The world let the player go before it stood in it/);
+  // The view's engine went with it.
+  await assert.rejects(spawned, /The engine was stopped/);
   await switching;
   assert.equal(live.playerView, null);
   await live.setPlayerInput({ keys: 1, taps: 0, yaw: 0, pitch: 0 });

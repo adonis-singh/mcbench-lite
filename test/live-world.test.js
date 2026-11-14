@@ -33,7 +33,18 @@ function server(resolve) {
   return { views: new LiveViews({ resolve, yOffset: 64, now: () => Date.now() * 1000 }) };
 }
 
-function host(t, { views }, { wasmUrl = pathToFileURL(wasm).href } = {}) {
+// The host's kept placements (live-host.mjs keeps them in IndexedDB), in memory.
+function memoryPlacements() {
+  const kept = new Map();
+  return {
+    kept,
+    get: async (key) => kept.get(key) ?? null,
+    put: async (key, entry) => { kept.set(key, entry); },
+  };
+}
+const digest = async (text) => require('node:crypto').createHash('sha256').update(text).digest('hex');
+
+function host(t, { views }, { wasmUrl = pathToFileURL(wasm).href, placements = memoryPlacements() } = {}) {
   const urls = new Map();
   const calls = [];
   const engines = [];
@@ -55,6 +66,8 @@ function host(t, { views }, { wasmUrl = pathToFileURL(wasm).href } = {}) {
     blobUrl: (bytes) => { const url = `blob:${urls.size}`; urls.set(url, bytes); return url; },
     revoke: (url) => urls.delete(url),
     sleep: (ms) => new Promise((resolve) => setTimeout(resolve, Math.min(ms, 20))),
+    digest,
+    placements,
     urls,
   };
 }
@@ -85,8 +98,9 @@ test('the build on show is placed in the page\'s engine, a base for the viewer, 
   const frames = [];
   live.onFrame((frame) => frames.push(frame));
   await live.show('chat');
-  await until(() => live.state.viewerRevision, 'the base');
-  assert.strictEqual(live.state.status, 'running');
+  // The base is on show while its sync is still ending (the engine is asked
+  // to run, the placement is kept): the status is 'running' once it has.
+  await until(() => live.state.viewerRevision && live.state.status === 'running', 'the base, its sync ended');
   assert.strictEqual(live.state.conversationId, 'chat');
   assert.strictEqual(live.state.blockCount, 2);
   assert.ok(h.urls.has(live.state.viewerBlueprint));
@@ -236,4 +250,150 @@ test('a build with no blocks shows an empty world with no engine, and the first 
   await until(() => live.state.live, 'the world of the first block');
   assert.strictEqual(live.state.blockCount, 1);
   assert.ok(h.calls.filter(([, call]) => call.startsWith('/api/minecraft/import')).every(([, call]) => !call.includes('since')), 'placed afresh: the page held no world');
+});
+
+test('a build shown again at the same version is drawn from its last placement while the engine places it again, and takes no input until then', async (t) => {
+  const lever = [0, 1, 0, 'minecraft:lever', { face: 'floor', facing: 'north', powered: 'false' }];
+  const worlds = { a: build3([0, 0, 0, 'minecraft:stone'], lever), b: build3([5, 0, 5, 'minecraft:dirt']) };
+  const { live, h } = open(t, (key) => ({ world: worlds[key], layout: null }));
+  // Once `gate` is set, a placement waits until the test lets it go.
+  let gate = null;
+  let placing = false;
+  let placed = false;
+  const start = h.startEngine;
+  h.startEngine = async (url) => {
+    const engine = await start(url);
+    const place = engine.place.bind(engine);
+    engine.place = async (...args) => {
+      if (!gate) return place(...args);
+      placing = true;
+      await gate;
+      const blueprint = await place(...args);
+      placed = true;
+      return blueprint;
+    };
+    return engine;
+  };
+  await live.show('a');
+  await until(() => live.state.status === 'running' && live.state.live, 'a placed');
+  const first = h.urls.get(live.state.viewerBlueprint);
+  await live.show('b');
+  await until(() => live.state.status === 'running' && live.state.conversationId === 'b' && live.state.live, 'b placed');
+  let release;
+  gate = new Promise((resolve) => { release = resolve; });
+  await live.show('a');
+  await until(() => live.state.conversationId === 'a' && live.state.viewerRevision != null && placing, 'a shown before its placement');
+  assert.strictEqual(live.state.status, 'syncing');
+  assert.strictEqual(live.state.live, null, 'no controls while the base is not placed');
+  assert.deepStrictEqual(h.urls.get(live.state.viewerBlueprint), first, 'the base shown is the last placement');
+  assert.strictEqual(live.accumulated(), null);
+  assert.strictEqual(await live.input(0, 65, 0, 0), false, 'the lever takes no click yet');
+  await assert.rejects(live.control('step'), /no live world on show/);
+  // A spawn asked now waits for the placement: player requests run in turn.
+  const spawned = live.spawnPlayer({ x: 0, y: 70, z: 0, yaw: 0, pitch: 0, flying: true }).then(() => placed && !live.base.provisional);
+  const revision = live.state.viewerRevision;
+  release();
+  assert.strictEqual(await spawned, true, 'the player stood in the world only once it was placed and confirmed');
+  await until(() => live.state.status === 'running' && live.state.live, 'a placed again');
+  assert.strictEqual(live.state.viewerRevision, revision, 'the placement confirmed the base shown: no second base');
+  assert.strictEqual(live.state.live.ticks, live.ticks);
+  assert.strictEqual(await live.input(0, 65, 0, 0), true, 'and then the lever takes it');
+});
+
+test('a placement that differs from the base shown while it was placed fails the sync, said where the build is', async (t) => {
+  const worlds = { a: build3([0, 0, 0, 'minecraft:stone']), b: build3([5, 0, 5, 'minecraft:dirt']) };
+  const { live, h } = open(t, (key) => ({ world: worlds[key], layout: null }));
+  await live.show('a');
+  await until(() => live.state.status === 'running' && live.state.live && h.placements.kept.has('a'), 'a placed and kept');
+  await live.show('b');
+  await until(() => live.state.status === 'running' && live.state.conversationId === 'b', 'b placed');
+  const kept = h.placements.kept.get('a');
+  const bytes = kept.bytes.slice();
+  bytes[bytes.length - 1] ^= 1;
+  kept.bytes = bytes;
+  await live.show('a');
+  await until(() => live.state.status === 'error', 'the sync failed');
+  assert.match(live.state.error, /differs from the one shown/);
+  assert.strictEqual(live.state.live, null);
+});
+
+test('a view left goes with its engine at once: the next view does not wait for its placement', async (t) => {
+  const worlds = { a: build3([0, 0, 0, 'minecraft:stone']), b: build3([5, 0, 5, 'minecraft:dirt']) };
+  const { live, h } = open(t, (key) => ({ world: worlds[key], layout: null }));
+  // a's placement never ends on its own: only the end of its engine ends it,
+  // as it ends every request of that engine.
+  const start = h.startEngine;
+  h.startEngine = async (url) => {
+    const engine = await start(url);
+    const place = engine.place.bind(engine);
+    const terminate = engine.terminate.bind(engine);
+    let stop;
+    engine.place = (...args) => (live.key === 'a' ? new Promise((resolve, reject) => { stop = reject; }) : place(...args));
+    engine.terminate = (error) => { terminate(error); stop?.(new Error('The engine was stopped')); };
+    return engine;
+  };
+  await live.show('a');
+  await until(() => live.phase === 'syncing' && live.engine, 'a placing');
+  const left = live.engine;
+  await live.show('b');
+  await until(() => live.state.status === 'running' && live.state.conversationId === 'b' && live.state.live, 'b placed while a never was');
+  assert.ok(left.dead, "a's engine was ended");
+  assert.notStrictEqual(live.engine, left);
+});
+
+test('a placement kept by an earlier page is drawn at once by the next one, and confirmed by its own engine before anything ticks', async (t) => {
+  const worlds = { a: build3([0, 0, 0, 'minecraft:stone'], [0, 1, 0, 'minecraft:lever', { face: 'floor', facing: 'north', powered: 'false' }]) };
+  const resolve = (key) => ({ world: worlds[key], layout: null });
+  const views = server(resolve);
+  const placements = memoryPlacements();
+  // The first page places the view and keeps its placement.
+  const before = host(t, views, { placements });
+  const first = new LiveWorld(before);
+  first.begin();
+  await first.show('a');
+  await until(() => first.state.status === 'running' && placements.kept.has('a'), 'a placed and kept');
+  const shown = before.urls.get(first.state.viewerBlueprint);
+  first.dispose();
+  // A page loaded later, with the same server and the same kept placements.
+  const after = host(t, views, { placements });
+  let release;
+  const gate = new Promise((done) => { release = done; });
+  let placing = false;
+  const start = after.startEngine;
+  after.startEngine = async (url) => {
+    const engine = await start(url);
+    const place = engine.place.bind(engine);
+    engine.place = async (...args) => { placing = true; await gate; return place(...args); };
+    return engine;
+  };
+  const live = new LiveWorld(after);
+  t.after(() => live.dispose());
+  live.begin();
+  await live.show('a');
+  await until(() => live.state.viewerRevision != null && placing, 'a shown before its placement');
+  assert.deepStrictEqual(after.urls.get(live.state.viewerBlueprint), shown, 'the kept placement is the base shown');
+  assert.strictEqual(live.state.live, null);
+  assert.strictEqual(await live.input(0, 65, 0, 0), false, 'the lever takes no click yet');
+  release();
+  await until(() => live.state.status === 'running' && live.state.live, 'placed and confirmed');
+  assert.strictEqual(await live.input(0, 65, 0, 0), true);
+});
+
+test('a kept placement is chosen by its commands, not by version: one of other commands is not shown', async (t) => {
+  const worlds = { a: build3([0, 0, 0, 'minecraft:stone']) };
+  const placements = memoryPlacements();
+  const h = host(t, server((key) => ({ world: worlds[key], layout: null })), { placements });
+  // What a server before a restart left for this view: other blocks.
+  await placements.put('a', { core: pathToFileURL(wasm).href, digest: await digest('setblock 9 64 9 minecraft:dirt\n'), bytes: new Uint8Array([1, 2, 3]) });
+  const bases = [];
+  const blobUrl = h.blobUrl;
+  h.blobUrl = (bytes) => { bases.push(bytes); return blobUrl(bytes); };
+  const live = new LiveWorld(h);
+  t.after(() => live.dispose());
+  live.begin();
+  await live.show('a');
+  await until(() => live.state.status === 'running' && live.state.live, 'a placed');
+  assert.strictEqual(bases.length, 1, 'one base: the engine\'s own');
+  assert.notDeepStrictEqual(bases[0], new Uint8Array([1, 2, 3]));
+  assert.notDeepStrictEqual(placements.kept.get('a').bytes, new Uint8Array([1, 2, 3]), 'and it is kept in place of the stale one');
 });

@@ -45,7 +45,7 @@ const crypto = require('crypto');
 const { execFileSync, spawn } = require('child_process');
 const ROOT = path.join(__dirname, '..');
 const { minecraftLive } = require('../server/minecraft-live');
-const { Engine, engineEnv, jvmEngine, coreBuildArgs, rust } = require('../server/engine');
+const { Engine, engineEnv, jvmEngine, coreBuildArgs, rust, installRust } = require('../server/engine');
 const { MinecraftVerifier } = require('../server/minecraft-verify');
 const { importCommands } = require('../server/live-placement');
 const { Y_OFFSET } = require('../server/minecraft-dimension');
@@ -500,6 +500,8 @@ function compare(java, rust) {
 }
 
 async function main() {
+  // rust() answers the toolchain installRust found.
+  await installRust();
   const placement = option('placement', 'both');
   if (!['both', ...PLACEMENT_MODES].includes(placement)) throw new Error(`Unknown --placement ${placement}`);
   const modes = placement === 'both' ? PLACEMENT_MODES : [placement];

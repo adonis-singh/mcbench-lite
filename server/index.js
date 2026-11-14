@@ -22,7 +22,7 @@ const { runTurn } = require('./agent');
 const sandbox = require('./sandbox');
 const harness = require('./harness');
 const store = require('./store');
-const { chatCompletion, closeHarnessSession, modelInfo, listModels, PROVIDERS: LLM_PROVIDERS } = require('./llm');
+const { chatCompletion, closeHarnessSession, modelInfo, listModels, startCatalog, stopCatalog, PROVIDERS: LLM_PROVIDERS } = require('./llm');
 const { blueMap } = require('./bluemap');
 const { minecraftLive } = require('./minecraft-live');
 const { LiveViews } = require('./live-views');
@@ -287,7 +287,9 @@ function releaseTurn(id, turn) {
 // Runs a turn whose prompt is already appended and saved, and records how it
 // ended: the model's final answer, a stop, or an error. Bench chats build
 // with the tools every model shares; the prompt library is the user's own.
-async function executeTurn(id, turn) {
+// `onStarted` is called once, when the model is under way (runTurn) or the
+// turn ended before it was.
+async function executeTurn(id, turn, onStarted = () => {}) {
   const emit = (event) => turn.emit(event);
   let conversation = store.getConversation(id);
   const { benchId } = conversation;
@@ -296,7 +298,7 @@ async function executeTurn(id, turn) {
     // Inside the try, so a failure here still ends the turn and its hold.
     emit({ type: 'turn_snapshot', messages: store.publicMessages(conversation), messageTree: store.messageTree(conversation) });
     const blockRegistry = await getBlockRegistry();
-    await runTurn(conversation, blockRegistry, emit, turn.controller.signal, () => {}, { chat: !benchId });
+    await runTurn(conversation, blockRegistry, emit, turn.controller.signal, () => {}, { chat: !benchId, onStarted });
     store.save(conversation);
     emit({ type: 'done' });
   } catch (err) {
@@ -331,6 +333,7 @@ async function executeTurn(id, turn) {
       emit({ type: 'error', message: `${message} (saving this failed: ${String(error.message || error)})` });
     }
   } finally {
+    onStarted();
     // The turn is released even if this fails; otherwise the chat would stay
     // held until the app restarts.
     try {
@@ -446,9 +449,15 @@ async function handleChat(req, res, id) {
   }
   publishConversations();
   turn.attach(res);
-  // The title arrives on its own; the turn never waits for it.
-  if (title) titleChat(id, title.prompt, title.text, title.images, title.model);
-  await executeTurn(id, turn);
+  // The title arrives on its own; the turn never waits for it. It starts
+  // once the turn's model is under way: a harness's CLI started beside the
+  // turn's own would slow the turn's start.
+  let started = false;
+  await executeTurn(id, turn, () => {
+    if (started) return;
+    started = true;
+    if (title) titleChat(id, title.prompt, title.text, title.images, title.model);
+  });
 }
 
 // Work runs or waits here: a turn, an edit, a title, or a bench round that
@@ -1375,14 +1384,21 @@ function prepare() {
   // The engines are built from Minecraft's tables, made from the server jar
   // first (the page's engine module waits for them itself).
   const tables = minecraftLive.minecraftTables();
+  const rust = installRust();
+  // Downloads go in the order they are needed: Java, Paper (which fetches the
+  // Minecraft server) and Rust, which the first build waits for, together;
+  // the screenshot browser once they are done, so it does not share the line
+  // with them. A failure among them stops nothing that waits here.
+  const browser = Promise.allSettled([tools.installJdk(), minecraftLive.ensurePaper(), rust]).then(() => tools.headlessShell());
+  browserReady = browser;
   Promise.allSettled([
-    installRust().catch(tell('[rust]')),
+    rust.catch(tell('[rust]')),
     minecraftLive.warm(),
     coreWasm.prepare().catch(tell('[core-wasm]')),
     tables.then(() => minecraftVerifier.warm()).catch(tell('[verify]')),
     // Every build is settled on these engines (shot-world.js).
     tables.then(() => warmShotEngines()).catch(tell('[settle]')),
-    tools.headlessShell().catch(tell('[see_build]')),
+    browser.catch(tell('[see_build]')),
     // The page's block data, every file of it.
     setup.track('blocks', async () => {
       await Promise.all(Object.keys(ASSETS).filter((name) => name !== 'blocks.json').map((name) => getAsset(name)));
@@ -1398,6 +1414,9 @@ function prepare() {
   sandbox.ensureImage().catch((error) => console.log('[sandbox]', error.message));
 }
 
+// The screenshot browser's install, which prepare starts (see there).
+let browserReady = null;
+
 async function startHttpServer() {
   // Turns the last run of the server stopped in the middle of end as errors.
   for (const id of store.interruptUnfinished()) console.log(`[startup] ended the turn the server stopped in ${id}`);
@@ -1408,8 +1427,11 @@ async function startHttpServer() {
     if (lifecycle.state !== 'starting') return server.close();
     lifecycle.to('listening', ['starting']);
     console.log(`mcbench-lite chat builder on ${auth.link(PORT)}`);
-    // see_build's page is this server's own: it is opened once the server listens.
-    warmRenderer().catch((error) => console.error('[see_build]', error.message));
+    // Turns read the model catalog fetched now and refreshed on a timer.
+    startCatalog();
+    // see_build's page is this server's own: it is opened once the server
+    // listens and its browser is installed.
+    browserReady.then(() => warmRenderer()).catch((error) => console.error('[see_build]', error.message));
     // Benches carry on with the rounds they had queued.
     for (const bench of store.listBenches()) advanceBench(bench.id);
   });
@@ -1432,6 +1454,7 @@ async function stop() {
   for (const turn of reservations.turns()) turn.controller.abort();
   titles.controller.abort();
   providerLogin.shutdown();
+  stopCatalog();
   await Promise.all([reservations.idle(), ...titles.tasks]);
   await Promise.allSettled([
     sandbox.shutdown(),

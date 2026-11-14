@@ -550,8 +550,11 @@ function apiMessages(conversation, { imageInput = true } = {}) {
 // unrecoverable errors; the caller ends the turn (store.endTurn).
 // `chat` marks a turn in the chat app: only there do builders also get the
 // user's prompt library (and harnesses their task-list tools). Benchmark
-// attempts leave it off and offer exactly the build tools.
-async function runTurn(conversation, blockRegistry, emit, signal, onWorldChange, { chat = false } = {}) {
+// attempts leave it off and offer exactly the build tools. `onStarted` is
+// called once the model is under way: a harness's agent process has reported
+// its start (the CLI's own start, which a title model started beside it
+// would slow), an API provider at once.
+async function runTurn(conversation, blockRegistry, emit, signal, onWorldChange, { chat = false, onStarted = () => {} } = {}) {
   let capabilities = null;
   try {
     capabilities = await modelInfo(conversation.provider, conversation.model);
@@ -565,7 +568,9 @@ async function runTurn(conversation, blockRegistry, emit, signal, onWorldChange,
   // A harness provider (Claude Code, Codex CLI, Cursor) is a whole agent
   // session that retries its own API requests. Its completion runs once: a
   // second attempt would start the session over and replay the turn.
-  const complete = PROVIDERS[conversation.provider].harness
+  const { harness } = PROVIDERS[conversation.provider];
+  if (!harness) onStarted();
+  const complete = harness
     ? chatCompletion
     : (options) => completionWithRetry(chatCompletion, options, { onRetry: retry => emit({ type: 'completion_retry', ...retry }) });
 
@@ -580,6 +585,7 @@ async function runTurn(conversation, blockRegistry, emit, signal, onWorldChange,
       provider: conversation.provider,
       model: conversation.model,
       effort: conversation.effort || undefined,
+      onStarted,
       messages: apiMessages(conversation, { imageInput }),
       tools,
       signal,

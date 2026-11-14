@@ -40,6 +40,7 @@ const { FAMILIES, fuzzCase, registry, communityCases, useCases, run, option } = 
 const { openPage } = require('./wasm-chrome');
 const { startNodeEngine } = require('./wasm-node-engine');
 const { nativeEngine } = require('./wasm-native');
+const { installRust } = require('../server/engine');
 
 const ROOT = path.join(__dirname, '..');
 
@@ -162,6 +163,8 @@ function compare(native, wasm, steps, labels = ['native', 'wasm']) {
 let chromeDigest = false;
 
 async function main() {
+  // nativeEngine's rust() answers the toolchain installRust found.
+  await installRust();
   const jmath = option('jmath', 'intel');
   const wasmFile = await buildWasm({ jmath });
   const native = nativeEngine(jmath);

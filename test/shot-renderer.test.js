@@ -16,7 +16,8 @@ const within = (promise, ms) => Promise.race([promise.then(() => 'resolved', (er
 
 // A fresh shot.js on fake browsers: `behavior()` is asked at each launch
 // ('healthy', 'stalls': the page never answers, 'no page': newPage fails,
-// 'never closes': the browser's close never answers).
+// 'never closes': the browser's close never answers, 'loses context': the
+// warm frame finds the WebGL context lost).
 function renderer(t, behavior) {
   const playwright = require('playwright-core');
   const browsers = [];
@@ -32,8 +33,11 @@ function renderer(t, behavior) {
     browser.close = () => { made.closes += 1; return mode === 'never closes' ? new Promise(() => {}) : Promise.resolve(); };
     page.goto = async () => {};
     page.context = () => ({ browser: () => browser });
-    page.evaluate = (fn, specs) => (mode === 'stalls' ? new Promise(() => {})
-      : Promise.resolve(fn.toString().includes('__shot.frames') ? specs.map(() => jpeg) : undefined));
+    page.evaluate = (fn, specs) => {
+      if (mode === 'stalls') return new Promise(() => {});
+      if (mode === 'loses context' && fn.toString().includes('__shot.warm')) return Promise.reject(new Error('Screenshot WebGL context lost'));
+      return Promise.resolve(fn.toString().includes('__shot.frames') ? specs.map(() => jpeg) : undefined);
+    };
     return browser;
   });
   delete require.cache[require.resolve('../server/shot')];
@@ -56,6 +60,25 @@ test('a warm-up that stalls fails like any stage, closes its browser, and lets t
   assert.equal(browsers[0].closes, 1, 'the stalled browser is closed');
   assert.equal(await within(queued, 2000), 'resolved');
   assert.equal(browsers.length, 2, 'on a browser of its own');
+  await closeRenderer();
+  assert.deepEqual(browsers.map((browser) => browser.closes), [1, 1]);
+});
+
+test('a warm-up whose context is lost warms once more on a fresh browser', async (t) => {
+  let launches = 0;
+  const { warmRenderer, closeRenderer, browsers } = renderer(t, () => (++launches === 1 ? 'loses context' : 'healthy'));
+  await warmRenderer();
+  assert.equal(browsers.length, 2, 'exactly one more browser');
+  assert.equal(browsers[0].closes, 1, 'the lost browser is closed');
+  assert.equal(browsers[1].closes, 0);
+  await closeRenderer();
+  assert.deepEqual(browsers.map((browser) => browser.closes), [1, 1]);
+});
+
+test('a warm-up whose context is lost twice fails with the lost context', async (t) => {
+  const { warmRenderer, closeRenderer, browsers } = renderer(t, () => 'loses context');
+  await assert.rejects(warmRenderer(), /Screenshot WebGL context lost/);
+  assert.equal(browsers.length, 2, 'no third browser');
   await closeRenderer();
   assert.deepEqual(browsers.map((browser) => browser.closes), [1, 1]);
 });

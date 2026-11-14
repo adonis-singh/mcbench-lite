@@ -71,9 +71,18 @@ export class EntityTracker {
     return [...this.entities.entries()].map(([id, tween]) => ({ id, entity: tween.entity, ...this.sampleOne(tween, now) }));
   }
 
-  // Whether any entity is still gliding at `now`.
+  // Whether any entity is still gliding at `now`. A frame that keeps an
+  // entity where it stands starts a glide from where it is shown to its
+  // target, which can differ from it only past the precision the GPU draws
+  // with (32-bit floats): such a glide does not move what is drawn.
   moving(now) {
-    for (const tween of this.entities.values()) if (now - tween.start < tween.duration) return true;
+    const drawn = (state) => [...state.pos, state.yaw, state.pitch].map(Math.fround);
+    for (const tween of this.entities.values()) {
+      if (now - tween.start >= tween.duration) continue;
+      const from = drawn(this.sampleOne(tween, tween.start));
+      const to = drawn(this.sampleOne(tween, tween.start + tween.duration));
+      if (from.some((value, i) => value !== to[i])) return true;
+    }
     return false;
   }
 }
@@ -115,6 +124,7 @@ export class EntityLayer {
     this.models = new EntityModels(new EntityIndex(assets.index));
     this.tracker = new EntityTracker();
     this.objects = new Map();
+    this.list = null; // the last frame's entity list, as JSON
     this.geometries = new WeakMap();
     this.group = new this.Three.Group();
     this.group.name = 'mcbench-entities';
@@ -239,8 +249,14 @@ export class EntityLayer {
 
   // Takes a frame's whole entity list: the entities that appeared are made,
   // the ones that are gone removed, the rest keep their objects and glide to
-  // their new places; an entity that looks different is made again.
+  // their new places; an entity that looks different is made again. A frame
+  // whose list is the last one's (a still world sends one every tick) asks
+  // for no frame of its own: everything is where it was drawn, and an entity
+  // still gliding or animating keeps the frames coming (update).
   set(entities, now = performance.now()) {
+    const list = JSON.stringify(entities);
+    const changed = list !== this.list;
+    this.list = list;
     const { removed } = this.tracker.set(entities, now);
     for (const id of removed) {
       this.release(this.objects.get(id));
@@ -254,7 +270,7 @@ export class EntityLayer {
       this.objects.set(entity.id, { ...this.build(entity), key });
     }
     this.update(now);
-    this.viewer.redraw();
+    if (changed) this.viewer.redraw();
   }
 
   // Puts every entity where it is at `now`. BlueMap draws idle frames only

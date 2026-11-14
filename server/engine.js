@@ -22,7 +22,7 @@ const zlib = require('zlib');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { execFile, execFileSync, spawn } = require('child_process');
+const { execFile, spawn } = require('child_process');
 const { promisify } = require('util');
 const { writeDimensionPack } = require('./minecraft-dimension');
 const { step } = require('./progress');
@@ -454,31 +454,46 @@ const RUST_CHANNEL = fs.readFileSync(path.join(CORE, 'rust-toolchain.toml'), 'ut
 // side effect of another command.
 const RUSTUP_ENV = { ...process.env, ...tools.RUST_ENV, RUSTUP_AUTO_INSTALL: '0' };
 
-// Whether the pinned toolchain is installed.
-async function rustInstalled() {
+// The pinned toolchain, or null when it is not installed: its cargo, the
+// environment that has cargo compile with the same toolchain's rustc (cargo
+// run by its path would take the first rustc on PATH), and its host target.
+// rustc and cargo each run once here: macOS checks a program the first time
+// it runs, which takes seconds for a rustc just installed, and this runs
+// while Minecraft's tables are made instead of when the engine's build starts.
+async function findRust() {
+  const which = async (name) => (await execFileAsync(tools.RUSTUP, ['which', name], { cwd: CORE, env: RUSTUP_ENV })).stdout.trim();
+  let cargo;
   try {
-    await execFileAsync(tools.RUSTUP, ['which', 'cargo'], { cwd: CORE, env: RUSTUP_ENV });
-    return true;
+    cargo = await which('cargo');
   } catch (error) {
     if (!/is not installed/.test(error.stderr)) throw error;
-    return false;
+    return null;
   }
+  const rustc = await which('rustc');
+  const [{ stdout }] = await Promise.all([execFileAsync(rustc, ['-vV']), execFileAsync(cargo, ['-V'])]);
+  return { cargo, rustc, host: stdout.match(/^host: (.*)$/m)[1], env: { ...RUSTUP_ENV, RUSTC: rustc } };
 }
 
 // Installs rustup and the pinned toolchain the first time they are needed,
-// saying so, in one process at a time (rustup's own installs collide).
+// saying so, in one process at a time (rustup's own installs collide), and
+// resolves with the toolchain (findRust), which rust() then answers.
 let rustInstall = null;
+let rustTools = null;
 function installRust() {
   rustInstall ||= setup.track('rust', async () => {
     await step(`[rust] downloading rustup ${tools.PINS['rustup-init'].version} (about ${tools.PINS['rustup-init'].mb} MB) into ${tools.TOOLS_DIR}`, '[rust] rustup installed',
       () => tools.installRustup({ onProgress: setup.progress('rust') }));
-    if (await rustInstalled()) return;
-    await withLock(path.join(tools.TOOLS_DIR, 'rust', 'toolchain-install.lock'), async () => {
-      if (await rustInstalled()) return;
+    rustTools = await findRust() || await withLock(path.join(tools.TOOLS_DIR, 'rust', 'toolchain-install.lock'), async () => {
+      const found = await findRust();
+      if (found) return found;
       setup.report('rust', { detail: `Installing Rust ${RUST_CHANNEL} and its WebAssembly target with rustup`, progress: undefined });
       await step(`[rust] installing Rust ${RUST_CHANNEL} and its WebAssembly target with rustup (once, about 550 MB on disk)`, `[rust] Rust ${RUST_CHANNEL} installed`,
         () => execFileAsync(tools.RUSTUP, ['install'], { cwd: CORE, env: RUSTUP_ENV, maxBuffer: 1 << 24 }));
+      const installed = await findRust();
+      if (!installed) throw new Error(`rustup install did not install Rust ${RUST_CHANNEL}`);
+      return installed;
     });
+    return rustTools;
   }).catch((error) => {
     rustInstall = null;
     throw error;
@@ -486,25 +501,12 @@ function installRust() {
   return rustInstall;
 }
 
-// The pinned toolchain's cargo and the environment that has it compile with
-// the same toolchain's rustc (cargo run by its path would take the first
-// rustc on PATH), and its host target. The toolchain must be installed, and
-// the tables of Minecraft the engine compiles in made (minecraft-tables.js,
+// The toolchain installRust found. It must have resolved, and the tables of
+// Minecraft the engine compiles in must be made (minecraft-tables.js,
 // required here as it requires this module).
-let rustTools = null;
 function rust() {
   require('./minecraft-tables').checkTables(require('./assets').MC_VERSION);
-  if (rustTools) return rustTools;
-  const which = (name) => {
-    try {
-      return execFileSync(tools.RUSTUP, ['which', name], { cwd: CORE, env: RUSTUP_ENV, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
-    } catch (error) {
-      throw new Error(String(error.stderr || error.message).trim());
-    }
-  };
-  const rustc = which('rustc');
-  const host = execFileSync(rustc, ['-vV'], { encoding: 'utf8' }).match(/^host: (.*)$/m)[1];
-  rustTools = { cargo: which('cargo'), rustc, host, env: { ...RUSTUP_ENV, RUSTC: rustc } };
+  if (!rustTools) throw new Error('Rust has not been looked up: await installRust() before rust()');
   return rustTools;
 }
 

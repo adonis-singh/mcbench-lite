@@ -14,6 +14,21 @@
 // true }) goes on. A world that stopped (`onfailed` says why) refuses
 // run(true) and step() until then.
 
+// Each module's compilation, by address. One that failed is let go, so the
+// next start fetches it again.
+const modules = new Map();
+function compiled(url) {
+  if (!modules.has(url)) {
+    const compiling = fetch(url).then(async (response) => {
+      if (!response.ok) throw new Error(`${url} is unavailable (HTTP ${response.status})`);
+      return WebAssembly.compile(await response.arrayBuffer());
+    });
+    compiling.catch(() => modules.delete(url));
+    modules.set(url, compiling);
+  }
+  return modules.get(url);
+}
+
 export class CoreEngine {
   constructor(worker) {
     this.worker = worker;
@@ -41,12 +56,20 @@ export class CoreEngine {
     };
   }
 
-  // Starts a worker and loads the module at `wasm` (a URL) into it. A start
-  // that fails ends its worker: nothing else holds it.
-  static async start(wasm, worker = new Worker(new URL('./core-worker.mjs', import.meta.url), { type: 'module' })) {
+  // Starts a worker with the module at `wasm` (a URL). The page compiles
+  // each module once and hands it to every worker it starts, so a start is a
+  // worker's and not a compilation's (an engine per view, live-world.mjs).
+  static async start(wasm) {
+    const module = await compiled(new URL(wasm, globalThis.location?.href).href);
+    return CoreEngine.load(module, new Worker(new URL('./core-worker.mjs', import.meta.url), { type: 'module' }));
+  }
+
+  // Starts a worker with a compiled module. A start that fails ends its
+  // worker: nothing else holds it.
+  static async load(module, worker) {
     const engine = new CoreEngine(worker);
     try {
-      await engine.request({ type: 'load', wasm: new URL(wasm, globalThis.location?.href).href });
+      await engine.request({ type: 'load', module });
     } catch (error) {
       engine.terminate(error);
       throw error;

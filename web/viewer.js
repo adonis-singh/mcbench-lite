@@ -1,4 +1,4 @@
-import { changedLightChunks, computeLight, lightAt } from './light.mjs';
+import { createLight, updateLight, lightAt } from './light.mjs';
 import { mat4 } from '/vendor/gl-matrix/index.js';
 
 // deepslate's bundle (with its own dependencies inlined) is loaded by the
@@ -524,22 +524,25 @@ export async function createViewer(canvas) {
   // vanilla style: skylight pours down open columns at level 15 and spreads
   // with -1 per step; block light BFS-spreads from emitters. Both live in one
   // grid as max(sky, block).
-  let light = null; // { minX, minY, minZ, sx, sy, sz, lvl: Uint8Array }
+  // The light kept between flushes (light.mjs), and the chunks whose blocks
+  // changed since the last.
+  let light = createLight();
+  const lightTouched = new Set();
   let lightPending = false;
 
-  const cellLight = (x, y, z) => lightAt(light, x, y, z);
+  const cellLight = (x, y, z) => lightAt(light.field, x, y, z);
 
-  // Light changes ripple up to 15 blocks from an edit. Rebuild once per
-  // flush: each chunk whose light changed takes a new light stamp (part of
+  // Light changes ripple up to 15 blocks from an edit (and down a column
+  // whose sky opened or closed). Updated once per flush from the chunks
+  // whose blocks changed: each chunk whose light changed takes a new light stamp (part of
   // what a mesh is made from, meshKey), and the chunks around it, whose
   // blocks read light across their faces, edges and corners, are meshed again.
   let lightStamp = 0;
   const lightStamps = new Map(); // viewer chunk -> the stamp of its last light change
   function rebuildLight() {
     lightPending = false;
-    const before = light;
-    light = computeLight(world);
-    const changed = changedLightChunks(before, light);
+    const changed = updateLight(light, world, lightTouched);
+    lightTouched.clear();
     if (changed.size === 0) return;
     lightStamp += 1;
     for (const cell of changed) {
@@ -987,6 +990,7 @@ export async function createViewer(canvas) {
     const cx = x >> 4, cy = y >> 4, cz = z >> 4;
     if (cx !== dirtyX || cy !== dirtyY || cz !== dirtyZ) {
       meshDirty.add(`${cx},${cy},${cz}`);
+      lightTouched.add(`${cx},${cy},${cz}`);
       dirtyX = cx; dirtyY = cy; dirtyZ = cz;
       dirtyNear = 1 << 13;
     }
@@ -1037,7 +1041,8 @@ export async function createViewer(canvas) {
     dirtyX = NaN;
     lightStamps.clear();
     // An empty world's light, with nothing to rebuild.
-    light = null;
+    light = createLight();
+    lightTouched.clear();
     lightPending = false;
   }
 

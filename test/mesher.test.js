@@ -718,3 +718,35 @@ test('a world the module crashes on ends the workers, and the next world loads i
   assert.deepEqual(again.changed, tiles, 'fresh workers hold no world before: every tile is drawn');
   for (const [x, z] of tiles) assert.ok(Buffer.from(await client.draw(x, z)).equals(Buffer.from(direct.drawIndexed(x, z))), `tile ${x},${z}`);
 });
+
+test('another view drops the tiles not yet given to a worker, and lets go of a pool still loading the world before it', async () => {
+  const { client, workers, answer, prepared } = await fakeWorkers(3);
+  const loaded = client.load(FAKE_VIEW, false);
+  const [world, a, b] = workers;
+  prepared([a, b]);
+  answer(world, { tiles: [], changed: [] });
+  await loaded;
+  // Two tiles being made and one waiting: the waiting one is not made, the pool is kept.
+  const draws = [client.draw(0, 0), client.draw(1, 0), client.draw(2, 0)].map((draw) => draw.then(() => 'drawn', (error) => error.message));
+  client.cancel();
+  assert.ok(![world, a, b].some((worker) => worker.ended), 'a pool drawing its last tiles is kept');
+  for (const [i, worker] of [a, b].entries()) {
+    answer(world, { bytes: new ArrayBuffer(0) }, world.sent[1 + i]);
+    await tick();
+    answer(worker, { bytes: new ArrayBuffer(0) });
+  }
+  assert.deepEqual(await Promise.all(draws), ['drawn', 'drawn', 'Another view was shown']);
+  // A load running: let go with the pool, and the next load starts a new one.
+  const running = client.load(FAKE_VIEW, false).then(() => 'loaded', (error) => error.message);
+  client.cancel();
+  assert.ok([world, a, b].every((worker) => worker.ended), 'every worker of the pool is ended');
+  assert.equal(await running, 'Another view was shown');
+  const next = client.load(FAKE_VIEW, false);
+  assert.equal(workers.length, 6, 'the next load starts a new pool');
+  assert.deepEqual(workers[3].sent.map((m) => m.type), ['load']);
+  prepared(workers.slice(4));
+  answer(workers[3], { tiles: [], changed: [] });
+  await next;
+  client.cancel();
+  assert.ok(!workers[3].ended, 'a pool doing nothing is kept');
+});

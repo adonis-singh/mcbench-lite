@@ -79,7 +79,7 @@ The page opens at once; the first start then prepares the rest in the background
 | Temurin 25.0.5+8, a JDK, which runs Paper, reads Minecraft's tables and makes the viewer's assets | about 130 MB (300 MB on disk) | the tools folder |
 | rustup 1.29.3, then through it Rust 1.99.1 and its WebAssembly target (`core/rust-toolchain.toml`) | 12 MB, then about 550 MB on disk | `rust/` in the tools folder |
 | Chromium's headless shell, the build playwright-core names (149.0.7827.55), which takes `see_build`'s screenshots | about 100 to 120 MB (190 MB on disk) | the tools folder |
-| Paper 1.21.10, and through it the Minecraft server and its libraries from Mojang | about 55 MB, then about 135 MB | `data/minecraft-live/paper` |
+| Paper 1.21.10, and through it the Minecraft server from Mojang (the libraries come inside the two jars) | about 55 MB, then about 59 MB | `data/minecraft-live/paper` |
 | Minecraft's block, loot and data fixer tables, read from that server jar | none | `core/minecraft/1.21.10` |
 | Minecraft's block data from misode/mcmeta | about 4 MB | `data/assets` |
 | BlueMap 5.22's command-line tool, and the Minecraft 1.21.10 client jar from Mojang (the viewer's textures and models) | about 7 MB and 31 MB | `data/minecraft-live/bluemap` |
