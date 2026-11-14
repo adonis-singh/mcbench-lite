@@ -4,6 +4,7 @@ import { mat4 } from '/vendor/gl-matrix/index.js';
 // deepslate's bundle (with its own dependencies inlined) is loaded by the
 // page as a classic script, which sets this global.
 const {
+  BlockColors,
   BlockDefinition,
   BlockModel,
   BlockState,
@@ -14,6 +15,24 @@ const {
   TextureAtlas,
   upperPowerOfTwo,
 } = globalThis.deepslate;
+
+// deepslate tints a model's tinted faces by its BlockColors, a table of
+// functions by block name. Its own table is dropped: every name answers with
+// the colours Minecraft's client gives the state whose quads are being made
+// (`tinting.state`, set as a template is made), by the face's tint index,
+// from the page's tints by state id (/api/block-tints, server/block-tints.js).
+const tinting = { colors: null, indices: 0, state: 0 };
+const TINT_COLORS = new Map(); // 0xRRGGBB -> [r, g, b], as deepslate's Color.intToRgb gives it
+function tintOf(index) {
+  if (index >= tinting.indices) throw new Error(`A face has tint index ${index}; Minecraft's block models have ${tinting.indices}`);
+  const color = tinting.colors[tinting.state * tinting.indices + index];
+  let rgb = TINT_COLORS.get(color);
+  if (!rgb) TINT_COLORS.set(color, rgb = [(color >> 16 & 255) / 255, (color >> 8 & 255) / 255, (color & 255) / 255]);
+  return rgb;
+}
+const tinted = () => tintOf;
+for (const name of Object.keys(BlockColors)) delete BlockColors[name];
+Object.setPrototypeOf(BlockColors, new Proxy({}, { get: (_, key) => (typeof key === 'string' ? tinted : undefined) }));
 
 // Deepslate keeps its object-heavy vertex graph after uploading the same data
 // to WebGL. Chunk edits rebuild geometry from the world, so only GPU buffers
@@ -171,13 +190,14 @@ async function loadImage(src) {
 }
 
 async function loadResources() {
-  const [blocks, blockstates, models, uvMap, atlasImage, stateBytes] = await Promise.all([
+  const [blocks, blockstates, models, uvMap, atlasImage, stateBytes, tintBytes] = await Promise.all([
     fetch('/api/assets/blocks.json').then((r) => r.json()),
     fetch('/api/assets/block_definitions.json').then((r) => r.json()),
     fetch('/api/assets/models.json').then((r) => r.json()),
     fetch('/api/assets/atlas_map.json').then((r) => r.json()),
     loadImage('/api/assets/atlas.png'),
     fetch('/api/block-states').then((r) => r.arrayBuffer()),
+    fetch('/api/block-tints').then((r) => r.arrayBuffer()),
   ]);
   // What Minecraft says of each block state, by the state id each palette
   // entry carries (server/block-states.js bytes), each part on four bytes:
@@ -211,6 +231,12 @@ async function loadResources() {
   const skipMasks = take(Uint8Array, maskBytes);
   const fluidStates = new Map(Object.entries(JSON.parse(new TextDecoder().decode(take(Uint8Array, nameBytes))))
     .map(([id, name]) => [Number(id), BlockState.parse(name)]));
+  // The colours Minecraft tints each state's faces with (server/block-tints.js
+  // bytes): u32 states and tint indices, then by state and tint index u32
+  // 0xRRGGBB.
+  const [tintStates, tintIndices] = new Uint32Array(tintBytes, 0, 2);
+  if (tintStates !== stateCount) throw new Error(`The tints have ${tintStates} states, the block states ${stateCount}`);
+  const tints = new Uint32Array(tintBytes, 8, tintStates * tintIndices);
 
   const blockDefinitions = {};
   for (const id of Object.keys(blockstates)) {
@@ -241,7 +267,7 @@ async function loadResources() {
 
   return {
     states: {
-      fullFaces, draw, fluid, fluidStates, skipRow, skipColumn, skipStart, skipFirst, skipLength, skipMasks,
+      fullFaces, draw, fluid, fluidStates, skipRow, skipColumn, skipStart, skipFirst, skipLength, skipMasks, tints, tintIndices,
       rule: lightRule({ emission, lightBlock, faces, shapes, occludes }),
     },
     resources: {
@@ -353,6 +379,8 @@ const localIndex = (x, y, z) => ((y & 15) << 8) | ((z & 15) << 4) | (x & 15);
 // `floor`: the lowest height a block can have, in the world's coordinates.
 export async function createViewer(canvas, floor) {
   const { resources, states } = await loadResources();
+  tinting.colors = states.tints;
+  tinting.indices = states.tintIndices;
   const gl = canvas.getContext('webgl2', { antialias: true, powerPreference: 'high-performance' });
   if (!gl) throw new Error('WebGL2 is not available');
 
@@ -599,6 +627,7 @@ export async function createViewer(canvas, floor) {
     const { state, id } = placed;
     const name = state.getName();
     return makeTemplate(name, () => {
+      tinting.state = id;
       const props = state.getProperties();
       const defaults = resources.getDefaultBlockProperties(name) ?? {};
       for (const [k, v] of Object.entries(defaults)) if (!props[k]) props[k] = v;
@@ -616,7 +645,10 @@ export async function createViewer(canvas, floor) {
   // A fluid, as deepslate's special renderers draw the block of its state.
   function fluidTemplate(fluid, cull) {
     const state = states.fluidStates.get(fluid);
-    return makeTemplate(state.getName(), () => SpecialRenderers.getBlockMesh(state, undefined, resources, cull), (states.draw[fluid] & 4) !== 0);
+    return makeTemplate(state.getName(), () => {
+      tinting.state = fluid;
+      return SpecialRenderers.getBlockMesh(state, undefined, resources, cull);
+    }, (states.draw[fluid] & 4) !== 0);
   }
 
   // The vertex arrays of one chunk mesh being made, grown as needed.

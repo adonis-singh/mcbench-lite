@@ -246,12 +246,14 @@ function rotateElement(point, rotation) {
 
 // Adds the quads of model `name` to `builder`, turned about the block's
 // center by the blockstate's x then y (Minecraft turns them the other way
-// round about each axis), tinted where a face asks for it.
-export function addModel(builder, entityIndex, name, { x = 0, y = 0 } = {}, tint = null) {
+// round about each axis), a face of a tint index multiplied by `tints`'s
+// colour of that index ([r, g, b], 0-255; white past its end, as Minecraft
+// leaves a tint index no tint source gives).
+export function addModel(builder, entityIndex, name, { x = 0, y = 0 } = {}, tints = []) {
   const model = entityIndex.index.models[name];
   if (!model) throw new Error(`The entity index has no model ${name}`);
   const turn = compose(rotationY(-y * RAD), rotationX(-x * RAD));
-  const color = tint ? tint.map((channel) => channel / 255) : [1, 1, 1];
+  const colors = tints.map((tint) => tint.map((channel) => channel / 255));
   for (const element of model.elements) {
     const from = element.from;
     const to = element.to;
@@ -268,19 +270,37 @@ export function addModel(builder, entityIndex, name, { x = 0, y = 0 } = {}, tint
       const sides = [[u0, v0], [u0, v1], [u1, v1], [u1, v0]];
       const shift = ((spec.rotation || 0) / 90) % 4;
       const uvs = [0, 1, 2, 3].map((i) => entityIndex.uv(spec.texture, ...sides[(i + shift) % 4]));
-      builder.quad(world, uvs, normal, spec.tinted ? color : [1, 1, 1]);
+      builder.quad(world, uvs, normal, colors[spec.tint] ?? [1, 1, 1]);
     }
   }
 }
 
-// A block state as one mesh centered on the origin, or null when it draws
-// nothing (air).
-export function blockMesh(entityIndex, state) {
-  const { id } = parseState(state);
+// The colours Minecraft's client tints a block state with, by tint index:
+// `drawn` 'world' for a block standing in the world (a falling block),
+// 'single' for one drawn with no level (a minecart's, every tint index
+// alike), as the entity index holds them (McbenchEntityAssets.java tints).
+export function blockTints(index, state, drawn) {
+  const { id, props } = parseState(state);
+  const tints = index.blocks[id].tints;
+  if (!tints) return [];
+  const key = tints.by.map((property) => {
+    if (!(property in props)) throw new Error(`${state} does not say its ${property}, which its colour changes with`);
+    return `${property}=${props[property]}`;
+  }).join(',');
+  const colors = tints.colors[key];
+  if (drawn === 'world') return colors.world;
+  if (drawn === 'single') return colors.world.map(() => colors.single);
+  throw new Error(`Not a way of drawing a block: ${drawn}`);
+}
+
+// A block state as one mesh centered on the origin, drawn `drawn` (see
+// blockTints), or null when it draws nothing (air).
+export function blockMesh(entityIndex, state, drawn) {
   const placements = blockPlacements(entityIndex.index, state);
   if (placements.length === 0) return null;
+  const tints = blockTints(entityIndex.index, state, drawn);
   const builder = new MeshBuilder();
-  for (const placement of placements) addModel(builder, entityIndex, placement.model, placement, entityIndex.index.blocks[id].tint);
+  for (const placement of placements) addModel(builder, entityIndex, placement.model, placement, tints);
   return builder.data();
 }
 
@@ -288,7 +308,7 @@ export function blockMesh(entityIndex, state) {
 export function itemBlockMesh(entityIndex, id) {
   const item = entityIndex.index.items[id];
   const builder = new MeshBuilder();
-  addModel(builder, entityIndex, item.model, {}, item.tint);
+  addModel(builder, entityIndex, item.model, {}, item.tints);
   return builder.data();
 }
 
@@ -572,13 +592,13 @@ export class EntityModels {
   }
 
   falling(entity) {
-    const mesh = this.mesh(`block:${entity.block}`, () => blockMesh(this.entityIndex, entity.block));
+    const mesh = this.mesh(`block:${entity.block}`, () => blockMesh(this.entityIndex, entity.block, 'world'));
     if (!mesh) return this.box(entity, 'falling_block');
     return { parts: [{ mesh, material: 'atlas', matrix: translation(0, 0.5, 0) }], orient: () => IDENTITY, animated: false };
   }
 
   tnt(entity) {
-    const mesh = this.mesh('block:minecraft:tnt', () => blockMesh(this.entityIndex, 'minecraft:tnt'));
+    const mesh = this.mesh('single:minecraft:tnt', () => blockMesh(this.entityIndex, 'minecraft:tnt', 'single'));
     // Minecraft's: the block swells in the last ten ticks, and is white for five of every ten.
     const swell = (e) => 1 + Math.min(Math.max(1 - (e.fuse + 1) / 10, 0), 1) ** 4 * 0.3;
     const at = (e, grow) => compose(translation(0, 0.5, 0), scaling(swell(e) * grow));
@@ -595,7 +615,7 @@ export class EntityModels {
   cart(entity) {
     const parts = [{ mesh: this.mesh('cart', () => cartMesh(this.entityIndex)), material: 'atlas', matrix: IDENTITY }];
     if (entity.block && !/^minecraft:(air|cave_air|void_air)$/.test(entity.block)) {
-      const mesh = this.mesh(`block:${entity.block}`, () => blockMesh(this.entityIndex, entity.block));
+      const mesh = this.mesh(`single:${entity.block}`, () => blockMesh(this.entityIndex, entity.block, 'single'));
       // Minecraft's display block: three quarters size, turned a quarter, standing proud of the cart.
       if (mesh) parts.push({ mesh, material: 'atlas', matrix: compose(translation(0, 0.656, 0), rotationY(PI / 2), scaling(0.75)) });
     }
@@ -632,7 +652,7 @@ export class EntityModels {
   frame(entity) {
     const glow = entity.type === 'minecraft:glow_item_frame';
     const state = glow ? 'minecraft:glow_item_frame[map=false]' : 'minecraft:item_frame[map=false]';
-    const mesh = this.mesh(`block:${state}`, () => blockMesh(this.entityIndex, state));
+    const mesh = this.mesh(`single:${state}`, () => blockMesh(this.entityIndex, state, 'single'));
     const facing = FACING_VECTOR[entity.facing];
     if (!facing) throw new Error(`An item frame faces ${entity.facing}`);
     const turn = facingMatrix(entity.facing);

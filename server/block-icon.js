@@ -1,21 +1,15 @@
 'use strict';
 
 // A block's icon: the texture Minecraft breaks it into particles with, cut
-// from the texture atlas as a PNG. Stairs show their planks and panes their
-// glass; an animation shows its first frame; grass, foliage and water carry
-// the plains biome's tint, as the game draws them there.
+// from the texture atlas as a PNG, multiplied by the colour Minecraft's
+// client multiplies those particles by in the world the app builds in (its
+// default state's, block-tints.js particle). Stairs show their planks and
+// panes their glass; an animation shows its first frame.
 
 const zlib = require('zlib');
 const { getAsset } = require('./assets');
-
-const TINTS = [
-  [/^birch_leaves$/, [0x80, 0xa7, 0x55]],
-  [/^spruce_leaves$/, [0x61, 0x99, 0x61]],
-  [/^(oak|jungle|acacia|dark_oak|mangrove)_leaves$|^vine$/, [0x77, 0xab, 0x2f]],
-  [/^(short_grass|tall_grass|fern|large_fern|sugar_cane)$/, [0x91, 0xbd, 0x59]],
-  [/^lily_pad$/, [0x20, 0x80, 0x30]],
-  [/^(water|bubble_column)$/, [0x3f, 0x76, 0xe4]],
-];
+const { blockStates } = require('./block-states');
+const { blockTints } = require('./block-tints');
 
 let assets = null;
 const icons = new Map(); // block name -> PNG
@@ -107,26 +101,32 @@ function particleTexture(name, { definitions, models }) {
   return texture.replace(/^minecraft:/, '');
 }
 
-// The PNG for a block name such as "glass", or null for a name that is not a block.
+// The PNG for a block name such as "glass", or null for a name that is not
+// a block of the block table (item frames have block definitions and are
+// not).
 async function blockIcon(name) {
   if (icons.has(name)) return icons.get(name);
-  const loaded = await loadAssets();
-  if (!Object.hasOwn(loaded.definitions, name)) return null;
-  const [x, y, size] = loaded.atlasMap[particleTexture(name, loaded)];
-  const { width, pixels } = loaded.atlas;
-  const tint = TINTS.find(([pattern]) => pattern.test(name))?.[1];
-  const icon = Buffer.alloc(size * size * 4);
-  for (let row = 0; row < size; row += 1) {
-    pixels.copy(icon, row * size * 4, ((y + row) * width + x) * 4, ((y + row) * width + x + size) * 4);
-  }
-  if (tint) {
-    for (let at = 0; at < icon.length; at += 4) {
-      for (let channel = 0; channel < 3; channel += 1) icon[at + channel] = Math.round(icon[at + channel] * tint[channel] / 255);
-    }
-  }
-  const png = encodePng(size, icon);
+  const [loaded, states, tints] = await Promise.all([loadAssets(), blockStates(), blockTints()]);
+  if (!states.defaults.has(`minecraft:${name}`)) return null;
+  const png = icon(name, loaded, tints.particle[states.idOf(`minecraft:${name}`, {})]);
   icons.set(name, png);
   return png;
 }
 
-module.exports = { blockIcon, _internal: { decodePng, encodePng, particleTexture } };
+// The icon of block `name` from the loaded assets, multiplied by `color`
+// (0xRRGGBB).
+function icon(name, loaded, color) {
+  const tint = [color >> 16 & 255, color >> 8 & 255, color & 255];
+  const [x, y, size] = loaded.atlasMap[particleTexture(name, loaded)];
+  const { width, pixels } = loaded.atlas;
+  const out = Buffer.alloc(size * size * 4);
+  for (let row = 0; row < size; row += 1) {
+    pixels.copy(out, row * size * 4, ((y + row) * width + x) * 4, ((y + row) * width + x + size) * 4);
+  }
+  for (let at = 0; at < out.length; at += 4) {
+    for (let channel = 0; channel < 3; channel += 1) out[at + channel] = Math.round(out[at + channel] * tint[channel] / 255);
+  }
+  return encodePng(size, out);
+}
+
+module.exports = { blockIcon, _internal: { decodePng, encodePng, particleTexture, icon, loadAssets } };

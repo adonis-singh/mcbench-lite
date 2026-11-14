@@ -3,6 +3,7 @@
 const assert = require('node:assert/strict');
 const { test } = require('node:test');
 const { testBlockStates } = require('./helpers/block-table');
+const { testBlockTints } = require('./helpers/block-tints');
 const { viewerHarness } = require('./helpers/viewer');
 
 // The see_build viewer (web/viewer.js) with deepslate itself, over a stand-in
@@ -36,7 +37,7 @@ const ASSETS = {
 
 let open;
 test.before(async () => {
-  open = await viewerHarness(STATES, ASSETS);
+  open = await viewerHarness(STATES, ASSETS, testBlockTints(STATES));
 });
 
 // A server chunk: `blocks` as [x, y, z, id] within the chunk at `origin`.

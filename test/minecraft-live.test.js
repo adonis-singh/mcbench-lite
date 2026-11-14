@@ -15,7 +15,10 @@ function host(options) {
     assets: null,
     async prepare() { this.assets = { id: 'test', viewerUrl: '/bluemap/test/', pack: '/bluemap/test/mcbench-pack.bin', wasm: '/bluemap/mesher-test.wasm' }; },
   };
-  return new MinecraftLive({ paperDir, blueMap, ...options });
+  const live = new MinecraftLive({ paperDir, blueMap, ...options });
+  // Paper's files, laid out.
+  live.ensurePaper = async () => ['paper.jar', 'libraries/a.jar'];
+  return live;
 }
 
 test('the server tells the page what it needs to draw a world, as soon as the viewer is prepared', async () => {

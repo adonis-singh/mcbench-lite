@@ -47,7 +47,9 @@ import java.util.function.Predicate;
 // Run in a bake folder (server/bluemap.js's configuration, with the web app
 // McbenchBake made, whose texture list the tiles index), with this file
 // compiled together with server/McbenchBake.java:
-//   java -cp <bluemap cli jar>:<classes> McbenchBlueMapReference <minecraft version> <block table tsv>
+//   java -cp <bluemap cli jar>:<classes> McbenchBlueMapReference <minecraft version> <block table tsv> <the world's biome>
+// It draws the blocks Minecraft's client tints in the client's colours, as
+// the bake does (McbenchBake.minecraftColors, from the bake's tints.tsv).
 // Requests on stdin, one per line: <blueprint> <config folder> <tile folder>.
 // <config folder> holds maps/live.conf, the map settings with the render
 // mask. Every tile over each built chunk column and one block past it is
@@ -59,11 +61,12 @@ class McbenchBlueMapReference {
   public static void main(String[] args) throws Exception {
     McbenchBake.logFailures();
     ResourcePack resources;
-    Biome plains;
+    Biome biome;
     try (var service = McbenchBake.service(args[0])) {
       resources = service.getOrLoadResourcePack();
-      plains = service.loadDataPack(List.of()).getBiome(Key.minecraft("plains"));
+      biome = service.loadDataPack(List.of()).getBiome(Key.parse(args[2]));
     }
+    McbenchBake.minecraftColors(resources, Path.of("tints.tsv"));
     TextureGallery gallery;
     try (var in = Files.newInputStream(Path.of("web/maps/live/textures.json"))) { gallery = TextureGallery.readTexturesFile(in); }
     var table = BlockTable.read(Path.of(args[1]));
@@ -79,7 +82,7 @@ class McbenchBlueMapReference {
       MapConfig settings = config.getMapConfigs().get("live");
       var storage = new FileStorage(Path.of(request[2]), Compression.NONE, true);
       storage.initialize();
-      BlueprintWorld blueprint = BlueprintWorld.read(Path.of(request[0]), table, plains);
+      BlueprintWorld blueprint = BlueprintWorld.read(Path.of(request[0]), table, biome);
       var models = new HiresModelManager(blueprint, storage.map("live").hiresTiles(), resources, gallery,
         settings, new Grid(settings.getHiresTileSize(), 2));
       Grid tileGrid = models.getTileGrid();
@@ -140,7 +143,7 @@ class McbenchBlueMapReference {
   }
 
   // A blueprint as a BlueMap world: its blocks at their Minecraft
-  // coordinates, plains everywhere, and the light Paper's light engine
+  // coordinates, the one biome everywhere, and the light Paper's light engine
   // gives them in the void (sky light straight down through blocks that
   // block no light and from the open sides, block light from emitting
   // blocks, each step losing max(1, the light the next block blocks),

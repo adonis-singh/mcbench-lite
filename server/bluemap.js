@@ -4,7 +4,9 @@
 // viewer's assets once per content (McbenchBake.java): BlueMap's web app,
 // the map's settings and texture list, the baked pack the browser's mesher
 // reads, and the entity layer's atlas (McbenchEntityAssets.java, made from
-// Minecraft's client jar beside the pack). The mesher (renderer/,
+// Minecraft's client jar beside the pack); in the same run Minecraft's client
+// says what it says of every block state (McbenchClient.java: the render
+// layers and colours see_build and the icons read). The mesher (renderer/,
 // WebAssembly, run in the viewer's worker: web/mesher-worker.mjs) then draws
 // every tile in the browser, byte for byte as BlueMap draws it; no BlueMap
 // runs while the app does.
@@ -21,6 +23,7 @@ const { sendFile } = require('./static-file');
 const { MODULE: MESHER } = require('../scripts/build-renderer');
 const { step } = require('./progress');
 const { JAVA, JAVAC } = require('./tools');
+const { BIOME } = require('./minecraft-dimension');
 const tools = require('./tools');
 const setup = require('./setup');
 
@@ -37,7 +40,10 @@ const JAR_SHA256 = 'a2289d649f6a83e04cf222abcd3d4f2df4e32e61147015f921c05066f63e
 const JAR_MB = 7;
 const CLIENT_MB = 31;
 const MEMORY = process.env.MCBENCH_BLUEMAP_MEMORY || '2G';
-const BAKE = [path.join(__dirname, 'McbenchBake.java'), path.join(__dirname, 'McbenchEntityAssets.java')];
+const BAKE = ['McbenchBake.java', 'McbenchEntityAssets.java', 'McbenchClient.java'].map((name) => path.join(__dirname, name));
+// What Minecraft's server entry point (McbenchClient bootstraps Minecraft by
+// it) writes in the bake's folder: its settings and its log.
+const MINECRAFT_LEAVES = ['server.properties', 'eula.txt', 'logs'];
 // BlueMap's download cache (the Minecraft client jar it reads textures and
 // models from), shared by every bake.
 const DOWNLOADS = 'data';
@@ -158,6 +164,7 @@ class BlueMap {
     this.mesher = mesher;
     this.mesherHash = sha256(fs.readFileSync(mesher)).slice(0, 16);
     this.assets = null;
+    this.folder = null;
     this.preparing = null;
   }
 
@@ -169,19 +176,21 @@ class BlueMap {
   }
 
   // The viewer's assets for `blockTable` (Paper's, see McbenchBlockTable),
-  // made unless this exact bake exists. Resolves with their addresses.
-  prepare(blockTable) {
-    this.preparing ||= this.bake(blockTable).catch((error) => {
+  // made unless this exact bake exists, Minecraft's client run on
+  // `libraries` (Paper's, the server's: the client shares them). Resolves
+  // with their addresses.
+  prepare(blockTable, libraries) {
+    this.preparing ||= this.bake(blockTable, libraries).catch((error) => {
       this.preparing = null;
       throw error;
     });
     return this.preparing;
   }
 
-  async bake(blockTable) {
+  async bake(blockTable, libraries) {
     await this.ensureJar();
     const files = configFiles(path.join(this.root, DOWNLOADS));
-    const id = sha256(JSON.stringify([JAR_SHA256, MC_VERSION, BAKE.map((file) => sha256(fs.readFileSync(file))), sha256(fs.readFileSync(blockTable)), files])).slice(0, 16);
+    const id = sha256(JSON.stringify([JAR_SHA256, MC_VERSION, BIOME, BAKE.map((file) => sha256(fs.readFileSync(file))), sha256(fs.readFileSync(blockTable)), files])).slice(0, 16);
     const folder = path.join(this.root, id);
     // Everything else here is an older bake, or files of an older app.
     for (const name of fs.readdirSync(this.root)) {
@@ -192,14 +201,15 @@ class BlueMap {
       writeFiles(staging, files);
       const classes = path.join(staging, 'classes');
       const client = fs.existsSync(path.join(this.root, DOWNLOADS)) ? '' : `, downloading the Minecraft ${MC_VERSION} client jar from Mojang (about ${CLIENT_MB} MB) for its textures`;
-      await step(`[viewer] making the 3D viewer's assets with BlueMap${client}`, '[viewer] 3D viewer assets made', async () => {
+      await step(`[viewer] making the 3D viewer's assets with BlueMap and reading every block state's render layer and colours from Minecraft's client${client}`, '[viewer] 3D viewer assets, render layers and colours made', async () => {
         await this.run(JAVAC, ['-proc:none', '-classpath', this.jar, '-d', classes, ...BAKE], { timeout: 120_000 });
-        await this.run(this.java, [`-Xmx${this.memory}`, '-cp', [this.jar, classes].join(path.delimiter), 'McbenchBake', MC_VERSION, blockTable],
+        await this.run(this.java, [`-Xmx${this.memory}`, '-cp', [this.jar, classes].join(path.delimiter), 'McbenchBake', MC_VERSION, blockTable, libraries.join(path.delimiter), BIOME],
           { cwd: staging, timeout: 600_000, maxBuffer: 16 * 1024 * 1024 });
       });
-      fs.rmSync(classes, { recursive: true, force: true });
+      for (const name of ['classes', ...MINECRAFT_LEAVES]) fs.rmSync(path.join(staging, name), { recursive: true, force: true });
       fs.renameSync(staging, folder);
     }
+    this.folder = folder;
     this.assets = {
       id,
       viewerUrl: `/bluemap/${id}/`,
@@ -209,9 +219,10 @@ class BlueMap {
     return this.assets;
   }
 
-  // The Minecraft client jar a bake downloads, there once one is made.
-  clientJar() {
-    return path.join(this.root, DOWNLOADS, `minecraft-client-${MC_VERSION}.jar`);
+  // A file of the current bake that the app reads itself (McbenchClient's
+  // render-layers.tsv and tints.tsv), not served.
+  baked(name) {
+    return path.join(this.folder, name);
   }
 
   // The web app and pack of the current bake under /bluemap/<id>/, and the

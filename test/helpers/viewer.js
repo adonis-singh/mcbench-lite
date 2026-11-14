@@ -6,7 +6,8 @@ const vm = require('node:vm');
 
 // The see_build viewer (web/viewer.js) with deepslate itself, over a stand-in
 // WebGL context that keeps what each buffer was given, reading `states`
-// (a BlockStates) and the page's `assets` (by file name under /api/assets/).
+// (a BlockStates), `tints` (a BlockTints of them) and the page's `assets` (by
+// file name under /api/assets/).
 const ROOT = path.join(__dirname, '..', '..');
 
 // A WebGL context that does nothing but keep each buffer's data.
@@ -39,7 +40,7 @@ function fakeGl(canvas) {
 // Loads the viewer into this process (once per test file); resolves with
 // open(), which makes a viewer and gives it with what it holds: the world,
 // deepslate's chunks, what a frame draws, and the buffers alive.
-async function viewerHarness(states, assets) {
+async function viewerHarness(states, assets, tints) {
   let captured;
   const deepslate = require(path.join(ROOT, 'node_modules', 'deepslate', 'dist', 'deepslate.umd.cjs'));
   // The renderer and the world it draws, as the viewer makes them.
@@ -50,8 +51,9 @@ async function viewerHarness(states, assets) {
     }
   }
   globalThis.deepslate = { ...deepslate, StructureRenderer };
-  globalThis.fetch = async (url) => (url === '/api/block-states'
-    ? { arrayBuffer: async () => { const bytes = states.bytes(); return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.length); } }
+  const binary = { '/api/block-states': states, '/api/block-tints': tints };
+  globalThis.fetch = async (url) => (binary[url]
+    ? { arrayBuffer: async () => { const bytes = binary[url].bytes(); return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.length); } }
     : { json: async () => assets[url.slice('/api/assets/'.length)] });
   globalThis.Image = class {
     constructor() { this.width = 32; this.height = 16; }

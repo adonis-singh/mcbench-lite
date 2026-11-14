@@ -38,7 +38,7 @@ const { blocksBlueprint, readBlueprint, worldBlueprint } = require('../server/bl
 const { MC_VERSION } = require('../server/assets');
 const { JAVA, JAVAC } = require('../server/tools');
 const { World } = require('../server/world');
-const { Y_OFFSET } = require('../server/minecraft-dimension');
+const { Y_OFFSET, BIOME } = require('../server/minecraft-dimension');
 const { build, MODULE } = require('./build-renderer');
 const { corpusArtifacts } = require('./corpus');
 
@@ -62,20 +62,21 @@ function writeFiles(folder, files) {
 // against. Then BlueMap's own renderer, started once, drawing blueprints.
 async function bake(blockTable) {
   await blueMap.ensureJar();
+  const libraries = (await minecraftLive.ensurePaper()).filter((entry) => entry.startsWith('libraries/')).map((entry) => path.join(minecraftLive.paperDir, entry));
   fs.rmSync(FOLDER, { recursive: true, force: true });
   writeFiles(FOLDER, configFiles(path.join(blueMap.root, 'data')));
   const classes = path.join(FOLDER, 'classes');
   execFileSync(JAVAC, ['-proc:none', '-classpath', blueMap.jar, '-d', classes,
-    path.join(ROOT, 'server', 'McbenchBake.java'), path.join(ROOT, 'server', 'McbenchEntityAssets.java'), path.join(__dirname, 'McbenchBlueMapReference.java')], { stdio: 'inherit' });
+    ...['McbenchBake.java', 'McbenchEntityAssets.java', 'McbenchClient.java'].map((name) => path.join(ROOT, 'server', name)), path.join(__dirname, 'McbenchBlueMapReference.java')], { stdio: 'inherit' });
   const classpath = [blueMap.jar, classes].join(path.delimiter);
   const flowTable = path.join(FOLDER, 'flow-angles.bin');
   const started = Date.now();
-  execFileSync(JAVA, ['-Xmx2G', '-cp', classpath, 'McbenchBake', MC_VERSION, blockTable, flowTable],
+  execFileSync(JAVA, ['-Xmx2G', '-cp', classpath, 'McbenchBake', MC_VERSION, blockTable, libraries.join(path.delimiter), BIOME, flowTable],
     { cwd: FOLDER, stdio: ['ignore', 'inherit', 'inherit'] });
   console.log(`baked in ${Date.now() - started} ms`);
   execFileSync(path.join(RENDERER, 'target', 'release', 'mcbench-mesh'), ['flow', flowTable], { stdio: 'inherit' });
 
-  const java = spawn(JAVA, ['-Xmx4G', '-cp', classpath, 'McbenchBlueMapReference', MC_VERSION, blockTable], { cwd: FOLDER, stdio: ['pipe', 'pipe', 'inherit'] });
+  const java = spawn(JAVA, ['-Xmx4G', '-cp', classpath, 'McbenchBlueMapReference', MC_VERSION, blockTable, BIOME], { cwd: FOLDER, stdio: ['pipe', 'pipe', 'inherit'] });
   const replies = readline.createInterface({ input: java.stdout })[Symbol.asyncIterator]();
   let drawn = 0;
   // Every tile BlueMap draws for `blueprint` (bytes) under `mask`, as

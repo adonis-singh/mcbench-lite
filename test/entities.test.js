@@ -112,20 +112,26 @@ test('a block state picks the variant that agrees with its properties, or the mu
 });
 
 test('a block model becomes quads on the atlas, tinted where a face asks and turned by the blockstate', async () => {
-  const { EntityIndex, blockMesh, addModel, MeshBuilder } = await import('../web/entity-models.mjs');
+  const { EntityIndex, blockMesh, itemBlockMesh, addModel, MeshBuilder } = await import('../web/entity-models.mjs');
   const entityIndexed = new EntityIndex(entityIndex());
-  const stone = blockMesh(entityIndexed, 'minecraft:stone');
+  const stone = blockMesh(entityIndexed, 'minecraft:stone', 'world');
   assert.equal(stone.position.length / 3, 36, 'six faces of two triangles');
   for (let i = 0; i < stone.uv.length; i += 2) {
     assert.ok(stone.uv[i] >= 0 && stone.uv[i] <= 16 / 256 && stone.uv[i + 1] >= 0 && stone.uv[i + 1] <= 16 / 128, 'a stone uv stays on the stone texture');
   }
   assert.ok(stone.position.every((value) => Math.abs(value) <= 0.5), 'the block is centered on the origin');
-  assert.equal(blockMesh(entityIndexed, 'minecraft:air'), null);
+  assert.equal(blockMesh(entityIndexed, 'minecraft:air', 'world'), null);
 
-  const grass = blockMesh(entityIndexed, 'minecraft:grass_block');
-  const colors = new Set();
-  for (let i = 0; i < grass.color.length; i += 3) colors.add(Array.from(grass.color.slice(i, i + 3), (v) => v.toFixed(3)).join());
-  assert.deepEqual([...colors].sort(), ['0.569,0.741,0.349', '1.000,1.000,1.000'], 'only the top is tinted');
+  const colorsOf = (mesh) => {
+    const colors = new Set();
+    for (let i = 0; i < mesh.color.length; i += 3) colors.add(Array.from(mesh.color.slice(i, i + 3), (v) => v.toFixed(3)).join());
+    return [...colors].sort();
+  };
+  assert.deepEqual(colorsOf(blockMesh(entityIndexed, 'minecraft:grass_block', 'world')), ['0.569,0.741,0.349', '1.000,1.000,1.000'], 'only the top is tinted, in the world\'s colour');
+  assert.deepEqual(colorsOf(blockMesh(entityIndexed, 'minecraft:grass_block', 'single')), ['0.486,0.741,0.420', '1.000,1.000,1.000'], 'a block drawn with no level takes its colour for none');
+  assert.deepEqual(colorsOf(itemBlockMesh(entityIndexed, 'minecraft:grass_block')), ['0.486,0.741,0.420', '1.000,1.000,1.000'], 'an item takes its tint source\'s');
+  assert.deepEqual(colorsOf(blockMesh(entityIndexed, 'minecraft:dust[power=15]', 'world')), ['1.000,0.196,0.000', '1.000,1.000,1.000'], 'dust by its power');
+  assert.throws(() => blockMesh(entityIndexed, 'minecraft:dust', 'world'), /does not say its power/);
 
   const turned = new MeshBuilder();
   addModel(turned, entityIndexed, 'block/slab', { y: 90 });

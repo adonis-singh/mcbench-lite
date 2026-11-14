@@ -7,6 +7,9 @@ const MIN_MC_Y = -64;
 const WORLD_HEIGHT = 1024;
 const MAX_MC_Y = MIN_MC_Y + WORLD_HEIGHT - 1;
 const Y_OFFSET = Number(process.env.MCBENCH_MC_Y_OFFSET || 64);
+// The one biome of the world the app builds in (paper-server.js's void
+// world), whose colours tinted blocks take (McbenchClient.java).
+const BIOME = 'minecraft:plains';
 // The ticks Minecraft runs on a placed build before it is read back, unless
 // the model asks for another number (build's settle_ticks, see_build's tick):
 // 210 is 7 steps of overworld lava, which moves a step (a block down or a
@@ -44,4 +47,4 @@ function writeDimensionPack(paperDir) {
   }, null, 2));
 }
 
-module.exports = { MIN_MC_Y, MAX_MC_Y, WORLD_HEIGHT, Y_OFFSET, DEFAULT_SETTLE_TICKS, validateWorldHeight, writeDimensionPack };
+module.exports = { MIN_MC_Y, MAX_MC_Y, WORLD_HEIGHT, Y_OFFSET, BIOME, DEFAULT_SETTLE_TICKS, validateWorldHeight, writeDimensionPack };

@@ -37,6 +37,7 @@ const promptLibrary = require('./prompts');
 const { RESOLUTIONS } = require('../web/resolution.mjs');
 const settings = require('./settings');
 const { blockStates } = require('./block-states');
+const { blockTints } = require('./block-tints');
 const { shotWorld, warmShotEngines, stopShotEngines } = require('./shot-world');
 const { warmRenderer, closeRenderer } = require('./shot');
 const { Shares, shareId } = require('./share');
@@ -796,6 +797,14 @@ async function handleApi(req, res, url) {
   // see_build's page lights and culls with.
   if (req.method === 'GET' && url.pathname === '/api/block-states') {
     const bytes = (await blockStates()).bytes();
+    res.writeHead(200, { 'content-type': 'application/octet-stream', 'cache-control': 'private, no-cache' });
+    return res.end(bytes);
+  }
+
+  // The colours Minecraft tints every block state with (block-tints.js),
+  // which see_build's page tints faces with.
+  if (req.method === 'GET' && url.pathname === '/api/block-tints') {
+    const bytes = (await blockTints()).bytes();
     res.writeHead(200, { 'content-type': 'application/octet-stream', 'cache-control': 'private, no-cache' });
     return res.end(bytes);
   }

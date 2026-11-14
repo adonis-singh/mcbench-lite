@@ -62,6 +62,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.concurrent.FutureTask;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
@@ -73,13 +74,19 @@ import java.util.function.Predicate;
 // variants by position hash, culling, light, ambient occlusion, liquids,
 // transforms, sorting and writing the tile. No BlueMap runs in the app.
 //
-//   java -cp <bluemap cli jar>:<classes> McbenchBake <minecraft version> <block table tsv> [flow table out]
+//   java -cp <bluemap cli jar>:<classes> McbenchBake <minecraft version> <block table tsv>
+//     <Minecraft's libraries, a class path> <the world's biome> [flow table out]
 //
 // run in a folder holding BlueMap's configuration (config/, written by
 // server/bluemap.js, whose map "live" holds the render settings). It writes
 // the web app to web/, the map's settings.json and textures.json to
 // web/maps/live/ and the pack to web/mcbench-pack.bin, and the entity layer's
 // atlas and index to web/mcbench-entities.png and .json (McbenchEntityAssets).
+// Once BlueMap has the client jar, Minecraft's client is asked what it says
+// of every block state (McbenchClient, on a thread of its own while BlueMap
+// loads its resources), which writes render-layers.tsv and tints.tsv here;
+// BlueMap then draws the blocks the client tints in the client's colours
+// (minecraftColors), and the entity layer is tinted as the client tints it.
 // It draws every model variant with BlueMap's own renderer too and fails
 // unless the baked data rebuilds those faces (see check). With a third argument it also writes,
 // for renderer/'s test, the flow angle BlueMap's LiquidModelRenderer gives
@@ -113,7 +120,8 @@ import java.util.function.Predicate;
 //   u32 air state, u32 BlockState.WATER selection, u32 BlockState.WATER tint,
 //     u8 BlockState.WATER tint blends
 //   u32 tints, each: f32 r, g, b (the color BlueMap's calculator gives the
-//     state in a plains world, as the face color it writes)
+//     state in the world's biome, as the face color it writes: Minecraft's,
+//     for every block the client tints, see minecraftColors)
 //   u32 matrices, each: 12 f32
 //   u32 direction tables, each: 27 x (i8 dx, dy, dz): the neighbour BlueMap reads
 //     for an offset (index (dx+1)*9 + (dy+1)*3 + dz+1) once turned with the
@@ -137,7 +145,7 @@ class McbenchBake {
 
   final ResourcePack pack;
   final TextureGallery gallery;
-  final Biome plains;
+  final Biome biome;
   final BlockColorCalculator colors;
   final ResourceModelRenderer models;
   final ProbeWorld probe;
@@ -150,13 +158,13 @@ class McbenchBake {
   final Map<Variant, Integer> variantIds = new IdentityHashMap<>();
   final Map<Variant, BlockRendererType> variantTypes = new IdentityHashMap<>();
 
-  McbenchBake(ResourcePack pack, TextureGallery gallery, Biome plains) throws Exception {
+  McbenchBake(ResourcePack pack, TextureGallery gallery, Biome biome) throws Exception {
     this.pack = pack;
     this.gallery = gallery;
-    this.plains = plains;
+    this.biome = biome;
     this.colors = pack.createBlockColorCalculator();
     this.models = new ResourceModelRenderer(pack, gallery, SETTINGS);
-    this.probe = new ProbeWorld(plains, pack);
+    this.probe = new ProbeWorld(biome, pack);
     rendererVariant = ResourceModelRenderer.class.getDeclaredField("variant");
     rendererVariant.setAccessible(true);
     uvLockRotation = ResourceModelRenderer.class.getDeclaredMethod("uvLockRotation", Direction.class);
@@ -213,8 +221,9 @@ class McbenchBake {
     public boolean isRenderTopOnly() { return false; }
   };
 
-  // A plains void holding chosen states, as the blueprint world is plains
-  // everywhere: where the tint and the probe renders are taken.
+  // A void of the world's biome holding chosen states, as the blueprint
+  // world is that biome everywhere: where the tint and the probe renders are
+  // taken.
   static final class ProbeWorld implements World {
     final Biome biome;
     final ResourcePack pack;
@@ -404,7 +413,7 @@ class McbenchBake {
     return new float[] { uvs[0].x, uvs[0].y, uvs[1].x, uvs[1].y, uvs[2].x, uvs[2].y, uvs[3].x, uvs[3].y };
   }
 
-  // Draws the variant with BlueMap's own renderer in an empty plains world,
+  // Draws the variant with BlueMap's own renderer in an empty world of the biome,
   // where no face is culled, and fails unless the faces it wrote are the
   // ones the baked data rebuilds: the UVs and textures above, and the
   // positions renderer/ makes (element corners, element matrix, variant
@@ -687,24 +696,84 @@ class McbenchBake {
     return new BlueMapService(config);
   }
 
-  public static void main(String[] args) throws Exception {
+  // BlueMap's colour configuration (its blockColors.json, as its resource
+  // packs give it) for every block Minecraft's client tints, replaced with
+  // the client's own colours in the world (McbenchClient's tints file): every
+  // block whose models' faces carry a tint index, or that the client gives a
+  // colour. A block of one colour in every state is configured by its id
+  // alone (which fits every state, the property-less ones BlueMap makes, as
+  // BlockState.WATER, too), any other state by state. BlueMap tints every
+  // tinted face of a state alike: the faces' tint indices must have one
+  // colour. Blocks only BlueMap's own models tint (banners, shulker boxes:
+  // Minecraft draws them as block entities) keep BlueMap's colours.
+  static void minecraftColors(ResourcePack pack, Path tints) throws Exception {
+    Field configField = ResourcePack.class.getDeclaredField("blockColorsConfig");
+    configField.setAccessible(true);
+    Object config = configField.get(pack);
+    Field mapField = config.getClass().getDeclaredField("colorConfig");
+    mapField.setAccessible(true);
+    @SuppressWarnings("unchecked")
+    var colors = (Map<BlockState, String>) mapField.get(config);
+    var byBlock = new LinkedHashMap<String, LinkedHashMap<String, String>>(); // block id -> state -> colour
+    var tinted = new java.util.HashSet<String>();
+    List<String> lines = Files.readAllLines(tints);
+    for (String line : lines.subList(1, lines.size())) {
+      String[] fields = line.split("\t");
+      String id = fields[0].contains("[") ? fields[0].substring(0, fields[0].indexOf('[')) : fields[0];
+      String[] world = fields[1].split(",");
+      var used = new java.util.TreeSet<String>();
+      if (fields[4].equals("-")) used.add(world[0]);
+      else for (String index : fields[4].split(",")) used.add(world[Integer.parseInt(index)]);
+      if (used.size() != 1) throw new IOException(fields[0] + " has tinted faces Minecraft colours " + used + ": the pack holds one tint per state");
+      if (!fields[4].equals("-") || java.util.Arrays.stream(world).anyMatch((color) -> !color.equals("ffffff"))) tinted.add(id);
+      byBlock.computeIfAbsent(id, (key) -> new LinkedHashMap<>()).put(fields[0], "#" + used.first());
+    }
+    colors.keySet().removeIf((state) -> tinted.contains(state.getId().getFormatted()));
+    for (String id : tinted) {
+      var states = byBlock.get(id);
+      if (new java.util.HashSet<>(states.values()).size() == 1) colors.put(BlockState.fromString(id), states.values().iterator().next());
+      else states.forEach((state, color) -> colors.put(BlockState.fromString(state), color));
+    }
+  }
+
+  public static void main(String[] args) {
+    try {
+      bake(args);
+    } catch (Throwable error) {
+      error.printStackTrace();
+      System.exit(1);
+    }
+    // Minecraft's entry point (McbenchClient) leaves threads behind.
+    System.exit(0);
+  }
+
+  static void bake(String[] args) throws Exception {
     logFailures();
     try (var service = service(args[0])) {
+      // The client jar BlueMap downloads, which Minecraft's client is read
+      // from while BlueMap loads its resources from it.
+      service.getOrLoadMinecraftVersion();
+      Path clientJar = service.getConfig().getCoreConfig().getData().resolve("minecraft-client-" + args[0] + ".jar");
+      var client = new FutureTask<>(() -> McbenchClient.read(clientJar, Path.of(args[1]), args[2], args[3]));
+      new Thread(client, "minecraft-client").start();
       ResourcePack resources = service.getOrLoadResourcePack();
       service.createOrUpdateWebApp(true);
-      Biome plains = service.loadDataPack(List.of()).getBiome(Key.minecraft("plains"));
+      Biome biome = service.loadDataPack(List.of()).getBiome(Key.parse(args[3]));
       // The map, saved as BlueMap saves a new one: its settings, and the
       // texture list the viewer resolves every tile's materials against,
       // which the pack's texture indices follow.
       MapConfig settings = service.getConfig().getMapConfigs().get("live");
-      var map = new BmMap("live", settings.getName(), new ProbeWorld(plains, resources),
+      var map = new BmMap("live", settings.getName(), new ProbeWorld(biome, resources),
         service.getOrLoadStorage(settings.getStorage()).map("live"), resources, settings);
       map.save();
-      var bake = new McbenchBake(resources, map.getTextureGallery(), plains);
+      McbenchClient minecraft = client.get();
+      minecraft.writeLayers(Path.of("render-layers.tsv"));
+      minecraft.writeTints(Path.of("tints.tsv"));
+      minecraftColors(resources, Path.of("tints.tsv"));
+      var bake = new McbenchBake(resources, map.getTextureGallery(), biome);
       bake.write(Path.of(args[1]), Path.of("web/mcbench-pack.bin"));
-      McbenchEntityAssets.write(service.getConfig().getCoreConfig().getData().resolve("minecraft-client-" + args[0] + ".jar"),
-        Path.of("web/mcbench-entities.png"), Path.of("web/mcbench-entities.json"));
-      if (args.length > 2) bake.writeFlowTable(Path.of(args[2]));
+      McbenchEntityAssets.write(clientJar, minecraft, Path.of("web/mcbench-entities.png"), Path.of("web/mcbench-entities.json"));
+      if (args.length > 4) bake.writeFlowTable(Path.of(args[4]));
     }
     if (failure.get() != null) throw failure.get();
   }

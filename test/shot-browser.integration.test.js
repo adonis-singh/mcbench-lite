@@ -5,9 +5,11 @@ const assert = require('node:assert/strict');
 const { chromium } = require('playwright-core');
 const { World } = require('../server/world');
 const { testBlockStates } = require('./helpers/block-table');
+const { testBlockTints } = require('./helpers/block-tints');
 
 // The block table of the world's three blocks, cubes with six full faces
-// written for the test, which the page is given in place of the server's.
+// written for the test, untinted, which the page is given in place of the
+// server's.
 const STATES = testBlockStates(['red', 'blue', 'yellow'].map((color) => ({ name: `minecraft:${color}_concrete`, full: 63, lightBlock: 15 })));
 
 // Uses the app's static assets, but supplies an isolated world over a browser
@@ -59,6 +61,7 @@ test(
       browser.newPage = async (options) => {
         const page = await newPage(options);
         await page.route('**/api/block-states', (route) => route.fulfill({ contentType: 'application/octet-stream', body: STATES.bytes() }));
+        await page.route('**/api/block-tints', (route) => route.fulfill({ contentType: 'application/octet-stream', body: testBlockTints(STATES).bytes() }));
         await page.route(
           '**/api/conversations/context-fixture/world',
           (route) => {

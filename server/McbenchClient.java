@@ -1,0 +1,573 @@
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParser;
+import java.awt.image.BufferedImage;
+import java.lang.classfile.ClassFile;
+import java.lang.classfile.ClassModel;
+import java.lang.classfile.CodeElement;
+import java.lang.classfile.MethodModel;
+import java.lang.classfile.constantpool.StringEntry;
+import java.lang.classfile.instruction.FieldInstruction;
+import java.lang.classfile.instruction.InvokeInstruction;
+import java.lang.constant.ClassDesc;
+import java.lang.constant.MethodTypeDesc;
+import java.lang.reflect.AccessFlag;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Proxy;
+import java.net.URL;
+import java.net.URLClassLoader;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.stream.Stream;
+import javax.imageio.ImageIO;
+
+// What Minecraft's client says of each block state, asked of the client
+// itself, from the client jar BlueMap downloads, run in the bake's JVM
+// (McbenchBake starts it, its libraries Paper's: the server's, which the
+// client shares). It writes two files, each a line per state in the order
+// of Minecraft's state ids, each state named as the block table names it,
+// line for line:
+//
+// The chunk render layer the client draws each block state and its fluid
+// in: ItemBlockRenderTypes's getChunkRenderType(BlockState) and
+// getRenderLayer(FluidState), which the client's section compiler draws
+// every block and fluid by. One line per layer, in the order of its enum
+// (ChunkSectionLayer), then one per state:
+//   layer  name  blended
+//   state  blockLayer  fluidLayer
+// blended is whether the layer's render pipeline has a blend function: the
+// layers drawn blended, after the others, sorted (translucent and tripwire).
+// The layers are the client's under its default graphics (Fancy), under
+// which leaves are drawn cut out: ItemBlockRenderTypes.setCutoutLeaves.
+//
+// The colours the client's BlockColors gives each state (0xRRGGBB, the
+// colour its tinted faces are multiplied by; ffffff for none), in the
+// world the app builds in, one biome everywhere (paper-server.js BIOME):
+//   tints  indices
+//   state  world  single  particle  faces
+// world: for each tint index a block model uses (0 up to the highest
+// "tintindex" of the jar's block models), comma separated, getColor(state, level, pos, index) with a
+// level that answers every biome colour resolver with the biome's own
+// colour at the position asked. That is what the client's level answers
+// there: ClientLevel.calculateBlockTint averages the resolver over the
+// blocks around (the biome blend radius), all of the one biome, and a
+// falling block's MovingBlockRenderState asks the biome alone. The biome's
+// colours depend on the position only through a grass colour modifier
+// (swamps, dark forests), which plains have none of; the one position
+// asked is the origin.
+// single: getColor(state, null, null, 0), as BlockRenderDispatcher's
+// renderSingleBlock tints every tinted face of a block drawn with no level
+// (a minecart's block, TNT about to explode).
+// particle: the colour TerrainParticle multiplies a block's breaking
+// particles by, its rule read from its constructor: getColor(state, level,
+// pos, 0), except for the block it tests the state against (grass blocks,
+// whose particles are their dirt).
+// faces: the tint indices the faces of its block's models carry (the models
+// its blockstate file names, their parents resolved), comma separated, or -.
+//
+// The biome is decoded from the jar's data pack (data/<ns>/worldgen/biome)
+// by the codec of Biome that reads every key its file holds, through
+// RegistryOps over Minecraft's built-in registries (its sounds). Its grass,
+// foliage and dry foliage colours come from the colour maps the client's
+// reload listeners load (each the class that names its image,
+// textures/colormap/<name>.png, and hands its pixels to a static init) and
+// Minecraft's own lookup. Those listeners decode the image with
+// NativeImage, which needs LWJGL's natives: here the image is decoded with
+// ImageIO into the same ARGB pixels (NativeImage.makePixelArray's); the one
+// piece not run as Minecraft runs it, checked by
+// test/block-tints-minecraft.test.js against the jar's image.
+//
+// Items: itemTints gives the colours of an item definition's model's tint
+// sources (ItemTintSources.CODEC, ItemTintSource.calculate with the item's
+// own stack and no level or holder), for McbenchEntityAssets.
+//
+//   McbenchClient.read(client.jar, blockTable, <Minecraft's libraries, a class path>, biome)
+//
+// The client jar's classes are obfuscated, so the program finds what it
+// asks by its shape (each step below says how). Minecraft is bootstrapped
+// by its own server entry point, which with --initSettings writes
+// server.properties, eula.txt and logs/ in the working directory and stops.
+// The block states are the client's state registry (Block.BLOCK_STATE_REGISTRY:
+// the one public static iterable among the block classes'), in order, each
+// named as the block table names it, line for line.
+public class McbenchClient {
+  final List<String> names;
+  final List<String> layerLines = new ArrayList<>();
+  final List<String> layerStates = new ArrayList<>();
+  final int indices;
+  final int[] world, single, particle;
+  final String[] faces;
+  final ClassLoader loader;
+  final Object ops;
+  final Method parse, result, jsonParse;
+  final Object tintList, stackCodec;
+  final Method calculate;
+
+  public static McbenchClient read(Path client, Path table, String libraries, String biomeId) throws Exception {
+    return new McbenchClient(client, table, libraries, biomeId);
+  }
+
+  McbenchClient(Path client, Path table, String libraries, String biomeId) throws Exception {
+    names = new ArrayList<>();
+    for (String line : Files.readAllLines(table)) {
+      String first = line.substring(0, line.indexOf('\t'));
+      if (!first.equals("default") && !first.equals("faceoccludes") && !first.equals("skiprendering")) names.add(first);
+    }
+
+    ClassDesc pipeline = ClassDesc.of("com.mojang.blaze3d.pipeline.RenderPipeline");
+    List<ClassModel> classes = new ArrayList<>();
+    // By block, the tint indices its models' faces carry (its blockstate
+    // file's models, their parents resolved), and the tint source types item
+    // definitions name.
+    Map<String, Set<Integer>> blockTints = new java.util.HashMap<>();
+    Set<String> tintTypes = new TreeSet<>();
+    String biomeFile;
+    Map<String, int[]> colormaps = new java.util.HashMap<>();
+    try (FileSystem jar = FileSystems.newFileSystem(client)) {
+      try (Stream<Path> files = Files.list(jar.getPath("/"))) {
+        for (Path file : (Iterable<Path>) files::iterator) {
+          if (file.getFileName().toString().endsWith(".class")) classes.add(ClassFile.of().parse(Files.readAllBytes(file)));
+        }
+      }
+      Map<String, Set<Integer>> modelTints = new java.util.HashMap<>();
+      try (Stream<Path> files = Files.list(jar.getPath("assets/minecraft/blockstates"))) {
+        for (Path file : (Iterable<Path>) files::iterator) {
+          Set<Integer> used = new TreeSet<>();
+          for (String model : models(JsonParser.parseString(Files.readString(file)))) used.addAll(modelTints(jar, model, modelTints));
+          blockTints.put("minecraft:" + file.getFileName().toString().replaceFirst("\\.json$", ""), used);
+        }
+      }
+      try (Stream<Path> files = Files.list(jar.getPath("assets/minecraft/items"))) {
+        for (Path file : (Iterable<Path>) files::iterator) tintTypes(JsonParser.parseString(Files.readString(file)), tintTypes);
+      }
+      int colon = biomeId.indexOf(':');
+      biomeFile = Files.readString(jar.getPath("data/" + biomeId.substring(0, colon) + "/worldgen/biome/" + biomeId.substring(colon + 1) + ".json"));
+      for (ClassModel model : classes) {
+        for (var entry : model.constantPool()) {
+          if (entry instanceof StringEntry string && string.stringValue().matches("textures/colormap/[a-z_]+\\.png")) {
+            try (var stream = Files.newInputStream(jar.getPath("assets/minecraft/" + string.stringValue()))) {
+              BufferedImage image = ImageIO.read(stream);
+              colormaps.put(model.thisClass().asInternalName(), image.getRGB(0, 0, image.getWidth(), image.getHeight(), null, 0, image.getWidth()));
+            }
+          }
+        }
+      }
+    }
+    indices = blockTints.values().stream().flatMap(Set::stream).max(Integer::compare).orElseThrow() + 1;
+    faces = new String[names.size()];
+    for (int id = 0; id < names.size(); id++) {
+      Set<Integer> used = blockTints.get(names.get(id).replaceFirst("\\[.*", ""));
+      faces[id] = used.isEmpty() ? "-" : String.join(",", used.stream().map(String::valueOf).toList());
+    }
+
+    ClassModel layerClass = only("the layer enum", classes.stream()
+      .filter((model) -> model.superclass().map((s) -> s.asInternalName().equals("java/lang/Enum")).orElse(false))
+      .filter((model) -> model.fields().stream().anyMatch((field) -> !field.flags().has(AccessFlag.STATIC) && field.fieldTypeSymbol().equals(pipeline)))
+      .toList());
+    ClassDesc layerDesc = layerClass.thisClass().asSymbol();
+    ClassModel typesClass = only("ItemBlockRenderTypes", classes.stream()
+      .filter((model) -> layerMethods(model, layerDesc).size() == 2 && model.methods().stream().filter((method) -> isPublicStatic(method)
+        && method.methodTypeSymbol().equals(MethodTypeDesc.of(ClassDesc.ofDescriptor("V"), ClassDesc.ofDescriptor("Z")))).count() == 1)
+      .toList());
+
+    // The client's classes are signed, in the unnamed package this class is
+    // in too: they get a loader of their own.
+    List<URL> urls = new ArrayList<>(List.of(client.toUri().toURL()));
+    for (String library : libraries.split(java.io.File.pathSeparator)) urls.add(Path.of(library).toUri().toURL());
+    loader = new URLClassLoader(urls.toArray(URL[]::new), ClassLoader.getPlatformClassLoader());
+    Thread.currentThread().setContextClassLoader(loader);
+    Class.forName("net.minecraft.server.Main", true, loader).getMethod("main", String[].class).invoke(null, (Object) new String[] { "--initSettings" });
+
+    Class<?> layer = load(layerClass);
+    Class<?> types = load(typesClass);
+    Method leaves = only("the leaves' setting", List.of(types.getMethods()).stream()
+      .filter((method) -> Modifier.isStatic(method.getModifiers()) && method.getReturnType() == void.class && List.of(method.getParameterTypes()).equals(List.of(boolean.class))).toList());
+    leaves.invoke(null, true);
+    List<Method> byState = List.of(types.getMethods()).stream()
+      .filter((method) -> Modifier.isStatic(method.getModifiers()) && method.getReturnType() == layer && method.getParameterCount() == 1).toList();
+
+    // The block classes are the keys of ItemBlockRenderTypes's block map,
+    // and the classes above them.
+    Set<Class<?>> blockClasses = new HashSet<>();
+    for (Field map : types.getDeclaredFields()) {
+      if (!Modifier.isStatic(map.getModifiers()) || !Map.class.isAssignableFrom(map.getType())) continue;
+      map.setAccessible(true);
+      for (Object key : ((Map<?, ?>) map.get(null)).keySet()) {
+        for (Class<?> type = key.getClass(); type != Object.class; type = type.getSuperclass()) blockClasses.add(type);
+      }
+    }
+    Set<Object> registries = new HashSet<>();
+    for (Class<?> type : blockClasses) {
+      for (Field field : type.getDeclaredFields()) {
+        if (Modifier.isStatic(field.getModifiers()) && Modifier.isPublic(field.getModifiers()) && Iterable.class.isAssignableFrom(field.getType())) registries.add(field.get(null));
+      }
+    }
+    Iterable<?> registry = (Iterable<?>) only("the block state registry", registries.stream().filter((candidate) -> named((Iterable<?>) candidate, names)).toList());
+    List<Object> states = new ArrayList<>();
+    registry.forEach(states::add);
+    Class<?> blockState = states.get(0).getClass();
+    Method blockLayer = only("getChunkRenderType", byState.stream().filter((method) -> method.getParameterTypes()[0].isAssignableFrom(blockState)).toList());
+    Method fluidLayer = only("getRenderLayer", byState.stream().filter((method) -> method != blockLayer).toList());
+    Class<?> fluidState = fluidLayer.getParameterTypes()[0];
+    Method getFluidState = only("BlockState.getFluidState", List.of(blockState.getMethods()).stream()
+      .filter((method) -> method.getParameterCount() == 0 && method.getReturnType() == fluidState && !Modifier.isStatic(method.getModifiers())).toList());
+    Field pipelineField = only("the layer's pipeline", List.of(layer.getDeclaredFields()).stream().filter((field) -> field.getType().getName().equals(pipeline.packageName() + "." + pipeline.displayName())).toList());
+    pipelineField.setAccessible(true);
+    Method blendFunction = pipelineField.getType().getMethod("getBlendFunction");
+    for (Object constant : layer.getEnumConstants()) {
+      boolean blended = ((Optional<?>) blendFunction.invoke(pipelineField.get(constant))).isPresent();
+      layerLines.add("layer\t" + ((Enum<?>) constant).name() + "\t" + (blended ? 1 : 0));
+    }
+    for (Object state : states) {
+      Enum<?> own = (Enum<?>) blockLayer.invoke(null, state);
+      Enum<?> fluid = (Enum<?>) fluidLayer.invoke(null, getFluidState.invoke(state));
+      layerStates.add(own.ordinal() + "\t" + fluid.ordinal());
+    }
+
+    // BlockColors: the one class with a public static factory of itself
+    // (createDefault) and a public getColor(BlockState, BlockAndTintGetter,
+    // BlockPos, int).
+    String stateDescriptor = blockState.descriptorString();
+    ClassModel colorsClass = only("BlockColors", classes.stream().filter((model) -> {
+      String self = model.thisClass().asSymbol().descriptorString();
+      return model.methods().stream().anyMatch((method) -> isPublicStatic(method) && method.methodType().stringValue().equals("()" + self))
+        && model.methods().stream().anyMatch((method) -> isPublic(method) && getColorShape(method, stateDescriptor));
+    }).toList());
+    MethodModel getColorModel = only("BlockColors.getColor", colorsClass.methods().stream().filter((method) -> isPublic(method) && getColorShape(method, stateDescriptor)).toList());
+    Class<?> colorsType = load(colorsClass);
+    Object colors = only("BlockColors.createDefault", List.of(colorsType.getMethods()).stream()
+      .filter((method) -> Modifier.isStatic(method.getModifiers()) && method.getParameterCount() == 0 && method.getReturnType() == colorsType).toList()).invoke(null);
+    Method getColor = colorsType.getMethod(getColorModel.methodName().stringValue(),
+      getColorModel.methodTypeSymbol().parameterList().stream().map(this::type).toArray(Class<?>[]::new));
+    Class<?> tintGetter = getColor.getParameterTypes()[1];
+    Class<?> blockPos = getColor.getParameterTypes()[2];
+    // BlockAndTintGetter.getBlockTint(BlockPos, ColorResolver): its one
+    // abstract method of a position and an interface; ColorResolver's one
+    // method, getColor(Biome, x, z).
+    Method blockTint = only("BlockAndTintGetter.getBlockTint", List.of(tintGetter.getMethods()).stream()
+      .filter((method) -> Modifier.isAbstract(method.getModifiers()) && method.getReturnType() == int.class && method.getParameterCount() == 2
+        && method.getParameterTypes()[0] == blockPos && method.getParameterTypes()[1].isInterface()).toList());
+    Class<?> resolverType = blockTint.getParameterTypes()[1];
+    Method resolve = only("ColorResolver.getColor", List.of(resolverType.getMethods()).stream().filter((method) -> Modifier.isAbstract(method.getModifiers())).toList());
+    Class<?> biomeType = resolve.getParameterTypes()[0];
+
+    // The colour maps, each handed to the static init its listener calls.
+    for (var entry : colormaps.entrySet()) {
+      ClassModel listener = classes.stream().filter((model) -> model.thisClass().asInternalName().equals(entry.getKey())).findFirst().orElseThrow();
+      InvokeInstruction init = only("the colour map init " + entry.getKey() + " calls", invocations(listener).stream()
+        .filter((invoke) -> invoke.opcode() == java.lang.classfile.Opcode.INVOKESTATIC && invoke.type().stringValue().equals("([I)V")).toList());
+      Class.forName(init.owner().asInternalName().replace('/', '.'), true, loader).getMethod(init.name().stringValue(), int[].class).invoke(null, (Object) entry.getValue());
+    }
+
+    // RegistryOps over every built-in registry: RegistryOps.create(ops,
+    // HolderLookup.Provider) (the one static method of a DynamicOps and
+    // something else that makes its own class, whose second parameter has a
+    // static create(Stream) of itself), over the public fields of
+    // BuiltInRegistries (the class whose registry getColor reads states'
+    // blocks' ids in).
+    Class<?> dynamicOps = Class.forName("com.mojang.serialization.DynamicOps", true, loader);
+    Object json = Class.forName("com.mojang.serialization.JsonOps", true, loader).getField("INSTANCE").get(null);
+    FieldInstruction registryRead = only("the registry BlockColors.getColor reads", getColorModel.code().orElseThrow().elementStream()
+      .filter((element) -> element instanceof FieldInstruction field && field.opcode() == java.lang.classfile.Opcode.GETSTATIC).map((element) -> (FieldInstruction) element).toList());
+    Class<?> builtIn = Class.forName(registryRead.owner().asInternalName().replace('/', '.'), true, loader);
+    List<Object> builtInRegistries = new ArrayList<>();
+    for (Field field : builtIn.getFields()) if (Modifier.isStatic(field.getModifiers())) builtInRegistries.add(field.get(null));
+    Method createOps = null;
+    Object provider = null;
+    for (ClassModel model : classes) {
+      for (MethodModel method : model.methods()) {
+        MethodTypeDesc type = method.methodTypeSymbol();
+        if (!isPublicStatic(method) || type.parameterCount() != 2 || !type.returnType().equals(model.thisClass().asSymbol())
+          || !type.parameterType(0).descriptorString().equals("Lcom/mojang/serialization/DynamicOps;")) continue;
+        Class<?> lookup = type(type.parameterType(1));
+        Optional<Method> create = List.of(lookup.getMethods()).stream().filter((candidate) -> Modifier.isStatic(candidate.getModifiers())
+          && candidate.getReturnType() == lookup && List.of(candidate.getParameterTypes()).equals(List.of(Stream.class))).findFirst();
+        if (create.isEmpty()) continue;
+        if (createOps != null) throw new IllegalStateException("Found more than one RegistryOps.create in the client jar");
+        provider = create.get().invoke(null, builtInRegistries.stream());
+        createOps = load(model).getMethod(method.methodName().stringValue(), dynamicOps, lookup);
+      }
+    }
+    if (createOps == null) throw new IllegalStateException("Found no RegistryOps.create in the client jar");
+    ops = createOps.invoke(null, json, provider);
+    Class<?> decoder = Class.forName("com.mojang.serialization.Decoder", true, loader);
+    parse = decoder.getMethod("parse", dynamicOps, Object.class);
+    result = Class.forName("com.mojang.serialization.DataResult", true, loader).getMethod("result");
+    Method jsonParse = Class.forName("com.google.gson.JsonParser", true, loader).getMethod("parseString", String.class);
+
+    // The biome, by Biome.NETWORK_CODEC, which the client receives the
+    // server's biomes in: of Biome's own codecs of a Biome, the one its
+    // static initializer does not build its holder codecs from (those are
+    // built from the data pack's codec, DIRECT_CODEC, which also reads the
+    // biome's generation, of registries no client has).
+    Object biomeJson = jsonParse.invoke(null, biomeFile);
+    ClassModel biomeModel = classes.stream().filter((model) -> model.thisClass().asSymbol().descriptorString().equals(biomeType.descriptorString())).findFirst().orElseThrow();
+    Set<String> readInInit = new HashSet<>();
+    for (MethodModel method : biomeModel.methods()) {
+      if (!method.methodName().stringValue().equals("<clinit>")) continue;
+      method.code().orElseThrow().elementStream().forEach((element) -> {
+        if (element instanceof FieldInstruction field && field.opcode() == java.lang.classfile.Opcode.GETSTATIC
+          && field.owner().asSymbol().descriptorString().equals(biomeType.descriptorString())) readInInit.add(field.name().stringValue());
+      });
+    }
+    Field biomeCodec = only("Biome.NETWORK_CODEC", List.of(biomeType.getFields()).stream().filter((field) -> Modifier.isStatic(field.getModifiers())
+      && field.getGenericType() instanceof ParameterizedType generic && generic.getActualTypeArguments()[0] == biomeType
+      && !readInInit.contains(field.getName())).toList());
+    Object biome = decode(biomeCodec.get(null), biomeJson, "the biome " + biomeId);
+
+    // A level of the one biome: getBlockTint answers the resolver with the
+    // biome's colour at the position; it is asked nothing else.
+    Constructor<?> at = blockPos.getConstructor(int.class, int.class, int.class);
+    // The position's x and z, by the coordinates' getters, told apart by
+    // what they answer for a position made for it.
+    Object probe = at.newInstance(12345, 678, -9012);
+    Method x = coordinate(blockPos, probe, 12345), z = coordinate(blockPos, probe, -9012);
+    Object level = Proxy.newProxyInstance(loader, new Class<?>[] { tintGetter }, (proxy, method, arguments) -> {
+      if (!method.equals(blockTint)) throw new UnsupportedOperationException("BlockColors asked the level " + method);
+      Object pos = arguments[0];
+      return resolve.invoke(arguments[1], biome, (double) (int) x.invoke(pos), (double) (int) z.invoke(pos));
+    });
+    Object origin = at.newInstance(0, 0, 0);
+
+    // TerrainParticle: the one class whose constructor calls getColor; the
+    // block it skips is the Block field read just before the state is tested
+    // against it (BlockState.is(Block)), its test that method.
+    ClassModel particleClass = only("TerrainParticle", classes.stream().filter((model) -> model.methods().stream()
+      .anyMatch((method) -> method.methodName().stringValue().equals("<init>") && invocations(method).stream().anyMatch((invoke) -> sameMethod(invoke, colorsClass, getColorModel)))).toList());
+    MethodModel particleInit = only("TerrainParticle's constructor", particleClass.methods().stream()
+      .filter((method) -> method.methodName().stringValue().equals("<init>") && invocations(method).stream().anyMatch((invoke) -> sameMethod(invoke, colorsClass, getColorModel))).toList());
+    List<CodeElement> code = particleInit.code().orElseThrow().elementStream().filter((element) -> element instanceof FieldInstruction || element instanceof InvokeInstruction).toList();
+    Object skipped = null;
+    Method is = null;
+    for (int i = 0; i + 1 < code.size(); i++) {
+      if (code.get(i) instanceof FieldInstruction field && field.opcode() == java.lang.classfile.Opcode.GETSTATIC && code.get(i + 1) instanceof InvokeInstruction test
+        && test.owner().asSymbol().descriptorString().equals(stateDescriptor) && test.type().stringValue().equals("(" + field.typeSymbol().descriptorString() + ")Z")) {
+        if (skipped != null) throw new IllegalStateException("TerrainParticle tests the state against more than one block");
+        Class<?> blocks = Class.forName(field.owner().asInternalName().replace('/', '.'), true, loader);
+        skipped = blocks.getField(field.name().stringValue()).get(null);
+        is = blockState.getMethod(test.name().stringValue(), type(field.typeSymbol()));
+      }
+    }
+    if (skipped == null) throw new IllegalStateException("TerrainParticle tests the state against no block");
+
+    world = new int[states.size() * indices];
+    single = new int[states.size()];
+    particle = new int[states.size()];
+    for (int id = 0; id < states.size(); id++) {
+      Object state = states.get(id);
+      for (int index = 0; index < indices; index++) world[id * indices + index] = (int) getColor.invoke(colors, state, level, origin, index);
+      single[id] = (int) getColor.invoke(colors, state, null, null, 0);
+      particle[id] = (boolean) is.invoke(state, skipped) ? -1 : world[id * indices];
+    }
+
+    // ItemTintSources: the class with a static Codec that names every tint
+    // source type the item definitions use; ItemTintSource.calculate,
+    // the one abstract method of its codec's type; its stack's MAP_CODEC,
+    // the one public static MapCodec of the stack's class.
+    ClassModel sourcesClass = only("ItemTintSources", classes.stream().filter((model) -> {
+      Set<String> strings = new HashSet<>();
+      for (var entry : model.constantPool()) if (entry instanceof StringEntry string) strings.add(string.stringValue());
+      return strings.containsAll(tintTypes) && model.fields().stream().anyMatch((field) -> field.flags().has(AccessFlag.STATIC)
+        && field.fieldTypeSymbol().descriptorString().equals("Lcom/mojang/serialization/Codec;"));
+    }).toList());
+    // Its bootstrap, the one public static method of no arguments, registers
+    // the types (the client calls it as it starts).
+    Class<?> sourcesType = load(sourcesClass);
+    only("ItemTintSources.bootstrap", List.of(sourcesType.getMethods()).stream().filter((method) -> Modifier.isStatic(method.getModifiers())
+      && method.getParameterCount() == 0 && method.getReturnType() == void.class && method.getDeclaringClass() == sourcesType).toList()).invoke(null);
+    Field sourcesCodec = only("ItemTintSources.CODEC", List.of(sourcesType.getFields()).stream()
+      .filter((field) -> Modifier.isStatic(field.getModifiers()) && field.getType().getName().equals("com.mojang.serialization.Codec")).toList());
+    Object codec = sourcesCodec.get(null);
+    tintList = codec.getClass().getMethod("listOf").invoke(codec);
+    Class<?> source = (Class<?>) ((ParameterizedType) sourcesCodec.getGenericType()).getActualTypeArguments()[0];
+    calculate = only("ItemTintSource.calculate", List.of(source.getMethods()).stream()
+      .filter((method) -> Modifier.isAbstract(method.getModifiers()) && method.getReturnType() == int.class).toList());
+    Class<?> stack = calculate.getParameterTypes()[0];
+    Field stackMapCodec = only("ItemStack.MAP_CODEC", List.of(stack.getFields()).stream()
+      .filter((field) -> Modifier.isStatic(field.getModifiers()) && field.getType().getName().equals("com.mojang.serialization.MapCodec")).toList());
+    Object mapCodec = stackMapCodec.get(null);
+    stackCodec = mapCodec.getClass().getMethod("codec").invoke(mapCodec);
+    this.jsonParse = jsonParse;
+  }
+
+  // The colours (ARGB) of the tint sources `tints` (an item definition's
+  // model's "tints", JSON) for the item `item`, by tint index.
+  public int[] itemTints(String item, String tints) throws Exception {
+    List<?> sources = (List<?>) decode(tintList, jsonParse.invoke(null, tints), "the tints of " + item);
+    Object stack = decode(stackCodec, jsonParse.invoke(null, "{\"id\":\"" + item + "\"}"), "a stack of " + item);
+    int[] colors = new int[sources.size()];
+    for (int i = 0; i < colors.length; i++) colors[i] = (int) calculate.invoke(sources.get(i), stack, null, null);
+    return colors;
+  }
+
+  void writeLayers(Path target) throws Exception {
+    var lines = new ArrayList<>(layerLines);
+    for (int id = 0; id < names.size(); id++) lines.add(names.get(id) + "\t" + layerStates.get(id));
+    write(target, lines);
+  }
+
+  void writeTints(Path target) throws Exception {
+    var lines = new ArrayList<String>();
+    lines.add("tints\t" + indices);
+    for (int id = 0; id < names.size(); id++) {
+      var line = new StringBuilder(names.get(id)).append('\t');
+      for (int index = 0; index < indices; index++) line.append(index > 0 ? "," : "").append(rgb(world[id * indices + index]));
+      lines.add(line.append('\t').append(rgb(single[id])).append('\t').append(rgb(particle[id])).append('\t').append(faces[id]).toString());
+    }
+    write(target, lines);
+  }
+
+  static String rgb(int color) {
+    return String.format("%06x", color & 0xffffff);
+  }
+
+  static void write(Path target, List<String> lines) throws Exception {
+    Path partial = target.resolveSibling(target.getFileName() + ".part");
+    Files.write(partial, (String.join("\n", lines) + "\n").getBytes(StandardCharsets.UTF_8));
+    Files.move(partial, target);
+  }
+
+  Object decode(Object codec, Object input, String what) throws Exception {
+    Object decoded = parse.invoke(codec, ops, input);
+    return ((Optional<?>) result.invoke(decoded)).orElseThrow(() -> new IllegalStateException("Minecraft's codec could not read " + what + ": " + decoded));
+  }
+
+  Class<?> load(ClassModel model) throws ClassNotFoundException {
+    return Class.forName(model.thisClass().asInternalName().replace('/', '.'), true, loader);
+  }
+
+  // The class a descriptor names (an object type, or int).
+  Class<?> type(ClassDesc type) {
+    if (type.descriptorString().equals("I")) return int.class;
+    String descriptor = type.descriptorString();
+    if (!descriptor.startsWith("L")) throw new IllegalStateException("Not a class or int: " + descriptor);
+    try {
+      return Class.forName(descriptor.substring(1, descriptor.length() - 1).replace('/', '.'), true, loader);
+    } catch (ClassNotFoundException error) {
+      throw new IllegalStateException(error);
+    }
+  }
+
+  // The no-argument int method of `type` that answers `value` of `probe`.
+  static Method coordinate(Class<?> type, Object probe, int value) throws Exception {
+    List<Method> found = new ArrayList<>();
+    for (Method method : type.getMethods()) {
+      if (method.getParameterCount() == 0 && method.getReturnType() == int.class && !Modifier.isStatic(method.getModifiers()) && (int) method.invoke(probe) == value) found.add(method);
+    }
+    return only("the coordinate getter answering " + value, found);
+  }
+
+  static boolean getColorShape(MethodModel method, String state) {
+    MethodTypeDesc type = method.methodTypeSymbol();
+    return !method.flags().has(AccessFlag.STATIC) && type.returnType().descriptorString().equals("I") && type.parameterCount() == 4
+      && type.parameterType(0).descriptorString().equals(state) && type.parameterType(3).descriptorString().equals("I");
+  }
+
+  static boolean sameMethod(InvokeInstruction invoke, ClassModel owner, MethodModel method) {
+    return invoke.owner().asInternalName().equals(owner.thisClass().asInternalName()) && invoke.name().equals(method.methodName())
+      && invoke.type().stringValue().equals(method.methodType().stringValue());
+  }
+
+  static List<InvokeInstruction> invocations(ClassModel model) {
+    return model.methods().stream().flatMap((method) -> invocations(method).stream()).toList();
+  }
+
+  static List<InvokeInstruction> invocations(MethodModel method) {
+    return method.code().map((code) -> code.elementStream().filter((element) -> element instanceof InvokeInstruction)
+      .map((element) -> (InvokeInstruction) element).toList()).orElse(List.of());
+  }
+
+  // The models a blockstate file names (its variants' and multipart's).
+  static List<String> models(JsonElement blockstate) {
+    List<String> models = new ArrayList<>();
+    var object = blockstate.getAsJsonObject();
+    List<JsonElement> applied = new ArrayList<>();
+    if (object.has("variants")) for (var variant : object.getAsJsonObject("variants").entrySet()) applied.add(variant.getValue());
+    if (object.has("multipart")) for (JsonElement part : object.getAsJsonArray("multipart")) applied.add(part.getAsJsonObject().get("apply"));
+    for (JsonElement apply : applied) {
+      for (JsonElement variant : apply.isJsonArray() ? apply.getAsJsonArray() : List.of(apply)) models.add(variant.getAsJsonObject().get("model").getAsString());
+    }
+    return models;
+  }
+
+  // The tint indices of a model's faces: its own elements', or else its
+  // parent's.
+  static Set<Integer> modelTints(FileSystem jar, String model, Map<String, Set<Integer>> known) throws java.io.IOException {
+    String name = model.replaceFirst("^minecraft:", "");
+    Set<Integer> found = known.get(name);
+    if (found != null) return found;
+    var json = JsonParser.parseString(Files.readString(jar.getPath("assets/minecraft/models/" + name + ".json"))).getAsJsonObject();
+    found = new TreeSet<>();
+    if (json.has("elements")) {
+      for (JsonElement element : json.getAsJsonArray("elements")) {
+        for (var face : element.getAsJsonObject().getAsJsonObject("faces").entrySet()) {
+          if (face.getValue().getAsJsonObject().has("tintindex")) found.add(face.getValue().getAsJsonObject().get("tintindex").getAsInt());
+        }
+      }
+    } else if (json.has("parent") && !json.get("parent").getAsString().replaceFirst("^minecraft:", "").startsWith("builtin/")) {
+      found = modelTints(jar, json.get("parent").getAsString(), known);
+    }
+    known.put(name, found);
+    return found;
+  }
+
+  // The types (without their namespace) of the tint sources an item
+  // definition names.
+  static void tintTypes(JsonElement element, Set<String> into) {
+    if (element.isJsonObject()) {
+      for (var entry : element.getAsJsonObject().entrySet()) {
+        if (entry.getKey().equals("tints")) {
+          for (JsonElement tint : entry.getValue().getAsJsonArray()) into.add(tint.getAsJsonObject().get("type").getAsString().replaceFirst("^minecraft:", ""));
+        } else tintTypes(entry.getValue(), into);
+      }
+    } else if (element.isJsonArray()) {
+      for (JsonElement item : element.getAsJsonArray()) tintTypes(item, into);
+    }
+  }
+
+  static boolean isPublic(MethodModel method) {
+    return method.flags().has(AccessFlag.PUBLIC);
+  }
+
+  static boolean isPublicStatic(MethodModel method) {
+    return method.flags().has(AccessFlag.PUBLIC) && method.flags().has(AccessFlag.STATIC);
+  }
+
+  static List<MethodModel> layerMethods(ClassModel model, ClassDesc layer) {
+    return model.methods().stream().filter((method) -> isPublicStatic(method)
+      && method.methodTypeSymbol().returnType().equals(layer) && method.methodTypeSymbol().parameterCount() == 1).toList();
+  }
+
+  // Whether `states` are the block table's states, by name, in order.
+  static boolean named(Iterable<?> states, List<String> names) {
+    int index = 0;
+    for (Object state : states) {
+      if (index >= names.size() || !name(state).equals(names.get(index))) return false;
+      index++;
+    }
+    return index == names.size();
+  }
+
+  // As McbenchBlockTable names a state.
+  static String name(Object state) {
+    return state.toString().replaceFirst("^Block\\{([^}]*)\\}", "$1");
+  }
+
+  static <T> T only(String what, List<T> found) {
+    if (found.size() != 1) throw new IllegalStateException("Found " + found.size() + " candidates for " + what + " in the client jar, not one");
+    return found.get(0);
+  }
+}

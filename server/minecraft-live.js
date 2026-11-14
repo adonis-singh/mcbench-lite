@@ -109,12 +109,14 @@ class MinecraftLive extends PaperFiles {
     return this.engine.warm({ folder: path.join(this.engineFolder, 'preview') });
   }
 
-  // The viewer's assets (bluemap.js), made from Paper's block table: once
-  // while they are made or after that worked, again after it failed. A
-  // failure is shown in the viewer's place.
+  // The viewer's assets (bluemap.js), made from Paper's block table, with
+  // Minecraft's client run on Paper's libraries: once while they are made or
+  // after that worked, again after it failed. A failure is shown in the
+  // viewer's place.
   prepareViewer() {
     if (['preparing', 'ready'].includes(this.viewer.name)) return this.viewer.done;
-    const done = this.blockTable().then((table) => setup.track('viewer', () => this.blueMap.prepare(table)));
+    const done = Promise.all([this.blockTable(), this.ensurePaper()]).then(([table, classpath]) => setup.track('viewer', () => this.blueMap.prepare(table,
+      classpath.filter((entry) => entry.startsWith('libraries/')).map((entry) => path.join(this.paperDir, entry)))));
     this.moveViewer(['idle', 'failed'], { name: 'preparing', done });
     done.then(
       () => this.moveViewer(['preparing'], { name: 'ready', done }),
@@ -159,40 +161,18 @@ class MinecraftLive extends PaperFiles {
     return this.table;
   }
 
-  // The chunk render layer the client draws each state and its fluid in
-  // (McbenchRenderLayers.java), by the block table's states: written once
-  // per block table and program, read from the client jar BlueMap's bake
-  // downloads, its libraries Paper's (the server's, which the client shares).
+  // The chunk render layer the client draws each state and its fluid in,
+  // and the colours the client tints each state with in the world
+  // (McbenchClient.java), by the block table's states: read from the client
+  // jar in the viewer's bake.
   async renderLayers() {
-    this.layers ||= (async () => {
-      const table = await this.blockTable();
-      await this.prepareViewer();
-      const classpath = await this.ensurePaper();
-      const source = path.join(__dirname, 'McbenchRenderLayers.java');
-      const format = crypto.createHash('sha256').update(fs.readFileSync(source)).digest('hex').slice(0, 8);
-      const file = path.join(this.paperDir, `render-layers-${path.basename(table, '.tsv').replace(/^block-table-/, '')}-${format}.tsv`);
-      if (fs.existsSync(file)) return file;
-      for (const old of fs.readdirSync(this.paperDir).filter((entry) => entry.startsWith('render-layers-'))) {
-        fs.rmSync(path.join(this.paperDir, old), { recursive: true, force: true });
-      }
-      const classes = path.join(this.paperDir, 'render-layers-classes');
-      // Minecraft's server entry point bootstraps the client's classes and
-      // writes its settings in its working folder, which is let go after.
-      const run = path.join(this.paperDir, 'render-layers-run');
-      fs.rmSync(run, { recursive: true, force: true });
-      fs.mkdirSync(run, { recursive: true });
-      await step("[viewer] reading every block state's render layer from Minecraft's client", '[viewer] render layers written', async () => {
-        await execFileAsync(JAVAC, ['-proc:none', '-d', classes, source], { timeout: 60_000 });
-        const libraries = classpath.filter((entry) => entry.startsWith('libraries/')).map((entry) => path.join(this.paperDir, entry));
-        await this.runJava(['-cp', classes, 'McbenchRenderLayers', this.blueMap.clientJar(), table, file, libraries.join(path.delimiter)], { cwd: run, timeout: 120_000 });
-      });
-      fs.rmSync(run, { recursive: true, force: true });
-      return file;
-    })().catch((error) => {
-      this.layers = null;
-      throw error;
-    });
-    return this.layers;
+    await this.prepareViewer();
+    return this.blueMap.baked('render-layers.tsv');
+  }
+
+  async blockTints() {
+    await this.prepareViewer();
+    return this.blueMap.baked('tints.tsv');
   }
 
   // Paper's files, saying so in the terminal while they are downloaded.
@@ -230,7 +210,7 @@ class MinecraftLive extends PaperFiles {
   // The viewer's assets get ready before the first build opens. Resolves
   // once they are ready; a failure is printed here.
   warm() {
-    const done = this.prepareViewer().then(() => this.renderLayers());
+    const done = this.prepareViewer();
     done.catch((error) => console.error('[viewer]', error.message));
     return done;
   }

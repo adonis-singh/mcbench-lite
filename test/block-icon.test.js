@@ -3,7 +3,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert');
 
-const { blockIcon, _internal: { decodePng, encodePng, particleTexture } } = require('../server/block-icon');
+const { _internal: { decodePng, encodePng, particleTexture, icon, loadAssets } } = require('../server/block-icon');
 
 test('PNGs round-trip through the encoder and decoder', () => {
   const pixels = Buffer.from(Array.from({ length: 2 * 2 * 4 }, (_, index) => (index * 37) & 255));
@@ -27,8 +27,14 @@ test('a block shows the texture its model breaks into', () => {
   assert.strictEqual(particleTexture('oak_fence', { definitions, models }), 'block/oak_planks');
 });
 
-test('icons are square first frames, and unknown names have none', async () => {
-  const water = decodePng(await blockIcon('water'));
+test('icons are square first frames multiplied by their colour', async () => {
+  const loaded = await loadAssets();
+  const water = decodePng(icon('water', loaded, 0xffffff));
   assert.strictEqual(water.pixels.length, water.width * water.width * 4);
-  assert.strictEqual(await blockIcon('not_a_block'), null);
+  const tinted = decodePng(icon('water', loaded, 0x3f76e4));
+  for (let at = 0; at < water.pixels.length; at += 4) {
+    assert.deepStrictEqual([...tinted.pixels.subarray(at, at + 4)], [
+      Math.round(water.pixels[at] * 0x3f / 255), Math.round(water.pixels[at + 1] * 0x76 / 255), Math.round(water.pixels[at + 2] * 0xe4 / 255), water.pixels[at + 3],
+    ]);
+  }
 });

@@ -15,7 +15,7 @@ const { promisify } = require('util');
 
 const { World, CHUNK_SIZE } = require('./world');
 const { RconConnection } = require('./rcon');
-const { Y_OFFSET, validateWorldHeight, writeDimensionPack } = require('./minecraft-dimension');
+const { Y_OFFSET, BIOME, validateWorldHeight, writeDimensionPack } = require('./minecraft-dimension');
 const { importCommands } = require('./live-placement');
 const { graalvmHome } = require('./engine');
 const { PaperFiles, PAPER } = require('./paper-files');
@@ -39,7 +39,7 @@ const RCON_PASSWORD = crypto.randomBytes(24).toString('base64url');
 // A void world: one layer of air.
 const GENERATOR = JSON.stringify({
   layers: [{ block: 'minecraft:air', height: 1 }],
-  biome: 'minecraft:plains',
+  biome: BIOME,
   features: false,
   lakes: false,
 });

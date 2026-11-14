@@ -46,7 +46,7 @@ function blockTable(states, { shapes = 2, pairs = [], skips = [] } = {}) {
   return `${lines.join('\n')}\n`;
 }
 
-// Render layers in McbenchRenderLayers.java's format for such states: a
+// Render layers in McbenchClient.java's format for such states: a
 // state's model is drawn blended if `blended`, its fluid if `fluidBlended`.
 function renderLayers(states) {
   const lines = ['layer\tOPAQUE\t0', 'layer\tBLENDED\t1'];

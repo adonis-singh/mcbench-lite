@@ -32,7 +32,7 @@ function entityIndex() {
       'block/grass_block': {
         elements: [cube({
           down: face('block/dirt'),
-          up: face('block/grass_top', { tinted: true }),
+          up: face('block/grass_top', { tint: 0 }),
           north: face('block/grass_side'),
           south: face('block/grass_side'),
           west: face('block/grass_side'),
@@ -49,7 +49,15 @@ function entityIndex() {
     },
     blocks: {
       'minecraft:stone': { variants: { '': { model: 'block/stone' } } },
-      'minecraft:grass_block': { variants: { '': { model: 'block/grass_block' } }, tint: [145, 189, 89] },
+      'minecraft:grass_block': {
+        variants: { '': { model: 'block/grass_block' } },
+        tints: { by: [], colors: { '': { world: [[145, 189, 89], [145, 189, 89]], single: [124, 189, 107] } } },
+      },
+      // Redstone dust whose colour changes with its power alone.
+      'minecraft:dust': {
+        variants: { '': { model: 'block/grass_block' } },
+        tints: { by: ['power'], colors: { 'power=0': { world: [[76, 0, 0], [76, 0, 0]], single: [76, 0, 0] }, 'power=15': { world: [[255, 50, 0], [255, 50, 0]], single: [255, 50, 0] } } },
+      },
       'minecraft:tnt': { variants: { '': { model: 'block/tnt' } } },
       'minecraft:slab': { variants: { 'facing=north': { model: 'block/slab' }, 'facing=east': { model: 'block/slab', y: 90 } } },
       'minecraft:tilted': { variants: { '': { model: 'block/tilted' } } },
@@ -67,6 +75,7 @@ function entityIndex() {
     items: {
       'minecraft:redstone': { sprite: 'item/redstone' },
       'minecraft:stone': { model: 'block/stone' },
+      'minecraft:grass_block': { model: 'block/grass_block', tints: [[124, 189, 107]] },
     },
     entities: {
       'minecraft:minecart': 'entity/minecart',
