@@ -125,6 +125,11 @@ body.dragging .viewer iframe { pointer-events: none; }
   opacity: 0; transition: opacity 140ms var(--ease), color 140ms var(--ease);
 }
 .conv-item:hover .archive, .conv-item .archive:focus-visible { opacity: 1; }
+/* A running chat or bench cannot be archived. Its button is disabled and not
+   shown, which also keeps it from focus, the pointer and screen readers, but
+   it still holds its place, so the row's resolution tag does not move when
+   the chat starts or stops. */
+.conv-item .archive:disabled { visibility: hidden; }
 
 
 .sidebar .meta.warn {

@@ -5920,6 +5920,10 @@ function App() {
     const open = openBenches.has(bench.id);
     const states = members.map((row) => memberDot(row, activeId));
     const dot = ['running', 'unread'].find((state) => states.includes(state));
+    // Open, the bench's models show their own dots. With none to show the dot
+    // still holds its place, as the archive button does, so the resolution
+    // tag stays put when the bench opens, closes, starts or stops.
+    const shownDot = !open && dot;
     return html`
       <div class="bench-group" key=${bench.id}>
         <div
@@ -5942,10 +5946,12 @@ function App() {
           ><${Icon} name="chevron-right" size="13" /></button>
           ${rowText(bench.id, bench.title)}
           <${ResolutionTag} value=${bench.resolution} />
-          ${dot && !open && html`<span class=${dotClass(`bench:${bench.id}`, dot)} role="img" aria-label=${DOT_LABEL[dot]}></span>`}
-          ${!states.includes('running') && html`<button class="archive" title="Archive bench (it can be restored for 7 days)" aria-label="Archive bench" onClick=${(evt) => archiveBench(bench.id, evt).catch(showError)}>
+          ${shownDot
+            ? html`<span class=${dotClass(`bench:${bench.id}`, dot)} role="img" aria-label=${DOT_LABEL[dot]}></span>`
+            : html`<span class="conv-dot idle" aria-hidden="true"></span>`}
+          <button class="archive" disabled=${states.includes('running')} title="Archive bench (it can be restored for 7 days)" aria-label="Archive bench" onClick=${(evt) => archiveBench(bench.id, evt).catch(showError)}>
             <${Icon} name="archive" size="14" />
-          </button>`}
+          </button>
         </div>
         ${open && html`
           <div class="bench-members">
@@ -6236,9 +6242,9 @@ function App() {
               <span class=${dotClass(c.id, state)} role="img" aria-label=${DOT_LABEL[state]}></span>
               ${rowText(c.id, c.title)}
               <${ResolutionTag} value=${c.resolution} />
-              ${!c.runningSince && html`<button class="archive" title="Archive build (it can be restored for 7 days)" aria-label="Archive build" onClick=${(evt) => archiveConversation(c.id, evt).catch(showError)}>
+              <button class="archive" disabled=${Boolean(c.runningSince)} title="Archive build (it can be restored for 7 days)" aria-label="Archive build" onClick=${(evt) => archiveConversation(c.id, evt).catch(showError)}>
                 <${Icon} name="archive" size="14" />
-              </button>`}
+              </button>
             </div>
           `;
           })}
