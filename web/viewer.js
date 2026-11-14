@@ -1,4 +1,4 @@
-import { createLight, updateLight, lightAt } from './light.mjs';
+import { createLight, updateLight, lightAt, lightRule } from './light.mjs';
 import { mat4 } from '/vendor/gl-matrix/index.js';
 
 // deepslate's bundle (with its own dependencies inlined) is loaded by the
@@ -50,38 +50,13 @@ function retainGpuMesh(mesh) {
   return mesh;
 }
 
-const SEE_THROUGH = /(glass|leaves|water|slime|honey|barrier|grate|spawner|roots|ice|chain|bars)/;
 // Blocks that hide faces shared with an identical neighbor (a glass wall reads
 // as one surface, like in-game) and blocks drawn in the blended pass.
 const SELF_CULLING = /^minecraft:(((\w+_)?stained_)?glass|tinted_glass|ice|slime_block|honey_block)$/;
 const SEMI_TRANSPARENT = /^minecraft:((\w+_stained_)glass(_pane)?|tinted_glass|ice|frosted_ice|slime_block|honey_block|water)$/;
 
-// Vanilla light emission levels. Blocks whose glow depends on a `lit`/`berries`
-// state emit only when that state is true (default states are merged in).
-const LUMINANCE = {
-  torch: 14, wall_torch: 14, soul_torch: 10, soul_wall_torch: 10,
-  redstone_torch: 7, redstone_wall_torch: 7,
-  glowstone: 15, sea_lantern: 15, lantern: 15, soul_lantern: 10,
-  jack_o_lantern: 15, shroomlight: 15, end_rod: 14, beacon: 15,
-  lava: 15, fire: 15, soul_fire: 10,
-  campfire: 15, soul_campfire: 10,
-  magma_block: 3, glow_lichen: 7, sea_pickle: 6,
-  ochre_froglight: 15, verdant_froglight: 15, pearlescent_froglight: 15,
-  crying_obsidian: 10, enchanting_table: 7, ender_chest: 7,
-  redstone_lamp: 15, furnace: 13, smoker: 13, blast_furnace: 13,
-  cave_vines: 14, cave_vines_plant: 14, glow_berries: 14,
-  amethyst_cluster: 5, large_amethyst_bud: 4, medium_amethyst_bud: 2, small_amethyst_bud: 1,
-};
-const LIT_GATED = /^(furnace|smoker|blast_furnace|redstone_lamp|campfire|soul_campfire|redstone_torch|redstone_wall_torch|(\w+_)?candle|cave_vines(_plant)?)$/;
-
 // Vertex darkening per occluding neighbor, vanilla smooth-lighting style.
 const AO_CURVE = [1.0, 0.78, 0.58, 0.42];
-
-function luminanceOf(path, props) {
-  if (LIT_GATED.test(path) && props.lit !== 'true' && props.berries !== 'true') return 0;
-  if (/(^|_)candle$/.test(path)) return 3 * Number(props.candles || 1);
-  return LUMINANCE[path] || 0;
-}
 
 // Light level 0..15 -> brightness multiplier. Unlit interiors stay readable
 // (vanilla "moody" floor) while lit surfaces reach full brightness.
@@ -201,13 +176,27 @@ async function loadImage(src) {
 }
 
 async function loadResources() {
-  const [blocks, blockstates, models, uvMap, atlasImage] = await Promise.all([
+  const [blocks, blockstates, models, uvMap, atlasImage, stateBytes] = await Promise.all([
     fetch('/api/assets/blocks.json').then((r) => r.json()),
     fetch('/api/assets/block_definitions.json').then((r) => r.json()),
     fetch('/api/assets/models.json').then((r) => r.json()),
     fetch('/api/assets/atlas_map.json').then((r) => r.json()),
     loadImage('/api/assets/atlas.png'),
+    fetch('/api/block-states').then((r) => r.arrayBuffer()),
   ]);
+  // What Minecraft says of each block state, by the state id each palette
+  // entry carries (server/block-states.js bytes): u32 states, u32 face
+  // shapes, then by state its emission, light block and full faces (bits
+  // over Minecraft's directions: down, up, north, south, west, east), its six
+  // face shapes, and the face shapes' pairs.
+  const [stateCount, shapes] = new Uint32Array(stateBytes, 0, 2);
+  let at = 8;
+  const take = (length) => new Uint8Array(stateBytes, (at += length) - length, length);
+  const emission = take(stateCount);
+  const lightBlock = take(stateCount);
+  const fullFaces = take(stateCount);
+  const faces = take(stateCount * 6);
+  const occludes = take(shapes * shapes);
 
   const blockDefinitions = {};
   for (const id of Object.keys(blockstates)) {
@@ -219,18 +208,6 @@ async function loadResources() {
     blockModels[`minecraft:${id}`] = BlockModel.fromJson(models[id]);
   }
   Object.values(blockModels).forEach((m) => m.flatten({ getBlockModel: (id) => blockModels[id] }));
-
-  // A block is opaque (neighbors' hidden faces can be culled) when its default
-  // model is a full cube and its id doesn't suggest transparency.
-  const opaque = new Set();
-  for (const name of Object.keys(blocks)) {
-    if (SEE_THROUGH.test(name)) continue;
-    const model = blockModels[`minecraft:block/${name}`];
-    if (!model || !Array.isArray(model.elements) || model.elements.length === 0) continue;
-    const fullCube = model.elements.some((el) => Array.isArray(el.from) && Array.isArray(el.to)
-      && el.from.every((v) => v === 0) && el.to.every((v) => v === 16));
-    if (fullCube) opaque.add(`minecraft:${name}`);
-  }
 
   const atlasSize = upperPowerOfTwo(Math.max(atlasImage.width, atlasImage.height));
   const atlasCanvas = document.createElement('canvas');
@@ -250,6 +227,7 @@ async function loadResources() {
   const flags = new Map(); // block id -> flags (a function of the id)
 
   return {
+    states: { fullFaces, rule: lightRule({ emission, lightBlock, faces, shapes, occludes }) },
     resources: {
       getBlockDefinition(id) { return blockDefinitions[id.toString()]; },
       getBlockModel(id) { return blockModels[id.toString()]; },
@@ -261,7 +239,6 @@ async function loadResources() {
         let entry = flags.get(s);
         if (!entry) {
           entry = {
-            opaque: opaque.has(s),
             self_culling: SELF_CULLING.test(s),
             semi_transparent: SEMI_TRANSPARENT.test(s),
           };
@@ -369,8 +346,9 @@ const localIndex = (x, y, z) => ((y & 15) << 8) | ((z & 15) << 4) | (x & 15);
 
 // Headless renderer behind see_build: server/shot.js drives it through
 // web/shot.html (reset -> applyDelta -> flush -> setCamera -> renderNow).
-export async function createViewer(canvas) {
-  const { resources } = await loadResources();
+// `floor`: the lowest height a block can have, in the world's coordinates.
+export async function createViewer(canvas, floor) {
+  const { resources, states } = await loadResources();
   const gl = canvas.getContext('webgl2', { antialias: true, powerPreference: 'high-performance' });
   if (!gl) throw new Error('WebGL2 is not available');
 
@@ -407,7 +385,6 @@ export async function createViewer(canvas) {
     constructor() {
       this.cells = new Map(); // cellKey -> Array(4096) of placed blocks by local index
       this.chunks = new Map(); // 'cx,cy,cz' -> Map(local index -> placed block), in the order set
-      this.emitters = new Map(); // posKey -> light level 1..15, in the order set
       this.size = 0;
       // The chunk put() and remove() looked at last, and the one at() did
       // (neither arrays nor maps are replaced until clear()).
@@ -430,7 +407,6 @@ export async function createViewer(canvas) {
     clear() {
       this.cells.clear();
       this.chunks.clear();
-      this.emitters.clear();
       this.size = 0;
       this.slotX = this.slotY = this.slotZ = NaN;
       this.slotBlocks = this.slotChunk = null;
@@ -458,8 +434,9 @@ export async function createViewer(canvas) {
       return true;
     }
 
-    set(x, y, z, state, opaque, lum, scale) {
-      const placed = { pos: [x, y, z], state, nbt: undefined, opaque, lum, scale };
+    // A block of `state` with its block state's facts (preparePalette).
+    set(x, y, z, state, { full, light }, scale) {
+      const placed = { pos: [x, y, z], state, nbt: undefined, full, light, scale };
       this.put(placed);
       return placed;
     }
@@ -472,8 +449,6 @@ export async function createViewer(canvas) {
       if (!old) this.size++;
       this.slotBlocks[index] = placed;
       this.slotChunk.set(index, placed);
-      if (placed.lum > 0) this.emitters.set(`${x},${y},${z}`, placed.lum);
-      else if (old && old.lum > 0) this.emitters.delete(`${x},${y},${z}`);
     }
 
     remove(x, y, z) {
@@ -484,7 +459,6 @@ export async function createViewer(canvas) {
       this.slotBlocks[index] = undefined;
       this.size--;
       this.slotChunk.delete(index);
-      if (old.lum > 0) this.emitters.delete(`${x},${y},${z}`);
     }
 
     forEachBlock(fn) {
@@ -520,13 +494,9 @@ export async function createViewer(canvas) {
   if (!replacedVS || !replacedFS) throw new Error('Failed to patch deepslate chunk shaders');
 
   // ---- light engine ----
-  // Voxel light field over the build's bounding box (+1 air margin), BlueMap /
-  // vanilla style: skylight pours down open columns at level 15 and spreads
-  // with -1 per step; block light BFS-spreads from emitters. Both live in one
-  // grid as max(sky, block).
-  // The light kept between flushes (light.mjs), and the chunks whose blocks
-  // changed since the last.
-  let light = createLight();
+  // Minecraft's light of the build in open sky (light.mjs), kept between
+  // flushes, and the chunks whose blocks changed since the last.
+  let light = createLight(states.rule, floor);
   const lightTouched = new Set();
   let lightPending = false;
 
@@ -560,7 +530,7 @@ export async function createViewer(canvas) {
   // state and which of its faces are culled, so deepslate makes them once
   // for each (a template).
   function isOccluder(x, y, z) {
-    return world.at(x, y, z)?.opaque === true;
+    return world.at(x, y, z)?.full === 63;
   }
 
   const chunkBuilder = renderer.chunkBuilder;
@@ -692,7 +662,7 @@ export async function createViewer(canvas) {
     mat4.translate(translation, translation, placed.pos);
     const m = translation;
     const scale = placed.scale;
-    const emissive = placed.lum > 0;
+    const emissive = states.rule.emission[placed.light] > 0;
     const tp = template.pos;
     const tc = template.color;
     for (let q = 0; q < template.quads; q++) {
@@ -795,8 +765,11 @@ export async function createViewer(canvas) {
   }
 
   // Cull flags of ChunkBuilder.needsCull, as bits: up, down, west, east,
-  // north, south.
+  // north, south; and by side, the bit of the neighbour's full faces that
+  // faces the block (Minecraft's directions: down, up, north, south, west,
+  // east).
   const SIDES = [[0, 1, 0], [0, -1, 0], [-1, 0, 0], [1, 0, 0], [0, 0, -1], [0, 0, 1]];
+  const FACING = [1 << 0, 1 << 1, 1 << 5, 1 << 4, 1 << 3, 1 << 2];
   function cullBits(placed, info) {
     const [x, y, z] = placed.pos;
     let bits = 0;
@@ -807,7 +780,7 @@ export async function createViewer(canvas) {
       const other = infoOf(neighbor.state);
       let cull;
       if (info.id === other.id && other.flags.self_culling) cull = true;
-      else if (other.flags.opaque) cull = !(side === 0 && waterlogged(placed.state, info));
+      else if (neighbor.full & FACING[side]) cull = !(side === 0 && waterlogged(placed.state, info));
       else cull = waterlogged(placed.state, info) && waterlogged(neighbor.state, other);
       if (cull) bits |= 1 << side;
     }
@@ -1007,19 +980,15 @@ export async function createViewer(canvas) {
     }
   }
 
+  // Each palette entry's block state, and its facts by the state id it
+  // carries: its full faces (`full`: a block whose six faces are full
+  // hides its neighbours' faces and darkens their corners) and its light
+  // class (`light`, which holds the light it emits).
   function preparePalette(entries) {
-    return entries.map((entry) => {
-      const path = entry.id.replace(/^minecraft:/, '');
-      const states = entry.states || {};
-      const props = { ...(resources.getDefaultBlockProperties({ path }) || {}), ...states };
-      return {
-        state: new BlockState(path, states),
-        meta: {
-          opaque: resources.getBlockFlags({ toString: () => `minecraft:${path}` }).opaque,
-          lum: luminanceOf(path, props),
-        },
-      };
-    });
+    return entries.map(({ id, states: properties = {}, state }) => ({
+      state: new BlockState(id.replace(/^minecraft:/, ''), properties),
+      meta: { full: states.fullFaces[state], light: states.rule.classOf[state] },
+    }));
   }
 
   // Lets the whole world go: its blocks, every chunk's meshes with their GPU
@@ -1041,7 +1010,7 @@ export async function createViewer(canvas) {
     dirtyX = NaN;
     lightStamps.clear();
     // An empty world's light, with nothing to rebuild.
-    light = createLight();
+    light = createLight(states.rule, floor);
     lightTouched.clear();
     lightPending = false;
   }
@@ -1158,7 +1127,7 @@ export async function createViewer(canvas) {
         const z = chunk.origin[2] + lz;
         const { state, meta } = palette[index];
         const scale = sx > 1 || sy > 1 || sz > 1 ? [sx, sy, sz] : undefined;
-        placed.push(world.set(x, y, z, state, meta.opaque, meta.lum, scale));
+        placed.push(world.set(x, y, z, state, meta, scale));
         markDirty(x, y, z);
       }
       syncChunks.set(chunk.key, placed);

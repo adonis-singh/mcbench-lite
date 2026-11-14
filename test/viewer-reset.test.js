@@ -5,12 +5,19 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const { test } = require('node:test');
+const { testBlockStates } = require('./helpers/block-table');
 
 // The see_build viewer (web/viewer.js) with deepslate itself, over a stand-in
 // WebGL context that keeps what each buffer was given, and the assets of one
 // block: what reset() lets go, and that what is drawn after it is what a page
 // just loaded draws.
 const ROOT = path.join(__dirname, '..');
+// The block table of the assets' two blocks, its facts written for the test:
+// cubes with six full faces, one of which gives light.
+const STATES = testBlockStates([
+  { name: 'minecraft:stone', full: 63, lightBlock: 15 },
+  { name: 'minecraft:glowstone', full: 63, lightBlock: 15, emission: 15 },
+]);
 const cube = (texture) => ({
   textures: { all: texture },
   elements: [{
@@ -68,7 +75,9 @@ test.before(async () => {
     }
   }
   globalThis.deepslate = { ...deepslate, StructureRenderer };
-  globalThis.fetch = async (url) => ({ json: async () => ASSETS[url.slice('/api/assets/'.length)] });
+  globalThis.fetch = async (url) => (url === '/api/block-states'
+    ? { arrayBuffer: async () => { const bytes = STATES.bytes(); return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.length); } }
+    : { json: async () => ASSETS[url.slice('/api/assets/'.length)] });
   globalThis.Image = class {
     constructor() { this.width = 32; this.height = 16; }
     set src(_) { queueMicrotask(() => this.onload()); }
@@ -95,7 +104,7 @@ async function open() {
   const canvas = { width: 640, height: 480, clientWidth: 640, clientHeight: 480 };
   const { gl, buffers } = fakeGl(canvas);
   canvas.getContext = () => gl;
-  const viewer = await createViewer(canvas);
+  const viewer = await createViewer(canvas, -64);
   const { renderer, world } = captured;
   const chunks = () => renderer.chunkBuilder.chunks.flat(2).filter(Boolean);
   // What a frame draws: each mesh's buffers, in the order deepslate draws them.
@@ -107,7 +116,7 @@ async function open() {
 // A server chunk: `blocks` as [x, y, z, id] within the chunk at `origin`.
 function chunk(key, version, origin, blocks) {
   const ids = [...new Set(blocks.map(([, , , id]) => id))];
-  return { key, version, origin, palette: ids.map((id) => ({ id: `minecraft:${id}` })), blocks: blocks.map(([x, y, z, id]) => [x, y, z, ids.indexOf(id)]) };
+  return { key, version, origin, palette: ids.map((id) => ({ id: `minecraft:${id}`, state: STATES.idOf(`minecraft:${id}`, {}) })), blocks: blocks.map(([x, y, z, id]) => [x, y, z, ids.indexOf(id)]) };
 }
 const slab = (id, y) => Array.from({ length: 16 }, (_, i) => [i, y, 3, id]);
 // Two chats' worlds, sharing one chunk position: a lit room, and a wall across two chunks.
@@ -131,14 +140,16 @@ test('reset lets the whole world go: its chunks\' arrays, their meshes and their
   const idle = v.buffers.size;
   load(v.viewer, FIRST);
   assert.equal(v.world.size, 16 + 16 + 3 + 16 + 1 + 16);
-  assert.ok(v.world.cells.size >= 3 && v.chunks().length >= 3 && v.buffers.size > idle && v.world.emitters.size === 1);
+  assert.ok(v.world.cells.size >= 3 && v.chunks().length >= 3 && v.buffers.size > idle);
+  // The glowstone gives light: its light class's emission, from the table.
+  const rule = globalThis.__viewer.light.lightRule(STATES);
+  assert.deepEqual(v.world.getBlocks().filter((placed) => rule.emission[placed.light] > 0).map((placed) => rule.emission[placed.light]), [15]);
   // A clip box and back: a version kept aside, with its meshes.
   v.viewer.applyDelta({ chunks: [], removed: ['b'] });
   v.viewer.flush();
   v.viewer.reset();
   assert.equal(v.world.cells.size, 0, 'no chunk\'s array of blocks is kept');
   assert.equal(v.world.chunks.size, 0);
-  assert.equal(v.world.emitters.size, 0);
   assert.equal(v.world.size, 0);
   assert.equal(v.world.at(5, 66, 3), undefined, 'nor the chunk last looked at');
   assert.equal(v.chunks().length, 0, 'deepslate holds no chunk');

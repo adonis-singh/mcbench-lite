@@ -14,9 +14,6 @@ const CHUNK_VOLUME = CHUNK_SIZE ** 3;
 const DENSE_THRESHOLD = 512;
 const MAX_PALETTE = 65535; // dense chunks are Uint16
 const KEY_OFFSET = 512; // chunk coords lie within +/-256; packed as 3 x 10 bits
-const RENDER_NON_OPAQUE = /(slab|stairs|door|torch|lantern|carpet|rail|chain$|rod$|candle|ladder|sign|banner|button|pressure_plate|campfire|cobweb|scaffolding|sapling|vine|leaves|flower|coral(?!_block)|kelp|seagrass|lily|fern|grass$|bush|roots|sprouts|fungus|pot$|head$|skull$|cake|snow$|anvil|bell$|cauldron|hopper|glass|water|lava|ice|slime|honey|barrier|grate|spawner)/;
-const CONNECT_NON_SOLID = /(slab|stairs|door|torch|lantern|carpet|rail|chain$|rod$|candle|ladder|sign|banner|button|pressure_plate|campfire|cobweb|scaffolding|sapling|vine|leaves|flower|coral(?!_block)|kelp|seagrass|lily|fern|grass$|bush|roots|sprouts|fungus|pot$|head$|skull$|cake|snow$|anvil|bell$|cauldron|hopper)/;
-const DIRECTIONS = [['north', 0, -1], ['south', 0, 1], ['west', -1, 0], ['east', 1, 0]];
 
 function keyOf(cx, cy, cz) {
   return ((cx + KEY_OFFSET) << 20) | ((cy + KEY_OFFSET) << 10) | (cz + KEY_OFFSET);
@@ -35,10 +32,46 @@ function stateSignature(id, states) {
 // content for the lifetime of this process, across clones and branches.
 let stamp = 0;
 
+// The boundary layers of chunks (World.shownVersion), each as the cells of
+// it with six full faces, 256 bits, numbered by content: the layer of none
+// is 0. Few layers are told apart (all, none, and the edges of shapes built).
+const LAYERS = new Map();
+function layerNumber(bits) {
+  const key = String.fromCharCode(...bits);
+  let number = LAYERS.get(key);
+  if (number === undefined) LAYERS.set(key, number = LAYERS.size);
+  return number;
+}
+const EMPTY_LAYER = layerNumber(new Uint8Array(32));
+// A chunk's six boundary layers (x = 0, x = 15, y = 0, y = 15, z = 0,
+// z = 15), by `occluding` (block-states.js ofPalette), kept for the chunk's
+// version.
+const heldLayers = new WeakMap();
+function boundaryLayers(chunk, occluding) {
+  const held = heldLayers.get(chunk);
+  if (held && held.version === chunk.version && held.occluding === occluding) return held.layers;
+  const dense = chunk.view();
+  const bits = Array.from({ length: 6 }, () => new Uint8Array(32));
+  for (let a = 0; a < 16; a += 1) {
+    for (let b = 0; b < 16; b += 1) {
+      const byte = (a << 1) | (b >> 3);
+      const bit = 1 << (b & 7);
+      if (occluding[dense[(a << 8) | (b << 4)]]) bits[0][byte] |= bit;
+      if (occluding[dense[(a << 8) | (b << 4) | 15]]) bits[1][byte] |= bit;
+      if (occluding[dense[(a << 4) | b]]) bits[2][byte] |= bit;
+      if (occluding[dense[(15 << 8) | (a << 4) | b]]) bits[3][byte] |= bit;
+      if (occluding[dense[(a << 8) | b]]) bits[4][byte] |= bit;
+      if (occluding[dense[(a << 8) | (15 << 4) | b]]) bits[5][byte] |= bit;
+    }
+  }
+  const layers = bits.map(layerNumber);
+  heldLayers.set(chunk, { version: chunk.version, occluding, layers });
+  return layers;
+}
+
 class PaletteStore {
   constructor(entries = []) {
     this.entries = [null]; // zero is air
-    this.opaque = [false]; // indexed like entries
     this.bySignature = new Map();
     for (const entry of entries) this.intern(entry.id, entry.states || {});
   }
@@ -49,9 +82,7 @@ class PaletteStore {
     if (index !== undefined) return index;
     index = this.entries.length;
     if (index > MAX_PALETTE) throw new Error(`Build uses more than ${MAX_PALETTE} distinct block states`);
-    const opaque = !RENDER_NON_OPAQUE.test(id);
-    this.entries.push(Object.freeze({ id, states: Object.freeze({ ...states }), opaque }));
-    this.opaque.push(opaque);
+    this.entries.push(Object.freeze({ id, states: Object.freeze({ ...states }) }));
     this.bySignature.set(signature, index);
     return index;
   }
@@ -509,32 +540,6 @@ class World {
     return this.cachedBounds;
   }
 
-  connectedStates(x, y, z, entry) {
-    const isFence = entry.id.endsWith('_fence');
-    const paneLike = entry.id.endsWith('_pane') || entry.id.endsWith('_wall') || entry.id === 'minecraft:iron_bars';
-    if (!isFence && !paneLike) return entry.states;
-    const isWall = entry.id.endsWith('_wall');
-    const states = { ...entry.states };
-    const linked = [];
-    for (const [dir, dx, dz] of DIRECTIONS) {
-      const neighbor = this.get(x + dx, y, z + dz);
-      const solid = neighbor && (!CONNECT_NON_SOLID.test(neighbor.id)
-        || (neighbor.id.endsWith('_slab') && neighbor.states.type === 'double'));
-      const connects = neighbor && (isFence
-        ? neighbor.id.endsWith('_fence') || solid
-        : paneLike && (neighbor.id.endsWith('_pane') || neighbor.id.endsWith('_wall')
-          || neighbor.id === 'minecraft:iron_bars' || (!neighbor.id.endsWith('_fence') && solid)));
-      if (connects) linked.push(dir);
-      states[dir] = isWall ? (connects ? 'low' : 'none') : String(Boolean(connects));
-    }
-    if (isWall) {
-      const straight = linked.length === 2
-        && ((linked.includes('north') && linked.includes('south')) || (linked.includes('west') && linked.includes('east')));
-      states.up = String(this.has(x, y + 1, z) || !straight);
-    }
-    return states;
-  }
-
   renderLod() {
     const bounds = this.bounds();
     if (!bounds || this.blockCount < 500_000) return null;
@@ -544,21 +549,29 @@ class World {
     return { axis, scale: 4 };
   }
 
-  chunkSnapshot(key, connect = false, surfaceOnly = false, lod = null) {
+  // A chunk as see_build's page draws it: its blocks with their palette
+  // entries, each entry with its Minecraft state id, less the blocks hidden
+  // on every side (a block whose six neighbours and itself have six full
+  // faces: such a state blocks all light, so the block is dark, and every
+  // face of it and every face turned to it is hidden), and grouped into
+  // `lod` proxies where a render LOD is set. `states`: the block states of
+  // the pinned Minecraft (block-states.js).
+  chunkSnapshot(key, states, lod = null) {
     const chunk = this.chunks.get(key);
     if (!chunk) return null;
     const [cx, cy, cz] = coordsOf(key);
     const ox = cx * CHUNK_SIZE; const oy = cy * CHUNK_SIZE; const oz = cz * CHUNK_SIZE;
-    const { entries, opaque } = this.palette;
+    const { entries } = this.palette;
+    const { ids, occluding } = states.ofPalette(this.palette);
     const dense = chunk.view();
     // Face neighbours resolved once per chunk; boundary blocks look across.
-    const px = surfaceOnly ? this.chunks.get(keyOf(cx + 1, cy, cz)) : null;
-    const nx = surfaceOnly ? this.chunks.get(keyOf(cx - 1, cy, cz)) : null;
-    const py = surfaceOnly ? this.chunks.get(keyOf(cx, cy + 1, cz)) : null;
-    const ny = surfaceOnly ? this.chunks.get(keyOf(cx, cy - 1, cz)) : null;
-    const pz = surfaceOnly ? this.chunks.get(keyOf(cx, cy, cz + 1)) : null;
-    const nz = surfaceOnly ? this.chunks.get(keyOf(cx, cy, cz - 1)) : null;
-    const across = (neighbor, index) => neighbor !== undefined && opaque[neighbor.get(index)];
+    const px = this.chunks.get(keyOf(cx + 1, cy, cz));
+    const nx = this.chunks.get(keyOf(cx - 1, cy, cz));
+    const py = this.chunks.get(keyOf(cx, cy + 1, cz));
+    const ny = this.chunks.get(keyOf(cx, cy - 1, cz));
+    const pz = this.chunks.get(keyOf(cx, cy, cz + 1));
+    const nz = this.chunks.get(keyOf(cx, cy, cz - 1));
+    const across = (neighbor, index) => neighbor !== undefined && occluding[neighbor.get(index)] === 1;
 
     let records = [];
     for (let index = 0; index < CHUNK_VOLUME; index += 1) {
@@ -567,26 +580,15 @@ class World {
       const lx = index & 15;
       const lz = (index >> 4) & 15;
       const ly = index >> 8;
-      const entry = entries[worldPaletteIndex];
-      if (surfaceOnly && entry.opaque
-        && (lx < 15 ? opaque[dense[index + 1]] : across(px, index - 15))
-        && (lx > 0 ? opaque[dense[index - 1]] : across(nx, index + 15))
-        && (ly < 15 ? opaque[dense[index + 256]] : across(py, index - 15 * 256))
-        && (ly > 0 ? opaque[dense[index - 256]] : across(ny, index + 15 * 256))
-        && (lz < 15 ? opaque[dense[index + 16]] : across(pz, index - 15 * 16))
-        && (lz > 0 ? opaque[dense[index - 16]] : across(nz, index + 15 * 16))) continue;
-      // Unchanged states share the world palette index as their signature;
-      // only connected fences/panes/walls need a per-block signature.
-      let { states } = entry;
-      let signature = worldPaletteIndex;
-      if (connect) {
-        const connected = this.connectedStates(ox + lx, oy + ly, oz + lz, entry);
-        if (connected !== entry.states) {
-          states = connected;
-          signature = stateSignature(entry.id, connected);
-        }
-      }
-      records.push({ coords: [lx, ly, lz], entry, states, signature, opaque: entry.opaque, scale: null });
+      const opaque = occluding[worldPaletteIndex] === 1;
+      if (opaque
+        && (lx < 15 ? occluding[dense[index + 1]] === 1 : across(px, index - 15))
+        && (lx > 0 ? occluding[dense[index - 1]] === 1 : across(nx, index + 15))
+        && (ly < 15 ? occluding[dense[index + 256]] === 1 : across(py, index - 15 * 256))
+        && (ly > 0 ? occluding[dense[index - 256]] === 1 : across(ny, index + 15 * 256))
+        && (lz < 15 ? occluding[dense[index + 16]] === 1 : across(pz, index - 15 * 16))
+        && (lz > 0 ? occluding[dense[index - 16]] === 1 : across(nz, index + 15 * 16))) continue;
+      records.push({ coords: [lx, ly, lz], index: worldPaletteIndex, opaque, scale: null });
     }
 
     if (lod && lod.scale > 1) {
@@ -608,9 +610,9 @@ class World {
         const counts = new Map();
         let representative = group[0];
         for (const record of group) {
-          const count = (counts.get(record.signature) || 0) + 1;
-          counts.set(record.signature, count);
-          if (count > (counts.get(representative.signature) || 0)) representative = record;
+          const count = (counts.get(record.index) || 0) + 1;
+          counts.set(record.index, count);
+          if (count > (counts.get(representative.index) || 0)) representative = record;
         }
         const coords = [...representative.coords];
         coords[planeAxes[0]] = Math.floor(coords[planeAxes[0]] / lod.scale) * lod.scale;
@@ -626,21 +628,34 @@ class World {
     const palette = [];
     const paletteIndex = new Map();
     const blocks = [];
-    for (const record of records) {
-      const {
-        coords: [lx, ly, lz], entry, states, signature, scale,
-      } = record;
-      let localPaletteIndex = paletteIndex.get(signature);
+    for (const { coords: [lx, ly, lz], index, scale } of records) {
+      let localPaletteIndex = paletteIndex.get(index);
       if (localPaletteIndex === undefined) {
         localPaletteIndex = palette.length;
-        palette.push({ id: entry.id, states });
-        paletteIndex.set(signature, localPaletteIndex);
+        const { id, states: properties } = entries[index];
+        palette.push({ id, states: properties, state: ids[index] });
+        paletteIndex.set(index, localPaletteIndex);
       }
       blocks.push(scale
         ? [lx, ly, lz, localPaletteIndex, scale[0], scale[1], scale[2]]
         : [lx, ly, lz, localPaletteIndex]);
     }
-    return { key, origin: [ox, oy, oz], version: chunk.version, palette, blocks };
+    return { key, origin: [ox, oy, oz], version: this.shownVersion(key, states), palette, blocks };
+  }
+
+  // What chunkSnapshot's chunk is made from: the chunk's version, and which
+  // cells of the layer each of the six chunks across its faces turns to it
+  // have six full faces (by number, interned: equal numbers, equal layers;
+  // no chunk there is a layer of none), as they hide its blocks on its edges.
+  shownVersion(key, states) {
+    const { occluding } = states.ofPalette(this.palette);
+    const [cx, cy, cz] = coordsOf(key);
+    const layer = (near, side) => {
+      const chunk = this.chunks.get(near);
+      return chunk ? boundaryLayers(chunk, occluding)[side] : EMPTY_LAYER;
+    };
+    return `${this.chunks.get(key).version} ${layer(keyOf(cx + 1, cy, cz), 0)} ${layer(keyOf(cx - 1, cy, cz), 1)} ${layer(keyOf(cx, cy + 1, cz), 2)}`
+      + ` ${layer(keyOf(cx, cy - 1, cz), 3)} ${layer(keyOf(cx, cy, cz + 1), 4)} ${layer(keyOf(cx, cy, cz - 1), 5)}`;
   }
 
   finalize() {

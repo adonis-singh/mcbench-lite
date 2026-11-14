@@ -33,16 +33,27 @@ const STATES = [
 ];
 
 function mesherPack() {
+  return pack([['minecraft:air', 0], ['minecraft:stone', 1], ['minecraft:glass', 2], ['minecraft:glowstone', 3], ['minecraft:lamp', 4]], STATES);
+}
+
+// A pack of `states` (each with the light fields above; state 0 air, the
+// rest drawn as a full cube), one block of no properties each, named
+// minecraft:state_<n>: for testing the mesher's light.
+function lightPack(states) {
+  return pack(states.map((state, index) => [index === 0 ? 'minecraft:air' : `minecraft:state_${index}`, index]),
+    states.map((state, index) => ({ block: index, flags: index === 0 ? 128 : 3, selection: index === 0 ? NONE : 0, ...state })));
+}
+
+function pack(blocks, states) {
   const out = writer().bytes(Buffer.from('MCBP')).u32(1);
-  const blocks = [['minecraft:air', 0], ['minecraft:stone', 1], ['minecraft:glass', 2], ['minecraft:glowstone', 3], ['minecraft:lamp', 4]];
   out.u32(blocks.length);
   for (const [id, first] of blocks) {
     out.str(id).u32(first);
     if (id === 'minecraft:lamp') out.u8(1).str('lit').u8(0).u8(2).str('false').str('true');
     else out.u8(0);
   }
-  out.u32(STATES.length);
-  for (const state of STATES) {
+  out.u32(states.length);
+  for (const state of states) {
     out.u8(state.flags).u8(0).u8(state.emission).u8(state.lightBlock).u8(state.lightFlags).u8(state.full)
       .u16(state.block).u32(0).u32(state.selection);
   }
@@ -71,4 +82,4 @@ function mesherPack() {
   return out.done();
 }
 
-module.exports = { mesherPack };
+module.exports = { mesherPack, lightPack };

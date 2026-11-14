@@ -4,6 +4,11 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { chromium } = require('playwright-core');
 const { World } = require('../server/world');
+const { testBlockStates } = require('./helpers/block-table');
+
+// The block table of the world's three blocks, cubes with six full faces
+// written for the test, which the page is given in place of the server's.
+const STATES = testBlockStates(['red', 'blue', 'yellow'].map((color) => ({ name: `minecraft:${color}_concrete`, full: 63, lightBlock: 15 })));
 
 // Uses the app's static assets, but supplies an isolated world over a browser
 // route. No model calls or mutations to saved builds are made by this test.
@@ -39,7 +44,7 @@ test(
       { type: 'meta', bounds: world.bounds(), removed: [], renderLod: null },
       ...[...world.chunks.keys()].map((key) => ({
         type: 'chunk',
-        chunk: world.chunkSnapshot(key),
+        chunk: world.chunkSnapshot(key, STATES),
       })),
     ];
     const launch = chromium.launch.bind(chromium);
@@ -53,6 +58,7 @@ test(
       const newPage = browser.newPage.bind(browser);
       browser.newPage = async (options) => {
         const page = await newPage(options);
+        await page.route('**/api/block-states', (route) => route.fulfill({ contentType: 'application/octet-stream', body: STATES.bytes() }));
         await page.route(
           '**/api/conversations/context-fixture/world',
           (route) => {

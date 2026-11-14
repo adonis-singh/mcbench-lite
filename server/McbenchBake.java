@@ -497,6 +497,9 @@ class McbenchBake {
     var blockStates = new LinkedHashMap<String, List<TableState>>();
     for (String line : Files.readAllLines(tablePath)) {
       String[] fields = line.split("\t");
+      // The pairs of face shapes light is tested through: the mesher
+      // closes a face to light only where one side of it is full.
+      if (fields[0].equals("faceoccludes")) continue;
       if (fields[0].equals("default")) {
         blocks.put(fields[1], fields[2]);
         blockStates.put(fields[1], new ArrayList<>());

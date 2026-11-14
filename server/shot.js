@@ -3,6 +3,8 @@
 const { World } = require('./world');
 const { token } = require('./auth');
 const tools = require('./tools');
+const { minecraftLive } = require('./minecraft-live');
+const { MIN_MC_Y } = require('./minecraft-dimension');
 
 // see_build screenshots: a headless Chromium runs web/shot.html, a deepslate
 // pipeline with custom shaders, ambient occlusion and voxel lighting. A shot
@@ -33,6 +35,10 @@ const SIZES = { large: [2184, 1640], small: [1092, 820] };
 // edges are averaged instead of aliased.
 const SUPERSAMPLE = 2;
 const DEFAULT_FOV = 70;
+// The lowest height a block can have in the world see_build draws (the
+// engine's, at the page's heights: shot-world.js), below which the page
+// lights nothing, as the live viewer's mesher does.
+const FLOOR = MIN_MC_Y - minecraftLive.yOffset;
 const MARGIN = 1.06;
 // As the screenshot page's own JPEGs (web/shot.mjs).
 const MONTAGE_JPEG_QUALITY = 0.9;
@@ -362,7 +368,7 @@ function renderShots(conversationId, shots, signal, timings = {}) {
     const page = await stage('startup', () => run.page, null, signal, timings);
     activePage = page;
     signal?.throwIfAborted();
-    await stage('initialization', () => page.evaluate(() => window.__shot.init()), page, signal, timings);
+    await stage('initialization', () => page.evaluate((floor) => window.__shot.init(floor), FLOOR), page, signal, timings);
     const buffers = new Array(shots.length);
     for (const group of groups.values()) {
       const clip = group.clip && { from: group.clip.min, to: group.clip.max };
@@ -459,7 +465,7 @@ function warmRenderer() {
   async function warm() {
     run = currentRun();
     const page = await stage('startup', () => run.page, null);
-    await stage('initialization', () => page.evaluate(() => window.__shot.init()), page);
+    await stage('initialization', () => page.evaluate((floor) => window.__shot.init(floor), FLOOR), page);
     // The first shot of a large size otherwise sizes the canvas and makes
     // its buffers itself (60 to 400 ms on the first see_build).
     const [width, height] = SIZES.large;

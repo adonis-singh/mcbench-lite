@@ -1,51 +1,115 @@
 const LIGHT_CAP = 16_000_000;
-// Light falls by one a step from at most 15, so a cell lit through a path
-// of 15 steps or more gets nothing from it: a change reaches 14 steps.
+// Light falls by one a step or more from at most 15, so a cell lit through a
+// path of 15 steps or more gets nothing from it: a change reaches 14 steps.
 const REACH = 14;
 const NO_TOP = -2147483648;
+// A light class's step: the light it takes from a neighbour (bits 0-3),
+// whether it shapes light with its faces (SHAPED), whether sky light falls
+// straight down through it (SKY) and whether it emits light (EMITS).
+const SHAPED = 16;
+const SKY = 32;
+const EMITS = 64;
+// Direction order (Minecraft's Direction): down, up, north, south, west, east.
+const DOWN = 0, UP = 1, NORTH = 2, SOUTH = 3, WEST = 4, EAST = 5;
 
-// The light of a world: a voxel field over the blocks' bounding box (+1 air
-// margin), skylight 15 down every column above its highest opaque block,
-// block light from emitters, and both spread with -1 a step through cells
-// that are not opaque. A cell's level is the largest of its own source
-// (15 for open sky, its emitter's level) and its neighbours' levels less
-// one where it is not opaque: the smallest field that holds this, which a
-// work queue reaches from the sources in any order.
+// Minecraft's light of a build standing alone: open sky above it and on
+// every side, air below it down to the world's floor (`floor`, the lowest
+// height a block can have) and nothing past that, which is the world the live
+// viewer's mesher lights a blueprint in (renderer/src/world.rs: its volume
+// stops at the floor and reads full sky light past its edges). What a cell
+// holds is the brighter of its sky and block light, in full daylight. The
+// rule is Paper's light engine's (Starlight, which core/src/light/engine.rs
+// ports line for line), with each block state's facts from Minecraft's block
+// table (server/block-states.js):
+//   - Sky light is 15 from above down a column through every cell that
+//     blocks no light (light block 0) and whose face shapes towards the
+//     cell above do not close (below).
+//   - A cell emitting light holds its emission.
+//   - Light steps to each neighbour less the neighbour's light block, at
+//     least 1, unless the face shapes the two cells turn to each other
+//     close (Shapes.faceShapeOccludes; a cell that is not conditionally full
+//     opaque turns an empty face).
+// A cell's level is the largest of its own sources and what its neighbours
+// give it: the smallest field that holds this, which a work queue reaches
+// from the sources in any order (the same field for sky and block light
+// spread apart and the brighter taken: both spread by the same steps).
+// The field covers the blocks' bounding box and one air cell more on each
+// side, above the floor: past it a column holds no block, so its sky is
+// open, and below it a path through the air under the build is never
+// shorter than one along the box's bottom layer, so the field is the same as
+// one lit over any larger box. Every cell outside the field reads 15.
 //
-// `createLight()` holds that field and what it is made from (each cell's
-// opacity and emission, each column's highest opaque block, each chunk's
-// block extents). `updateLight(light, world, touched)` brings it to `world`
-// after the blocks of the chunks in `touched` ('cx,cy,cz') changed, and
-// answers the chunks holding a cell whose level changed. Only cells within
-// REACH steps of a cell whose opacity, emission or open sky changed can
-// change: the cells a level comes from lie on a path of at most REACH steps
-// to it. Open sky is not local: an opaque block put up or taken away opens
-// or closes the sky of its column down to the next opaque block below (the
-// span between the column's old and new highest opaque block), so those
-// cells count as changed too. A box that grew holds cells that were air
-// under open sky (no block was past the old box's sides or above it), and
-// they keep that light unless a change is near; below the old box the
-// light of the cells under the build was not held, and those count as
-// changed. A box that shrank counts the cells of its sides that moved in as
-// changed. Those cells, and the cells within
-// REACH of them, are lit again from their sources and from the levels of
-// the cells around them, which keep theirs: the same field the whole world
-// lit from nothing gives (test/light.test.js compares the two after random
-// edits). With nothing held (the first update, after a reset, or after a
-// box past LIGHT_CAP), every cell has changed: one path lights a whole
-// world and an edit.
+// Each block state lights as its light class (`lightRule`): states with the
+// same emission, step, sky passing and face shapes are one class, and empty
+// space is class 0, air's.
 //
-// `world`: its chunks ('cx,cy,cz' -> Map of placed blocks, each with pos,
-// whether it is a full opaque cube, and its light level lum, which the
-// viewer's world also keeps as its light sources).
-export function createLight() {
-  return { field: null, grid: null, chunkBounds: new Map(), scratch: null };
+// `createLight(rule, floor)` holds that field and what it is made from (each
+// cell's light class, each column's highest cell the sky does not reach,
+// each chunk's block extents). `updateLight(light, world, touched)` brings it
+// to `world` after the blocks of the chunks in `touched` ('cx,cy,cz')
+// changed, and answers the chunks holding a cell whose level changed. Only
+// cells within REACH steps of a cell whose light class or open sky changed
+// can change: the cells a level comes from lie on a path of at most REACH
+// steps to it. Open sky is not local: a block put up or taken away opens or
+// closes the sky of its column down to the next cell the sky stops at (the
+// span between the column's old and new highest cell the sky does not
+// reach), so those cells count as changed too. A box that grew holds cells
+// that were air under open sky (no block was past the old box's sides or
+// above it), and they keep that light unless a change is near; below the old
+// box the light of the cells under the build was not held, and those count
+// as changed. A box that shrank counts the cells of its sides that moved in
+// as changed. Those cells, and the cells within REACH of them, are lit again
+// from their sources and from the levels of the cells around them, which
+// keep theirs: the same field the whole world lit from nothing gives
+// (test/light.test.js compares the two after random edits). With nothing
+// held (the first update, after a reset, or after a box past LIGHT_CAP),
+// every cell has changed: one path lights a whole world and an edit.
+//
+// `world`: its chunks ('cx,cy,cz' -> Map of placed blocks, each with pos and
+// its light class, `light`).
+export function createLight(rule, floor) {
+  return { rule, floor, field: null, grid: null, chunkBounds: new Map(), scratch: null };
+}
+
+// The light classes of Minecraft's block states, from their facts by state
+// id (server/block-states.js): `emission`, `lightBlock`, `faces` (six face
+// shapes a state, 0 the empty face) and `occludes` (by pair of the `shapes`
+// face shapes, row by row). Answers the rule createLight lights with, and
+// `classOf`, each state's class. State 0 is air.
+export function lightRule({ emission, lightBlock, faces, shapes, occludes }) {
+  const count = emission.length;
+  const classOf = new Uint16Array(count);
+  const keys = new Map();
+  const classes = [];
+  for (let state = 0; state < count; state++) {
+    const shape = faces.subarray(state * 6, state * 6 + 6);
+    const step = Math.max(1, lightBlock[state]) | (shape.some((face) => face !== 0) ? SHAPED : 0) | (lightBlock[state] === 0 ? SKY : 0) | (emission[state] > 0 ? EMITS : 0);
+    const key = `${emission[state]} ${step} ${shape.join(',')}`;
+    let light = keys.get(key);
+    if (light === undefined) {
+      light = classes.length;
+      if (light > 0xffff) throw new Error('More light classes than a cell holds');
+      keys.set(key, light);
+      classes.push({ emission: emission[state], step, shape });
+    }
+    classOf[state] = light;
+  }
+  const face = new Uint8Array(classes.length * 6);
+  classes.forEach(({ shape }, light) => face.set(shape, light * 6));
+  return {
+    classOf,
+    emission: Uint8Array.from(classes, ({ emission: level }) => level),
+    step: Uint8Array.from(classes, ({ step }) => step),
+    face,
+    shapes,
+    occludes,
+  };
 }
 
 // The light of `world` lit from nothing, as a field (null when there is
 // none: an empty world, or one past LIGHT_CAP).
-export function computeLight(world) {
-  const light = createLight();
+export function computeLight(rule, floor, world) {
+  const light = createLight(rule, floor);
   updateLight(light, world, world.chunks.keys());
   return light.field;
 }
@@ -61,8 +125,9 @@ function chunkExtent(chunk) {
   return [minX, minY, minZ, maxX, maxY, maxZ];
 }
 
-// The box of the cells lit: the blocks' extents and a cell more on each side.
-function boxOf(chunkBounds) {
+// The box of the cells lit: the blocks' extents and a cell more on each
+// side, none below the floor.
+function boxOf(chunkBounds, floor) {
   if (chunkBounds.size === 0) return null;
   let minX = Infinity, minY = Infinity, minZ = Infinity;
   let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
@@ -70,7 +135,7 @@ function boxOf(chunkBounds) {
     if (b[0] < minX) minX = b[0]; if (b[1] < minY) minY = b[1]; if (b[2] < minZ) minZ = b[2];
     if (b[3] > maxX) maxX = b[3]; if (b[4] > maxY) maxY = b[4]; if (b[5] > maxZ) maxZ = b[5];
   }
-  minX -= 1; minY -= 1; minZ -= 1; maxX += 1; maxY += 1; maxZ += 1;
+  minX -= 1; minY = Math.max(minY - 1, floor); minZ -= 1; maxX += 1; maxY += 1; maxZ += 1;
   const sx = maxX - minX + 1, sy = maxY - minY + 1, sz = maxZ - minZ + 1;
   if (sx * sy * sz > LIGHT_CAP) return null;
   return { minX, minY, minZ, maxX, maxY, maxZ, sx, sy, sz, vol: sx * sy * sz };
@@ -79,9 +144,12 @@ function boxOf(chunkBounds) {
 const sameBox = (a, b) => a.minX === b.minX && a.minY === b.minY && a.minZ === b.minZ && a.maxX === b.maxX && a.maxY === b.maxY && a.maxZ === b.maxZ;
 const inside = (g, x, y, z) => x >= g.minX && x <= g.maxX && y >= g.minY && y <= g.maxY && z >= g.minZ && z <= g.maxZ;
 
-// A grid over `box`, holding what `old` held where the two overlap.
-function regrid(old, box) {
-  const g = { ...box, solid: new Uint8Array(box.vol), emit: new Uint8Array(box.vol), lvl: new Uint8Array(box.vol).fill(15), top: new Int32Array(box.sx * box.sz).fill(NO_TOP) };
+// A grid over `box`, holding what `old` held where the two overlap: each
+// cell's light class (`cls`, empty space air's, 0), its class's step
+// (`steps`, read where the light spreads without looking the class up),
+// its level (`lvl`) and each column's highest cell the sky does not reach.
+function regrid(old, box, airStep) {
+  const g = { ...box, cls: new Uint16Array(box.vol), steps: new Uint8Array(box.vol).fill(airStep), lvl: new Uint8Array(box.vol).fill(15), top: new Int32Array(box.sx * box.sz).fill(NO_TOP) };
   if (!old) return g;
   const x0 = Math.max(old.minX, g.minX), x1 = Math.min(old.maxX, g.maxX);
   const y0 = Math.max(old.minY, g.minY), y1 = Math.min(old.maxY, g.maxY);
@@ -92,7 +160,9 @@ function regrid(old, box) {
     for (let z = z0; z <= z1; z++) {
       const from = ((y - old.minY) * old.sz + (z - old.minZ)) * old.sx + (x0 - old.minX);
       const to = ((y - g.minY) * g.sz + (z - g.minZ)) * g.sx + (x0 - g.minX);
-      for (const name of ['solid', 'emit', 'lvl']) g[name].set(old[name].subarray(from, from + width), to);
+      g.cls.set(old.cls.subarray(from, from + width), to);
+      g.steps.set(old.steps.subarray(from, from + width), to);
+      g.lvl.set(old.lvl.subarray(from, from + width), to);
     }
   }
   for (let z = z0; z <= z1; z++) {
@@ -132,7 +202,7 @@ export function updateLight(light, world, touched) {
     else light.chunkBounds.delete(key);
   }
   const old = light.grid;
-  const box = boxOf(light.chunkBounds);
+  const box = boxOf(light.chunkBounds, light.floor);
   const changed = new Set();
   let lastX = NaN, lastY = NaN, lastZ = NaN;
   const changedAt = (x, y, z) => {
@@ -152,7 +222,7 @@ export function updateLight(light, world, touched) {
     light.field = null;
     return changed;
   }
-  const g = old && sameBox(old, box) ? old : regrid(old, box);
+  const g = old && sameBox(old, box) ? old : regrid(old, box, light.rule.step[0]);
   const { minX, minY, minZ, maxX, maxY, maxZ, sx, sz, vol } = g;
   const plane = sx * sz;
   const at = (x, y, z) => ((y - minY) * sz + (z - minZ)) * sx + (x - minX);
@@ -215,28 +285,31 @@ export function updateLight(light, world, touched) {
     if (old.maxZ > maxZ) face(2, maxZ);
   }
   // The touched chunks' cells (all chunks when nothing was held): their
-  // opacity and emission now, and the cells where either changed.
+  // light classes now, and the cells whose class changed.
+  const { rule } = light;
+  const { emission, step, face, shapes, occludes } = rule;
+  const { cls, steps } = g;
+  const airStep = step[0];
   const read = old ? keys : new Set(world.chunks.keys());
   const columns = new Set();
-  const wasSolid = new Uint8Array(4096);
-  const wasEmit = new Uint8Array(4096);
+  const was = new Uint16Array(4096);
   for (const key of read) {
     const [cx, cy, cz] = key.split(',').map(Number);
     const x0 = Math.max(minX, cx * 16), x1 = Math.min(maxX, cx * 16 + 15);
     const y0 = Math.max(minY, cy * 16), y1 = Math.min(maxY, cy * 16 + 15);
     const z0 = Math.max(minZ, cz * 16), z1 = Math.min(maxZ, cz * 16 + 15);
     if (x0 > x1 || z0 > z1) continue;
-    // A chunk past the box's height still held the highest opaque block of
-    // its columns before its blocks went.
+    // A chunk past the box's height still held the highest cell the sky
+    // did not reach in its columns before its blocks went.
     for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) columns.add((z - minZ) * sx + (x - minX));
     if (y0 > y1) continue;
     const chunk = world.chunks.get(key);
     // A grid made now holds nothing yet, and every cell has changed.
     if (!old) {
-      for (const { pos, opaque, lum } of chunk.values()) {
+      for (const { pos, light: lit } of chunk.values()) {
         const i = at(pos[0], pos[1], pos[2]);
-        if (opaque) g.solid[i] = 1;
-        if (lum > 0) g.emit[i] = lum;
+        cls[i] = lit;
+        steps[i] = step[lit];
       }
       continue;
     }
@@ -244,19 +317,16 @@ export function updateLight(light, world, touched) {
     for (let y = y0; y <= y1; y++) for (let z = z0; z <= z1; z++) {
       const row = at(x0, y, z);
       for (let i = row; i <= row + x1 - x0; i++) {
-        wasSolid[n] = g.solid[i];
-        wasEmit[n++] = g.emit[i];
-        g.solid[i] = 0;
-        g.emit[i] = 0;
+        was[n++] = cls[i];
+        cls[i] = 0;
+        steps[i] = airStep;
       }
     }
-    // Emission is each block's light level, which the world's light sources
-    // (emitters) hold for every block that gives light.
     if (chunk) {
-      for (const { pos, opaque, lum } of chunk.values()) {
+      for (const { pos, light: lit } of chunk.values()) {
         const i = at(pos[0], pos[1], pos[2]);
-        if (opaque) g.solid[i] = 1;
-        if (lum > 0) g.emit[i] = lum;
+        cls[i] = lit;
+        steps[i] = step[lit];
       }
     }
     // With every cell changed already, there is nothing to compare.
@@ -264,22 +334,33 @@ export function updateLight(light, world, touched) {
     n = 0;
     for (let y = y0; y <= y1; y++) for (let z = z0; z <= z1; z++) {
       const row = at(x0, y, z);
-      for (let i = row; i <= row + x1 - x0; i++, n++) if (g.solid[i] !== wasSolid[n] || g.emit[i] !== wasEmit[n]) seed(i);
+      for (let i = row; i <= row + x1 - x0; i++, n++) if (cls[i] !== was[n]) seed(i);
     }
   }
-  // Each read column's highest opaque block, and the span whose open sky it
-  // opened or closed.
+  // Whether the face shapes light classes `a` and `b` turn to each other
+  // close, `a`'s face `from` against `b`'s opposite one, `to`.
+  const closed = (a, b, from, to) => occludes[face[a * 6 + from] * shapes + face[b * 6 + to]] === 1;
+  // Each read column's highest cell the sky does not reach (from air above
+  // the box, down while each cell passes it and the faces between do not
+  // close), and the span whose open sky it opened or closed.
   for (const column of columns) {
     let top = NO_TOP;
+    // The class of the cell above where it shapes light (else air's, whose faces are empty too).
+    let above = 0;
+    let aboveStep = airStep;
     for (let y = maxY; y >= minY; y--) {
-      if (g.solid[(y - minY) * plane + column]) { top = y; break; }
+      const i = (y - minY) * plane + column;
+      const here = steps[i];
+      if (!(here & SKY) || ((aboveStep | here) & SHAPED && closed(above, cls[i], DOWN, UP))) { top = y; break; }
+      above = here & SHAPED ? cls[i] : 0;
+      aboveStep = here;
     }
-    const was = g.top[column];
-    if (was === top) continue;
+    const before = g.top[column];
+    if (before === top) continue;
     g.top[column] = top;
-    const low = Math.max(Math.min(was, top), minY - 1);
-    // Within the box: a highest block above it left with blocks the box dropped.
-    const high = Math.min(Math.max(was, top), maxY);
+    const low = Math.max(Math.min(before, top), minY - 1);
+    // Within the box: a highest cell above it left with blocks the box dropped.
+    const high = Math.min(Math.max(before, top), maxY);
     for (let y = low + 1; y <= high; y++) seed((y - minY) * plane + column);
   }
 
@@ -302,7 +383,15 @@ export function updateLight(light, world, touched) {
   }
   // Their levels before (the old field's, which the grid holds until a cell
   // is lit again, and direct skylight for a cell new to the box), and each
-  // lit from its own source.
+  // lit from its own sources. A cell under open sky gives light only to a
+  // neighbour that is not: the cell under it if that is its column's highest
+  // the sky does not reach, or one beside it in a column whose highest is as
+  // high or higher. The rest are not queued, which leaves the field as it
+  // is: most cells of a first look are sky over the build.
+  const { top } = g;
+  const opensOnto = (column, y) => y - 1 <= top[column]
+    || (column % sx + 1 < sx && top[column + 1] >= y) || (column % sx > 0 && top[column - 1] >= y)
+    || (column + sx < plane && top[column + sx] >= y) || (column >= sx && top[column - sx] >= y);
   for (let n = 0; n < count; n++) {
     const index = cells[n];
     const y = ((index / plane) | 0) + minY;
@@ -314,9 +403,15 @@ export function updateLight(light, world, touched) {
       if (inside(old, x, y, z)) level = g.lvl[index];
     }
     levels[n] = level;
-    const lit = Math.max(y > g.top[index % plane] ? 15 : 0, g.emit[index]);
-    g.lvl[index] = lit;
-    if (lit > 0) enqueue(index);
+    const column = index % plane;
+    if (y > top[column]) {
+      g.lvl[index] = 15;
+      if (opensOnto(column, y)) enqueue(index);
+    } else {
+      const lit = steps[index] & EMITS ? emission[cls[index]] : 0;
+      g.lvl[index] = lit;
+      if (lit > 0) enqueue(index);
+    }
   }
   // And from the cells around them, which keep their levels (none when
   // every cell was lit again).
@@ -331,19 +426,35 @@ export function updateLight(light, world, touched) {
     if (z + 1 < sz && !reach[index + sx] && g.lvl[index + sx] > 1) enqueue(index + sx);
     if (z > 0 && !reach[index - sx] && g.lvl[index - sx] > 1) enqueue(index - sx);
   }
-  const { solid, lvl } = g;
+  // A step from a cell (class `from`, level `level`, its step `fromStep`)
+  // into neighbour `to` across its face `out` (the neighbour's `back`). A
+  // step costs at least 1, so a neighbour at level - 1 or more takes
+  // nothing, which is known before its class is read: most cells of a lit
+  // world are skylit beside skylit cells.
+  const { lvl } = g;
+  const spread = (from, level, fromStep, to, out, back) => {
+    if (lvl[to] >= level - 1) return;
+    const toStep = steps[to];
+    const next = level - (toStep & 15);
+    if (next <= lvl[to]) return;
+    if ((fromStep | toStep) & SHAPED && closed(from, cls[to], out, back)) return;
+    lvl[to] = next;
+    enqueue(to);
+  };
   while (pending > 0) {
     const index = dequeue();
-    const next = lvl[index] - 1;
-    if (next <= 0) continue;
+    const level = lvl[index];
+    if (level <= 1) continue;
+    const fromStep = steps[index];
+    const from = fromStep & SHAPED ? cls[index] : 0;
     const x = index % sx;
     const z = Math.floor(index / sx) % sz;
-    if (x + 1 < sx && !solid[index + 1] && lvl[index + 1] < next) { lvl[index + 1] = next; enqueue(index + 1); }
-    if (x > 0 && !solid[index - 1] && lvl[index - 1] < next) { lvl[index - 1] = next; enqueue(index - 1); }
-    if (index + plane < vol && !solid[index + plane] && lvl[index + plane] < next) { lvl[index + plane] = next; enqueue(index + plane); }
-    if (index >= plane && !solid[index - plane] && lvl[index - plane] < next) { lvl[index - plane] = next; enqueue(index - plane); }
-    if (z + 1 < sz && !solid[index + sx] && lvl[index + sx] < next) { lvl[index + sx] = next; enqueue(index + sx); }
-    if (z > 0 && !solid[index - sx] && lvl[index - sx] < next) { lvl[index - sx] = next; enqueue(index - sx); }
+    if (x + 1 < sx) spread(from, level, fromStep, index + 1, EAST, WEST);
+    if (x > 0) spread(from, level, fromStep, index - 1, WEST, EAST);
+    if (index + plane < vol) spread(from, level, fromStep, index + plane, UP, DOWN);
+    if (index >= plane) spread(from, level, fromStep, index - plane, DOWN, UP);
+    if (z + 1 < sz) spread(from, level, fromStep, index + sx, SOUTH, NORTH);
+    if (z > 0) spread(from, level, fromStep, index - sx, NORTH, SOUTH);
   }
   for (let n = 0; n < count; n++) {
     const index = cells[n];

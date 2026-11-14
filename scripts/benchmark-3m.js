@@ -5,6 +5,7 @@ const crypto = require('crypto');
 const { performance } = require('perf_hooks');
 
 const { MAX_BLOCKS, World } = require('../server/world');
+const { blockStates } = require('../server/block-states');
 
 function elapsed(start) {
   return Math.round((performance.now() - start) * 10) / 10;
@@ -31,31 +32,35 @@ const manifest = candidate.serializeManifest((blocks) => {
 });
 const manifestMs = elapsed(start);
 
-start = performance.now();
-let renderBlocks = 0;
-for (const key of candidate.chunks.keys()) {
-  renderBlocks += candidate.chunkSnapshot(key, true, true).blocks.length;
-}
-const renderSnapshotMs = elapsed(start);
+// The chunks as see_build's page is sent them, hidden blocks left out by
+// the block table of the data folder (MCBENCH_DATA_DIR).
+blockStates().then((states) => {
+  start = performance.now();
+  let renderBlocks = 0;
+  for (const key of candidate.chunks.keys()) {
+    renderBlocks += candidate.chunkSnapshot(key, states).blocks.length;
+  }
+  const renderSnapshotMs = elapsed(start);
 
-if (global.gc) global.gc();
-const heapMiB = Math.round(process.memoryUsage().heapUsed / 1048576);
-const result = {
-  blocks: world.size(),
-  chunks: world.chunks.size,
-  fillMs,
-  localizedEditMs: editMs,
-  diff,
-  manifestMs,
-  chunkPayloadMiB: Math.round(persistedBytes / 1048576),
-  manifestChunks: manifest.chunks.length,
-  renderBlocks,
-  renderSnapshotMs,
-  heapMiB,
-};
-process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+  if (global.gc) global.gc();
+  const heapMiB = Math.round(process.memoryUsage().heapUsed / 1048576);
+  const result = {
+    blocks: world.size(),
+    chunks: world.chunks.size,
+    fillMs,
+    localizedEditMs: editMs,
+    diff,
+    manifestMs,
+    chunkPayloadMiB: Math.round(persistedBytes / 1048576),
+    manifestChunks: manifest.chunks.length,
+    renderBlocks,
+    renderSnapshotMs,
+    heapMiB,
+  };
+  process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
 
-if (world.size() !== MAX_BLOCKS || fillMs > 2000 || editMs > 500
-  || renderBlocks > 250000 || renderSnapshotMs > 2000 || heapMiB > 512) {
-  process.exitCode = 1;
-}
+  if (world.size() !== MAX_BLOCKS || fillMs > 2000 || editMs > 500
+    || renderBlocks > 250000 || renderSnapshotMs > 2000 || heapMiB > 512) {
+    process.exitCode = 1;
+  }
+});

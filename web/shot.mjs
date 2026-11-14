@@ -61,10 +61,11 @@ function drawGrid(context, grid, width, height) {
 }
 
 window.__shot = {
-  async init() {
+  // `floor`: the lowest height a block can have (server/shot.js).
+  async init(floor) {
     if (!viewer) {
       try {
-        viewer = await createViewer(canvas);
+        viewer = await createViewer(canvas, floor);
       } catch (error) {
         // Context loss during shader setup otherwise looks like a shader
         // compilation error, and still needs a completely fresh renderer.
@@ -86,7 +87,7 @@ window.__shot = {
     const res = await fetch(`/api/conversations/${conversationId}/world`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ known, renderLod, engine: true, clip, tick }),
+      body: JSON.stringify({ known, renderLod, clip, tick }),
     });
     if (!res.ok) throw new Error(`World load failed (HTTP ${res.status})`);
     const reader = res.body.getReader();

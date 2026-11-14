@@ -36,7 +36,7 @@ const { generatePrompt } = require('./prompt-generation');
 const promptLibrary = require('./prompts');
 const { RESOLUTIONS } = require('../web/resolution.mjs');
 const settings = require('./settings');
-const { World } = require('./world');
+const { blockStates } = require('./block-states');
 const { shotWorld, warmShotEngines, stopShotEngines } = require('./shot-world');
 const { warmRenderer, closeRenderer } = require('./shot');
 const { Shares, shareId } = require('./share');
@@ -792,6 +792,14 @@ async function handleApi(req, res, url) {
     return res.end(buf);
   }
 
+  // What Minecraft says of every block state (block-states.js), which
+  // see_build's page lights and culls with.
+  if (req.method === 'GET' && url.pathname === '/api/block-states') {
+    const bytes = (await blockStates()).bytes();
+    res.writeHead(200, { 'content-type': 'application/octet-stream', 'cache-control': 'private, no-cache' });
+    return res.end(bytes);
+  }
+
   if (req.method === 'GET' && parts[1] === 'blocks' && parts[3] === 'icon.png' && parts.length === 4) {
     const png = await blockIcon(parts[2]);
     if (!png) return sendJson(res, 404, { error: 'Unknown block' });
@@ -1125,20 +1133,20 @@ async function handleApi(req, res, url) {
       publishConversations();
       return sendJson(res, 200, { ok: true });
     }
-    // Streams the render snapshot as NDJSON. The client sends the chunk
-    // versions it already holds; only chunks whose version differs (plus their
-    // face neighbours, whose culling and connections depend on them) and the
-    // keys it must drop are sent. Chunk versions are process-unique stamps,
-    // so equal (key, version) means equal content across branches.
+    // Streams see_build's world as NDJSON: the engine's world (shot-world.js),
+    // or the part of it inside a clip box, whose states are Minecraft's own.
+    // The client sends the chunk versions it already holds; only chunks whose
+    // version differs and the keys it must drop are sent. A chunk's version
+    // is its own and what the six chunks across its faces hide of it
+    // (World.shownVersion); chunk versions are process-unique stamps, so
+    // equal (key, version) means equal content across branches.
     if (req.method === 'POST' && parts[3] === 'world') {
       const conversation = store.getConversation(id);
       if (!conversation) return sendJson(res, 404, { error: 'Conversation not found' });
       const body = await readJsonBody(req, BODY_LIMITS.world);
-      // see_build's page draws the engine's world (shot-world.js), or the
-      // part of it inside a clip box, whose states are Minecraft's own: no
-      // connections are worked out here.
-      const world = body.engine ? shotWorld(conversation, body.clip, body.tick) : conversation.world;
+      const world = shotWorld(conversation, body.clip, body.tick);
       if (!world) return sendJson(res, 409, { error: 'No engine world placed for this conversation' });
+      const states = await blockStates();
       const renderLod = world.renderLod();
       const known = JSON.stringify(body.renderLod ?? null) === JSON.stringify(renderLod) ? body.known : {};
       const removed = [];
@@ -1146,17 +1154,8 @@ async function handleApi(req, res, url) {
       for (const keyText of Object.keys(known)) {
         if (!world.chunks.has(Number(keyText))) removed.push(Number(keyText));
       }
-      for (const [key, chunk] of world.chunks) {
-        if (known[key] !== chunk.version) send.add(key);
-      }
-      // An authored chunk's connections depend on its neighbours, so they
-      // are sent again; the engine's states are final.
-      if (!body.engine) for (const key of [...send, ...removed]) {
-        const [cx, cy, cz] = World.coordsOf(key);
-        for (const neighbor of [
-          World.keyOf(cx + 1, cy, cz), World.keyOf(cx - 1, cy, cz), World.keyOf(cx, cy + 1, cz),
-          World.keyOf(cx, cy - 1, cz), World.keyOf(cx, cy, cz + 1), World.keyOf(cx, cy, cz - 1),
-        ]) if (world.chunks.has(neighbor)) send.add(neighbor);
+      for (const key of world.chunks.keys()) {
+        if (known[key] !== world.shownVersion(key, states)) send.add(key);
       }
       res.writeHead(200, {
         'content-type': 'application/x-ndjson',
@@ -1184,7 +1183,7 @@ async function handleApi(req, res, url) {
         removed,
       });
       for (const key of send) {
-        await writeEvent({ type: 'chunk', chunk: world.chunkSnapshot(key, !body.engine, true, renderLod) });
+        await writeEvent({ type: 'chunk', chunk: world.chunkSnapshot(key, states, renderLod) });
         if (res.destroyed) return;
       }
       return res.end();

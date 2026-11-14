@@ -113,6 +113,9 @@ class McbenchBlueMapReference {
       var table = new BlockTable();
       for (String line : Files.readAllLines(file)) {
         String[] fields = line.split("\t");
+        // The pairs of face shapes light is tested through: this, as the
+        // mesher, closes a face to light only where one side of it is full.
+        if (fields[0].equals("faceoccludes")) continue;
         if (fields[0].equals("default")) table.defaults.put(fields[1], McbenchBake.properties(fields[2]));
         else table.light.put(fields[0], new int[] {
           Integer.parseInt(fields[1]), Integer.parseInt(fields[2]), Integer.parseInt(fields[3]),
