@@ -29,10 +29,10 @@ pub struct State {
     pub level: u8,
     pub emission: u8,
     pub light_block: u8,
-    // 1 skylightDown, 2 shapeOcclusion, 4 tint blends (reads the 5x3x5
-    // blocks around it)
-    pub light_flags: u8,
-    pub full_faces: u8,
+    // The tint reads the 5x3x5 blocks around it.
+    pub blends: bool,
+    // The face set (Pack::face_sets) of the face shapes light is tested through.
+    pub faces: u8,
     pub block: u16,
     pub tint: u32,
     pub selection: u32,
@@ -41,9 +41,6 @@ pub struct State {
 impl State {
     pub fn has(&self, flag: u8) -> bool {
         self.flags & flag != 0
-    }
-    pub fn blends(&self) -> bool {
-        self.light_flags & 4 != 0
     }
 }
 
@@ -85,6 +82,13 @@ pub struct Pack {
     // block indices sorted by id, for lookups
     pub by_id: Vec<u32>,
     pub states: Vec<State>,
+    // Six face shapes a set (down, up, north, south, west, east), set 0 all
+    // empty, and for each ordered pair of the `shapes` face shapes whether
+    // light is stopped between two faces of those shapes, by a * shapes + b
+    // (Shapes.faceShapeOccludes, from the block table).
+    pub face_sets: Vec<[u8; 6]>,
+    pub shapes: usize,
+    pub occludes: Vec<bool>,
     pub air: u32,
     pub water_selection: u32,
     pub water_tint: u32,
@@ -160,8 +164,8 @@ impl<'a> Reader<'a> {
 impl Pack {
     pub fn read(bytes: &[u8]) -> Result<Pack, String> {
         let mut r = Reader { bytes, at: 0 };
-        if r.take(4)? != b"MCBP" || r.u32()? != 1 {
-            return Err("Not a version 1 baked pack".into());
+        if r.take(4)? != b"MCBP" || r.u32()? != 2 {
+            return Err("Not a version 2 baked pack".into());
         }
         let blocks = r.list(|r| {
             let id = r.str()?;
@@ -186,17 +190,27 @@ impl Pack {
                 level: r.u8()?,
                 emission: r.u8()?,
                 light_block: r.u8()?,
-                light_flags: r.u8()?,
-                full_faces: r.u8()?,
+                blends: r.u8()? != 0,
+                faces: r.u8()?,
                 block: r.u16()?,
                 tint: r.u32()?,
                 selection: r.u32()?,
             })
         })?;
+        let face_sets = r.list(|r| Ok([r.u8()?, r.u8()?, r.u8()?, r.u8()?, r.u8()?, r.u8()?]))?;
+        let shapes = r.u16()? as usize;
+        let bits = r.take((shapes * shapes).div_ceil(8))?;
+        let occludes = (0..shapes * shapes).map(|at| bits[at >> 3] >> (at & 7) & 1 == 1).collect();
+        if face_sets.first() != Some(&[0; 6])
+            || states.iter().any(|state| state.faces as usize >= face_sets.len())
+            || face_sets.iter().flatten().any(|&shape| shape as usize >= shapes)
+        {
+            return Err("The baked pack's face sets are not its face shapes'".into());
+        }
         let air = r.u32()?;
         let water_selection = r.u32()?;
         let water_tint = r.u32()?;
-        let water_blends = r.u8()? & 4 != 0;
+        let water_blends = r.u8()? != 0;
         let tints = r.list(|r| r.f32s::<3>())?;
         let matrices = r.list(|r| r.f32s::<12>())?;
         let directions = r.list(|r| {
@@ -270,6 +284,9 @@ impl Pack {
             blocks,
             by_id,
             states,
+            face_sets,
+            shapes,
+            occludes,
             air,
             water_selection,
             water_tint,

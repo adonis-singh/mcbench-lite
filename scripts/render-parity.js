@@ -66,7 +66,7 @@ async function bake(blockTable) {
   writeFiles(FOLDER, configFiles(path.join(blueMap.root, 'data')));
   const classes = path.join(FOLDER, 'classes');
   execFileSync(JAVAC, ['-proc:none', '-classpath', blueMap.jar, '-d', classes,
-    path.join(ROOT, 'server', 'McbenchBake.java'), path.join(__dirname, 'McbenchBlueMapReference.java')], { stdio: 'inherit' });
+    path.join(ROOT, 'server', 'McbenchBake.java'), path.join(ROOT, 'server', 'McbenchEntityAssets.java'), path.join(__dirname, 'McbenchBlueMapReference.java')], { stdio: 'inherit' });
   const classpath = [blueMap.jar, classes].join(path.delimiter);
   const flowTable = path.join(FOLDER, 'flow-angles.bin');
   const started = Date.now();
@@ -459,6 +459,14 @@ const FIXTURES = {
     }
     for (let y = 0; y < 40; y += 1) world.set(36, y, 4, y % 5 ? 'minecraft:stone' : 'minecraft:glass');
     world.set(38, 0, 4, 'minecraft:water', { level: '0' }); world.set(38, 1, 4, 'minecraft:ice');
+    // A room of tinted glass whose one way in is a bottom slab beside a top
+    // slab: their half sides close the face between them, and it is dark.
+    for (let x = 42; x < 51; x += 1) for (let y = 0; y < 5; y += 1) for (let z = 0; z < 9; z += 1) {
+      const edge = x === 42 || x === 50 || y === 0 || y === 4 || z === 0 || z === 8;
+      if (edge) world.set(x, y, z, y === 0 ? 'minecraft:stone' : 'minecraft:tinted_glass');
+    }
+    world.set(42, 1, 4, 'minecraft:oak_slab', { type: 'bottom', waterlogged: 'false' });
+    world.set(43, 1, 4, 'minecraft:oak_slab', { type: 'top', waterlogged: 'false' });
   },
   'negative-coordinates'(world) {
     const blocks = ['minecraft:stone', 'minecraft:oak_planks', 'minecraft:glass', 'minecraft:grass_block', 'minecraft:oak_leaves'];
@@ -539,7 +547,7 @@ async function main() {
   const table = new Map();
   for (const line of fs.readFileSync(blockTable, 'utf8').split('\n').filter(Boolean)) {
     const [name] = line.split('\t');
-    if (name === 'default') continue;
+    if (name === 'default' || name === 'faceoccludes') continue;
     const [id, properties = ''] = name.replace(/]$/, '').split('[');
     if (!table.has(id)) table.set(id, []);
     table.get(id).push(Object.fromEntries(properties ? properties.split(',').map((pair) => pair.split('=')) : []));

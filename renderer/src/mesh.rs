@@ -357,7 +357,7 @@ impl Draw<'_> {
                 let c = CORNERS[direction].map(|corner| corners[corner]);
                 let color = if face.tinted {
                     // The tint is taken once per variant, at its first tinted face.
-                    if !tinted && own_props.blends() {
+                    if !tinted && own_props.blends {
                         self.blend();
                     }
                     tinted = true;
@@ -419,7 +419,7 @@ impl Draw<'_> {
         let liquid = if real.has(pack::WATERLOGGED) || real.has(pack::ALWAYS_WATERLOGGED) {
             Liquid { water: true, level: 0, block: real.block, tint: self.pack.water_tint, blends: self.pack.water_blends }
         } else {
-            Liquid { water: real.has(pack::WATER), level: real.level as i32, block: real.block, tint: real.tint, blends: real.blends() }
+            Liquid { water: real.has(pack::WATER), level: real.level as i32, block: real.block, tint: real.tint, blends: real.blends }
         };
         let mut corners: [[f32; 3]; 8] = [
             [0.0, 0.0, 0.0],

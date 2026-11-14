@@ -87,7 +87,7 @@ import java.util.function.Predicate;
 //
 // Format, little endian; str = u16 byte length + UTF-8; matrices are the 12
 // floats m00..m23 (BlueMap's transforms never read the last row):
-//   "MCBP" u32 version (1)
+//   "MCBP" u32 version (2)
 //   u32 blocks, each: str id, u32 first state, u8 properties, each:
 //       str name, u8 default value, u8 values, each: str value
 //     A block's states follow its first state in mixed radix over its
@@ -95,14 +95,21 @@ import java.util.function.Predicate;
 //   u32 states, each 16 bytes:
 //       u8 flags: 1 culling, 2 occluding, 4 cullingIdentical, 8 alwaysWaterlogged,
 //                 16 randomOffset, 32 waterlogged, 64 water, 128 air
-//       u8 liquid level, u8 light emission, u8 light block,
-//       u8 1 skylightDown | 2 shapeOcclusion | 4 tint blends,
-//       u8 full faces (Direction.ordinal bits),
+//       u8 liquid level, u8 light emission, u8 light block, u8 tint blends (0 or 1),
+//       u8 light faces (a face set, below),
 //       u16 block, u32 tint, u32 selection (0xFFFFFFFF: no blockstate resource)
-//     (skylightDown, shapeOcclusion, full faces, emission and light block from
-//     Paper's block table, everything else from BlueMap; "tint blends": the
-//     state's color calculator averages the 5x3x5 blocks around it, reading
-//     each through BlueMap's BlockNeighborhood cache)
+//     (emission, light block and light faces from Paper's block table,
+//     everything else from BlueMap; "tint blends": the state's color
+//     calculator averages the 5x3x5 blocks around it, reading each through
+//     BlueMap's BlockNeighborhood cache)
+//   u32 face sets, each: 6 x u8 face shape (down, up, north, south, west,
+//     east), set 0 the six empty shapes: a state's face shapes light is
+//     tested through, as the block table numbers them (the empty shape for
+//     every face of a state that is not conditionally full opaque)
+//   u16 face shapes n, then n * n bits (row by row, the lowest bit of each
+//     byte first, the last byte padded with zeros): the block table's
+//     faceoccludes, whether light is stopped between two blocks whose faces
+//     turned to each other have those shapes (Shapes.faceShapeOccludes)
 //   u32 air state, u32 BlockState.WATER selection, u32 BlockState.WATER tint,
 //     u8 BlockState.WATER tint blends
 //   u32 tints, each: f32 r, g, b (the color BlueMap's calculator gives the
@@ -251,7 +258,7 @@ class McbenchBake {
   // Whether the state's color calculator is BlueMap's blended one, which
   // reads the blocks around it (BlockColorsConfig's getCalculator).
   int blends(BlockState state) throws Exception {
-    return calculator.invoke(colors, state) instanceof BlendedBlockColorCalculator ? 4 : 0;
+    return calculator.invoke(colors, state) instanceof BlendedBlockColorCalculator ? 1 : 0;
   }
 
   int tint(BlockState state) {
@@ -489,30 +496,39 @@ class McbenchBake {
     }
   }
 
-  record TableState(String name, int[] light) {}
+  // A block table state: its name, emission, light block and six face shapes.
+  record TableState(String name, int emission, int lightBlock, String faces) {}
 
   void write(Path tablePath, Path target) throws Exception {
-    // The block table: per block its default state, then its states.
+    // The block table: per block its default state, then its states, and
+    // last the pairs of face shapes that stop light.
     var blocks = new LinkedHashMap<String, String>(); // id -> default state
     var blockStates = new LinkedHashMap<String, List<TableState>>();
+    int shapes = 0;
+    String occludes = null;
     for (String line : Files.readAllLines(tablePath)) {
       String[] fields = line.split("\t");
-      // The pairs of face shapes light is tested through: the mesher
-      // closes a face to light only where one side of it is full.
-      if (fields[0].equals("faceoccludes")) continue;
+      if (fields[0].equals("faceoccludes")) {
+        shapes = Integer.parseInt(fields[1]);
+        occludes = fields[2];
+        continue;
+      }
       if (fields[0].equals("default")) {
         blocks.put(fields[1], fields[2]);
         blockStates.put(fields[1], new ArrayList<>());
         continue;
       }
       String id = fields[0].contains("[") ? fields[0].substring(0, fields[0].indexOf('[')) : fields[0];
-      int[] light = new int[6];
-      for (int i = 0; i < 6; i++) light[i] = Integer.parseInt(fields[i + 1]);
-      blockStates.get(id).add(new TableState(fields[0], light));
+      blockStates.get(id).add(new TableState(fields[0], Integer.parseInt(fields[1]), Integer.parseInt(fields[2]), fields[4]));
     }
+    if (occludes == null) throw new IOException("The block table has no faceoccludes line");
+    // A face shape's number is a byte of a face set.
+    if (shapes > 256) throw new IOException("The block table has " + shapes + " face shapes, more than a byte numbers");
+    var faceSets = new Pool();
+    faceSets.intern(new Out().u8(0).u8(0).u8(0).u8(0).u8(0).u8(0));
     var out = new Out();
     out.writeBytes("MCBP".getBytes(StandardCharsets.US_ASCII));
-    out.u32(1);
+    out.u32(2);
     var states = new Out();
     int stateCount = 0, air = NONE, block = 0;
     out.u32(blocks.size());
@@ -520,13 +536,13 @@ class McbenchBake {
       String id = entry.getKey();
       List<TableState> table = blockStates.get(id);
       var values = new TreeMap<String, List<String>>();
-      var light = new HashMap<String, int[]>();
+      var light = new HashMap<String, TableState>();
       for (TableState tableState : table) {
         properties(tableState.name()).forEach((key, value) -> {
           var known = values.computeIfAbsent(key, k -> new ArrayList<>());
           if (!known.contains(value)) known.add(value);
         });
-        light.put(tableState.name(), tableState.light());
+        light.put(tableState.name(), tableState);
       }
       var defaults = properties(entry.getValue());
       out.str(id).u32(stateCount).u8(values.size());
@@ -546,15 +562,18 @@ class McbenchBake {
           rest /= list.size();
         }
         String name = name(id, properties);
-        int[] lightOf = light.get(name);
+        TableState lightOf = light.get(name);
         if (lightOf == null) throw new IOException("No block table line for " + name);
+        var faces = new Out();
+        for (String shape : lightOf.faces().split(",")) faces.u8(Integer.parseInt(shape));
+        int faceSet = faceSets.intern(faces);
         BlockState state = state(id, properties);
         if (state.isAir() && id.equals("minecraft:air")) air = stateCount;
         BlockProperties props = pack.getBlockProperties(state);
         int flags = (props.isCulling() ? 1 : 0) | (props.isOccluding() ? 2 : 0) | (props.getCullingIdentical() ? 4 : 0)
           | (props.isAlwaysWaterlogged() ? 8 : 0) | (props.isRandomOffset() ? 16 : 0) | (state.isWaterlogged() ? 32 : 0)
           | (state.isWater() ? 64 : 0) | (state.isAir() ? 128 : 0);
-        states.u8(flags).u8(state.getLiquidLevel()).u8(lightOf[0]).u8(lightOf[1]).u8(lightOf[2] | lightOf[3] << 1 | blends(state)).u8(lightOf[4])
+        states.u8(flags).u8(state.getLiquidLevel()).u8(lightOf.emission()).u8(lightOf.lightBlock()).u8(blends(state)).u8(faceSet)
           .u16(block).u32(tint(state)).u32(selection(state));
         stateCount++;
       }
@@ -563,6 +582,11 @@ class McbenchBake {
     if (air == NONE) throw new IOException("The block table has no air");
     out.u32(stateCount);
     out.writeBytes(states.toByteArray());
+    faceSets.writeTo(out);
+    byte[] pairs = new byte[(shapes * shapes + 7) / 8];
+    for (int at = 0; at < shapes * shapes; at++) if (occludes.charAt(at) == '1') pairs[at >> 3] |= (byte) (1 << (at & 7));
+    out.u16(shapes);
+    out.writeBytes(pairs);
     out.u32(air).u32(selection(BlockState.WATER)).u32(tint(BlockState.WATER)).u8(blends(BlockState.WATER));
     for (Pool pool : new Pool[] { tints, matrices, tables, elements, meshes, variants, sets, selections }) pool.writeTo(out);
     liquidUvs(out);

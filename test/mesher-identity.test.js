@@ -2,7 +2,9 @@
 
 // The mesher module must draw exactly the bytes it drew before it was made
 // faster: test/fixtures/mesher-reference.wasm is the module built from
-// renderer/ at 5c9c031, and every tile of every world below is drawn by
+// renderer/ at 278df9f (where the baked pack became version 2 and light
+// came to close faces by Minecraft's face shapes), and every tile of every
+// world below is drawn by
 // both and compared byte for byte, and so is the indexed tile the module
 // makes of each against the reference's tile indexed by
 // test/fixtures/prbm-reference.mjs (shareQuadCorners, the viewer's indexing
@@ -33,21 +35,13 @@ function viewOf(blocks) {
   return { blueprint: blocksBlueprint([...blocks].map(([key, name]) => [...key.split(',').map(Number), name])), mask: renderMask(bounds) };
 }
 
-// The reference module takes a blueprint whole (its `load`, from before the
-// module read blueprints in parts).
-function loadWhole(mesher, blueprint, mask) {
-  mesher.check(mesher.module.load(mesher.give(blueprint), blueprint.length, mask.minX, mask.maxX, mask.minZ, mask.maxZ, 0));
-  const [tiles, changed] = mesher.lists(2);
-  return { tiles, changed };
-}
-
 // Draws every tile of a view with both modules and compares them; returns
 // how many tiles and bytes were compared.
 async function sameBytes(label, pack, { blueprint, mask }) {
   const { Mesher } = await import('../web/mesher.mjs');
   const { shareQuadCorners: shareReference } = await import('./fixtures/prbm-reference.mjs');
   const [reference, current] = await Promise.all([Mesher.create(REFERENCE, pack), Mesher.create(CURRENT, pack)]);
-  const expected = loadWhole(reference, blueprint, mask);
+  const expected = reference.load(blueprint, mask, false);
   const actual = current.load(blueprint, mask, false);
   assert.deepEqual(actual.tiles, expected.tiles, `${label}: the same tiles`);
   assert.deepEqual(actual.changed, expected.changed, `${label}: the same changed tiles`);

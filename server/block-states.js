@@ -32,7 +32,7 @@ class BlockStates {
     this.lightBlock = new Uint8Array(this.count);
     this.fullFaces = new Uint8Array(this.count);
     this.faces = new Uint8Array(this.count * 6);
-    states.forEach(([name, emission, lightBlock, , , full, , faces], id) => {
+    states.forEach(([name, emission, lightBlock, full, faces], id) => {
       this.ids.set(name, id);
       this.emission[id] = Number(emission);
       this.lightBlock[id] = Number(lightBlock);

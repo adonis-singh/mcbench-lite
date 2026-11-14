@@ -123,6 +123,13 @@ class MinecraftLive extends PaperFiles {
     return done;
   }
 
+  // The block table's file for the pinned Paper build and the table's
+  // format (the hash of McbenchBlockTable.java), whether made yet or not.
+  blockTableFile() {
+    const format = crypto.createHash('sha256').update(fs.readFileSync(path.join(__dirname, 'McbenchBlockTable.java'))).digest('hex').slice(0, 8);
+    return path.join(this.paperDir, `block-table-${PAPER[this.minecraftVersion].jar.replace(/\.jar$/, '')}-${format}.tsv`);
+  }
+
   // What the pinned Minecraft says of each block state (McbenchBlockTable.java):
   // written once per Paper build and table format, read from the server's
   // own classes.
@@ -131,9 +138,8 @@ class MinecraftLive extends PaperFiles {
       const classpath = await this.ensurePaper();
       await installJdk();
       const source = path.join(__dirname, 'McbenchBlockTable.java');
-      const format = crypto.createHash('sha256').update(fs.readFileSync(source)).digest('hex').slice(0, 8);
-      const name = `block-table-${PAPER[this.minecraftVersion].jar.replace(/\.jar$/, '')}-${format}.tsv`;
-      const file = path.join(this.paperDir, name);
+      const file = this.blockTableFile();
+      const name = path.basename(file);
       if (fs.existsSync(file)) return file;
       for (const old of fs.readdirSync(this.paperDir).filter((entry) => entry.startsWith('block-table-'))) {
         fs.rmSync(path.join(this.paperDir, old), { recursive: true, force: true });

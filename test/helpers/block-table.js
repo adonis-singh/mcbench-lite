@@ -18,8 +18,7 @@ function blockTable(states, { shapes = 2, pairs = [] } = {}) {
     const id = name.split('[')[0];
     if (id !== block) lines.push(`default\t${id}\t${name}`);
     block = id;
-    const shaped = faces.some((shape) => shape !== 0) ? 1 : 0;
-    lines.push([name, emission, lightBlock, lightBlock === 0 ? 1 : 0, shaped, full, 63 & ~full, faces.join(',')].join('\t'));
+    lines.push([name, emission, lightBlock, full, faces.join(',')].join('\t'));
   }
   const closes = (a, b) => a === 1 || b === 1 || pairs.some(([p, q]) => p === a && q === b);
   let bits = '';

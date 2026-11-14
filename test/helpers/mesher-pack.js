@@ -21,42 +21,58 @@ function writer() {
 }
 
 const NONE = 0xffffffff;
-// flags: 1 culling, 2 occluding, 4 culling identical, 128 air;
-// light flags: 1 sky light passes down, 2 shapes light with its faces.
+// flags: 1 culling, 2 occluding, 4 culling identical, 128 air; faces: the
+// six face shapes light is tested through (down, up, north, south, west,
+// east), 0 the empty shape and 1 the full one.
+const FULL = [1, 1, 1, 1, 1, 1];
 const STATES = [
-  { block: 0, flags: 128, emission: 0, lightBlock: 0, lightFlags: 1, full: 0, selection: NONE }, // air
-  { block: 1, flags: 3, emission: 0, lightBlock: 15, lightFlags: 2, full: 63, selection: 0 }, // stone
-  { block: 2, flags: 4, emission: 0, lightBlock: 0, lightFlags: 1, full: 0, selection: 1 }, // glass
-  { block: 3, flags: 3, emission: 15, lightBlock: 15, lightFlags: 2, full: 63, selection: 0 }, // glowstone
-  { block: 4, flags: 3, emission: 0, lightBlock: 15, lightFlags: 2, full: 63, selection: 0 }, // lamp[lit=false]
-  { block: 4, flags: 3, emission: 15, lightBlock: 15, lightFlags: 2, full: 63, selection: 0 }, // lamp[lit=true]
+  { block: 0, flags: 128, emission: 0, lightBlock: 0, selection: NONE }, // air
+  { block: 1, flags: 3, emission: 0, lightBlock: 15, faces: FULL, selection: 0 }, // stone
+  { block: 2, flags: 4, emission: 0, lightBlock: 0, selection: 1 }, // glass
+  { block: 3, flags: 3, emission: 15, lightBlock: 15, faces: FULL, selection: 0 }, // glowstone
+  { block: 4, flags: 3, emission: 0, lightBlock: 15, faces: FULL, selection: 0 }, // lamp[lit=false]
+  { block: 4, flags: 3, emission: 15, lightBlock: 15, faces: FULL, selection: 0 }, // lamp[lit=true]
 ];
 
+// Whether each ordered pair of face shapes stops light, row by row: of the
+// two shapes, 0 empty and 1 full, a full face stops it.
+const FULL_CLOSES = Uint8Array.of(0, 1, 1, 1);
+
 function mesherPack() {
-  return pack([['minecraft:air', 0], ['minecraft:stone', 1], ['minecraft:glass', 2], ['minecraft:glowstone', 3], ['minecraft:lamp', 4]], STATES);
+  return pack([['minecraft:air', 0], ['minecraft:stone', 1], ['minecraft:glass', 2], ['minecraft:glowstone', 3], ['minecraft:lamp', 4]], STATES, 2, FULL_CLOSES);
 }
 
 // A pack of `states` (each with the light fields above; state 0 air, the
 // rest drawn as a full cube), one block of no properties each, named
-// minecraft:state_<n>: for testing the mesher's light.
-function lightPack(states) {
+// minecraft:state_<n>, whose `shapes` face shapes stop light in the pairs
+// `occludes` holds (row by row, a byte each): for testing the mesher's light.
+function lightPack(states, shapes, occludes) {
   return pack(states.map((state, index) => [index === 0 ? 'minecraft:air' : `minecraft:state_${index}`, index]),
-    states.map((state, index) => ({ block: index, flags: index === 0 ? 128 : 3, selection: index === 0 ? NONE : 0, ...state })));
+    states.map((state, index) => ({ block: index, flags: index === 0 ? 128 : 3, selection: index === 0 ? NONE : 0, ...state })), shapes, occludes);
 }
 
-function pack(blocks, states) {
-  const out = writer().bytes(Buffer.from('MCBP')).u32(1);
+function pack(blocks, states, shapes, occludes) {
+  const out = writer().bytes(Buffer.from('MCBP')).u32(2);
   out.u32(blocks.length);
   for (const [id, first] of blocks) {
     out.str(id).u32(first);
     if (id === 'minecraft:lamp') out.u8(1).str('lit').u8(0).u8(2).str('false').str('true');
     else out.u8(0);
   }
+  // Face sets, set 0 the six empty shapes.
+  const faceSets = ['0,0,0,0,0,0'];
   out.u32(states.length);
   for (const state of states) {
-    out.u8(state.flags).u8(0).u8(state.emission).u8(state.lightBlock).u8(state.lightFlags).u8(state.full)
+    const faces = (state.faces || [0, 0, 0, 0, 0, 0]).join(',');
+    if (!faceSets.includes(faces)) faceSets.push(faces);
+    out.u8(state.flags).u8(0).u8(state.emission).u8(state.lightBlock).u8(0).u8(faceSets.indexOf(faces))
       .u16(state.block).u32(0).u32(state.selection);
   }
+  out.u32(faceSets.length);
+  for (const faces of faceSets) for (const shape of faces.split(',')) out.u8(Number(shape));
+  const bits = Buffer.alloc(Math.ceil((shapes * shapes) / 8));
+  occludes.forEach((closes, at) => { if (closes) bits[at >> 3] |= 1 << (at & 7); });
+  out.u16(shapes).bytes(bits);
   out.u32(0).u32(NONE).u32(0).u8(0); // air, water selection, tint, blends
   out.u32(1).f32(1).f32(1).f32(1); // tints
   out.u32(2); // matrices: an element's 1/16 scale, identity

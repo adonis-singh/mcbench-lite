@@ -16,11 +16,11 @@ import java.util.Map;
 // pinned Minecraft, read from Minecraft itself: its default state, and how
 // it emits, blocks and passes light. One line per state, in the order of
 // Minecraft's state ids:
-//   state  emission  lightBlock  skylightDown  shapeOcclusion  fullFaces  emptyFaces  faceShapes
+//   state  emission  lightBlock  fullFaces  faceShapes
 // one per block:  default  id  state
 // and last:  faceoccludes  n  bits
-// Faces are bit masks over Direction.ordinal(): down, up, north, south, west,
-// east. faceShapes are the six face shapes (getFaceOcclusionShape, in that
+// fullFaces is a bit mask over Direction.ordinal(): down, up, north, south,
+// west, east. faceShapes are the six face shapes (getFaceOcclusionShape, in that
 // order) that the light engine tests light through, numbered among all of
 // them, for a state that is conditionally full opaque (it can occlude and
 // uses its shape for light); every other state is "0,0,0,0,0,0", shape 0
@@ -40,20 +40,16 @@ public class McbenchBlockTable {
       for (Block block : BuiltInRegistries.BLOCK) {
         out.println("default\t" + BuiltInRegistries.BLOCK.getKey(block) + "\t" + name(block.defaultBlockState()));
         for (BlockState state : block.getStateDefinition().getPossibleStates()) {
-          int full = 0, empty = 0;
+          int full = 0;
           for (Direction direction : Direction.values()) {
-            VoxelShape face = state.getFaceOcclusionShape(direction);
-            if (face.isEmpty()) empty |= 1 << direction.ordinal();
-            else if (Shapes.faceShapeOccludes(Shapes.empty(), face)) full |= 1 << direction.ordinal();
+            if (Shapes.faceShapeOccludes(Shapes.empty(), state.getFaceOcclusionShape(direction))) full |= 1 << direction.ordinal();
           }
           StringBuilder faces = new StringBuilder();
           for (Direction direction : Direction.values()) {
             int number = state.starlight$isConditionallyFullOpaque() ? faceNumber(numbers, shapes, state.getFaceOcclusionShape(direction)) : 0;
             faces.append(direction.ordinal() == 0 ? "" : ",").append(number);
           }
-          out.println(name(state) + "\t" + state.getLightEmission() + "\t" + state.getLightBlock()
-            + "\t" + (state.propagatesSkylightDown() ? 1 : 0) + "\t" + (state.useShapeForLightOcclusion() ? 1 : 0)
-            + "\t" + full + "\t" + empty + "\t" + faces);
+          out.println(name(state) + "\t" + state.getLightEmission() + "\t" + state.getLightBlock() + "\t" + full + "\t" + faces);
         }
       }
       StringBuilder bits = new StringBuilder();

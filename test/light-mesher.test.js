@@ -6,33 +6,29 @@ const { test } = require('node:test');
 
 const { MODULE } = require('../scripts/build-renderer');
 const { blocksBlueprint } = require('../server/blueprint');
+const { BlockStates } = require('../server/block-states');
+const { minecraftLive } = require('../server/minecraft-live');
 const { lightPack } = require('./helpers/mesher-pack');
 
 // see_build's light (web/light.mjs) against the live viewer's mesher
-// (renderer/, the committed WebAssembly module the live viewer runs), whose
-// light is checked against scripts/McbenchBlueMapReference.java by
-// scripts/mesher-parity.js and cell for cell against its own light lit from
-// nothing in its tests (renderer/src/world.rs). Both light a build standing
-// alone in open sky, above the world's floor (y = -64 here, the mesher's);
-// the mesher keeps sky and block light apart, the page the brighter of the
-// two. Each state's facts are drawn at random, as a block table gives them:
-// sky light passes straight down through a state that blocks no light (the
-// page tests the light block, as Paper's light engine does, the mesher
-// propagatesSkylightDown, and the two agree for every state of the pinned
-// Minecraft). The mesher closes a face to light where one side of it is a
-// full face shape; the page tests the pair (Shapes.faceShapeOccludes), and
-// two partial faces that cover a face together close it to the page's
-// light, not the mesher's: these states' partial faces never cover a face
-// together, where the two rules are one (test/light.test.js covers the
-// pairs that do).
+// (renderer/, the committed WebAssembly module the live viewer runs), cell
+// for cell: one light in both views. The mesher's light is checked against
+// Paper's own light engine by scripts/mesher-parity.js --paper, and against
+// its own light lit from nothing in its tests (renderer/src/world.rs). Both
+// light a build standing alone in open sky, above the world's floor (y = -64
+// here, the mesher's); the mesher keeps sky and block light apart, the page
+// the brighter of the two. Both take each state's facts from a block table
+// (McbenchBlockTable.java's: its emission, light block and six face shapes)
+// and its pairs of face shapes that close a face (Shapes.faceShapeOccludes).
+// The worlds are lit under tables of three kinds: states and pairs drawn at
+// random, among them partial shapes that close a face together (a bottom
+// slab's half side beside a top slab's, as Minecraft's do); and, where the
+// data folder holds Paper and the tools folder the JDK, Minecraft's own
+// states and face shapes, read from Paper's classes.
 
 const WASM = fs.readFileSync(MODULE);
 const MASK = { minX: -100000, maxX: 100000, minZ: -100000, maxZ: 100000 };
 const FLOOR = -64;
-// Face shapes: 0 empty, 1 full, 2 and 3 partial (a slab's half side, a
-// stair's step), which close a face only beside a full one.
-const SHAPES = 4;
-const OCCLUDES = Uint8Array.from({ length: SHAPES * SHAPES }, (_, at) => Number((at / SHAPES | 0) === 1 || at % SHAPES === 1));
 
 // A seeded generator (mulberry32), so a failure names the seed that made it.
 function random(seed) {
@@ -46,41 +42,84 @@ function random(seed) {
   };
 }
 
-// Block states lit as Minecraft's are (emission, light block, and for a
-// state that is conditionally full opaque its six face shapes, down, up,
-// north, south, west, east), and as many more made at random.
-function kinds(rand) {
+// A table drawn at random: face shapes 0 empty, 1 full, 2 and 3 a bottom
+// and a top slab's half sides (which close a face together, either way
+// round) and more partial shapes; a full face closes against every face and
+// two empty ones never close; every other ordered pair closes or not at
+// random. Block states lit as Minecraft's are (emission, light block, and
+// for a state that is conditionally full opaque its six face shapes, down,
+// up, north, south, west, east), and as many more made at random.
+function randomTable(rand) {
   const int = (lo, hi) => lo + Math.floor(rand() * (hi - lo + 1));
+  const shapes = 4 + int(0, 5);
+  const occludes = Uint8Array.from({ length: shapes * shapes }, (_, at) => {
+    const [a, b] = [Math.floor(at / shapes), at % shapes];
+    if (a === 1 || b === 1) return 1;
+    if (a === 0 && b === 0) return 0;
+    if ((a === 2 && b === 3) || (a === 3 && b === 2)) return 1;
+    return rand() < 0.3 ? 1 : 0;
+  });
+  const partial = () => int(2, shapes - 1);
   const states = [
     { name: 'air', emission: 0, lightBlock: 0 },
-    { name: 'stone', emission: 0, lightBlock: 15 },
+    { name: 'stone', emission: 0, lightBlock: 15, faces: [1, 1, 1, 1, 1, 1] },
     { name: 'glass', emission: 0, lightBlock: 0 },
     { name: 'water', emission: 0, lightBlock: 1 },
     { name: 'leaves', emission: 0, lightBlock: 1 },
     { name: 'wall', emission: 0, lightBlock: 0 },
-    { name: 'glowstone', emission: 15, lightBlock: 15 },
+    { name: 'glowstone', emission: 15, lightBlock: 15, faces: [1, 1, 1, 1, 1, 1] },
     { name: 'torch', emission: 14, lightBlock: 0 },
     { name: 'bottom slab', emission: 0, lightBlock: 0, faces: [1, 0, 2, 2, 2, 2] },
-    { name: 'top slab', emission: 0, lightBlock: 0, faces: [0, 1, 2, 2, 2, 2] },
+    { name: 'top slab', emission: 0, lightBlock: 0, faces: [0, 1, 3, 3, 3, 3] },
     { name: 'waterlogged slab', emission: 0, lightBlock: 1, faces: [1, 0, 2, 2, 2, 2] },
-    { name: 'stairs', emission: 0, lightBlock: 0, faces: [1, 2, 1, 3, 3, 3] },
-    { name: 'upside-down stairs', emission: 0, lightBlock: 0, faces: [2, 1, 3, 3, 3, 1] },
+    { name: 'stairs', emission: 0, lightBlock: 0, faces: [1, partial(), 1, partial(), partial(), partial()] },
+    { name: 'upside-down stairs', emission: 0, lightBlock: 0, faces: [partial(), 1, partial(), partial(), partial(), 1] },
     { name: 'double slab', emission: 0, lightBlock: 15, faces: [1, 1, 1, 1, 1, 1] },
   ];
   for (let level = 1; level <= 15; level++) states.push({ name: `light[level=${level}]`, emission: level, lightBlock: 0 });
   for (let n = 0; n < 12; n++) {
     states.push({
       name: `random ${n}`, emission: rand() < 0.4 ? int(1, 15) : 0, lightBlock: [0, 0, 1, 1, 2, int(3, 14), 15][int(0, 6)],
-      faces: rand() < 0.5 ? Array.from({ length: 6 }, () => int(0, 3)) : undefined,
+      faces: rand() < 0.6 ? Array.from({ length: 6 }, () => int(0, shapes - 1)) : undefined,
     });
   }
-  return states;
+  return { states, shapes, occludes };
 }
 
-// The page's rule for `states` and the mesher's pack of them (light flags:
-// 1 sky light passes down, 2 shapes light with its faces; `full`, the faces
-// whose shape is full).
-async function rules(states) {
+// Minecraft's own table (server/block-states.js), and states of it: the
+// kinds randomTable names, every state of oak slabs and stairs, and states
+// drawn at random, half of them among those with face shapes.
+function minecraftTable(blockStates, rand) {
+  const of = (name, id, properties = {}) => {
+    const state = blockStates.idOf(id, properties);
+    const faces = Array.from(blockStates.faces.subarray(state * 6, state * 6 + 6));
+    return { name, emission: blockStates.emission[state], lightBlock: blockStates.lightBlock[state], faces: faces.some(Boolean) ? faces : undefined };
+  };
+  const states = [
+    of('air', 'minecraft:air'), of('stone', 'minecraft:stone'), of('glass', 'minecraft:glass'), of('water', 'minecraft:water'),
+    of('leaves', 'minecraft:oak_leaves'), of('wall', 'minecraft:cobblestone_wall'), of('glowstone', 'minecraft:glowstone'), of('torch', 'minecraft:torch'),
+    of('bottom slab', 'minecraft:oak_slab', { type: 'bottom' }), of('top slab', 'minecraft:oak_slab', { type: 'top' }),
+    of('waterlogged slab', 'minecraft:oak_slab', { type: 'bottom', waterlogged: 'true' }),
+    of('stairs', 'minecraft:oak_stairs', { half: 'bottom' }), of('upside-down stairs', 'minecraft:oak_stairs', { half: 'top' }),
+    of('double slab', 'minecraft:oak_slab', { type: 'double' }),
+  ];
+  for (let level = 1; level <= 15; level++) states.push(of(`light[level=${level}]`, 'minecraft:light', { level: String(level) }));
+  for (const half of ['bottom', 'top']) for (const facing of ['north', 'south', 'west', 'east']) {
+    for (const shape of ['straight', 'inner_left', 'inner_right', 'outer_left', 'outer_right']) states.push(of(`oak stairs ${half} ${facing} ${shape}`, 'minecraft:oak_stairs', { half, facing, shape }));
+  }
+  const shaped = [];
+  for (let state = 0; state < blockStates.count; state++) if (blockStates.faces.subarray(state * 6, state * 6 + 6).some(Boolean)) shaped.push(state);
+  const names = [...blockStates.ids.keys()];
+  for (let n = 0; n < 40; n++) {
+    const state = n % 2 ? shaped[Math.floor(rand() * shaped.length)] : Math.floor(rand() * blockStates.count);
+    const faces = Array.from(blockStates.faces.subarray(state * 6, state * 6 + 6));
+    states.push({ name: names[state], emission: blockStates.emission[state], lightBlock: blockStates.lightBlock[state], faces: faces.some(Boolean) ? faces : undefined });
+  }
+  return { states, shapes: blockStates.shapes, occludes: blockStates.occludes };
+}
+
+// The page's rule for a table and the mesher's pack of its states.
+async function rules({ states, shapes, occludes }) {
   const { lightRule } = await import('../web/light.mjs');
   const faces = new Uint8Array(states.length * 6);
   states.forEach((state, id) => state.faces && faces.set(state.faces, id * 6));
@@ -88,15 +127,10 @@ async function rules(states) {
     emission: Uint8Array.from(states, (s) => s.emission),
     lightBlock: Uint8Array.from(states, (s) => s.lightBlock),
     faces,
-    shapes: SHAPES,
-    occludes: OCCLUDES,
+    shapes,
+    occludes,
   });
-  const pack = lightPack(states.map((s) => ({
-    emission: s.emission,
-    lightBlock: s.lightBlock,
-    lightFlags: (s.lightBlock === 0 ? 1 : 0) | (s.faces ? 2 : 0),
-    full: s.faces ? s.faces.reduce((mask, shape, d) => mask | (shape === 1 ? 1 << d : 0), 0) : 0,
-  })));
+  const pack = lightPack(states.map((s) => ({ emission: s.emission, lightBlock: s.lightBlock, faces: s.faces })), shapes, occludes);
   return { rule, pack };
 }
 
@@ -167,17 +201,20 @@ function fixture(rule) {
   return { world: { chunks }, blocks, set, blueprint, take };
 }
 
-test('see_build\'s light equals the mesher\'s cell for cell on random worlds of rooms, overhangs, shafts and emitters', async () => {
+// Lights random worlds of rooms, overhangs, shafts, emitters and shaped
+// blocks packed together with both, under the table `tableOf(rand)` makes
+// for each seed, and compares every cell after each of six rounds of edits.
+async function sameLight(seeds, tableOf) {
   const { Mesher } = await import('../web/mesher.mjs');
   const { createLight, updateLight } = await import('../web/light.mjs');
   let cells = 0;
   let worlds = 0;
-  const seeds = Number(process.env.LIGHT_MESHER_SEEDS || 24);
   for (let seed = 1; seed <= seeds; seed++) {
     const rand = random(seed);
     const int = (lo, hi) => lo + Math.floor(rand() * (hi - lo + 1));
-    const states = kinds(rand);
-    const { rule, pack } = await rules(states);
+    const table = tableOf(rand);
+    const { states } = table;
+    const { rule, pack } = await rules(table);
     const mesher = await Mesher.create(WASM, pack);
     const { blocks, set, blueprint, take, world } = fixture(rule);
     const any = () => int(1, states.length - 1);
@@ -242,5 +279,22 @@ test('see_build\'s light equals the mesher\'s cell for cell on random worlds of 
     }
   }
   assert.equal(worlds, seeds * 6);
+  return cells;
+}
+
+const SEEDS = Number(process.env.LIGHT_MESHER_SEEDS || 24);
+
+test('see_build\'s light equals the mesher\'s cell for cell under random tables, partial face shapes that close a face among them', async () => {
+  const cells = await sameLight(SEEDS, randomTable);
   assert.ok(cells > 1e6, `${cells} cells compared`);
+});
+
+// Minecraft's block table as the data folder holds it (block-table-minecraft.test.js
+// and the app's first start make it).
+const TABLE = minecraftLive.blockTableFile();
+
+test('see_build\'s light equals the mesher\'s cell for cell under Minecraft\'s states and face shapes', { skip: !fs.existsSync(TABLE) && 'needs the block table made from Paper\'s classes in the data folder' }, async () => {
+  const blockStates = new BlockStates(fs.readFileSync(TABLE, 'utf8'));
+  const cells = await sameLight(SEEDS / 2, (rand) => minecraftTable(blockStates, rand));
+  assert.ok(cells > 5e5, `${cells} cells compared`);
 });

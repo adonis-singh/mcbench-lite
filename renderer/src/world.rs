@@ -99,6 +99,25 @@ impl Level {
     }
 }
 
+// What light reads of the state Minecraft lights a palette entry as (from
+// the block table, through the pack): the light it emits, the light it
+// blocks, and the face shapes light is tested through, down, up, north,
+// south, west, east. A world keeps one per palette entry, so the cells it
+// relights read a small table rather than the pack's states.
+#[derive(Clone, Copy, PartialEq, Debug)]
+struct Lit {
+    emission: u8,
+    light_block: u8,
+    faces: [u8; 6],
+}
+
+impl Lit {
+    fn of(pack: &Pack, state: u32) -> Lit {
+        let state = &pack.states[state as usize];
+        Lit { emission: state.emission, light_block: state.light_block, faces: pack.face_sets[state.faces as usize] }
+    }
+}
+
 struct Section {
     blocks: Option<Box<[u16; 4096]>>,
     sky: Level,
@@ -122,9 +141,10 @@ pub struct World {
     // The blueprint's bounds (min x, y, z, max x, y, z).
     bounds: [i32; 6],
     // The state BlueMap sees per palette entry (entry 0 is always air), and
-    // the state Minecraft lights it as (entry 0 as the blueprint names it).
+    // the light of the state Minecraft lights it as (entry 0 as the
+    // blueprint names it).
     palette: Vec<u32>,
-    light_of: Vec<u32>,
+    lit: Vec<Lit>,
     min_x: i32,
     min_y: i32,
     min_z: i32,
@@ -301,15 +321,14 @@ impl Load {
     fn header(pack: &Pack, input: &mut Input, mask: Mask) -> Result<(World, usize), String> {
         let entries = input.int()?;
         let mut palette = Vec::new();
-        let mut light_of = Vec::new();
+        let mut lit = Vec::new();
         for index in 0..entries {
-            let (shown, lit) = World::entry(pack, input, index)?;
+            let (shown, state) = World::entry(pack, input, index)?;
             palette.push(shown);
-            light_of.push(lit);
+            lit.push(Lit::of(pack, state));
         }
         // Empty space is entry 0: the light rules above hold for air.
-        let void = light_of.first().map(|&state| pack.states[state as usize]);
-        if !void.is_some_and(|state| state.emission == 0 && state.light_flags & 3 == 1 && state.light_block <= 1) {
+        if !lit.first().is_some_and(|void| *void == Lit { emission: 0, light_block: 0, faces: [0; 6] }) {
             return Err("The blueprint's entry 0 does not light as air".into());
         }
         let mut bounds = [0i32; 6];
@@ -317,7 +336,7 @@ impl Load {
             *value = input.int()?;
         }
         let sections = input.int()?.max(0) as usize;
-        Ok((World::empty(palette, light_of, bounds, mask), sections))
+        Ok((World::empty(palette, lit, bounds, mask), sections))
     }
 
     pub fn finish(mut self, pack: &Pack) -> Result<World, String> {
@@ -358,13 +377,13 @@ impl World {
     }
 
     // A world of no blocks over the volume of `bounds`, unlit.
-    fn empty(palette: Vec<u32>, light_of: Vec<u32>, bounds: [i32; 6], mask: Mask) -> World {
+    fn empty(palette: Vec<u32>, lit: Vec<Lit>, bounds: [i32; 6], mask: Mask) -> World {
         let frame = Frame::of(bounds);
         let count = (frame.section_size[0] * frame.section_size[1] * frame.section_size[2]) as usize;
         World {
             bounds,
             palette,
-            light_of,
+            lit,
             min_x: frame.min[0],
             min_y: frame.min[1],
             min_z: frame.min[2],
@@ -463,9 +482,9 @@ impl World {
         seen.dedup_by_key(|&mut (at, _)| at);
         let changed: Vec<([i32; 3], u16)> = seen.into_iter().map(|((y, z, x), old)| ([x, y, z], old)).filter(|&([x, y, z], old)| self.palette_at(x, y, z) as u16 != old).collect();
 
-        for (shown, lit) in added {
+        for (shown, state) in added {
             self.palette.push(shown);
-            self.light_of.push(lit);
+            self.lit.push(Lit::of(pack, state));
         }
 
         // The built columns' spans: a column built before keeps its own.
@@ -495,7 +514,7 @@ impl World {
         // its block, all heights. The others cannot change light.
         let lit: Vec<[i32; 3]> = changed
             .iter()
-            .filter(|&&([x, y, z], old)| self.light_key(pack, old) != self.light_key(pack, self.palette_at(x, y, z) as u16))
+            .filter(|&&([x, y, z], old)| self.lit[old as usize] != self.lit[self.palette_at(x, y, z)])
             .map(|&(at, _)| at)
             .collect();
         let (sx, sz) = (self.size_x as usize, self.size_z as usize);
@@ -669,14 +688,6 @@ impl World {
         self.open = open;
     }
 
-    // Everything `relight` and `closed` read of a palette entry's block: its
-    // emission, how much light it blocks, whether sky light passes down and
-    // whether it shapes light (and then which of its faces are full).
-    fn light_key(&self, pack: &Pack, block: u16) -> [u8; 4] {
-        let state = &pack.states[self.light_of[block as usize] as usize];
-        [state.emission, state.light_block, state.light_flags & 3, if state.light_flags & 2 != 0 { state.full_faces } else { 0 }]
-    }
-
     #[inline(always)]
     fn slot(&self, sx: i32, sy: i32, sz: i32) -> usize {
         (((sx - self.section_min[0]) * self.section_size[2] + (sz - self.section_min[2])) * self.section_size[1] + (sy - self.section_min[1])) as usize
@@ -831,24 +842,25 @@ impl World {
     }
 
     // Whether light cannot pass from `source` into its neighbour `target` in
-    // `direction`: either one's facing side is a full face it shapes light with.
-    fn closed(pack: &Pack, source: u32, target: u32, direction: usize) -> bool {
-        let (s, t) = (&pack.states[source as usize], &pack.states[target as usize]);
-        (s.light_flags & 2 != 0 && s.full_faces >> direction & 1 == 1)
-            || (t.light_flags & 2 != 0 && t.full_faces >> OPPOSITE[direction] & 1 == 1)
+    // `direction`: the face shapes the two turn to each other occlude
+    // (Shapes.faceShapeOccludes, as Paper's light engine tests them).
+    #[inline(always)]
+    fn closed(pack: &Pack, source: &Lit, target: &Lit, direction: usize) -> bool {
+        pack.occludes[source.faces[direction] as usize * pack.shapes + target.faces[OPPOSITE[direction]] as usize]
     }
 
     // The lowest height of column x, z that sky light reaches straight down
-    // from the top of the volume (it stops at the first block it cannot pass
-    // into, or that a full face closes from above).
+    // from the top of the volume: it stops at the first block that blocks
+    // light, or whose face shapes and those of the block above close the
+    // face between them.
     fn sky_stop(&self, pack: &Pack, x: i32, z: i32) -> i32 {
-        let air = self.light_of[0];
+        let air = self.lit[0];
         let mut above = air;
         let mut y = self.min_y + self.size_y - 1;
         while y >= self.min_y {
             match &self.section(x, y, z).blocks {
                 None => {
-                    if Self::closed(pack, above, air, 0) {
+                    if Self::closed(pack, &above, &air, 0) {
                         return y + 1;
                     }
                     above = air;
@@ -857,8 +869,8 @@ impl World {
                 Some(blocks) => {
                     let floor = ((y >> 4) << 4).max(self.min_y);
                     while y >= floor {
-                        let block = self.light_of[blocks[cell(x, y, z)] as usize];
-                        if pack.states[block as usize].light_flags & 1 == 0 || Self::closed(pack, above, block, 0) {
+                        let block = self.lit[blocks[cell(x, y, z)] as usize];
+                        if block.light_block != 0 || Self::closed(pack, &above, &block, 0) {
                             return y + 1;
                         }
                         above = block;
@@ -1067,7 +1079,6 @@ impl World {
 
         // Block light: every light source in a marked column, and the lit
         // cells of the unmarked columns beside a marked one.
-        let emission: Vec<u8> = self.light_of.iter().map(|&state| pack.states[state as usize].emission).collect();
         for &(sx, sy, sz) in &near {
             let slot = self.slot(sx, sy, sz);
             let Some(blocks) = &self.sections[slot].blocks else {
@@ -1081,7 +1092,7 @@ impl World {
                         continue;
                     }
                     for y in clip.y.0..=clip.y.1 {
-                        let level = emission[blocks[cell(x, y, z)] as usize];
+                        let level = self.lit[blocks[cell(x, y, z)] as usize].emission;
                         if level > 0 {
                             sources.push(([x, y, z], level));
                         }
@@ -1148,7 +1159,7 @@ impl World {
             if current <= 1 {
                 continue;
             }
-            let source = self.light_of[from.blocks.as_ref().map_or(0, |blocks| blocks[at]) as usize];
+            let source = self.lit[from.blocks.as_ref().map_or(0, |blocks| blocks[at]) as usize];
             for (direction, step) in STEPS.iter().enumerate() {
                 let (nx, ny, nz) = (x + step[0], y + step[1], z + step[2]);
                 if !self.inside(nx, ny, nz) {
@@ -1163,16 +1174,11 @@ impl World {
                     continue;
                 }
                 let to = cell(nx, ny, nz);
-                let target = self.light_of[self.sections[slot].blocks.as_ref().map_or(0, |blocks| blocks[to]) as usize];
-                if Self::closed(pack, source, target, direction) {
+                let target = self.lit[self.sections[slot].blocks.as_ref().map_or(0, |blocks| blocks[to]) as usize];
+                if Self::closed(pack, &source, &target, direction) {
                     continue;
                 }
-                let t = &pack.states[target as usize];
-                let next = if sky_light && direction == 0 && current == 15 && t.light_flags & 1 != 0 {
-                    15
-                } else {
-                    current - (t.light_block as i32).max(1)
-                };
+                let next = current - (target.light_block as i32).max(1);
                 let level = if sky_light { &mut self.sections[slot].sky } else { &mut self.sections[slot].glow };
                 if next > level.get(to) as i32 {
                     level.cells()[to] = next as i8;
@@ -1345,7 +1351,7 @@ impl World {
         let world = World {
             bounds: [0; 6],
             palette,
-            light_of: Vec::new(),
+            lit: Vec::new(),
             min_x: min[0],
             min_y: min[1],
             min_z: min[2],
@@ -1421,29 +1427,36 @@ mod tests {
     use std::collections::BTreeMap;
 
     // A pack of light-relevant blocks, one state each: air and cave_air,
-    // stone, glass, glowstone, a torch, water, a bottom slab (full only on
-    // its down face), leaves, and a wire and a repeater, which light
-    // treats as air (as it does glass; the repeater's full faces do not
-    // count, as it does not shape light): what a light-neutral change swaps.
-    const NAMES: [&str; 11] = ["air", "cave_air", "stone", "glass", "glowstone", "torch", "water", "slab", "leaves", "wire", "repeater"];
+    // stone, glass, glowstone, a torch, water, a bottom slab, leaves, a wire
+    // and a repeater, which light treats as air (as it does glass: neither
+    // is conditionally full opaque), and a top slab: what a light-neutral
+    // change swaps. Face shapes: 0 empty, 1 full, 2 a bottom slab's half
+    // side, 3 a top slab's; a full face closes against any other, and the
+    // two halves close together, as Minecraft's slabs do.
+    const NAMES: [&str; 12] = ["air", "cave_air", "stone", "glass", "glowstone", "torch", "water", "slab", "leaves", "wire", "repeater", "top_slab"];
     const NEUTRAL: [usize; 4] = [0, 3, 9, 10];
+    // The blocks a random world is made of.
+    const BUILT: [usize; 8] = [2, 3, 4, 5, 6, 7, 8, 11];
 
     fn pack() -> Pack {
-        // (flags, emission, light_block, light_flags, full_faces)
-        let table: [(u8, u8, u8, u8, u8); 11] = [
-            (AIR, 0, 0, 1, 0),
-            (AIR, 0, 0, 1, 0),
-            (3, 0, 15, 2, 63),
-            (4, 0, 0, 1, 0),
-            (3, 15, 15, 2, 63),
-            (0, 14, 0, 1, 0),
-            (0, 0, 1, 1, 0),
-            (1, 0, 15, 2, 1),
-            (0, 0, 1, 0, 0),
-            (0, 0, 0, 1, 0),
-            (0, 0, 0, 1, 63),
+        // (flags, emission, light_block, face set)
+        let table: [(u8, u8, u8, u8); 12] = [
+            (AIR, 0, 0, 0),
+            (AIR, 0, 0, 0),
+            (3, 0, 15, 1),
+            (4, 0, 0, 0),
+            (3, 15, 15, 1),
+            (0, 14, 0, 0),
+            (0, 0, 1, 0),
+            (1, 0, 0, 2),
+            (0, 0, 1, 0),
+            (0, 0, 0, 0),
+            (0, 0, 0, 0),
+            (1, 0, 0, 3),
         ];
-        let mut ids: Vec<u32> = (0..11).collect();
+        let shapes = 4;
+        let occludes = (0..shapes * shapes).map(|at| matches!((at / shapes, at % shapes), (1, _) | (_, 1) | (2, 3) | (3, 2))).collect();
+        let mut ids: Vec<u32> = (0..12).collect();
         ids.sort_by_key(|&i| format!("minecraft:{}", NAMES[i as usize]));
         Pack {
             blocks: NAMES.iter().enumerate().map(|(i, name)| Block { id: format!("minecraft:{name}"), first: i as u32, properties: Vec::new() }).collect(),
@@ -1451,18 +1464,21 @@ mod tests {
             states: table
                 .iter()
                 .enumerate()
-                .map(|(i, &(flags, emission, light_block, light_flags, full_faces))| State {
+                .map(|(i, &(flags, emission, light_block, faces))| State {
                     flags,
                     level: 0,
                     emission,
                     light_block,
-                    light_flags,
-                    full_faces,
+                    blends: false,
+                    faces,
                     block: i as u16,
                     tint: 0,
                     selection: NONE,
                 })
                 .collect(),
+            face_sets: vec![[0; 6], [1; 6], [1, 0, 2, 2, 2, 2], [0, 1, 3, 3, 3, 3]],
+            shapes,
+            occludes,
             air: 0,
             water_selection: NONE,
             water_tint: 0,
@@ -1606,9 +1622,9 @@ mod tests {
 
     const MASK: Mask = Mask { min_x: -100000, max_x: 100000, min_z: -100000, max_z: 100000 };
 
-    // The state a position lights as.
-    fn lit_as(world: &World, [x, y, z]: [i32; 3]) -> u32 {
-        world.light_of[world.palette_at(x, y, z)]
+    // The light of the state a position lights as.
+    fn lit_as(world: &World, [x, y, z]: [i32; 3]) -> Lit {
+        world.lit[world.palette_at(x, y, z)]
     }
 
     // Every observable the mesher reads, cell for cell.
@@ -1643,18 +1659,18 @@ mod tests {
             let mut queue = VecDeque::new();
             for z in 0..sz {
                 for x in 0..sx {
-                    let mut above = world.light_of[0];
+                    let mut above = world.lit[0];
                     for y in (0..sy).rev() {
                         let block = state(x, y, z);
                         if sky_light {
-                            if pack.states[block as usize].light_flags & 1 == 0 || World::closed(pack, above, block, 0) {
+                            if block.light_block != 0 || World::closed(pack, &above, &block, 0) {
                                 break;
                             }
                             light[index(x, y, z)].0 = 15;
                             queue.push_back((x, y, z));
                             above = block;
-                        } else if pack.states[block as usize].emission > 0 {
-                            light[index(x, y, z)].1 = pack.states[block as usize].emission as i8;
+                        } else if block.emission > 0 {
+                            light[index(x, y, z)].1 = block.emission as i8;
                             queue.push_back((x, y, z));
                         }
                     }
@@ -1671,11 +1687,10 @@ mod tests {
                     }
                     let (nx, ny, nz) = (nx as usize, ny as usize, nz as usize);
                     let target = state(nx, ny, nz);
-                    if World::closed(pack, source, target, direction) {
+                    if World::closed(pack, &source, &target, direction) {
                         continue;
                     }
-                    let t = &pack.states[target as usize];
-                    let next = if sky_light && direction == 0 && current == 15 && t.light_flags & 1 != 0 { 15 } else { current - (t.light_block as i32).max(1) };
+                    let next = current - (target.light_block as i32).max(1);
                     let cell = &mut light[index(nx, ny, nz)];
                     if next > level(cell) {
                         if sky_light {
@@ -1711,7 +1726,7 @@ mod tests {
             for z in 0..size {
                 if random.next() % 100 < density {
                     for _ in 0..1 + random.below(3) {
-                        model.insert((x, 60 + random.below(14), z), 2 + random.below(7) as usize);
+                        model.insert((x, 60 + random.below(14), z), BUILT[random.below(BUILT.len() as u64) as usize]);
                     }
                 }
             }
@@ -1803,6 +1818,7 @@ mod tests {
                         3 => 4,
                         4 => 5,
                         5 => 2,
+                        9 => 11,
                         n => 1 + n as usize % 8,
                     }
                 };
@@ -1954,7 +1970,7 @@ mod tests {
         for _ in 0..1 + random.below(4) {
             let (x0, z0, w, d) = (random.below(size as u64), random.below(size as u64), 1 + random.below(40), 1 + random.below(40));
             let y = -40 + random.below(300);
-            let name = [2, 7, 8, 6, 3][random.below(5) as usize];
+            let name = [2, 7, 8, 6, 3, 11][random.below(6) as usize];
             for x in x0..(x0 + w).min(size) {
                 for z in z0..(z0 + d).min(size) {
                     if random.next() % 13 != 0 {
@@ -2164,5 +2180,35 @@ mod tests {
         assert_eq!(world.light([1, 500, 0]), (15, 0));
         assert_eq!(world.light([0, 901, 0]), (15, 0));
         assert_eq!(world.light([0, 500, 0]), (0, 0));
+    }
+
+    // A cell walled in by stone but for a top slab, and that slab walled in
+    // but for a bottom slab under open sky: the bottom slab is lit, and the
+    // half sides the two slabs turn to each other close the face between
+    // them, as they do in Minecraft, so no light reaches the slab or the
+    // cell behind it. A torch beside the bottom slab lights nothing past it
+    // either.
+    #[test]
+    fn a_bottom_slab_beside_a_top_slab_closes_the_face_between_them() {
+        let pack = pack();
+        let mut model = Model::new();
+        for x in -1..=1 {
+            for y in -1..=1 {
+                for z in -1..=1 {
+                    if x == -1 || y != 0 || z != 0 {
+                        model.insert((x, 64 + y, z), 2);
+                    }
+                }
+            }
+        }
+        model.remove(&(0, 64, 0));
+        model.insert((1, 64, 0), 11);
+        model.insert((2, 64, 0), 7);
+        model.insert((3, 64, 0), 5);
+        let world = World::read(&pack, &blueprint(&model, 0).0, MASK).unwrap();
+        assert_eq!(world.light([2, 64, 0]), (15, 13));
+        assert_eq!(world.light([1, 64, 0]), (0, 0));
+        assert_eq!(world.light([0, 64, 0]), (0, 0));
+        assert_reference_light(&pack, &world, "slabs");
     }
 }

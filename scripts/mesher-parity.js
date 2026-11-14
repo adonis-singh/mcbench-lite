@@ -2,9 +2,24 @@
 
 // The mesher (renderer/) against a reference build of itself from git, on
 // real worlds: every tile of every world drawn by both, byte for byte, and
-// what every load and patch answers (renderer/parity/src/main.rs).
+// what every load and patch answers (renderer/parity/src/main.rs); and with
+// --paper, the mesher's light against Paper's own light engine.
 //
-//   node scripts/mesher-parity.js [--ref <git ref>] [--ticks n] [--random n] [--out folder] [blueprint ...]
+//   node scripts/mesher-parity.js [--ref <git ref>] [--ref-pack file] [--paper] [--ticks n] [--random n] [--out folder] [blueprint ...]
+//
+// The reference reads the baked pack the current mesher reads, or with
+// --ref-pack another (a pack in the reference's own format, for a reference
+// from before the pack's format changed: its tiles then differ wherever the
+// two draw differently, which the differences name).
+//
+// --paper lights every blueprint of every world with Paper's light engine
+// (scripts/McbenchPaperLight.java: Starlight's relight in the pinned
+// server's own level) and compares the current mesher's sky and block light
+// with it at every cell of the chunk columns within one of a built column,
+// from the world's floor to its ceiling: the cells whose light Paper gives as
+// it is for a build standing alone in an endless empty world, which is the
+// world the mesher lights. Cells below the floor and past those columns are
+// not compared (the mesher holds open sky there).
 //
 // The worlds: each community build of the corpus MCBENCH_CORPUS names
 // (test/helpers/community.js; none while it is unset) as the page's
@@ -15,10 +30,13 @@
 // pushing blocks into the next chunk columns and pulling them back, sand
 // falling off a tower, lava running down a wall); built-up scenes for light
 // (sources, roofs over deep gaps, caves, water, leaves, slabs, a tower 900
-// blocks tall, blocks at the world's floor and ceiling); builds side by side
+// blocks tall, blocks at the world's floor and ceiling, slabs and stairs of
+// every shape packed together, a room closed by a bottom slab beside a top
+// slab); builds side by side
 // with empty chunks between, as a bench lays them out; and any blueprint
 // files given. Needs the baked pack of the data directory (MCBENCH_DATA_DIR)
-// and cargo.
+// and cargo, and for --paper Paper laid out in the data directory and the
+// JDK in the tools folder.
 
 const fs = require('fs');
 const os = require('os');
@@ -34,6 +52,10 @@ const { Y_OFFSET } = require('../server/minecraft-dimension');
 const { build } = require('./build-wasm');
 const { startNodeEngine } = require('./wasm-node-engine');
 const { communityBuilds, communityBlocks, bakedPack } = require('../test/helpers/community');
+const { compileEngine } = require('../server/engine');
+const { minecraftLive } = require('../server/minecraft-live');
+const { writeDimensionPack } = require('../server/minecraft-dimension');
+const { JAVA, JAVAC } = require('../server/tools');
 
 const ROOT = path.join(__dirname, '..');
 const RENDERER = path.join(ROOT, 'renderer');
@@ -215,6 +237,36 @@ function scenes() {
   put(edges, 3, 954, 3, 'minecraft:torch');
   put(edges, 30, 319, 30, 'minecraft:glowstone');
   out.edges = edges;
+
+  // A room walled and roofed with tinted glass (it blocks all light and
+  // shows what is behind it), whose one way in is a bottom slab in its wall
+  // with a top slab inside: the half sides the two turn to each other close
+  // the face between them, so the room is dark.
+  const closed = new Map();
+  box(closed, [0, 64, 0], [8, 64, 8], 'minecraft:stone');
+  box(closed, [0, 65, 0], [8, 68, 8], 'minecraft:tinted_glass');
+  box(closed, [1, 65, 1], [7, 67, 7], 'minecraft:air');
+  for (const key of [...closed.keys()]) if (closed.get(key) === 'minecraft:air') closed.delete(key);
+  put(closed, 0, 65, 4, 'minecraft:oak_slab[type=bottom,waterlogged=false]');
+  put(closed, 1, 65, 4, 'minecraft:oak_slab[type=top,waterlogged=false]');
+  out['slab-pair-room'] = closed;
+
+  // Slabs and stairs of every shape packed together in three layers over a
+  // floor, among lights, with holes.
+  const shapes = new Map();
+  box(shapes, [0, 64, 0], [31, 64, 31], 'minecraft:stone');
+  const facings = ['north', 'south', 'west', 'east'];
+  const stairShapes = ['straight', 'inner_left', 'inner_right', 'outer_left', 'outer_right'];
+  for (let x = 0; x < 32; x += 1) for (let z = 0; z < 32; z += 1) for (let y = 65; y <= 67; y += 1) {
+    const pick = next();
+    if (pick < 0.15) continue;
+    if (pick < 0.45) put(shapes, x, y, z, `minecraft:oak_slab[type=${next() < 0.5 ? 'bottom' : 'top'},waterlogged=false]`);
+    else if (pick < 0.95) put(shapes, x, y, z, `minecraft:stone_brick_stairs[facing=${facings[Math.floor(next() * 4)]},half=${next() < 0.5 ? 'bottom' : 'top'},shape=${stairShapes[Math.floor(next() * 5)]},waterlogged=false]`);
+    else put(shapes, x, y, z, 'minecraft:glowstone');
+  }
+  box(shapes, [0, 68, 0], [31, 68, 31], 'minecraft:smooth_stone_slab[type=bottom,waterlogged=false]');
+  for (let n = 0; n < 20; n += 1) shapes.delete(`${Math.floor(next() * 32)},68,${Math.floor(next() * 32)}`);
+  out.shapes = shapes;
   return out;
 }
 
@@ -236,8 +288,45 @@ function sideBySide(builds) {
   return out;
 }
 
+// Paper's light of each blueprint of each world (McbenchPaperLight.java),
+// written beside it as <step>.light, which the pair program compares.
+async function paperLight(folder, out) {
+  const classpath = (await minecraftLive.ensurePaper()).map((file) => path.join(minecraftLive.paperDir, file));
+  const classes = path.join(out, 'paper-light-classes');
+  fs.rmSync(classes, { recursive: true, force: true });
+  await compileEngine(JAVAC, classpath, classes);
+  execFileSync(JAVAC, ['--release', '21', '-proc:none', '-classpath', [...classpath, classes].join(path.delimiter), '-d', classes, path.join(__dirname, 'McbenchPaperLight.java')], { stdio: 'inherit' });
+  const run = path.join(out, 'paper-light');
+  writeDimensionPack(run);
+  const java = spawn(JAVA, ['-Xmx8G', '-cp', [...classpath, classes].join(path.delimiter), 'McbenchPaperLight'], { cwd: run, stdio: ['pipe', 'pipe', 'inherit'] });
+  const closed = new Promise((resolve) => java.on('close', resolve));
+  // Minecraft's logger writes to stdout too: the replies are the lines that start MCBENCH_.
+  const replies = readline.createInterface({ input: java.stdout })[Symbol.asyncIterator]();
+  const reply = async () => {
+    for (;;) {
+      const { value, done } = await replies.next();
+      if (done) throw new Error('Paper\'s light program ended');
+      if (value.startsWith('MCBENCH_')) return value;
+    }
+  };
+  for (const world of fs.readdirSync(folder).sort()) {
+    for (const step of fs.readdirSync(path.join(folder, world)).filter((name) => name.endsWith('.blueprint')).sort()) {
+      const file = path.join(folder, world, step);
+      java.stdin.write(`${file} ${file.replace(/\.blueprint$/, '.light')}\n`);
+      const line = await reply();
+      if (!line.startsWith('MCBENCH_LIT ')) throw new Error(`${world}/${step}: ${line}`);
+      console.log(`${world}/${step}: Paper lit ${line.split(' ')[1]} chunk columns in ${line.split(' ')[2]} ms`);
+    }
+  }
+  java.stdin.end();
+  await closed;
+}
+
 async function main() {
   const ref = option('--ref', 'main');
+  const refPack = option('--ref-pack', null);
+  const paper = process.argv.includes('--paper');
+  if (paper) process.argv.splice(process.argv.indexOf('--paper'), 1);
   const ticks = Number(option('--ticks', 40));
   const randoms = option('--random', '40');
   const out = path.resolve(option('--out', fs.mkdtempSync(path.join(os.tmpdir(), 'mesher-parity-'))));
@@ -287,8 +376,11 @@ async function main() {
   }
   console.log(`${builds.length} community builds (${placed} placed and ticked by the engine), worlds in ${folder}`);
 
+  if (paper) await paperLight(folder, out);
+
   const packFile = path.join(out, 'pack.bin');
   fs.writeFileSync(packFile, pack);
+  const referencePack = refPack ? path.resolve(refPack) : packFile;
   // The pair program's lines, passed on as they come. Its line on stdout ends
   // a world; a difference goes to stderr first as "<world>: ...", and a world
   // neither side could load is "<world>: no world loaded" (its differences
@@ -297,7 +389,7 @@ async function main() {
   const ended = new Map();
   const differing = new Set();
   const nameOf = (line) => line.slice(0, line.indexOf(': '));
-  const child = spawn('cargo', ['run', '--release', '--quiet', '--', packFile, folder, randoms], { cwd: path.join(RENDERER, 'parity'), stdio: ['ignore', 'pipe', 'pipe'] });
+  const child = spawn('cargo', ['run', '--release', '--quiet', '--', packFile, referencePack, folder, randoms], { cwd: path.join(RENDERER, 'parity'), stdio: ['ignore', 'pipe', 'pipe'] });
   const exited = new Promise((resolve) => child.on('close', resolve));
   readline.createInterface({ input: child.stderr }).on('line', (line) => {
     console.error(line);

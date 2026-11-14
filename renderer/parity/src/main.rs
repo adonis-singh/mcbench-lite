@@ -1,9 +1,12 @@
 // The mesher (`current`) against a reference build of it (`reference`, see
 // scripts/mesher-parity.js), on real worlds:
-//   mcbench-renderer-parity <pack> <worlds folder> [random patches per world] [seed]
+//   mcbench-renderer-parity <pack> <reference's pack> <worlds folder> [random patches per world] [seed]
 // Each world is a folder holding `mask` (min x, max x, min z, max z) and its
 // steps, taken in name order: `*.blueprint` a world to load (as the viewer
-// loads it, against the world before), `*.patch` a patch to apply. Then come
+// loads it, against the world before), `*.patch` a patch to apply. A
+// blueprint with a `.light` file beside it (Paper's light of it, written by
+// scripts/McbenchPaperLight.java) has the current mesher's light compared
+// with that, cell for cell, once it is loaded. Then come
 // random patches over its blocks: lights, solid blocks, glass, water, slabs
 // and holes, and blocks past the bounds (above, below, beside, in chunk
 // columns not built) that later patches take away again, so the world grows
@@ -369,6 +372,7 @@ struct Tally {
     tiles: usize,
     bytes: usize,
     differences: usize,
+    lit: usize,
     current_load: Duration,
     reference_load: Duration,
     current_draw: Duration,
@@ -441,6 +445,45 @@ impl Pair {
         true
     }
 
+    // The current world's sky and block light against Paper's (a light file:
+    // i32 columns, then per column its chunk x and z and a byte per cell,
+    // sky << 4 | block, height from the floor up, then z, then x). Below its
+    // lit volume a world holds no light (world.rs: no tile reads it there),
+    // and every cell there has the light of the volume's lowest cell above
+    // it, which is what Paper's must be.
+    fn check_light(&mut self, bytes: &[u8], what: &str) {
+        let world = self.current.world.as_ref().unwrap();
+        let ([_, min_y, _], _) = world.volume();
+        let mut input = Reader { bytes, at: 0 };
+        let mut mismatches = Vec::new();
+        for _ in 0..input.int() {
+            let (cx, cz) = (input.int(), input.int());
+            let mut wrong = 0;
+            let mut first = None;
+            for y in -64..960 {
+                for z in cz * 16..cz * 16 + 16 {
+                    for x in cx * 16..cx * 16 + 16 {
+                        let paper = input.bytes[input.at];
+                        input.at += 1;
+                        let (sky, block) = world.light([x, y.max(min_y), z]);
+                        if (sky << 4 | block) as u8 != paper {
+                            wrong += 1;
+                            first.get_or_insert(format!("{x},{y},{z} is ({sky}, {block}), Paper's ({}, {})", paper >> 4, paper & 15));
+                        }
+                    }
+                }
+            }
+            mismatches.push((cx, cz, wrong, first));
+        }
+        assert_eq!(input.at, bytes.len(), "{what}: the light file has trailing bytes");
+        self.tally.lit += mismatches.len() * 16 * 16 * 1024;
+        for (cx, cz, wrong, first) in mismatches {
+            if let Some(first) = first {
+                self.differ(format!("{what}: the light of {wrong} cells of chunk column {cx},{cz} differs from Paper's: {first}"));
+            }
+        }
+    }
+
     // Applies a patch to the current mesher and loads the blocks after it
     // (`after`) in the reference.
     fn patch(&mut self, bytes: &[u8], after: &[u8], full: bool) -> Result<(), String> {
@@ -469,9 +512,10 @@ impl Pair {
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     let pack = std::fs::read(&args[1]).unwrap();
-    let randoms: usize = args.get(3).map_or(40, |n| n.parse().unwrap());
-    let seed: u64 = args.get(4).map_or(1, |n| n.parse().unwrap());
-    let mut worlds: Vec<_> = std::fs::read_dir(&args[2]).unwrap().map(|entry| entry.unwrap().path()).filter(|path| path.is_dir()).collect();
+    let reference_pack = std::fs::read(&args[2]).unwrap();
+    let randoms: usize = args.get(4).map_or(40, |n| n.parse().unwrap());
+    let seed: u64 = args.get(5).map_or(1, |n| n.parse().unwrap());
+    let mut worlds: Vec<_> = std::fs::read_dir(&args[3]).unwrap().map(|entry| entry.unwrap().path()).filter(|path| path.is_dir()).collect();
     worlds.sort();
     let mut total = Tally::default();
     for folder in worlds {
@@ -479,7 +523,7 @@ fn main() {
         let mask: Vec<i32> = std::fs::read_to_string(folder.join("mask")).unwrap().split_whitespace().map(|n| n.parse().unwrap()).collect();
         let mut pair = Pair {
             current: current_side::Side::new(&pack),
-            reference: reference_side::Side::new(&pack),
+            reference: reference_side::Side::new(&reference_pack),
             mask: [mask[0], mask[1], mask[2], mask[3]],
             shown: BTreeMap::new(),
             tally: Tally::default(),
@@ -493,6 +537,9 @@ fn main() {
             if step.extension().unwrap() == "blueprint" {
                 if pair.load(&bytes) {
                     model = Some(Model::read(&bytes));
+                    if let Ok(light) = std::fs::read(step.with_extension("light")) {
+                        pair.check_light(&light, &format!("load {}", pair.tally.loads));
+                    }
                 }
                 continue;
             }
@@ -534,12 +581,13 @@ fn main() {
         pair.check(&tiles, "the end");
         let t = &pair.tally;
         println!(
-            "{name}: {} loads, {} patches ({} moved the bounds or columns), {} tiles ({} bytes), {} differences; load {:.0}/{:.0} ms, draw {:.0}/{:.0} ms, patch {:.0} ms (current/reference)",
+            "{name}: {} loads, {} patches ({} moved the bounds or columns), {} tiles ({} bytes), {} cells' light against Paper's, {} differences; load {:.0}/{:.0} ms, draw {:.0}/{:.0} ms, patch {:.0} ms (current/reference)",
             t.loads,
             t.patches,
             t.moved,
             t.tiles,
             t.bytes,
+            t.lit,
             t.differences,
             t.current_load.as_secs_f64() * 1e3,
             t.reference_load.as_secs_f64() * 1e3,
@@ -553,6 +601,7 @@ fn main() {
         total.tiles += t.tiles;
         total.bytes += t.bytes;
         total.differences += t.differences;
+        total.lit += t.lit;
         total.current_load += t.current_load;
         total.reference_load += t.reference_load;
         total.current_draw += t.current_draw;
@@ -561,12 +610,13 @@ fn main() {
     }
     let t = &total;
     println!(
-        "total: {} loads, {} patches ({} moved the bounds or columns), {} tiles ({} bytes) compared, {} differences; load {:.0}/{:.0} ms, draw {:.0}/{:.0} ms, patch {:.0} ms (current/reference)",
+        "total: {} loads, {} patches ({} moved the bounds or columns), {} tiles ({} bytes) and {} cells' light against Paper's compared, {} differences; load {:.0}/{:.0} ms, draw {:.0}/{:.0} ms, patch {:.0} ms (current/reference)",
         t.loads,
         t.patches,
         t.moved,
         t.tiles,
         t.bytes,
+        t.lit,
         t.differences,
         t.current_load.as_secs_f64() * 1e3,
         t.reference_load.as_secs_f64() * 1e3,

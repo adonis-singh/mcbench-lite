@@ -104,37 +104,53 @@ class McbenchBlueMapReference {
 
   // What Minecraft says of each block state: its default state, and how it
   // emits, blocks and passes light (written by McbenchBlockTable.java from
-  // the pinned server).
+  // the pinned server): per state its emission, light block and six face
+  // shapes, and whether each ordered pair of face shapes closes a face.
   static final class BlockTable {
     final Map<String, Map<String, String>> defaults = new HashMap<>();
-    final Map<String, int[]> light = new HashMap<>(); // emission, lightBlock, skylightDown, shapeOcclusion, full, empty
+    final Map<String, int[]> light = new HashMap<>(); // emission, lightBlock, then the face shapes down, up, north, south, west, east
+    int shapes;
+    boolean[] occludes; // by a * shapes + b
 
     static BlockTable read(Path file) throws IOException {
       var table = new BlockTable();
       for (String line : Files.readAllLines(file)) {
         String[] fields = line.split("\t");
-        // The pairs of face shapes light is tested through: this, as the
-        // mesher, closes a face to light only where one side of it is full.
-        if (fields[0].equals("faceoccludes")) continue;
-        if (fields[0].equals("default")) table.defaults.put(fields[1], McbenchBake.properties(fields[2]));
-        else table.light.put(fields[0], new int[] {
-          Integer.parseInt(fields[1]), Integer.parseInt(fields[2]), Integer.parseInt(fields[3]),
-          Integer.parseInt(fields[4]), Integer.parseInt(fields[5]), Integer.parseInt(fields[6]) });
+        if (fields[0].equals("faceoccludes")) {
+          table.shapes = Integer.parseInt(fields[1]);
+          table.occludes = new boolean[table.shapes * table.shapes];
+          for (int at = 0; at < table.occludes.length; at++) table.occludes[at] = fields[2].charAt(at) == '1';
+          continue;
+        }
+        if (fields[0].equals("default")) {
+          table.defaults.put(fields[1], McbenchBake.properties(fields[2]));
+          continue;
+        }
+        int[] light = new int[8];
+        light[0] = Integer.parseInt(fields[1]);
+        light[1] = Integer.parseInt(fields[2]);
+        String[] faces = fields[4].split(",");
+        for (int i = 0; i < 6; i++) light[2 + i] = Integer.parseInt(faces[i]);
+        table.light.put(fields[0], light);
       }
+      if (table.occludes == null) throw new IOException("The block table has no faceoccludes line");
       return table;
     }
   }
 
   // A blueprint as a BlueMap world: its blocks at their Minecraft
-  // coordinates, plains everywhere, and the light Minecraft's rules give
-  // them in the void (sky light from above and from the open sides, block
-  // light from emitting blocks, each step losing max(1, the light the next
-  // block blocks), stopped by faces Minecraft treats as closed).
+  // coordinates, plains everywhere, and the light Paper's light engine
+  // gives them in the void (sky light straight down through blocks that
+  // block no light and from the open sides, block light from emitting
+  // blocks, each step losing max(1, the light the next block blocks),
+  // stopped where the face shapes two blocks turn to each other close).
   static final class BlueprintWorld implements World {
     static final int MARGIN = 15;
     final Biome biome;
     BlockState[] palette;
-    int[][] lightOf; // per palette entry: emission, lightBlock, skylightDown, shapeOcclusion, full, empty
+    int[][] lightOf; // per palette entry: emission, lightBlock, six face shapes
+    int shapes;
+    boolean[] occludes;
     int minX, minY, minZ, sizeX, sizeY, sizeZ; // the lit volume: the build and its margins
     short[] blocks;
     byte[] sky, glow;
@@ -149,6 +165,8 @@ class McbenchBlueMapReference {
         int entries = in.readInt();
         world.palette = new BlockState[entries];
         world.lightOf = new int[entries][];
+        world.shapes = table.shapes;
+        world.occludes = table.occludes;
         for (int index = 0; index < entries; index++) {
           String id = in.readUTF();
           var properties = new TreeMap<String, String>();
@@ -199,14 +217,14 @@ class McbenchBlueMapReference {
       glow = new byte[blocks.length];
       var queue = new ArrayDeque<int[]>();
       // Sky light falls straight down at full strength while each block
-      // below passes it on; every other column of the void is open sky.
-      // A face Minecraft treats as closed stops it, as it stops spreading light.
+      // below blocks no light; every other column of the void is open sky.
+      // A closed face stops it, as it stops spreading light.
       for (int x = minX; x < minX + sizeX; x++) for (int z = minZ; z < minZ + sizeZ; z++) {
         int[] above = lightOf[0];
         for (int y = minY + sizeY - 1; y >= minY; y--) {
           int at = index(x, y, z);
           int[] block = lightOf[blocks[at]];
-          if (block[2] == 0 || closed(above, block, 0)) break;
+          if (block[1] != 0 || closed(above, block, 0)) break;
           sky[at] = 15;
           queue.add(new int[] { x, y, z });
           above = block;
@@ -221,10 +239,10 @@ class McbenchBlueMapReference {
     }
 
     // Whether light cannot pass from `source` into its neighbour `target` in
-    // `direction`: either one's facing side is a full face it shapes light with.
-    static boolean closed(int[] source, int[] target, int direction) {
-      return (source[3] == 1 && (source[4] >> direction & 1) == 1)
-        || (target[3] == 1 && (target[4] >> OPPOSITE[direction] & 1) == 1);
+    // `direction`: the face shapes the two turn to each other close the face
+    // (Shapes.faceShapeOccludes).
+    boolean closed(int[] source, int[] target, int direction) {
+      return occludes[source[2 + direction] * shapes + target[2 + OPPOSITE[direction]]];
     }
 
     void spread(byte[] level, ArrayDeque<int[]> queue, boolean skyLight) {
@@ -238,7 +256,7 @@ class McbenchBlueMapReference {
           int to = index(x, y, z);
           int[] target = lightOf[blocks[to]];
           if (closed(source, target, direction)) continue;
-          int next = skyLight && direction == 0 && current == 15 && target[2] == 1 ? 15 : current - Math.max(1, target[1]);
+          int next = current - Math.max(1, target[1]);
           if (next > level[to]) { level[to] = (byte) next; queue.add(new int[] { x, y, z }); }
         }
       }
