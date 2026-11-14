@@ -172,7 +172,7 @@ window.run = async (loads, ticks, rounds) => {
     const result = { name: load.name, commands: commands.split('\\n').length - 1, initMs: r(startMs) };
     const start = async () => {
       const t = performance.now();
-      const blueprint = await engine.place(commands);
+      const blueprint = (await engine.place(commands)).bytes;
       const placeMs = performance.now() - t;
       for (const input of load.inputs) await engine.input(...input);
       await engine.tick(20);

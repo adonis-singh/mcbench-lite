@@ -907,51 +907,94 @@ impl InputPlayer {
     }
 }
 
-// The blocks a "use" input takes: the classes McbenchExperiment.usable lists
-// (WeatheringCopperDoorBlock and WeatheringCopperTrapDoorBlock extend the
-// door's and the trapdoor's).
-pub fn takes_use(class: &str) -> bool {
-    matches!(
-        class,
-        "DoorBlock"
-            | "WeatheringCopperDoorBlock"
-            | "TrapDoorBlock"
-            | "WeatheringCopperTrapDoorBlock"
-            | "FenceGateBlock"
-            | "RepeaterBlock"
-            | "ComparatorBlock"
-            | "NoteBlock"
-            | "DaylightDetectorBlock"
-            | "RedStoneWireBlock"
-            | "DecoratedPotBlock"
-    )
+// The blocks a "use" input takes: the classes McbenchExperiment.usable lists,
+// by instanceof (WeatheringCopperDoorBlock and WeatheringCopperTrapDoorBlock
+// extend the door's and the trapdoor's).
+pub fn takes_use(block: &crate::registry::Block) -> bool {
+    ["DoorBlock", "TrapDoorBlock", "FenceGateBlock", "RepeaterBlock", "ComparatorBlock", "NoteBlock", "DaylightDetectorBlock", "RedStoneWireBlock", "DecoratedPotBlock"]
+        .iter()
+        .any(|class| block.is(class))
 }
 
 // BlockState.useWithoutItem by the input player on a block takes_use takes:
 // whether the block consumed the action.
 pub fn use_without_item(l: &mut Level, state: State, pos: Pos, player: InputPlayer) -> bool {
-    let class = l.reg.blocks[l.block(state) as usize].class.as_str();
-    assert!(takes_use(class), "{class} takes no use input");
+    let block = &l.reg.blocks[l.block(state) as usize];
+    assert!(takes_use(block), "{} takes no use input", block.class);
     (behaviour(l, state).use_without_item.expect("a block that takes a use input uses"))(l, state, pos, Some(player))
 }
 
-// A player's input (McbenchEngine.input), "toggle", "press" or "use" with the
-// player's yaw: whether the block takes it.
-pub fn input(l: &mut Level, kind: &str, state: State, pos: Pos, yaw: f32) -> bool {
-    let class = l.reg.blocks[l.block(state) as usize].class.as_str();
-    let player = match (kind, class) {
-        ("toggle", "LeverBlock") => None,
-        ("press", "ButtonBlock") => {
+// A player's input (McbenchEngine.input): a lever pulled, a button pressed,
+// or a block used by a right click with an empty hand.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Input {
+    Toggle = 1,
+    Press = 2,
+    Use = 3,
+}
+
+impl Input {
+    pub fn by_name(name: &str) -> Option<Input> {
+        match name {
+            "toggle" => Some(Input::Toggle),
+            "press" => Some(Input::Press),
+            "use" => Some(Input::Use),
+            _ => None,
+        }
+    }
+
+    pub fn name(self) -> &'static str {
+        match self {
+            Input::Toggle => "toggle",
+            Input::Press => "press",
+            Input::Use => "use",
+        }
+    }
+}
+
+// The input a block in `state` takes, the only one `input` accepts: a lever
+// (LeverBlock) a toggle, a button (ButtonBlock) a press, and the blocks
+// takes_use takes a use, but for those whose useWithoutItem passes on it in
+// this state whatever is around them: a door or trapdoor of a type that
+// cannot be opened by hand (iron), and redstone dust that is neither a dot
+// nor a cross. What a use does to a cross still depends on its neighbours
+// (it passes when all four of its sides connect), and a pressed button takes
+// the press and stays as it is.
+pub fn input_of(l: &Level, state: State) -> Option<Input> {
+    let block = &l.reg.blocks[l.block(state) as usize];
+    if block.is("LeverBlock") {
+        Some(Input::Toggle)
+    } else if block.is("ButtonBlock") {
+        Some(Input::Press)
+    } else if !takes_use(block) {
+        None
+    } else if block.is("DoorBlock") || block.is("TrapDoorBlock") {
+        shapes::common::can_open_by_hand(l, state).then_some(Input::Use)
+    } else if block.is("RedStoneWireBlock") {
+        wire::toggles(l, state).then_some(Input::Use)
+    } else {
+        Some(Input::Use)
+    }
+}
+
+// A player's input (McbenchEngine.input) with the player's yaw: whether the
+// block took it. It takes only the input input_of names for its state.
+pub fn input(l: &mut Level, kind: Input, state: State, pos: Pos, yaw: f32) -> bool {
+    if input_of(l, state) != Some(kind) {
+        return false;
+    }
+    let player = match kind {
+        Input::Toggle => None,
+        Input::Press => {
             if l.reg.get_bool(state, l.reg.property_of(state, "powered")) {
                 return true;
             }
             None
         }
-        ("use", class) if takes_use(class) => Some(InputPlayer::new(yaw)),
-        _ => return false,
+        Input::Use => Some(InputPlayer::new(yaw)),
     };
     match behaviour(l, state).use_without_item {
         Some(f) => f(l, state, pos, player),
-        None => refuse(format!("{class} input")),
+        None => refuse(format!("{} input", l.reg.blocks[l.block(state) as usize].class)),
     }
 }

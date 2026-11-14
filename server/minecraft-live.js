@@ -14,7 +14,7 @@ const { importCommands } = require('./live-placement');
 const { coreEngine } = require('./engine');
 const { PaperFiles, PAPER } = require('./paper-files');
 const { step } = require('./progress');
-const { missingTables, tablesFolder, writeRegistry, writeDataFix } = require('./minecraft-tables');
+const { REGISTRY, missingTables, tablesFolder, writeRegistry, writeDataFix } = require('./minecraft-tables');
 
 const execFileAsync = promisify(execFile);
 
@@ -147,9 +147,9 @@ class MinecraftLive extends PaperFiles {
       const classes = path.join(this.paperDir, 'block-table-classes');
       fs.mkdirSync(classes, { recursive: true });
       await step("[viewer] reading every block state from Paper's classes", '[viewer] block table written', async () => {
-        await execFileAsync(JAVAC, ['--release', '21', '-proc:none',
+        await execFileAsync(JAVAC, ['--release', '25', '-proc:none',
           '-classpath', classpath.map((file) => path.join(this.paperDir, file)).join(path.delimiter), '-d', classes, source], { timeout: 60_000 });
-        await this.runJava(['-cp', ['block-table-classes', ...classpath].join(path.delimiter), 'McbenchBlockTable', name], { cwd: this.paperDir, timeout: 120_000 });
+        await this.runJava(['-cp', ['block-table-classes', ...classpath].join(path.delimiter), 'McbenchBlockTable', name], { cwd: this.paperDir, timeout: 300_000 });
       });
       return file;
     })().catch((error) => {
@@ -157,6 +157,42 @@ class MinecraftLive extends PaperFiles {
       throw error;
     });
     return this.table;
+  }
+
+  // The chunk render layer the client draws each state and its fluid in
+  // (McbenchRenderLayers.java), by the block table's states: written once
+  // per block table and program, read from the client jar BlueMap's bake
+  // downloads, its libraries Paper's (the server's, which the client shares).
+  async renderLayers() {
+    this.layers ||= (async () => {
+      const table = await this.blockTable();
+      await this.prepareViewer();
+      const classpath = await this.ensurePaper();
+      const source = path.join(__dirname, 'McbenchRenderLayers.java');
+      const format = crypto.createHash('sha256').update(fs.readFileSync(source)).digest('hex').slice(0, 8);
+      const file = path.join(this.paperDir, `render-layers-${path.basename(table, '.tsv').replace(/^block-table-/, '')}-${format}.tsv`);
+      if (fs.existsSync(file)) return file;
+      for (const old of fs.readdirSync(this.paperDir).filter((entry) => entry.startsWith('render-layers-'))) {
+        fs.rmSync(path.join(this.paperDir, old), { recursive: true, force: true });
+      }
+      const classes = path.join(this.paperDir, 'render-layers-classes');
+      // Minecraft's server entry point bootstraps the client's classes and
+      // writes its settings in its working folder, which is let go after.
+      const run = path.join(this.paperDir, 'render-layers-run');
+      fs.rmSync(run, { recursive: true, force: true });
+      fs.mkdirSync(run, { recursive: true });
+      await step("[viewer] reading every block state's render layer from Minecraft's client", '[viewer] render layers written', async () => {
+        await execFileAsync(JAVAC, ['-proc:none', '-d', classes, source], { timeout: 60_000 });
+        const libraries = classpath.filter((entry) => entry.startsWith('libraries/')).map((entry) => path.join(this.paperDir, entry));
+        await this.runJava(['-cp', classes, 'McbenchRenderLayers', this.blueMap.clientJar(), table, file, libraries.join(path.delimiter)], { cwd: run, timeout: 120_000 });
+      });
+      fs.rmSync(run, { recursive: true, force: true });
+      return file;
+    })().catch((error) => {
+      this.layers = null;
+      throw error;
+    });
+    return this.layers;
   }
 
   // Paper's files, saying so in the terminal while they are downloaded.
@@ -168,10 +204,12 @@ class MinecraftLive extends PaperFiles {
   }
 
   // Makes the tables of Minecraft the engine is built with
-  // (core/minecraft/<version>/) from the server jar, once, unless they are
-  // there: the engine is built after this.
+  // (core/minecraft/<version>/) from the server jar, those that are missing
+  // (missingTables: the block and loot tables also when the Java engine's
+  // sources changed since they were dumped): the engine is built after this.
   minecraftTables() {
-    if (!missingTables(this.minecraftVersion).length) return setup.track('tables', () => {});
+    const missing = missingTables(this.minecraftVersion);
+    if (!missing.length) return setup.track('tables', () => {});
     this.tables ||= (async () => {
       const classpath = (await this.ensurePaper()).map((file) => path.join(this.paperDir, file));
       await installJdk();
@@ -179,8 +217,8 @@ class MinecraftLive extends PaperFiles {
       await setup.track('tables', () => step("[minecraft] reading Minecraft's block, loot and data fixer tables from the server jar", "[minecraft] Minecraft's tables written", async () => {
         // Two JVMs at once: the tables are separate files from the same jars.
         await Promise.all([
-          writeRegistry({ classpath, minecraftVersion: this.minecraftVersion, target, java: JAVA, javac: JAVAC }),
-          writeDataFix({ classpath, target, java: JAVA, javac: JAVAC }),
+          missing.some((name) => REGISTRY.includes(name)) && writeRegistry({ classpath, minecraftVersion: this.minecraftVersion, java: JAVA, javac: JAVAC }),
+          missing.includes('datafix.txt') && writeDataFix({ classpath, target, java: JAVA, javac: JAVAC }),
         ]);
       }));
     })().finally(() => {
@@ -192,7 +230,7 @@ class MinecraftLive extends PaperFiles {
   // The viewer's assets get ready before the first build opens. Resolves
   // once they are ready; a failure is printed here.
   warm() {
-    const done = this.prepareViewer();
+    const done = this.prepareViewer().then(() => this.renderLayers());
     done.catch((error) => console.error('[viewer]', error.message));
     return done;
   }

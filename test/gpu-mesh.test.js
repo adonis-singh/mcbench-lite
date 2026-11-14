@@ -6,7 +6,7 @@ test('uploaded mesh releases CPU vertices and keeps draw counts through replacem
   // Exercise the helper shipped in the single viewer module: the isolated
   // benchmark server serves that module without a build step.
   const source = require('node:fs').readFileSync(require('node:path').join(__dirname, '../web/viewer.js'), 'utf8');
-  const helper = source.slice(source.indexOf('function retainGpuMesh('), source.indexOf('// Blocks that hide faces shared with an identical neighbor'));
+  const helper = source.slice(source.indexOf('function retainGpuMesh('), source.indexOf('// Vertex darkening per occluding neighbor'));
   const retainGpuMesh = require('node:vm').runInThisContext(`(${helper.trim()})`);
   const uploads = [];
   const mesh = {

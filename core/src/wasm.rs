@@ -21,6 +21,9 @@ struct Buffers {
     input: Vec<u8>,
     data: Vec<u8>,
     entities: Vec<u8>,
+    // The input each palette entry the blueprint or patch in the data buffer
+    // adds takes, a byte each (Stream::inputs: 0 none, 1 toggle, 2 press, 3 use).
+    inputs: Vec<u8>,
     message: Vec<u8>,
     // The player's view (28 f64, little endian: the host's own byte order).
     view: Vec<u8>,
@@ -78,13 +81,14 @@ fn finish<T>(result: Result<T, String>, buffers_ok: impl FnOnce(T) -> i32) -> i3
 
 // PLACE: the commands (the input buffer's first `len` bytes, text) on an
 // empty world if `fresh` is not 0, else on the world as it is. The blueprint
-// is the data buffer.
+// is the data buffer, the inputs of its palette the inputs buffer.
 #[no_mangle]
 pub extern "C" fn mcb_place(len: usize, fresh: i32) -> i32 {
     let result = with_session(|session, buffers| {
         let commands = std::str::from_utf8(&buffers.input[..len]).expect("the commands are not UTF-8");
         let blueprint = session.place(commands, fresh != 0)?;
         buffers.data = blueprint;
+        buffers.inputs = session.base_inputs();
         Ok(())
     });
     finish(result, |()| 0)
@@ -92,7 +96,8 @@ pub extern "C" fn mcb_place(len: usize, fresh: i32) -> i32 {
 
 // An edit: the commands (the input buffer's first `len` bytes) on the world
 // as it is (Session::edit). The data buffer holds the patch, the entities
-// buffer the entities' JSON.
+// buffer the entities' JSON, the inputs buffer the inputs of the palette
+// entries the patch adds.
 #[no_mangle]
 pub extern "C" fn mcb_edit(len: usize) -> i32 {
     let result = with_session(|session, buffers| {
@@ -100,19 +105,22 @@ pub extern "C" fn mcb_edit(len: usize) -> i32 {
         let ticked = session.edit(commands)?;
         buffers.data = ticked.changes;
         buffers.entities = ticked.entities;
+        buffers.inputs = ticked.inputs;
         Ok(())
     });
     finish(result, |()| 0)
 }
 
 // TICK: `ticks` ticks. The data buffer holds the patch, the entities buffer
-// the entities' JSON.
+// the entities' JSON, the inputs buffer the inputs of the palette entries
+// the patch adds.
 #[no_mangle]
 pub extern "C" fn mcb_tick(ticks: i32) -> i32 {
     let result = with_session(|session, buffers| {
         let ticked = session.tick(ticks, true)?;
         buffers.data = ticked.changes;
         buffers.entities = ticked.entities;
+        buffers.inputs = ticked.inputs;
         Ok(())
     });
     finish(result, |()| 0)
@@ -129,6 +137,15 @@ pub extern "C" fn mcb_input(len: usize, x: i32, y: i32, z: i32, yaw: f32) -> i32
         session.input(kind, x, y, z, yaw)
     });
     finish(result, |()| 0)
+}
+
+// A click at x, y, z by a player looking with `yaw` degrees
+// (Session::click): returns the input the block took, 1 toggle, 2 press,
+// 3 use, or 0 for none (nothing changed).
+#[no_mangle]
+pub extern "C" fn mcb_click(x: i32, y: i32, z: i32, yaw: f32) -> i32 {
+    let result = with_session(|session, _| session.click(x, y, z, yaw));
+    finish(result, |taken| taken.map_or(0, |kind| kind as i32))
 }
 
 fn view_bytes(view: [f64; 28]) -> Vec<u8> {
@@ -165,6 +182,7 @@ pub extern "C" fn mcb_player_tick(keys: u32, yaw: f32, pitch: f32) -> i32 {
         let (ticked, view) = session.player_tick(keys, yaw, pitch)?;
         buffers.data = ticked.changes;
         buffers.entities = ticked.entities;
+        buffers.inputs = ticked.inputs;
         buffers.view = view_bytes(view);
         Ok(())
     });
@@ -220,6 +238,16 @@ pub extern "C" fn mcb_entities_ptr() -> *const u8 {
 #[no_mangle]
 pub extern "C" fn mcb_entities_len() -> usize {
     BUFFERS.with(|buffers| buffers.borrow().entities.len())
+}
+
+#[no_mangle]
+pub extern "C" fn mcb_inputs_ptr() -> *const u8 {
+    BUFFERS.with(|buffers| pointer(&buffers.borrow().inputs))
+}
+
+#[no_mangle]
+pub extern "C" fn mcb_inputs_len() -> usize {
+    BUFFERS.with(|buffers| buffers.borrow().inputs.len())
 }
 
 #[no_mangle]

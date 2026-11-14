@@ -67,6 +67,18 @@ test('a fresh placement starts the count again, and an edit does not', async (t)
   assert.strictEqual((await again)[0].ticks, 1);
 });
 
+test('a placement and a patch carry the inputs of their palette entries, and a click answers the input taken', async (t) => {
+  const started = await engine(t);
+  const { bytes, inputs } = await started.place(COMMANDS);
+  assert.ok(bytes instanceof Uint8Array);
+  // Air, stone, the lever, the dust (a line from the lever to the lamp: its use passes) and the lamp.
+  assert.deepStrictEqual(inputs, [null, null, 'toggle', null, null]);
+  assert.strictEqual(await started.click(1, 65, 1, 0), 'toggle');
+  assert.strictEqual(await started.click(0, 64, 0, 0), null, 'stone takes nothing');
+  // The pulled lever, the powered dust and the lit lamp.
+  assert.deepStrictEqual((await started.tick(1)).inputs.sort(), [null, null, 'toggle']);
+});
+
 test('a refusal fails the request and spends the world until a fresh placement', async (t) => {
   const started = await engine(t);
   await started.place(COMMANDS);

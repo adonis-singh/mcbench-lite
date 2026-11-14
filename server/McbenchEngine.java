@@ -630,7 +630,8 @@ public class McbenchEngine {
   //   occludes <direction> <first shape> <hex bits, one per second shape (bit i of the hex digit string read from the left, 4 shapes per digit, most significant first)>
   //     Shapes.mergedFaceOccludes(first, second, direction) for every pair of the dump's shapes
   //   flag <name> <block keys, comma-separated or ->  (canBeReplacedContext: the blocks whose class overrides
-  //     canBeReplaced(BlockState, BlockPlaceContext))
+  //     canBeReplaced(BlockState, BlockPlaceContext); canOpenByHand: the doors and trapdoors whose
+  //     BlockSetType.canOpenByHand)
   // The supertypes are the simple names of the block's superclasses below Block (nearest first)
   // and of the interfaces LiquidBlockContainer, SimpleWaterloggedBlock and BucketPickup it implements, comma-separated.
   // A state's collision shape is the number of its shape line (in order,
@@ -913,6 +914,19 @@ public class McbenchEngine {
       }
     }
     out.append("flag\tcanBeReplacedContext\t").append(replaceable.isEmpty() ? "-" : String.join(",", replaceable)).append('\n');
+    // The doors and trapdoors a player opens by hand: their BlockSetType's
+    // canOpenByHand (useWithoutItem passes on the others).
+    var doorType = net.minecraft.world.level.block.DoorBlock.class.getDeclaredField("type");
+    doorType.setAccessible(true);
+    var trapdoorType = net.minecraft.world.level.block.TrapDoorBlock.class.getDeclaredField("type");
+    trapdoorType.setAccessible(true);
+    var byHand = new ArrayList<String>();
+    for (Block block : BuiltInRegistries.BLOCK) {
+      var type = block instanceof net.minecraft.world.level.block.DoorBlock ? doorType.get(block)
+        : block instanceof net.minecraft.world.level.block.TrapDoorBlock ? trapdoorType.get(block) : null;
+      if (type != null && ((net.minecraft.world.level.block.state.properties.BlockSetType) type).canOpenByHand()) byHand.add(BuiltInRegistries.BLOCK.getKey(block).toString());
+    }
+    out.append("flag\tcanOpenByHand\t").append(byHand.isEmpty() ? "-" : String.join(",", byHand)).append('\n');
     // itemcomponent: each item's default components that are saved, as their codec writes them (the prototypes that
     // a stack's component patch is compared with, in imports of saved data).
     var componentOps = McbenchLevel.data.registries().compositeAccess().createSerializationContext(net.minecraft.nbt.NbtOps.INSTANCE);

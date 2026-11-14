@@ -1,17 +1,15 @@
 'use strict';
 
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-const vm = require('node:vm');
 const { test } = require('node:test');
 const { testBlockStates } = require('./helpers/block-table');
+const { viewerHarness } = require('./helpers/viewer');
 
 // The see_build viewer (web/viewer.js) with deepslate itself, over a stand-in
-// WebGL context that keeps what each buffer was given, and the assets of one
-// block: what reset() lets go, and that what is drawn after it is what a page
+// WebGL context that keeps what each buffer was given, and the assets of two
+// blocks: what reset() lets go, and that what is drawn after it is what a page
 // just loaded draws.
-const ROOT = path.join(__dirname, '..');
+
 // The block table of the assets' two blocks, its facts written for the test:
 // cubes with six full faces, one of which gives light.
 const STATES = testBlockStates([
@@ -36,82 +34,10 @@ const ASSETS = {
   'atlas_map.json': { 'block/stone': [0, 0, 16, 16], 'block/glowstone': [16, 0, 16, 16] },
 };
 
-// A WebGL context that does nothing but keep each buffer's data.
-function fakeGl(canvas) {
-  const buffers = new Set();
-  const bound = new Map();
-  const own = {
-    canvas,
-    createBuffer() { const buffer = { data: null }; buffers.add(buffer); return buffer; },
-    deleteBuffer(buffer) { buffers.delete(buffer); },
-    bindBuffer(target, buffer) { bound.set(target, buffer); },
-    bufferData(target, data) { bound.get(target).data = Array.from(data); },
-    getShaderParameter: () => true,
-    getProgramParameter: () => true,
-    getAttribLocation: () => 0,
-    getParameter: () => 4096,
-    isContextLost: () => false,
-  };
-  const gl = new Proxy(own, {
-    get(target, name) {
-      if (name in target) return target[name];
-      // A constant, or a call that answers with an object of its own.
-      if (/^[A-Z0-9_]+$/.test(name)) return name.length;
-      return () => ({});
-    },
-  });
-  return { gl, buffers };
-}
-
-let createViewer;
-let captured;
+let open;
 test.before(async () => {
-  const deepslate = require(path.join(ROOT, 'node_modules', 'deepslate', 'dist', 'deepslate.umd.cjs'));
-  // The renderer and the world it draws, as the viewer makes them.
-  class StructureRenderer extends deepslate.StructureRenderer {
-    constructor(gl, world, ...rest) {
-      super(gl, world, ...rest);
-      captured = { renderer: this, world };
-    }
-  }
-  globalThis.deepslate = { ...deepslate, StructureRenderer };
-  globalThis.fetch = async (url) => (url === '/api/block-states'
-    ? { arrayBuffer: async () => { const bytes = STATES.bytes(); return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.length); } }
-    : { json: async () => ASSETS[url.slice('/api/assets/'.length)] });
-  globalThis.Image = class {
-    constructor() { this.width = 32; this.height = 16; }
-    set src(_) { queueMicrotask(() => this.onload()); }
-  };
-  globalThis.document = {
-    createElement: () => ({
-      getContext: () => ({
-        drawImage() {},
-        getImageData: (x, y, width, height) => ({ data: new Uint8ClampedArray(width * height * 4), width, height }),
-      }),
-    }),
-  };
-  globalThis.__viewer = { light: await import('../web/light.mjs'), glMatrix: require('gl-matrix') };
-  const source = fs.readFileSync(path.join(ROOT, 'web', 'viewer.js'), 'utf8')
-    .replace(/^import (\{.*\}) from '\.\/light\.mjs';$/m, 'const $1 = globalThis.__viewer.light;')
-    .replace(/^import (\{.*\}) from '\/vendor\/gl-matrix\/index\.js';$/m, 'const $1 = globalThis.__viewer.glMatrix;')
-    .replace('export async function createViewer', 'globalThis.__viewer.createViewer = async function createViewer');
-  vm.runInThisContext(source, { filename: 'viewer.js' });
-  createViewer = globalThis.__viewer.createViewer;
+  open = await viewerHarness(STATES, ASSETS);
 });
-
-// A viewer, with what it holds: the world, deepslate's chunks, the buffers alive.
-async function open() {
-  const canvas = { width: 640, height: 480, clientWidth: 640, clientHeight: 480 };
-  const { gl, buffers } = fakeGl(canvas);
-  canvas.getContext = () => gl;
-  const viewer = await createViewer(canvas, -64);
-  const { renderer, world } = captured;
-  const chunks = () => renderer.chunkBuilder.chunks.flat(2).filter(Boolean);
-  // What a frame draws: each mesh's buffers, in the order deepslate draws them.
-  const drawn = () => renderer.chunkBuilder.getMeshes().map((mesh) => ['posBuffer', 'colorBuffer', 'textureBuffer', 'textureLimitBuffer', 'normalBuffer', 'indexBuffer']
-    .map((field) => mesh[field].data));
-  return { viewer, world, chunks, drawn, buffers };
-}
 
 // A server chunk: `blocks` as [x, y, z, id] within the chunk at `origin`.
 function chunk(key, version, origin, blocks) {
@@ -142,7 +68,7 @@ test('reset lets the whole world go: its chunks\' arrays, their meshes and their
   assert.equal(v.world.size, 16 + 16 + 3 + 16 + 1 + 16);
   assert.ok(v.world.cells.size >= 3 && v.chunks().length >= 3 && v.buffers.size > idle);
   // The glowstone gives light: its light class's emission, from the table.
-  const rule = globalThis.__viewer.light.lightRule(STATES);
+  const rule = (await import('../web/light.mjs')).lightRule(STATES);
   assert.deepEqual(v.world.getBlocks().filter((placed) => rule.emission[placed.light] > 0).map((placed) => rule.emission[placed.light]), [15]);
   // A clip box and back: a version kept aside, with its meshes.
   v.viewer.applyDelta({ chunks: [], removed: ['b'] });

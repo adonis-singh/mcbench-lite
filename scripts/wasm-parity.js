@@ -57,7 +57,7 @@ async function runSteps(engine, steps, encode) {
     let outcome;
     try {
       if (step.place) {
-        outcome = { ok: 'placed', files: { blueprint: await encode(await engine.place(`${step.place.join('\n')}\n`, { fresh: step.fresh })) } };
+        outcome = { ok: 'placed', files: { blueprint: await encode((await engine.place(`${step.place.join('\n')}\n`, { fresh: step.fresh })).bytes) } };
       } else if (step.tick) {
         const ticked = await engine.request({ type: 'tick', ticks: step.tick });
         outcome = { ok: 'ticked', files: { patch: await encode(ticked.bytes), entities: await encode(text(ticked.entities)) } };

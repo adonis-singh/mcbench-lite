@@ -4,10 +4,11 @@
 // answered in the order they were made.
 //
 //   const engine = await CoreEngine.start('/core/<hash>.wasm');
-//   const blueprint = await engine.place(commands);          // Uint8Array
-//   engine.onframe = ({ ticks, bytes, entities }) => ...;     // bytes: the patch
+//   const { bytes, inputs } = await engine.place(commands);  // the blueprint
+//   engine.onframe = ({ ticks, bytes, entities, inputs }) => ...; // bytes: the patch
 //   await engine.run(true);                                  // 20 ticks a second
 //   await engine.input('toggle', x, y, z, yaw);
+//   const taken = await engine.click(x, y, z, yaw);          // 'toggle', ..., or null
 //
 // A request the engine does not model rejects with "The engine failed:
 // unported: ...". The world is spent then; only place(commands, { fresh:
@@ -86,25 +87,29 @@ export class CoreEngine {
   }
 
   // Places the commands (the live import's lines, as text) on an empty world
-  // or, with fresh false, on the world as it is. Resolves with the blueprint.
+  // or, with fresh false, on the world as it is. Resolves with { bytes,
+  // inputs }: the blueprint, and the input each entry of its palette takes
+  // ('toggle', 'press', 'use' or null: CoreWorld.inputs).
   async place(commands, { fresh = true } = {}) {
-    return (await this.request({ type: 'place', commands, fresh })).bytes;
+    const { bytes, inputs } = await this.request({ type: 'place', commands, fresh });
+    return { bytes, inputs };
   }
 
   // Places the commands on the world as it is, without a new base. Resolves
-  // with { bytes, entities }: the patch of the blocks changed since the last
-  // request, on the base the last placement wrote.
+  // with { bytes, entities, inputs }: the patch of the blocks changed since
+  // the last request, on the base the last placement wrote.
   async edit(commands) {
-    const { bytes, entities } = await this.request({ type: 'edit', commands });
-    return { bytes, entities: JSON.parse(entities) };
+    const { bytes, entities, inputs } = await this.request({ type: 'edit', commands });
+    return { bytes, entities: JSON.parse(entities), inputs };
   }
 
-  // Ticks the world. Resolves with { bytes, entities, view }: the patch of
-  // the blocks changed since the last request, the entities as an array, and
-  // the player after the tick when the world has one.
+  // Ticks the world. Resolves with { bytes, entities, inputs, view }: the
+  // patch of the blocks changed since the last request, the entities as an
+  // array, the input each palette entry the patch adds takes, and the player
+  // after the tick when the world has one.
   async tick(ticks = 1) {
-    const { bytes, entities, view } = await this.request({ type: 'tick', ticks });
-    return { bytes, entities: JSON.parse(entities), view };
+    const { bytes, entities, inputs, view } = await this.request({ type: 'tick', ticks });
+    return { bytes, entities: JSON.parse(entities), inputs, view };
   }
 
   // Starts or stops the world running at 20 ticks a second; resolves with
@@ -124,6 +129,13 @@ export class CoreEngine {
   // daylight detector, redstone dust or decorated pot.
   async input(type, x, y, z, yaw) {
     await this.request({ type: 'input', input: type, x, y, z, yaw });
+  }
+
+  // A click on the block at x, y, z by a player looking with `yaw`: the input
+  // its state takes, if any. Resolves with the input the block took, or null
+  // when it takes none or passes on it, which changes nothing (CoreWorld.click).
+  async click(x, y, z, yaw) {
+    return (await this.request({ type: 'click', x, y, z, yaw })).input;
   }
 
   // Puts the creative player (the client's own movement, core/src/player) in

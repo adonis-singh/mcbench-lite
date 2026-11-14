@@ -35,11 +35,10 @@ pub fn waterlogged(l: &Level) -> u16 {
     property!(l, "waterlogged", ["true", "false"])
 }
 
-// BlockSetType.canOpenByHand of a door's or trapdoor's type: false for
-// iron, the only door or trapdoor type that sets it false (gold also does,
-// and has none).
+// BlockSetType.canOpenByHand of a door's or trapdoor's type, as the dump
+// gives it (its canOpenByHand flag line).
 pub fn can_open_by_hand(l: &Level, state: State) -> bool {
-    !matches!(l.reg.blocks[l.block(state) as usize].key.as_str(), "minecraft:iron_door" | "minecraft:iron_trapdoor")
+    l.reg.flagged(state, "canOpenByHand")
 }
 
 // BlockStateProperties.POWERED, OPEN.

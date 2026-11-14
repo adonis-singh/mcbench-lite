@@ -508,6 +508,8 @@ class McbenchBake {
     String occludes = null;
     for (String line : Files.readAllLines(tablePath)) {
       String[] fields = line.split("\t");
+      // see_build's skipRendering classes; the mesher culls by BlueMap's flags.
+      if (fields[0].equals("skiprendering")) continue;
       if (fields[0].equals("faceoccludes")) {
         shapes = Integer.parseInt(fields[1]);
         occludes = fields[2];

@@ -209,6 +209,11 @@ class BlueMap {
     return this.assets;
   }
 
+  // The Minecraft client jar a bake downloads, there once one is made.
+  clientJar() {
+    return path.join(this.root, DOWNLOADS, `minecraft-client-${MC_VERSION}.jar`);
+  }
+
   // The web app and pack of the current bake under /bluemap/<id>/, and the
   // mesher under /bluemap/mesher-<hash>.wasm: each address names one
   // version, so browsers keep them.

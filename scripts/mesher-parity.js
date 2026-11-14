@@ -113,7 +113,7 @@ async function engineSteps(engine, blocks, ticks) {
     world.set(x, y - Y_OFFSET, z, open < 0 ? name : name.slice(0, open), states);
   }
   world.finalize();
-  const steps = [{ kind: 'blueprint', bytes: await engine.place(importCommands(world, null, Y_OFFSET).commands.map((line) => `${line}\n`).join('')) }];
+  const steps = [{ kind: 'blueprint', bytes: (await engine.place(importCommands(world, null, Y_OFFSET).commands.map((line) => `${line}\n`).join(''))).bytes }];
   const inputs = [...blocks].filter(([, name]) => /^minecraft:lever\b|_button\b/.test(name));
   for (let t = 1; t <= ticks; t += 1) {
     for (const [key, name] of inputs) {
@@ -164,9 +164,9 @@ const GROWTH = {
 
 async function growthSteps(engine, { place, ticks, edit, after }) {
   const commands = (lines) => lines.map((line) => `${line}\n`).join('');
-  const steps = [{ kind: 'blueprint', bytes: await engine.place(commands(place)) }];
+  const steps = [{ kind: 'blueprint', bytes: (await engine.place(commands(place))).bytes }];
   for (let t = 0; t < ticks; t += 1) steps.push({ kind: 'patch', bytes: (await engine.tick(1)).bytes });
-  steps.push({ kind: 'blueprint', bytes: await engine.place(commands(edit), { fresh: false }) });
+  steps.push({ kind: 'blueprint', bytes: (await engine.place(commands(edit), { fresh: false })).bytes });
   for (let t = 0; t < after; t += 1) steps.push({ kind: 'patch', bytes: (await engine.tick(1)).bytes });
   return steps;
 }

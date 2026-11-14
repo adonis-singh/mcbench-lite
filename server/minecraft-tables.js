@@ -11,41 +11,64 @@
 //                (scripts/DataFixReference.java --dump)
 // scripts/core-registry.js and `scripts/datafix-parity.js --dump` write them
 // with these functions too, and scripts/prepare-minecraft.js makes all three.
+// blocks.txt and loot.json are what the Java engine's sources dump: they are
+// made again when those sources change (a stamp in core/target holds the
+// hash of the sources they were dumped by; the stamp is not one of the
+// engine's sources, so the same tables dumped again build nothing anew).
 
+const crypto = require('crypto');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { execFile } = require('child_process');
 const { promisify } = require('util');
 
-const { jvmEngine } = require('./engine');
+const { jvmEngine, SOURCES, CORE } = require('./engine');
 const { readZipEntries } = require('./zip-entry');
 
 const execFileAsync = promisify(execFile);
 const TABLES = ['blocks.txt', 'loot.json', 'datafix.txt'];
 
+const REGISTRY = ['blocks.txt', 'loot.json'];
+
 function tablesFolder(minecraftVersion) {
   return path.join(__dirname, '..', 'core', 'minecraft', minecraftVersion);
 }
 
-// The tables of `minecraftVersion` that are not there.
-function missingTables(minecraftVersion) {
-  return TABLES.filter((name) => !fs.existsSync(path.join(tablesFolder(minecraftVersion), name)));
+function registryStamp(minecraftVersion) {
+  return path.join(CORE, 'target', `tables-${minecraftVersion}.sources`);
 }
 
-// Fails, saying how to make them, when a table is not there.
+// The hash of the Java engine's sources, which dump blocks.txt.
+function registrySources() {
+  const hash = crypto.createHash('sha256');
+  for (const file of SOURCES) hash.update(`${path.basename(file)}\0`).update(fs.readFileSync(file)).update('\0');
+  return hash.digest('hex');
+}
+
+// The tables of `minecraftVersion` that are not there, or (blocks.txt and
+// loot.json) were dumped by other sources than the Java engine's own.
+function missingTables(minecraftVersion) {
+  const stamp = registryStamp(minecraftVersion);
+  const dumped = fs.existsSync(stamp) && fs.readFileSync(stamp, 'utf8') === registrySources();
+  return TABLES.filter((name) => !fs.existsSync(path.join(tablesFolder(minecraftVersion), name)) || (!dumped && REGISTRY.includes(name)));
+}
+
+// Fails, saying how to make them, when a table is missing (missingTables).
 function checkTables(minecraftVersion) {
   const missing = missingTables(minecraftVersion);
   if (missing.length) {
-    throw new Error(`Minecraft's tables are not made yet (${missing.join(', ')} in core/minecraft/${minecraftVersion}): run \`node scripts/prepare-minecraft.js\`, or start the app once`);
+    throw new Error(`Minecraft's tables are not made yet, or were dumped by other sources than the Java engine's (${missing.join(', ')} in core/minecraft/${minecraftVersion}): run \`node scripts/prepare-minecraft.js\`, or start the app once`);
   }
 }
 
 // blocks.txt and loot.json from the server's `classpath` (absolute paths)
-// for `minecraftVersion`, into `target`; resolves with the count of loot
-// tables.
-async function writeRegistry({ classpath, minecraftVersion, target, java, javac }) {
+// for `minecraftVersion`, into its tables folder, and their stamp; resolves
+// with the count of loot tables.
+async function writeRegistry({ classpath, minecraftVersion, java, javac }) {
+  const target = tablesFolder(minecraftVersion);
   fs.mkdirSync(target, { recursive: true });
+  const sources = registrySources();
   const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'mcbench-core-registry-'));
   try {
     fs.mkdirSync(path.join(scratch, 'classes'));
@@ -76,6 +99,8 @@ async function writeRegistry({ classpath, minecraftVersion, target, java, javac 
     for (const name of names) loot[`minecraft:${name.slice(prefix.length, -'.json'.length)}`] = JSON.parse(tables.get(name).toString('utf8'));
     writeWhole(path.join(target, 'blocks.txt'), lines.join('\n'));
     writeWhole(path.join(target, 'loot.json'), `${JSON.stringify(loot)}\n`);
+    fs.mkdirSync(path.dirname(registryStamp(minecraftVersion)), { recursive: true });
+    writeWhole(registryStamp(minecraftVersion), sources);
     return names.length;
   } finally {
     fs.rmSync(scratch, { recursive: true, force: true });
@@ -113,4 +138,4 @@ function writeWhole(file, text) {
   fs.renameSync(`${file}.part`, file);
 }
 
-module.exports = { TABLES, tablesFolder, missingTables, checkTables, writeRegistry, writeDataFix, dataFixReference };
+module.exports = { TABLES, REGISTRY, tablesFolder, missingTables, checkTables, writeRegistry, writeDataFix, dataFixReference };

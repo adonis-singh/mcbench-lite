@@ -112,34 +112,19 @@ export function readBlueprint(bytes) {
   return { palette, sections };
 }
 
-// What a click on a block does to it, for the blocks that take an input
-// (the engine's INPUT): 'toggle' a lever, 'press' a button, 'use' (a right
-// click with an empty hand) a door, trapdoor, fence gate, repeater,
-// comparator, note block, daylight detector, decorated pot or a dot of
-// redstone dust, or null. Iron doors and iron trapdoors cannot be opened by
-// hand (BlockSetType.IRON): a click does nothing, so they take none. Dust
-// takes one as a dot, which always becomes a cross; a cross becomes a dot
-// only when nothing connects to it, which its state does not tell, and other
-// dust never changes. A palette entry is a block in one state, so the page's
-// index holds the input by entry; it keeps this index of the blocks on show,
-// from the blueprint and every patch, to know what a click on a position means.
-const USED = /^minecraft:(?!iron_)(?:[a-z_]+_door|[a-z_]*trapdoor|[a-z_]+_fence_gate|repeater|comparator|note_block|daylight_detector|decorated_pot)$/;
-const SIDES = new Set(['north', 'east', 'south', 'west']);
-export const inputOf = (id, properties = []) => {
-  if (id === 'minecraft:lever') return 'toggle';
-  if (id.endsWith('_button')) return 'press';
-  if (id === 'minecraft:redstone_wire') return properties.every(([key, value]) => !SIDES.has(key) || value === 'none') ? 'use' : null;
-  return USED.test(id) ? 'use' : null;
-};
-
+// The input a click on each block on show takes, as the engine names it for
+// the block's palette entry (CoreWorld.inputs: 'toggle', 'press', 'use' or
+// null), from the blueprint and every patch: the page's index of what a
+// click on a position means.
 export class InputBlocks {
   constructor() {
     this.kinds = []; // palette index -> input kind or null
     this.blocks = new Map(); // 'x,y,z' -> kind
   }
 
-  load(blueprint) {
-    this.kinds = blueprint.palette.map(({ id, properties }) => inputOf(id, properties));
+  // The blueprint (readBlueprint) and the input of each entry of its palette.
+  load(blueprint, inputs) {
+    this.kinds = inputs;
     this.blocks.clear();
     if (!this.kinds.some(Boolean)) return;
     for (const { x, y, z, indices } of blueprint.sections) {
@@ -150,8 +135,9 @@ export class InputBlocks {
     }
   }
 
-  apply(patch) {
-    for (const { id, properties } of patch.entries) this.kinds.push(inputOf(id, properties));
+  // A patch (readPatch) and the input of each palette entry it adds.
+  apply(patch, inputs) {
+    this.kinds.push(...inputs);
     for (const [x, y, z, index] of patch.changes) {
       const kind = this.kinds[index];
       if (kind) this.blocks.set(`${x},${y},${z}`, kind);

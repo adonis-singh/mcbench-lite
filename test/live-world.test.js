@@ -125,6 +125,35 @@ test('a click on a lever is the engine\'s input, and on other blocks nothing', a
   assert.strictEqual(live.inputs.at(0, 65, 0), 'toggle');
 });
 
+test('the page\'s index of what a click means is the engine\'s, for the base and for the blocks a patch brings', async (t) => {
+  const wire = { north: 'none', east: 'none', south: 'none', west: 'none', power: '0' };
+  const door = { facing: 'south', half: 'lower', hinge: 'left', open: 'false', powered: 'false' };
+  const world = build3(
+    [0, 0, 0, 'minecraft:stone'], [2, 0, 0, 'minecraft:stone'], [4, 0, 0, 'minecraft:stone'], [6, 0, 0, 'minecraft:stone'],
+    [0, 1, 0, 'minecraft:oak_door', door], [0, 2, 0, 'minecraft:oak_door', { ...door, half: 'upper' }],
+    [2, 1, 0, 'minecraft:iron_door', door], [2, 2, 0, 'minecraft:iron_door', { ...door, half: 'upper' }],
+    [4, 1, 0, 'minecraft:redstone_wire', wire],
+    [6, 1, 0, 'minecraft:lever', { face: 'floor', facing: 'north', powered: 'false' }],
+  );
+  const { live } = open(t, () => ({ world, layout: null }));
+  await live.show('chat');
+  await until(() => live.state.viewerRevision && live.state.status === 'running', 'the base');
+  assert.strictEqual(live.inputs.at(0, 65, 0), 'use');
+  assert.strictEqual(live.inputs.at(2, 65, 0), null, 'iron is not opened by hand');
+  assert.strictEqual(live.inputs.at(4, 65, 0), 'use', 'a dot of dust');
+  assert.strictEqual(await live.input(2, 65, 0, 0), false, 'nothing is sent for the iron door');
+  assert.strictEqual(await live.input(0, 65, 0, 0), true);
+  assert.strictEqual(await live.input(4, 65, 0, 0), true);
+  assert.strictEqual(await live.input(6, 65, 0, 0), true);
+  // The patches bring the open door, the cross and the pulled lever, each a palette entry the engine names the input of.
+  await until(() => live.inputs.kinds.length > 6, 'the patch\'s palette entries');
+  await new Promise((resolve) => setTimeout(resolve, 150));
+  assert.strictEqual(live.inputs.at(0, 65, 0), 'use');
+  assert.strictEqual(live.inputs.at(4, 65, 0), 'use', 'a cross');
+  assert.strictEqual(live.inputs.at(6, 65, 0), 'toggle');
+  assert.strictEqual(await live.input(4, 65, 0, 0), true, 'and a lone cross becomes a dot');
+});
+
 test('an edit within the drawn area reaches the viewer as a patch on its base, and the count goes on', async (t) => {
   const { readPatch } = await import('../web/live-patch.mjs');
   let world = build3([0, 0, 0, 'minecraft:stone']);

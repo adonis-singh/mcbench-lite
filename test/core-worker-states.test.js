@@ -23,6 +23,7 @@ function worker() {
       world.placed += 1;
       return new Uint8Array(1);
     }
+    inputs() { return [null]; }
     spawnPlayer() { return new Float64Array(28); }
     tick() {
       if (world.refused) throw new Error(SPENT);
@@ -31,7 +32,7 @@ function worker() {
         world.trap = null;
         throw new Error(`The engine failed: ${world.refused}`);
       }
-      return { bytes: new Uint8Array(1), entities: '[]' };
+      return { bytes: new Uint8Array(1), entities: '[]', inputs: [] };
     }
   }
   const self = { postMessage: (message) => posted.push(message), onmessage: null };

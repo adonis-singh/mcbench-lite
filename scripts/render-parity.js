@@ -547,7 +547,7 @@ async function main() {
   const table = new Map();
   for (const line of fs.readFileSync(blockTable, 'utf8').split('\n').filter(Boolean)) {
     const [name] = line.split('\t');
-    if (name === 'default' || name === 'faceoccludes') continue;
+    if (name === 'default' || name === 'faceoccludes' || name === 'skiprendering') continue;
     const [id, properties = ''] = name.replace(/]$/, '').split('[');
     if (!table.has(id)) table.set(id, []);
     table.get(id).push(Object.fromEntries(properties ? properties.split(',').map((pair) => pair.split('=')) : []));

@@ -128,12 +128,20 @@ fn get_connection_state(l: &mut Level, state: State, pos: Pos) -> State {
     state
 }
 
+// Whether useWithoutItem can change dust in this state: a cross or a dot.
+// Any other dust passes whatever is around it.
+pub fn toggles(l: &Level, state: State) -> bool {
+    is_cross(l, state) || is_dot(l, state)
+}
+
 // RedStoneWireBlock.useWithoutItem, by a player who may build (the input
 // player is a survival player): a cross becomes a dot and a dot a cross, as
 // far as the wire's connections let it; dust that is neither, or whose
-// connections make the same state either way, passes.
+// connections make the same state either way, passes. A dot always becomes
+// something else (a cross, or the sides it connects to, filled out); a cross
+// passes only when all four of its sides connect.
 fn use_without_item(l: &mut Level, state: State, pos: Pos, _player: Option<InputPlayer>) -> bool {
-    if !is_cross(l, state) && !is_dot(l, state) {
+    if !toggles(l, state) {
         return false;
     }
     let toggled = if is_cross(l, state) { default_state(l) } else { cross_state(l) };

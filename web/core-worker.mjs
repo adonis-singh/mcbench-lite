@@ -5,15 +5,20 @@
 //       the first request: the module, compiled once by the page
 //   { id, type: 'place', commands, fresh }
 //       places the commands (text, one per line) on an empty world or on the
-//       world as it is; answers { bytes } with the blueprint
+//       world as it is; answers { bytes, inputs } with the blueprint and the
+//       input each entry of its palette takes (CoreWorld.inputs)
 //   { id, type: 'edit', commands }
-//       places the commands on the world as it is; answers { bytes, entities }
-//       with the patch of the blocks changed since the last request (the base
-//       stays the one the last placement wrote)
+//       places the commands on the world as it is; answers { bytes, entities,
+//       inputs } with the patch of the blocks changed since the last request
+//       (the base stays the one the last placement wrote) and the input each
+//       palette entry it adds takes
 //   { id, type: 'tick', ticks }
-//       answers { bytes, entities, view }: the patch of the blocks changed
-//       since the last request (web/live-patch.mjs)
+//       answers { bytes, entities, inputs, view }: the patch of the blocks
+//       changed since the last request (web/live-patch.mjs)
 //   { id, type: 'input', input: 'toggle'|'press'|'use', x, y, z, yaw }
+//   { id, type: 'click', x, y, z, yaw }
+//       the input the block takes, if any; answers { input }, the one taken
+//       or null (CoreWorld.click)
 //   { id, type: 'player', spawn: { x, y, z, yaw, pitch, flying } | null }
 //       puts the creative player in the world (null removes it); answers { view }
 //   { id, type: 'player', input: { keys, taps, yaw, pitch } }
@@ -29,7 +34,7 @@
 //       (or stops); answers { ticks }. Each tick is a frame, below.
 //   { id, type: 'step' }                one tick while not playing (a frame too)
 // and tells, with no request to answer:
-//   { type: 'frame', ticks, bytes, entities, view }
+//   { type: 'frame', ticks, bytes, entities, inputs, view }
 //       a tick of the running world; `ticks` since its fresh placement, `view`
 //       the player after it (Float64Array of 28, see CoreWorld.spawnPlayer) when
 //       the world has one
@@ -78,7 +83,7 @@ function frame(result) {
   ticks += 1;
   const transfer = [result.bytes.buffer];
   if (result.view) transfer.push(result.view.buffer);
-  self.postMessage({ type: 'frame', ticks, bytes: result.bytes, entities: result.entities, view: result.view }, transfer);
+  self.postMessage({ type: 'frame', ticks, bytes: result.bytes, entities: result.entities, inputs: result.inputs, view: result.view }, transfer);
 }
 
 // One tick of the world, with its player if it has one.
@@ -139,11 +144,11 @@ async function handle(request) {
         clearTimeout(timer);
       }
       const bytes = world.place(request.commands, { fresh: request.fresh });
-      return [{ bytes }, [bytes.buffer]];
+      return [{ bytes, inputs: world.inputs() }, [bytes.buffer]];
     }
     case 'edit': {
       const result = world.edit(request.commands);
-      return [{ bytes: result.bytes, entities: result.entities }, [result.bytes.buffer]];
+      return [{ bytes: result.bytes, entities: result.entities, inputs: result.inputs }, [result.bytes.buffer]];
     }
     case 'tick': {
       // A world with a player ticks the player with it, one tick at a time.
@@ -151,7 +156,7 @@ async function handle(request) {
       const result = player ? worldTick() : world.tick(request.ticks);
       const transfer = [result.bytes.buffer];
       if (result.view) transfer.push(result.view.buffer);
-      return [{ bytes: result.bytes, entities: result.entities, view: result.view }, transfer];
+      return [{ bytes: result.bytes, entities: result.entities, inputs: result.inputs, view: result.view }, transfer];
     }
     case 'step':
       if (running === 'playing') throw new Error('Pause the live world to step it');
@@ -161,6 +166,8 @@ async function handle(request) {
     case 'input':
       world.input(request.input, request.x, request.y, request.z, request.yaw);
       return [{}];
+    case 'click':
+      return [{ input: world.click(request.x, request.y, request.z, request.yaw) }];
     case 'player':
       if (request.input) {
         if (!player) throw new Error('There is no player in the world');

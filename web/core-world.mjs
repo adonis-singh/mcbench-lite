@@ -16,6 +16,8 @@ const DECODER = new TextDecoder();
 
 // What the native program answers a request after a refusal (core/src/main.rs).
 const AFTER_REFUSAL = 'unported: an earlier request reached what this port does not model';
+// The inputs by the engine's numbers for them (core/src/blocks/mod.rs Input).
+const INPUTS = [null, 'toggle', 'press', 'use'];
 
 export class CoreWorld {
   // `module` is the compiled WebAssembly.Module of mcbench_core.wasm
@@ -78,7 +80,7 @@ export class CoreWorld {
 
   // Places the commands (the live import's setblock and fill lines, one per
   // line) on an empty world (`fresh`) or on the world as it is, and returns
-  // the blueprint.
+  // the blueprint; inputs() gives the input each entry of its palette takes.
   place(commands, { fresh = true } = {}) {
     this.guard(fresh);
     this.call('mcb_place', this.write(commands), fresh ? 1 : 0);
@@ -86,22 +88,31 @@ export class CoreWorld {
   }
 
   // Places the commands on the world as it is, as place(commands, { fresh:
-  // false }) does, and returns { bytes, entities } as tick does: the patch of
-  // the blocks changed since the last request, on the base it holds.
+  // false }) does, and returns { bytes, entities, inputs } as tick does: the
+  // patch of the blocks changed since the last request, on the base it holds.
   edit(commands) {
     this.guard();
     this.call('mcb_edit', this.write(commands));
-    return { bytes: this.result('data'), entities: DECODER.decode(this.result('entities')) };
+    return { bytes: this.result('data'), entities: DECODER.decode(this.result('entities')), inputs: this.inputs() };
   }
 
-  // Ticks the world `ticks` times. Returns { bytes, entities }: the patch of
-  // the blocks that changed since the last request (web/live-patch.mjs:
-  // palette additions, the bounds and built columns after it, then x y z
-  // and a palette index for each block); entities is the list as JSON text.
+  // Ticks the world `ticks` times. Returns { bytes, entities, inputs }: the
+  // patch of the blocks that changed since the last request
+  // (web/live-patch.mjs: palette additions, the bounds and built columns
+  // after it, then x y z and a palette index for each block); entities is
+  // the list as JSON text, inputs what the palette additions take (inputs()).
   tick(ticks = 1) {
     this.guard();
     this.call('mcb_tick', ticks);
-    return { bytes: this.result('data'), entities: DECODER.decode(this.result('entities')) };
+    return { bytes: this.result('data'), entities: DECODER.decode(this.result('entities')), inputs: this.inputs() };
+  }
+
+  // The input each palette entry the last placement's blueprint or the last
+  // patch adds takes, in palette order: 'toggle', 'press', 'use' or null
+  // (core/src/blocks/mod.rs input_of, the only input the engine's input
+  // accepts for the entry's state).
+  inputs() {
+    return Array.from(this.result('inputs'), (code) => INPUTS[code]);
   }
 
   // A player's input at x, y, z by a player looking with `yaw` (degrees, a
@@ -111,6 +122,15 @@ export class CoreWorld {
   input(type, x, y, z, yaw) {
     this.guard();
     this.call('mcb_input', this.write(type), x, y, z, yaw);
+  }
+
+  // A click on the block at x, y, z by a player looking with `yaw`: the input
+  // its state takes (inputs()), given as input gives it. Returns the input
+  // the block took, or null when it takes none or passes on it (a cross of
+  // redstone dust all four of whose sides connect), which changes nothing.
+  click(x, y, z, yaw) {
+    this.guard();
+    return INPUTS[this.call('mcb_click', x, y, z, yaw)];
   }
 
   // What the world holds besides its blocks, as text (McbenchEngine.state).
@@ -161,7 +181,7 @@ export class CoreWorld {
   playerTick(keys, yaw, pitch) {
     this.guard();
     this.call('mcb_player_tick', keys, yaw, pitch);
-    return { bytes: this.result('data'), entities: DECODER.decode(this.result('entities')), view: this.view() };
+    return { bytes: this.result('data'), entities: DECODER.decode(this.result('entities')), inputs: this.inputs(), view: this.view() };
   }
 
   view() {

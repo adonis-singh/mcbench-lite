@@ -83,6 +83,20 @@ impl Session {
         engine::input(&mut self.level, kind, Pos::new(x, y, z), yaw)
     }
 
+    // A click on the block at x, y, z by a player looking with `yaw`: the
+    // input its state takes, if any (engine::click). Answers the input taken.
+    pub fn click(&mut self, x: i32, y: i32, z: i32, yaw: f32) -> Result<Option<crate::blocks::Input>, String> {
+        self.level.reported = None;
+        engine::click(&mut self.level, Pos::new(x, y, z), yaw)
+    }
+
+    // The input each entry of the base's palette takes (Stream::inputs), the
+    // blueprint the last placement wrote; a patch carries those of the
+    // entries it adds (Ticked::inputs).
+    pub fn base_inputs(&self) -> Vec<u8> {
+        self.stream.as_ref().expect("no placement wrote a base").inputs(&self.level, 0)
+    }
+
     // The world as a Minecraft save holds it, chunk by chunk (Level::export_chunks).
     pub fn export(&mut self) -> Vec<u8> {
         self.level.export_chunks()

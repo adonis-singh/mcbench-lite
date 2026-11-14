@@ -62,18 +62,18 @@ class FakeEngine extends Gates {
     if (fresh) this.player = false;
     return this.request('place', [fresh], () => {
       if (this.refuse) throw new Error(this.refuse);
-      return blueprint();
+      return { bytes: blueprint(), inputs: [null] };
     });
   }
   edit() {
     return this.request('edit', [], () => {
       if (this.refuse) throw new Error(this.refuse);
-      return { bytes: patchBytes(), entities: [] };
+      return { bytes: patchBytes(), entities: [], inputs: [] };
     });
   }
   run(playing) { return this.request('run', [playing], () => 0); }
   step() { return this.request('step', [], () => 0); }
-  input() { return this.request('input', [], () => undefined); }
+  click() { return this.request('click', [], () => 'toggle'); }
   spawnPlayer(spawn) {
     this.player = true;
     return this.request('spawn', [spawn.x, spawn], () => new Float64Array(28).fill(spawn.x));
@@ -87,7 +87,7 @@ class FakeEngine extends Gates {
     return this.request('removePlayer', [], () => undefined);
   }
   terminate() { this.dead = new Error('The engine was stopped'); }
-  frame(ticks) { this.onframe({ ticks, bytes: patchBytes(), entities: '[]', view: null }); }
+  frame(ticks) { this.onframe({ ticks, bytes: patchBytes(), entities: '[]', inputs: [], view: null }); }
   ran() { return this.calls.filter(([type]) => type === 'run').map(([, playing]) => playing); }
 }
 
@@ -506,13 +506,13 @@ test('a restart spawns the standing player again where its latest tick has it, w
   live.onPlayerGone(() => { gone += 1; });
   await live.spawnPlayer({ x: 3 });
   await live.setPlayerInput({ keys: 1, taps: 16, yaw: 30, pitch: -10 });
-  engine.onframe({ ticks: 40, bytes: patchBytes(), entities: '[]', view: playerView(7.5, 66.25, -2, 30, -10, true) });
+  engine.onframe({ ticks: 40, bytes: patchBytes(), entities: '[]', inputs: [], view: playerView(7.5, 66.25, -2, 30, -10, true) });
   const placing = engine.gate('place');
   await live.control('restart');
   await until(() => engine.waiting.has('place'), 'the fresh placement');
   assert.equal(live.player, 'standing', 'it stands throughout the placement');
   // A tick the engine ran before the placement is the player's latest view.
-  engine.onframe({ ticks: 41, bytes: patchBytes(), entities: '[]', view: playerView(8, 66.25, -2, 45, -10, true) });
+  engine.onframe({ ticks: 41, bytes: patchBytes(), entities: '[]', inputs: [], view: playerView(8, 66.25, -2, 45, -10, true) });
   // Input asked during the placement waits for the respawn.
   const input = live.setPlayerInput({ keys: 8, taps: 0, yaw: 50, pitch: 5 });
   await pause(10);

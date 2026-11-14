@@ -903,7 +903,7 @@ impl Experiment {
                 }
                 _ => Err("Page input requires a lectern with a book".into()),
             }
-        } else if kind == "use" && blocks::takes_use(&class) {
+        } else if kind == "use" && blocks::takes_use(&level.reg.blocks[level.block(state) as usize]) {
             // A fence gate opens away from the player, so its use needs the
             // yaw; no other usable block reads it.
             if !input.has("yaw") && class == "FenceGateBlock" {
@@ -926,7 +926,7 @@ impl Experiment {
             if level.reg.get_bool(state, level.reg.property_of(state, "powered")) {
                 Err("Button is already pressed".into())
             } else {
-                assert!(blocks::input(level, "press", state, pos, 0.0));
+                assert!(blocks::input(level, blocks::Input::Press, state, pos, 0.0));
                 Ok(())
             }
         } else if kind == "insert" || kind == "extract" {
@@ -940,7 +940,7 @@ impl Experiment {
                 Err(message) => Err(message),
             }
         } else if kind == "toggle" && class == "LeverBlock" {
-            assert!(blocks::input(level, "toggle", state, pos, 0.0));
+            assert!(blocks::input(level, blocks::Input::Toggle, state, pos, 0.0));
             Ok(())
         } else {
             let wanted = if kind == "press" {

@@ -176,6 +176,14 @@ pub struct Block {
     pub properties: Vec<(u16, u16)>,
 }
 
+impl Block {
+    // instanceof the class of that simple name: the block's class or one of
+    // its superclasses.
+    pub fn is(&self, class: &str) -> bool {
+        self.class == class || self.supers.iter().any(|name| name == class)
+    }
+}
+
 pub struct StateData {
     pub block: BlockId,
     pub flags: u32,
@@ -430,7 +438,8 @@ pub struct Registry {
     pub item_of_block: HashMap<BlockId, u16>,
     // Dumped sets of blocks (McbenchEngine.dump's flag lines), by name: the
     // blocks whose class overrides a method with a signature the behaviour
-    // list does not tell apart.
+    // list does not tell apart, and the doors and trapdoors a player opens by
+    // hand (BlockSetType.canOpenByHand).
     pub block_flags: HashMap<String, Vec<bool>>,
     // The keys of the enchantments the data pack holds.
     pub enchantments: std::collections::HashSet<String>,

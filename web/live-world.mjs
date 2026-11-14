@@ -347,7 +347,7 @@ export class LiveWorld {
       if (spare && spare !== slot) spare.starting.then((engine) => engine.terminate(), () => {});
       this.spare = this.startSlot();
       slot.started = slot.starting.then((engine) => {
-        engine.onframe = (frame) => this.receive(frame.ticks, frame.bytes, JSON.parse(frame.entities), frame.view);
+        engine.onframe = (frame) => this.receive(frame.ticks, frame.bytes, JSON.parse(frame.entities), frame.inputs, frame.view);
         engine.onfailed = (message) => this.stopped(engine, message);
         slot.engine = engine;
         return engine;
@@ -411,7 +411,7 @@ export class LiveWorld {
     if (generation !== this.generation) return;
     const early = kept && kept.core === this.server.core && kept.digest === digest ? kept : null;
     if (early) {
-      this.publishBase(early.bytes, view, true);
+      this.publishBase({ bytes: early.bytes, inputs: null }, view, true);
       this.emit();
     }
     // A world placed afresh starts over: one that stopped on an error plays again.
@@ -420,7 +420,7 @@ export class LiveWorld {
       this.engineError = null;
     }
     if (imported.blockCount === 0) return this.showEmpty(imported, view, generation, restart);
-    let blueprint = null;
+    let placed = null;
     let engine = null;
     if (fresh || imported.commands !== '') {
       engine = await this.engineReady();
@@ -429,10 +429,10 @@ export class LiveWorld {
       // as a patch on the base it holds, as a tick does; one past it needs a
       // new base, drawn with the new mask.
       if (!fresh && JSON.stringify(this.base.view.mask) === JSON.stringify(view.mask)) {
-        const { bytes, entities } = await engine.edit(imported.commands);
+        const { bytes, entities, inputs } = await engine.edit(imported.commands);
         if (generation !== this.generation) return;
         this.base.view = view;
-        this.receive(this.ticks, bytes, entities);
+        this.receive(this.ticks, bytes, entities, inputs);
       } else {
         // A world placed afresh lets the world held go, and the restart is
         // carried out.
@@ -440,23 +440,23 @@ export class LiveWorld {
           this.version = null;
           if (restart) this.restarting = false;
         }
-        blueprint = fresh ? await this.placeAfresh(engine, imported.commands, generation) : await engine.place(imported.commands, { fresh });
+        placed = fresh ? await this.placeAfresh(engine, imported.commands, generation) : await engine.place(imported.commands, { fresh });
         if (generation !== this.generation) return;
       }
     }
     if (fresh) this.ticks = 0;
     this.version = imported.version;
     this.shownVersion = imported.version;
-    if (early) this.confirmBase(blueprint);
-    else if (blueprint) this.publishBase(blueprint, view);
+    if (early) this.confirmBase(placed);
+    else if (placed) this.publishBase(placed, view);
     // A world placed afresh runs (a paused one stays paused).
     if (fresh && this.running === 'playing') {
       await engine.run(true);
       if (generation !== this.generation) return;
     }
     // A placement already kept is that one, byte for byte (confirmBase).
-    if (fresh && blueprint && !early) {
-      await this.host.placements.put(this.key, { core: this.server.core, digest, bytes: blueprint });
+    if (fresh && placed && !early) {
+      await this.host.placements.put(this.key, { core: this.server.core, digest, bytes: placed.bytes });
       if (generation !== this.generation) return;
     }
     this.to('waiting');
@@ -476,7 +476,7 @@ export class LiveWorld {
   placeAfresh(engine, commands, generation) {
     return this.playerTurn(async () => {
       try {
-        const blueprint = await engine.place(commands, { fresh: true });
+        const placed = await engine.place(commands, { fresh: true });
         if (generation === this.generation && this.player === 'standing') {
           const [x, y, z] = this.playerView;
           const input = this.playerInput;
@@ -486,7 +486,7 @@ export class LiveWorld {
             this.playerInput = input;
           }
         }
-        return blueprint;
+        return placed;
       } catch (error) {
         this.playerGone();
         throw error;
@@ -503,48 +503,51 @@ export class LiveWorld {
     this.version = null;
     this.shownVersion = imported.version;
     this.ticks = 0;
-    this.publishBase(emptyBlueprint(), view);
+    // Its one palette entry, air, takes no input.
+    this.publishBase({ bytes: emptyBlueprint(), inputs: [null] }, view);
     this.base.empty = true;
     this.to('waiting');
     this.emit();
     this.pump();
   }
 
-  // A new base for the viewer: the blueprint a placement wrote, to be loaded.
-  // The caller emits it once the sync has ended, so the page never sees a
-  // base still marked syncing.
+  // A new base for the viewer: the blueprint a placement wrote, to be loaded,
+  // with the input each entry of its palette takes ({ bytes, inputs }, as
+  // the engine places it). The caller emits it once the sync has ended, so
+  // the page never sees a base still marked syncing.
   // A provisional base is shown before the engine has placed it: its blocks
   // take no input until confirmBase.
-  publishBase(blueprint, view, provisional = false) {
+  publishBase({ bytes, inputs }, view, provisional = false) {
     this.bases += 1;
-    const url = this.host.blobUrl(blueprint);
+    const url = this.host.blobUrl(bytes);
     this.urls.push(url);
     while (this.urls.length > BASES_KEPT) this.host.revoke(this.urls.shift());
-    this.base = { number: this.bases, url, view, empty: false, provisional, bytes: provisional ? blueprint : null };
+    this.base = { number: this.bases, url, view, empty: false, provisional, bytes: provisional ? bytes : null };
     this.changes = new Changes();
-    if (!provisional) this.inputs.load(readBlueprint(blueprint));
+    if (!provisional) this.inputs.load(readBlueprint(bytes), inputs);
   }
 
   // The engine's own placement is in: the provisional base must be it, byte
   // for byte, or what the viewer showed was not the world, and the sync fails.
-  confirmBase(blueprint) {
+  confirmBase({ bytes, inputs }) {
     const shown = this.base.bytes;
-    let same = blueprint.length === shown.length;
-    for (let i = 0; same && i < shown.length; i += 1) same = blueprint[i] === shown[i];
+    let same = bytes.length === shown.length;
+    for (let i = 0; same && i < shown.length; i += 1) same = bytes[i] === shown[i];
     if (!same) throw new Error('The world placed again differs from the one shown while it was placed');
     this.base.provisional = false;
     this.base.bytes = null;
-    this.inputs.load(readBlueprint(blueprint));
+    this.inputs.load(readBlueprint(bytes), inputs);
   }
 
 
   // --- frames ---
 
-  // A tick of the world: its patch, and the player's view when one is in it,
-  // kept as the standing player's latest. Ticks the engine ran before it
-  // heard of another view (or of an empty one) are of a world no longer on
-  // show, and a tick of a player let go stands no one in the world.
-  receive(ticks, bytes, entities, view = null) {
+  // A tick of the world: its patch with the input each palette entry it adds
+  // takes, and the player's view when one is in it, kept as the standing
+  // player's latest. Ticks the engine ran before it heard of another view (or
+  // of an empty one) are of a world no longer on show, and a tick of a player
+  // let go stands no one in the world.
+  receive(ticks, bytes, entities, inputs, view = null) {
     // Before a provisional base is placed, the engine's ticks are of the world before it.
     if (!this.base || this.base.empty || this.base.provisional) return;
     this.ticks = ticks;
@@ -552,7 +555,7 @@ export class LiveWorld {
     if (view && this.player === 'standing') this.playerView = view;
     const patch = readPatch(bytes);
     this.changes.add(patch);
-    this.inputs.apply(patch);
+    this.inputs.apply(patch, inputs);
     for (const listener of this.frameListeners) listener({ base: this.base.number, patch: bytes, entities: this.entities, view, ticks });
     this.emitSoon();
   }
@@ -650,16 +653,16 @@ export class LiveWorld {
   // --- blocks ---
 
   // A click on the block at x, y, z by a player looking with `yaw` (degrees,
-  // Minecraft's): a lever is pulled, a button pressed, a door, trapdoor,
-  // fence gate, repeater, comparator, note block, daylight detector, decorated
-  // pot or dot of redstone dust used (inputOf).
-  // Resolves false for any other block. The yaw is a 32-bit float on
-  // every engine.
+  // Minecraft's): the input the block's state takes, as the engine names it
+  // (InputBlocks), reaches the engine as a click (a lever is pulled, a button
+  // pressed, a door, trapdoor, fence gate, repeater, comparator, note block,
+  // daylight detector, decorated pot or redstone dust used). Resolves whether
+  // the block took it: a block that takes no input is not sent, and dust
+  // whose use passes (a cross all four of whose sides connect) is left as it
+  // is. The yaw is a 32-bit float on every engine.
   async input(x, y, z, yaw) {
-    const kind = this.inputs.at(x, y, z);
-    if (!kind) return false;
-    await this.shownEngine().input(kind, x, y, z, Math.fround(yaw));
-    return true;
+    if (!this.inputs.at(x, y, z)) return false;
+    return (await this.shownEngine().click(x, y, z, Math.fround(yaw))) !== null;
   }
 
   // Play, pause, one tick while paused, or the build placed afresh (after

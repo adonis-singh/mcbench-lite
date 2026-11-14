@@ -551,4 +551,4 @@ function coreEngine() {
   return new Engine({ build: buildCore });
 }
 
-module.exports = { Engine, buildCore, coreBuildArgs, coreProfile, coreEngine, installRust, rust, CORE, buildEngine, compileEngine, compileNative, engineName, engineEnv, jvmEngine, graalvmHome, NATIVE, PROFILE, RELEASES };
+module.exports = { Engine, SOURCES, buildCore, coreBuildArgs, coreProfile, coreEngine, installRust, rust, CORE, buildEngine, compileEngine, compileNative, engineName, engineEnv, jvmEngine, graalvmHome, NATIVE, PROFILE, RELEASES };

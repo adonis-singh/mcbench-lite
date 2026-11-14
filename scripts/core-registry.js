@@ -20,7 +20,7 @@ async function main() {
   await installJdk();
   const classpath = (await minecraftLive.ensurePaper()).map((file) => path.join(minecraftLive.paperDir, file));
   const target = tablesFolder(minecraftLive.minecraftVersion);
-  const count = await writeRegistry({ classpath, minecraftVersion: minecraftLive.minecraftVersion, target, java: JAVA, javac: JAVAC });
+  const count = await writeRegistry({ classpath, minecraftVersion: minecraftLive.minecraftVersion, java: JAVA, javac: JAVAC });
   console.log(`${target}: blocks.txt, loot.json (${count} block loot tables)`);
 }
 

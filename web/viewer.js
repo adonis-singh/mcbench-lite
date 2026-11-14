@@ -50,11 +50,6 @@ function retainGpuMesh(mesh) {
   return mesh;
 }
 
-// Blocks that hide faces shared with an identical neighbor (a glass wall reads
-// as one surface, like in-game) and blocks drawn in the blended pass.
-const SELF_CULLING = /^minecraft:(((\w+_)?stained_)?glass|tinted_glass|ice|slime_block|honey_block)$/;
-const SEMI_TRANSPARENT = /^minecraft:((\w+_stained_)glass(_pane)?|tinted_glass|ice|frosted_ice|slime_block|honey_block|water)$/;
-
 // Vertex darkening per occluding neighbor, vanilla smooth-lighting style.
 const AO_CURVE = [1.0, 0.78, 0.58, 0.42];
 
@@ -185,18 +180,37 @@ async function loadResources() {
     fetch('/api/block-states').then((r) => r.arrayBuffer()),
   ]);
   // What Minecraft says of each block state, by the state id each palette
-  // entry carries (server/block-states.js bytes): u32 states, u32 face
-  // shapes, then by state its emission, light block and full faces (bits
-  // over Minecraft's directions: down, up, north, south, west, east), its six
-  // face shapes, and the face shapes' pairs.
-  const [stateCount, shapes] = new Uint32Array(stateBytes, 0, 2);
-  let at = 8;
-  const take = (length) => new Uint8Array(stateBytes, (at += length) - length, length);
-  const emission = take(stateCount);
-  const lightBlock = take(stateCount);
-  const fullFaces = take(stateCount);
-  const faces = take(stateCount * 6);
-  const occludes = take(shapes * shapes);
+  // entry carries (server/block-states.js bytes), each part on four bytes:
+  // u32 states, face shapes, skipRendering row classes, mask bytes and
+  // fluid names' bytes; by state u16 fluid (the state id of its fluid's
+  // block, 0 for none), skipRendering row and column class; by row class u32
+  // start, u16 first and length; then by state its emission, light block,
+  // full faces (bits over Minecraft's directions: down, up, north, south,
+  // west, east) and draw bits (1 drawn as a model, 2 its model blended, 4
+  // its fluid blended), its six face shapes, the face shapes' pairs, the
+  // skipRendering masks, and the fluids' names.
+  const [stateCount, shapes, rows, maskBytes, nameBytes] = new Uint32Array(stateBytes, 0, 5);
+  let at = 20;
+  const take = (Type, length) => {
+    const part = new Type(stateBytes, at, length);
+    at += Math.ceil(part.byteLength / 4) * 4;
+    return part;
+  };
+  const fluid = take(Uint16Array, stateCount);
+  const skipRow = take(Uint16Array, stateCount);
+  const skipColumn = take(Uint16Array, stateCount);
+  const skipStart = take(Uint32Array, rows);
+  const skipFirst = take(Uint16Array, rows);
+  const skipLength = take(Uint16Array, rows);
+  const emission = take(Uint8Array, stateCount);
+  const lightBlock = take(Uint8Array, stateCount);
+  const fullFaces = take(Uint8Array, stateCount);
+  const draw = take(Uint8Array, stateCount);
+  const faces = take(Uint8Array, stateCount * 6);
+  const occludes = take(Uint8Array, shapes * shapes);
+  const skipMasks = take(Uint8Array, maskBytes);
+  const fluidStates = new Map(Object.entries(JSON.parse(new TextDecoder().decode(take(Uint8Array, nameBytes))))
+    .map(([id, name]) => [Number(id), BlockState.parse(name)]));
 
   const blockDefinitions = {};
   for (const id of Object.keys(blockstates)) {
@@ -224,28 +238,18 @@ async function loadResources() {
     idMap[Identifier.create(id).toString()] = [u / atlasSize, v / atlasSize, (u + du) / atlasSize, (v + dv2) / atlasSize];
   }
   const textureAtlas = new TextureAtlas(atlasData, idMap);
-  const flags = new Map(); // block id -> flags (a function of the id)
 
   return {
-    states: { fullFaces, rule: lightRule({ emission, lightBlock, faces, shapes, occludes }) },
+    states: {
+      fullFaces, draw, fluid, fluidStates, skipRow, skipColumn, skipStart, skipFirst, skipLength, skipMasks,
+      rule: lightRule({ emission, lightBlock, faces, shapes, occludes }),
+    },
     resources: {
       getBlockDefinition(id) { return blockDefinitions[id.toString()]; },
       getBlockModel(id) { return blockModels[id.toString()]; },
       getTextureUV(id) { return textureAtlas.getTextureUV(id); },
       getTextureAtlas() { return textureAtlas.getTextureAtlas(); },
       getPixelSize() { return textureAtlas.getPixelSize(); },
-      getBlockFlags(id) {
-        const s = id.toString();
-        let entry = flags.get(s);
-        if (!entry) {
-          entry = {
-            self_culling: SELF_CULLING.test(s),
-            semi_transparent: SEMI_TRANSPARENT.test(s),
-          };
-          flags.set(s, entry);
-        }
-        return entry;
-      },
       getBlockProperties(id) {
         const entry = blocks[id.path];
         return entry ? entry[0] : null;
@@ -435,8 +439,8 @@ export async function createViewer(canvas, floor) {
     }
 
     // A block of `state` with its block state's facts (preparePalette).
-    set(x, y, z, state, { full, light }, scale) {
-      const placed = { pos: [x, y, z], state, nbt: undefined, full, light, scale };
+    set(x, y, z, state, { id, full, light }, scale) {
+      const placed = { pos: [x, y, z], state, nbt: undefined, id, full, light, scale };
       this.put(placed);
       return placed;
     }
@@ -546,62 +550,28 @@ export async function createViewer(canvas, floor) {
     return chunk;
   };
 
-  // By block id: its flags and whether deepslate counts it waterlogged
-  // whatever its properties (fluids, kelp, seagrass). Each state object
-  // keeps its id's (a state's name never changes).
-  const idInfo = new Map();
-  const INFO = Symbol('mesher info');
-  function infoOf(state) {
-    let info = state[INFO];
-    if (info) return info;
-    const name = state.getName();
-    const id = name.toString();
-    info = idInfo.get(id);
-    if (!info) {
-      info = { id, name, flags: resources.getBlockFlags(name), fluid: new BlockState(name, {}).isWaterlogged() };
-      idInfo.set(id, info);
-    }
-    state[INFO] = info;
-    return info;
-  }
-  // BlockState.isWaterlogged, reading the properties as they are now.
-  const waterlogged = (state, info) => info.fluid || state.getProperties().waterlogged === 'true';
-
-  // By block state object: its templates, by the bits of its culled faces.
-  // deepslate merges a block's default properties into its state's own
-  // properties when it meshes the block; so does the mesher, the first time.
-  const stateTemplates = new WeakMap();
-  const templatesByKey = new Map();
-  function templatesOf(state, info) {
-    let templates = stateTemplates.get(state);
-    if (!templates) {
-      const props = state.getProperties();
-      const defaults = resources.getDefaultBlockProperties(info.name) ?? {};
-      for (const [k, v] of Object.entries(defaults)) if (!props[k]) props[k] = v;
-      const key = `${info.id}${JSON.stringify(props)}`;
-      templates = templatesByKey.get(key);
-      if (!templates) templatesByKey.set(key, templates = new Array(64));
-      stateTemplates.set(state, templates);
-    }
-    return templates;
-  }
+  // A block is drawn as Minecraft's section compiler draws it: its model,
+  // if its render shape is a model, in its block's render layer, and its
+  // fluid, if it has one, in the fluid's (a waterlogged stair is a stair and
+  // the water it holds; water is its fluid alone). The quads of either
+  // before they are placed depend only on its state and which of its faces
+  // are culled, so deepslate makes them once for each (a template): by
+  // state id the model's templates, and by its fluid's state id the
+  // fluid's, each by the bits of its culled faces.
+  const modelTemplates = [];
+  const fluidTemplates = [];
 
   const FAILED = { quads: 0 };
-  // A block's quads as deepslate's BlockDefinition and SpecialRenderers make
-  // them: per vertex its position, color, texture coordinates and limits.
-  function makeTemplate(state, info, cull) {
-    let mesh;
+  // A part's quads as deepslate makes them (`mesh`): per vertex its
+  // position, color, texture coordinates and limits.
+  function makeTemplate(name, mesh, transparent) {
     try {
-      mesh = new Mesh();
-      const definition = resources.getBlockDefinition(info.name);
-      if (definition) mesh.merge(definition.getMesh(info.name, state.getProperties(), resources, resources, cull));
-      const special = SpecialRenderers.getBlockMesh(state, undefined, resources, cull);
-      if (!special.isEmpty()) mesh.merge(special);
+      mesh = mesh();
     } catch (e) {
-      console.error(`Error rendering block ${info.name}`, e);
+      console.error(`Error rendering block ${name}`, e);
       return FAILED;
     }
-    if (mesh.lines.length > 0) throw new Error(`Block ${info.id} has lines, which the chunk mesher does not draw`);
+    if (mesh.lines.length > 0) throw new Error(`Block ${name} has lines, which the chunk mesher does not draw`);
     const count = mesh.quads.length;
     const pos = new Float64Array(count * 12);
     const color = new Float64Array(count * 12);
@@ -617,7 +587,36 @@ export async function createViewer(canvas, floor) {
         for (let k = 0; k < 4; k++) limit[at * 4 + k] = v.textureLimit[k];
       });
     });
-    return { quads: count, pos, color, texture, limit, transparent: Boolean(resources.getBlockFlags(info.name)?.semi_transparent) };
+    return { quads: count, pos, color, texture, limit, transparent };
+  }
+
+  // The model of a placed block: its block definition's and deepslate's
+  // special renderers' (chests, signs, beds...), with its block's default
+  // properties merged into its state's own as deepslate meshes it. The
+  // fluid is the fluid's own part: deepslate's special renderers are given
+  // the state as holding none.
+  function modelTemplate(placed, cull) {
+    const { state, id } = placed;
+    const name = state.getName();
+    return makeTemplate(name, () => {
+      const props = state.getProperties();
+      const defaults = resources.getDefaultBlockProperties(name) ?? {};
+      for (const [k, v] of Object.entries(defaults)) if (!props[k]) props[k] = v;
+      const mesh = new Mesh();
+      const definition = resources.getBlockDefinition(name);
+      if (definition) mesh.merge(definition.getMesh(name, props, resources, resources, cull));
+      const dry = Object.create(state);
+      dry.isWaterlogged = () => false;
+      const special = SpecialRenderers.getBlockMesh(dry, undefined, resources, cull);
+      if (!special.isEmpty()) mesh.merge(special);
+      return mesh;
+    }, (states.draw[id] & 2) !== 0);
+  }
+
+  // A fluid, as deepslate's special renderers draw the block of its state.
+  function fluidTemplate(fluid, cull) {
+    const state = states.fluidStates.get(fluid);
+    return makeTemplate(state.getName(), () => SpecialRenderers.getBlockMesh(state, undefined, resources, cull), (states.draw[fluid] & 4) !== 0);
   }
 
   // The vertex arrays of one chunk mesh being made, grown as needed.
@@ -764,25 +763,41 @@ export async function createViewer(canvas, floor) {
     }
   }
 
-  // Cull flags of ChunkBuilder.needsCull, as bits: up, down, west, east,
-  // north, south; and by side, the bit of the neighbour's full faces that
-  // faces the block (Minecraft's directions: down, up, north, south, west,
-  // east).
+  // Culled faces as bits of deepslate's cull: up, down, west, east, north,
+  // south; and by side, the bit of the neighbour's full faces that faces the
+  // block, and Minecraft's direction toward the neighbour (down, up, north,
+  // south, west, east by Direction.ordinal()).
   const SIDES = [[0, 1, 0], [0, -1, 0], [-1, 0, 0], [1, 0, 0], [0, 0, -1], [0, 0, 1]];
   const FACING = [1 << 0, 1 << 1, 1 << 5, 1 << 4, 1 << 3, 1 << 2];
-  function cullBits(placed, info) {
+  const DIRECTION = [1, 0, 4, 5, 2, 3];
+  // BlockState.skipRendering (server/block-states.js skips).
+  const { skipRow, skipColumn, skipStart, skipFirst, skipLength, skipMasks } = states;
+  function skips(a, b, direction) {
+    const row = skipRow[a];
+    const at = skipColumn[b] - skipFirst[row];
+    return at >= 0 && at < skipLength[row] && ((skipMasks[skipStart[row] + at] >> direction) & 1) === 1;
+  }
+  // The culled faces of a block's model and of its fluid (`fluid`, its
+  // fluid's state id), as Minecraft culls them: a model's face toward a
+  // neighbour whose facing face is full or that it skips rendering beside
+  // (Block.shouldRenderFace); a fluid's toward a neighbour its fluid's
+  // block skips rendering beside (one of the same fluid), or whose facing
+  // face is full but above it (LiquidBlockRenderer: the surface of a fluid
+  // with no fluid above is lower than the block's top). Faces that partial
+  // face shapes cover are not culled.
+  let fluidBits = 0;
+  function cullBits(placed, fluid) {
     const [x, y, z] = placed.pos;
+    const { id } = placed;
     let bits = 0;
+    fluidBits = 0;
     for (let side = 0; side < 6; side++) {
       const [dx, dy, dz] = SIDES[side];
       const neighbor = world.at(x + dx, y + dy, z + dz);
       if (!neighbor) continue;
-      const other = infoOf(neighbor.state);
-      let cull;
-      if (info.id === other.id && other.flags.self_culling) cull = true;
-      else if (neighbor.full & FACING[side]) cull = !(side === 0 && waterlogged(placed.state, info));
-      else cull = waterlogged(placed.state, info) && waterlogged(neighbor.state, other);
-      if (cull) bits |= 1 << side;
+      const full = (neighbor.full & FACING[side]) !== 0;
+      if (full || skips(id, neighbor.id, DIRECTION[side])) bits |= 1 << side;
+      if (fluid && ((full && side !== 0) || skips(fluid, neighbor.id, DIRECTION[side]))) fluidBits |= 1 << side;
     }
     return bits;
   }
@@ -846,11 +861,19 @@ export async function createViewer(canvas, floor) {
     transparentSink.count = 0;
     if (blocks) {
       for (const placed of blocks.values()) {
-        const info = infoOf(placed.state);
-        const templates = templatesOf(placed.state, info);
-        const bits = cullBits(placed, info);
-        const template = templates[bits] ?? (templates[bits] = makeTemplate(placed.state, info, cullOf(bits)));
-        if (template.quads > 0) emitBlock(placed, template);
+        const { id } = placed;
+        const fluid = states.fluid[id];
+        const bits = cullBits(placed, fluid);
+        if (states.draw[id] & 1) {
+          const templates = modelTemplates[id] ??= new Array(64);
+          const template = templates[bits] ??= modelTemplate(placed, cullOf(bits));
+          if (template.quads > 0) emitBlock(placed, template);
+        }
+        if (fluid) {
+          const templates = fluidTemplates[fluid] ??= new Array(64);
+          const template = templates[fluidBits] ??= fluidTemplate(fluid, cullOf(fluidBits));
+          if (template.quads > 0) emitBlock(placed, template);
+        }
       }
     }
     upload(chunk.mesh, opaqueSink);
@@ -981,13 +1004,13 @@ export async function createViewer(canvas, floor) {
   }
 
   // Each palette entry's block state, and its facts by the state id it
-  // carries: its full faces (`full`: a block whose six faces are full
+  // carries (`id`): its full faces (`full`: a block whose six faces are full
   // hides its neighbours' faces and darkens their corners) and its light
   // class (`light`, which holds the light it emits).
   function preparePalette(entries) {
     return entries.map(({ id, states: properties = {}, state }) => ({
       state: new BlockState(id.replace(/^minecraft:/, ''), properties),
-      meta: { full: states.fullFaces[state], light: states.rule.classOf[state] },
+      meta: { id: state, full: states.fullFaces[state], light: states.rule.classOf[state] },
     }));
   }
 

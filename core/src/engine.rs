@@ -38,6 +38,12 @@ impl Stream {
         }
     }
 
+    // The input each palette entry from `from` on takes
+    // (blocks::input_of), a byte each: 0 for none, else the Input's number.
+    pub fn inputs(&self, level: &Level, from: usize) -> Vec<u8> {
+        self.palette[from..].iter().map(|&state| blocks::input_of(level, state).map_or(0, |kind| kind as u8)).collect()
+    }
+
     // The bounds of the blocks (min x, y, z, max x, y, z); None for no block.
     fn bounds(&self) -> Option<[i32; 6]> {
         let mut bounds = [0; 6];
@@ -239,10 +245,12 @@ pub fn write(level: &mut Level) -> Result<(Stream, Vec<u8>), String> {
     Ok((Stream { palette, index, planes, columns }, out.0))
 }
 
-// McbenchEngine.tick's result: the patch it wrote and the entities' list.
+// McbenchEngine.tick's result: the patch it wrote and the entities' list,
+// and the input each palette entry the patch adds takes (Stream::inputs).
 pub struct Ticked {
     pub changes: Vec<u8>,
     pub entities: Vec<u8>,
+    pub inputs: Vec<u8>,
 }
 
 // McbenchEngine.tick: the ticks, then every block that changed as a patch
@@ -311,15 +319,158 @@ pub fn tick(level: &mut Level, stream: &mut Option<Stream>, ticks: i32, light: b
         out.int(pos.z());
         out.short(indices[i] as u16);
     }
-    Ok(Ticked { changes: out.0, entities })
+    Ok(Ticked { changes: out.0, entities, inputs: stream.inputs(level, known) })
 }
 
 // McbenchEngine.input: a lever pulled, a button pressed unless it is pressed
 // already, or a block used by the input player looking with `yaw`.
 pub fn input(level: &mut Level, kind: &str, pos: Pos, yaw: f32) -> Result<(), String> {
     let state = level.get(pos);
-    if !blocks::input(level, kind, state, pos, yaw) {
+    if !blocks::Input::by_name(kind).is_some_and(|input| blocks::input(level, input, state, pos, yaw)) {
         return Err(format!("java.lang.IllegalArgumentException: No {kind} input at {pos}: {}", level.reg.describe(state)));
     }
     level.check_reported()
+}
+
+// A click on the block at `pos` by a player looking with `yaw`: the input
+// its state takes (blocks::input_of), given as `input` gives it. Answers the
+// input the block took, or none when it takes none or passes on it (a cross
+// of dust all four of whose sides connect), which changes nothing.
+pub fn click(level: &mut Level, pos: Pos, yaw: f32) -> Result<Option<blocks::Input>, String> {
+    let state = level.get(pos);
+    let Some(kind) = blocks::input_of(level, state) else { return Ok(None) };
+    if !blocks::input(level, kind, state, pos, yaw) {
+        return Ok(None);
+    }
+    level.check_reported()?;
+    Ok(Some(kind))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::blocks::{input_of, Input};
+
+    thread_local! {
+        static BOOT: (&'static crate::registry::Registry, &'static blocks::Blocks) = crate::boot();
+    }
+
+    fn level() -> Level {
+        let (reg, blocks) = BOOT.with(|boot| *boot);
+        Level::new(reg, blocks, 0, true)
+    }
+
+    fn state(l: &Level, text: &str) -> State {
+        l.reg.parse_state(text).0
+    }
+
+    // The input of each kind of block that takes one, and of some that take none.
+    #[test]
+    fn input_of_names_the_input_of_each_block() {
+        let l = level();
+        let of = |text: &str| input_of(&l, state(&l, text));
+        assert_eq!(of("lever"), Some(Input::Toggle));
+        let buttons: Vec<_> = l.reg.blocks.iter().filter(|block| block.class == "ButtonBlock").collect();
+        assert!(buttons.len() >= 13);
+        for button in buttons {
+            assert_eq!(of(&button.key), Some(Input::Press), "{}", button.key);
+            assert_eq!(of(&format!("{}[powered=true]", button.key)), Some(Input::Press), "{} pressed", button.key);
+        }
+        for used in ["oak_door", "copper_door", "waxed_oxidized_copper_door", "oak_trapdoor", "exposed_copper_trapdoor", "crimson_fence_gate", "repeater", "comparator", "note_block", "daylight_detector", "decorated_pot"] {
+            assert_eq!(of(used), Some(Input::Use), "{used}");
+        }
+        for none in ["iron_door", "iron_trapdoor", "stone", "chest", "hopper", "piston", "redstone_lamp", "oak_fence", "air"] {
+            assert_eq!(of(none), None, "{none}");
+        }
+        assert_eq!(of("redstone_wire[north=none,east=none,south=none,west=none]"), Some(Input::Use), "a dot");
+        assert_eq!(of("redstone_wire[north=side,east=side,south=side,west=side]"), Some(Input::Use), "a cross");
+        assert_eq!(of("redstone_wire[north=up,east=side,south=side,west=side,power=7]"), Some(Input::Use), "a cross climbing north");
+        assert_eq!(of("redstone_wire[north=side,east=none,south=side,west=none]"), None, "a line");
+        assert_eq!(of("redstone_wire[north=side,east=side,south=none,west=none]"), None, "a corner");
+    }
+
+    // BlockSetType.canOpenByHand, from the dump: of the doors and trapdoors,
+    // the iron ones only are not opened by hand.
+    #[test]
+    fn only_iron_doors_and_trapdoors_are_not_opened_by_hand() {
+        let l = level();
+        let closed: Vec<&str> = l
+            .reg
+            .blocks
+            .iter()
+            .filter(|block| (block.is("DoorBlock") || block.is("TrapDoorBlock")) && !l.reg.flagged(block.default, "canOpenByHand"))
+            .map(|block| block.key.as_str())
+            .collect();
+        assert_eq!(closed, ["minecraft:iron_door", "minecraft:iron_trapdoor"]);
+    }
+
+    // `input` takes a kind exactly when input_of names it, for every state of
+    // every block: each state alone in a world on a block of stone (placed as
+    // it is, without its onPlace), given each kind.
+    #[test]
+    fn input_takes_only_and_always_what_input_of_names() {
+        let mut shared = level();
+        let pos = Pos::new(0, 64, 0);
+        for state in 0..level().reg.states.len() as State {
+            for kind in [Input::Toggle, Input::Press, Input::Use] {
+                let named = input_of(&shared, state) == Some(kind);
+                // A state that takes nothing is refused before the world is read.
+                let taken = if input_of(&shared, state).is_none() {
+                    blocks::input(&mut shared, kind, state, pos, 0.0)
+                } else {
+                    let mut l = level();
+                    l.set(pos.below(), self::state(&l, "stone"), crate::level::UPDATE_CLIENTS);
+                    l.set(pos, state, crate::level::UPDATE_CLIENTS | crate::level::UPDATE_SKIP_ON_PLACE);
+                    let placed = l.get(pos);
+                    assert_eq!(placed, state, "{} placed", l.reg.describe(state));
+                    blocks::input(&mut l, kind, placed, pos, 0.0)
+                };
+                assert_eq!(taken, named, "{} given {kind:?}", shared.reg.describe(state));
+            }
+        }
+    }
+
+    // A click takes the input input_of names; a cross of dust takes it only
+    // when not all four of its sides connect, and otherwise nothing changes,
+    // as the use input refuses.
+    #[test]
+    fn a_click_on_dust_takes_what_its_neighbours_let_it() {
+        let mut l = level();
+        let center = Pos::new(0, 64, 0);
+        let dot = state(&l, "redstone_wire");
+        let cross = state(&l, "redstone_wire[north=side,east=side,south=side,west=side]");
+        l.set(Pos::new(0, 63, 0), state(&l, "stone"), crate::level::UPDATE_CLIENTS);
+        l.set(center, dot, crate::level::UPDATE_CLIENTS);
+        assert_eq!(click(&mut l, center, 0.0), Ok(Some(Input::Use)));
+        assert_eq!(l.get(center), cross, "a dot becomes a cross");
+        assert_eq!(click(&mut l, center, 0.0), Ok(Some(Input::Use)));
+        assert_eq!(l.get(center), dot, "and the cross, connected to nothing, a dot");
+        l.set(center, cross, crate::level::UPDATE_CLIENTS);
+        for dir in [crate::dir::Dir::North, crate::dir::Dir::East, crate::dir::Dir::South, crate::dir::Dir::West] {
+            l.set(center.relative(dir).below(), state(&l, "stone"), crate::level::UPDATE_CLIENTS);
+            l.set(center.relative(dir), dot, 0);
+        }
+        assert_eq!(click(&mut l, center, 0.0), Ok(None), "a cross connected on all four sides passes");
+        assert_eq!(l.get(center), cross);
+        assert!(input(&mut l, "use", center, 0.0).unwrap_err().starts_with("java.lang.IllegalArgumentException: No use input at 0, 64, 0: minecraft:redstone_wire["));
+        assert_eq!(click(&mut l, Pos::new(0, 63, 0), 0.0), Ok(None), "stone takes nothing");
+        assert!(input(&mut l, "kick", center, 0.0).is_err());
+    }
+
+    // A pressed button takes the press and stays as it is; an iron door takes
+    // no use, as before.
+    #[test]
+    fn a_pressed_button_takes_a_press_and_an_iron_door_no_use() {
+        let mut l = level();
+        let pos = Pos::new(0, 64, 0);
+        let pressed = state(&l, "stone_button[face=floor,powered=true]");
+        l.set(pos, pressed, crate::level::UPDATE_CLIENTS);
+        assert_eq!(click(&mut l, pos, 0.0), Ok(Some(Input::Press)));
+        assert_eq!(l.get(pos), pressed);
+        let door = state(&l, "iron_door[half=lower]");
+        l.set(pos, door, crate::level::UPDATE_CLIENTS);
+        assert_eq!(click(&mut l, pos, 0.0), Ok(None));
+        assert!(input(&mut l, "use", pos, 0.0).is_err());
+        assert_eq!(l.get(pos), door);
+    }
 }

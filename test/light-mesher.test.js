@@ -6,9 +6,9 @@ const { test } = require('node:test');
 
 const { MODULE } = require('../scripts/build-renderer');
 const { blocksBlueprint } = require('../server/blueprint');
-const { BlockStates } = require('../server/block-states');
 const { minecraftLive } = require('../server/minecraft-live');
 const { lightPack } = require('./helpers/mesher-pack');
+const { opaqueStates } = require('./helpers/block-table');
 
 // see_build's light (web/light.mjs) against the live viewer's mesher
 // (renderer/, the committed WebAssembly module the live viewer runs), cell
@@ -294,7 +294,7 @@ test('see_build\'s light equals the mesher\'s cell for cell under random tables,
 const TABLE = minecraftLive.blockTableFile();
 
 test('see_build\'s light equals the mesher\'s cell for cell under Minecraft\'s states and face shapes', { skip: !fs.existsSync(TABLE) && 'needs the block table made from Paper\'s classes in the data folder' }, async () => {
-  const blockStates = new BlockStates(fs.readFileSync(TABLE, 'utf8'));
+  const blockStates = opaqueStates(fs.readFileSync(TABLE, 'utf8'));
   const cells = await sameLight(SEEDS / 2, (rand) => minecraftTable(blockStates, rand));
   assert.ok(cells > 5e5, `${cells} cells compared`);
 });

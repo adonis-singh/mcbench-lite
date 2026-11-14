@@ -116,6 +116,7 @@ class McbenchBlueMapReference {
       var table = new BlockTable();
       for (String line : Files.readAllLines(file)) {
         String[] fields = line.split("\t");
+        if (fields[0].equals("skiprendering")) continue;
         if (fields[0].equals("faceoccludes")) {
           table.shapes = Integer.parseInt(fields[1]);
           table.occludes = new boolean[table.shapes * table.shapes];
