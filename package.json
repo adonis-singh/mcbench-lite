@@ -14,7 +14,7 @@
     "codex:login": "npx --yes @openai/codex@0.167.1 login",
     "cursor:login": "node scripts/cursor-login.js",
     "test": "node --test \"test/**/*.test.js\"",
-    "test:ui": "MCBENCH_UI_INTEGRATION=1 node --test test/shot-browser.integration.test.js",
+    "test:ui": "MCBENCH_UI_INTEGRATION=1 node --test test/shot-browser.integration.test.js test/viewer-click.integration.test.js",
     "test:minecraft": "MCBENCH_VERIFY_INTEGRATION=1 node --test test/minecraft-verify.integration.test.js",
     "test:entities": "MCBENCH_ENTITY_INTEGRATION=1 node --test test/entity-assets.integration.test.js",
     "test:settle": "MCBENCH_SETTLE_INTEGRATION=1 node --test test/settle-flow.integration.test.js",

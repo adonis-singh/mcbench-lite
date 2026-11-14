@@ -56,9 +56,9 @@ async function fixture(t) {
       return true;
     },
   };
-  const lowres = { removed: 0, removeAllTiles() { this.removed += 1; } };
+  // The bake has no lowres level (server/bluemap.js).
   const viewer = {
-    map: { hiresTileManager: manager, lowresTileManager: [lowres] },
+    map: { hiresTileManager: manager, lowresTileManager: [] },
     updateLoadedMapArea() { while (manager.loadNextTile()) {} },
   };
   const views = new Map(); // blueprint address -> values
@@ -95,7 +95,7 @@ async function fixture(t) {
     views.set(blueprint, values);
     return { blueprint, mask: { minX: 0, maxX: 127, minZ: 0, maxZ: 127 }, wasm: '/bluemap/mesher.wasm', pack: '/bluemap/abc/mcbench-pack.bin' };
   };
-  return { sync, manager, lowres, scene, allocated, publish, draws, loads };
+  return { sync, manager, scene, allocated, publish, draws, loads };
 }
 
 test('unchanged geometry survives refresh; changed, deleted, and late tiles converge', async (t) => {
@@ -117,8 +117,6 @@ test('unchanged geometry survives refresh; changed, deleted, and late tiles conv
   assert.equal(f.manager.tiles.get('x0z0'), retained);
   assert.deepEqual([...f.scene].map((tile) => tile.model), ['changed', 'late']);
   assert.deepEqual(f.loads.map((load) => load.compare), [true, true, true, true], 'edits of one chat are compared with the world before');
-  assert.equal(f.lowres.removed, 1);
-  assert.equal(f.lowres.loadNextTile(), false, 'no lowres tile is ever loaded');
 });
 
 test('live patches draw the tiles they change or add, drop the tiles the world no longer has, and swap nothing for a patch that changes nothing', async (t) => {

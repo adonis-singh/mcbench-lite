@@ -186,8 +186,8 @@ function readGroupsAfterIndices(geometry, data) {
 
 // Keep BlueMap's meshes, materials, lighting, and camera. Only tile discovery
 // and delivery change: the mesher draws each hires tile when BlueMap loads
-// it, from the world of the view on show. BlueMap's lowres layer is never
-// shown (bluemap-view.mjs keeps every build in hires range), so none is made.
+// it, from the world of the view on show. The bake has no lowres layer
+// (server/bluemap.js): bluemap-view.mjs keeps every build in hires range.
 export class BlueMapTileSync {
   constructor(app, mesher) {
     this.viewer = app.mapViewer;
@@ -200,10 +200,6 @@ export class BlueMapTileSync {
     // loaded tiles across its awaits, so they run one at a time (the bridge
     // queues them) and one asked during another rejects.
     this.busy = false;
-    for (const lowres of this.viewer.map.lowresTileManager) {
-      lowres.removeAllTiles();
-      lowres.loadNextTile = () => false;
-    }
     const manager = this.manager = this.viewer.map.hiresTileManager;
     manager.removeAllTiles();
     const loader = manager.tileLoader;

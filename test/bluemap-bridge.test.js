@@ -94,7 +94,14 @@ function bridge(t, { broken = null, clock = Date } = {}) {
         };
       }
       if (specifier === '/bluemap-view.mjs') {
-        return { patchViewer() {} };
+        return {
+          patchViewer() {},
+          // The viewer's cast: the top of the block at x, 63, z under the screen point x, z.
+          mapInteraction(viewer, point) {
+            const { Vector3 } = window.BlueMap.Three;
+            return { hiresHit: { face: { normal: new Vector3(0, 1, 0) }, point: new Vector3(point.x, 64, point.y) }, ray: { direction: new Vector3(0, -1, 0) } };
+          },
+        };
       }
       if (specifier === '/entities.mjs') {
         return { EntityLayer: class { set(list) { entitySets.push(list); } }, loadEntityAssets: async () => ({}) };
@@ -190,13 +197,6 @@ function bridge(t, { broken = null, clock = Date } = {}) {
       map: Object.assign(Object.create({ terrainHeightAt: () => 0 }), { isLoaded: true, loadMapArea() {}, hiresMaterial: null }),
       renderer: { setOpaqueSort() {}, domElement: element() },
       render() {}, redraw() {}, updateLoadedMapArea() {},
-      // BlueMap's raycast: the top of the block at x, 63, z under the screen point x, z.
-      handleMapInteraction(point) {
-        fire('bluemapMapInteraction', {
-          stopPropagation() {},
-          detail: { hiresHit: { face: { normal: new Vector3(0, 1, 0) }, point: new Vector3(point.x, 64, point.y) }, ray: { direction: new Vector3(0, -1, 0) } },
-        });
-      },
       controlsManager: manager,
       camera: { fov: 70, aspect: 1, updateProjectionMatrix() {} },
       markers: { add() {} },

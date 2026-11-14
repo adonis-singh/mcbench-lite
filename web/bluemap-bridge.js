@@ -277,11 +277,14 @@
   var entityFrame = null;
   // The tile sync, once the boot has made it.
   var sync = null;
+  // bluemap-view.mjs, once the boot has loaded it.
+  var blueMapView = null;
   var syncPromise = waitForBlueMap().then(async function (app) {
     var module = await import('/bluemap-tiles.mjs');
     var spawn = function () { return new Worker('/mesher-worker.mjs', { type: 'module' }); };
     var made = sync = new module.BlueMapTileSync(app, new module.MesherClient(spawn, module.MesherClient.poolSize(navigator.hardwareConcurrency)));
-    (await import('/bluemap-view.mjs')).patchViewer(app, function () { return uiState.bounds; });
+    blueMapView = await import('/bluemap-view.mjs');
+    blueMapView.patchViewer(app, function () { return uiState.bounds; });
     installFlightModes(app);
     var entities = await import('/entities.mjs');
     entityLayer = new entities.EntityLayer({ BlueMap: window.BlueMap, app: app, assets: await entities.loadEntityAssets(window.location.href) });
@@ -943,17 +946,10 @@
     if (panel) updatePanel(panel);
   }
 
-  // The solid block under a screen point. BlueMap's own interaction raycast
-  // runs synchronously; its event is caught before the block popup sees it.
+  // The solid block under a screen point: the viewer's own cast
+  // (bluemap-view.mjs), which tells BlueMap's block popup nothing.
   function pick(clientX, clientY) {
-    var detail = null;
-    var grab = function (event) { detail = event.detail; event.stopPropagation(); };
-    window.addEventListener('bluemapMapInteraction', grab, true);
-    try {
-      window.bluemap.mapViewer.handleMapInteraction(new window.BlueMap.Three.Vector2(clientX, clientY), { mcbench: true });
-    } finally {
-      window.removeEventListener('bluemapMapInteraction', grab, true);
-    }
+    var detail = blueMapView.mapInteraction(window.bluemap.mapViewer, { x: clientX, y: clientY }, {});
     var hit = detail && detail.hiresHit;
     if (!hit || !hit.face) return null;
     var normal = hit.face.normal.clone();
@@ -1055,11 +1051,12 @@
   }, true);
 
   // ---- clicking a block: a lever is pulled, a button pressed, a door used ----
-  // A left click that is not a drag, outside selecting. The page knows which
-  // blocks take a click (the engine's world is its own); it ignores the rest.
+  // A left click that is not a drag, outside selecting, once the boot has
+  // loaded the cast. The page knows which blocks take a click (the engine's
+  // world is its own); it ignores the rest.
   var leftDown = null;
   window.addEventListener('pointerdown', function (event) {
-    leftDown = event.button === 0 && !selecting && !player && event.target === window.bluemap.mapViewer.renderer.domElement
+    leftDown = blueMapView && event.button === 0 && !selecting && !player && event.target === window.bluemap.mapViewer.renderer.domElement
       ? { x: event.clientX, y: event.clientY, at: Date.now() } : null;
   }, true);
   window.addEventListener('pointerup', function (event) {

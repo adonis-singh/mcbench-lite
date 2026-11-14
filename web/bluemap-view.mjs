@@ -57,9 +57,65 @@ export function patchViewer(app, bounds) {
     }
   };
 
+  // BlueMap's own clicks and taps (its controls call this) cast the ray
+  // against the hires scene only, as everything else here draws it.
+  viewer.handleMapInteraction = function (position, data = {}) {
+    const detail = mapInteraction(viewer, position, data);
+    if (detail) viewer.events.dispatchEvent(new CustomEvent('bluemapMapInteraction', { detail }));
+  };
+
   viewer.updateLoadedMapArea();
   gateIdleFrames(app);
   holdHeightOverBuilds(viewer.map, bounds);
+}
+
+// BlueMap's MapViewer.handleMapInteraction for the app's maps, which are
+// baked with no lowres level (server/bluemap.js). BlueMap's own reads
+// lowresTileManager[0] for every visible hit and throws on such a map, before
+// any click is answered. This is the same cast without the lowres scenes: the
+// ray from the camera through `position` (client coordinates) against the
+// hires tiles and the markers, the hires scene moved back to world
+// coordinates first (the render pass shifts it by the camera's 10,000-block
+// cell). Hits on an object hidden itself or by an ancestor are skipped. The
+// first visible hit, and any later one drawn without a depth test, is offered
+// to its object's onClick (BlueMap's markers; its popup's cube takes it).
+// Answers the detail of BlueMap's bluemapMapInteraction event: { data, hit
+// (the first visible hit), hiresHit (the first on a hires tile),
+// intersections, ray }, or null when no map is loaded or an onClick took the
+// click.
+export function mapInteraction(viewer, position, data) {
+  const map = viewer.map;
+  if (!map || !map.isLoaded) return null;
+  const root = viewer.rootElement;
+  const rect = root.getBoundingClientRect();
+  viewer.camera.updateMatrixWorld();
+  viewer.raycaster.setFromCamera({
+    x: (position.x - rect.left) / root.clientWidth * 2 - 1,
+    y: -(position.y - rect.top) / root.clientHeight * 2 + 1,
+  }, viewer.camera);
+  const tiles = map.hiresTileManager;
+  tiles.scene.position.x = 0;
+  tiles.scene.position.z = 0;
+  tiles.scene.updateMatrixWorld();
+  const intersections = viewer.raycaster.intersectObjects([tiles.scene, viewer.markers], true);
+  let hit = null;
+  let hiresHit = null;
+  for (const intersection of intersections) {
+    const object = intersection.object;
+    if (!shown(object)) continue;
+    let top = object;
+    while (top.parent) top = top.parent;
+    if (!hiresHit && top === tiles.sceneParent) hiresHit = intersection;
+    const first = !hit;
+    if (first) hit = intersection;
+    if ((first || !object.material.depthTest) && object.onClick({ data, intersection })) return null;
+  }
+  return { data, hit, hiresHit, intersections, ray: viewer.raycaster.ray };
+}
+
+function shown(object) {
+  for (let at = object; at; at = at.parent) if (!at.visible) return false;
+  return true;
 }
 
 // Map controls keep the camera's target 3 blocks above the terrain under
