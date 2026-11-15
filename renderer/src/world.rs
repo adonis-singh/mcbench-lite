@@ -357,6 +357,30 @@ impl Load {
 }
 
 impl World {
+    // A world of air in open sky everywhere, the render mask holding every
+    // column: where mesh::lone draws one block alone.
+    pub fn open_air(pack: &Pack) -> World {
+        World {
+            bounds: [0; 6],
+            palette: vec![pack.air],
+            lit: Vec::new(),
+            min_x: 0,
+            min_y: 0,
+            min_z: 0,
+            size_x: 0,
+            size_y: 0,
+            size_z: 0,
+            section_min: [0; 3],
+            section_size: [0; 3],
+            sections: Vec::new(),
+            open: Vec::new(),
+            columns: Vec::new(),
+            spans: Vec::new(),
+            mask: Mask { min_x: i32::MIN, max_x: i32::MAX, min_z: i32::MIN, max_z: i32::MAX },
+            relit: 0,
+        }
+    }
+
     // One palette entry: the state BlueMap sees and the state Minecraft
     // lights it as (entry 0 is air to BlueMap, whatever the blueprint names).
     fn entry(pack: &Pack, input: &mut Input, index: i32) -> Result<(u32, u32), String> {

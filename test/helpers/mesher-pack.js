@@ -2,7 +2,10 @@
 
 // A small baked pack in McbenchBake.java's format, for testing the mesher
 // without Minecraft's assets: air, stone, glass, glowstone and a lamp with
-// a `lit` property, each a full cube drawn from one textured element.
+// a `lit` property, each a full cube drawn from one textured element, and a
+// shrine: the cube without ambient occlusion and, as a block entity
+// renderer's quads are, a quad of texture 6 at its middle facing north,
+// tinted red.
 
 function writer() {
   const parts = [];
@@ -33,6 +36,7 @@ const STATES = [
   { block: 3, flags: 1, emission: 15, lightBlock: 15, faces: FULL, cull: 1, selection: 0 }, // glowstone
   { block: 4, flags: 1, emission: 0, lightBlock: 15, faces: FULL, cull: 1, selection: 0 }, // lamp[lit=false]
   { block: 4, flags: 1, emission: 15, lightBlock: 15, faces: FULL, cull: 1, selection: 0 }, // lamp[lit=true]
+  { block: 5, flags: 0, emission: 0, lightBlock: 0, cull: 0, selection: 2 }, // shrine
 ];
 // Cull classes: six cull shapes (0 Shapes.empty(), 1 Shapes.block()),
 // skipRendering row and column classes, and the row class of the fluid.
@@ -47,7 +51,7 @@ const CULLS = [
 const FULL_CLOSES = Uint8Array.of(0, 1, 1, 1);
 
 function mesherPack() {
-  return pack([['minecraft:air', 0], ['minecraft:stone', 1], ['minecraft:glass', 2], ['minecraft:glowstone', 3], ['minecraft:lamp', 4]], STATES, 2, FULL_CLOSES);
+  return pack([['minecraft:air', 0], ['minecraft:stone', 1], ['minecraft:glass', 2], ['minecraft:glowstone', 3], ['minecraft:lamp', 4], ['minecraft:shrine', 6]], STATES, 2, FULL_CLOSES);
 }
 
 // A pack of `states` (each with the light fields above; state 0 air, the
@@ -60,7 +64,7 @@ function lightPack(states, shapes, occludes) {
 }
 
 function pack(blocks, states, shapes, occludes) {
-  const out = writer().bytes(Buffer.from('MCBP')).u32(3);
+  const out = writer().bytes(Buffer.from('MCBP')).u32(5);
   out.u32(blocks.length);
   for (const [id, first] of blocks) {
     out.str(id).u32(first);
@@ -91,7 +95,7 @@ function pack(blocks, states, shapes, occludes) {
   out.u16(2).bytes([0b1010]);
   out.u16(2).u16(0).u16(0).u16(1).u16(1).u8(63);
   out.u32(0).u32(NONE).u32(0).u8(0); // air, water selection, tint, blends
-  out.u32(1).f32(1).f32(1).f32(1); // tints
+  out.u32(2).f32(1).f32(1).f32(1).f32(1).f32(0).f32(0); // tints: white, red
   out.u32(2); // matrices: an element's 1/16 scale, identity
   for (const scale of [1 / 16, 1]) for (const value of [scale, 0, 0, 0, 0, scale, 0, 0, 0, 0, scale, 0]) out.f32(value);
   out.u32(1); // direction tables: unrotated
@@ -105,11 +109,17 @@ function pack(blocks, states, shapes, occludes) {
     out.u32(direction).u8(0).u8(direction);
   }
   out.u32(2).u8(1).u16(1).u32(0).u8(0).u16(1).u32(0); // meshes: with and without ambient occlusion
-  out.u32(2); // variants
+  out.u32(3); // variants: the cube with and without ambient occlusion, the entity mesh
   out.u8(1).u32(0).u8(0).u32(1).u32(0);
   out.u8(1).u32(1).u8(0).u32(1).u32(0);
-  out.u32(2).f64(1).u16(1).f64(1).u32(0).f64(1).u16(1).f64(1).u32(1); // variant sets
-  out.u32(2).u16(1).u32(0).u16(1).u32(1); // selections
+  out.u8(3).u32(0).u8(0).u8(0).u8(0);
+  out.u32(3).f64(1).u16(1).f64(1).u32(0).f64(1).u16(1).f64(1).u32(1).f64(1).u16(1).f64(1).u32(2); // variant sets
+  out.u32(3).u16(1).u32(0).u16(1).u32(1).u16(2).u32(1).u32(2); // selections
+  out.u32(1); // entity shapes: a square in the middle facing north
+  for (const value of [0.75, 0.75, 0.5, 0.75, 0.25, 0.5, 0.25, 0.25, 0.5, 0.25, 0.75, 0.5]) out.f32(value);
+  for (const value of [0, 0, 0, 1, 1, 1, 1, 0]) out.f32(value);
+  out.u32(1).u32(0).u32(6).u32(1); // entity quads: the square of texture 6 in tint 1
+  out.u32(1).u32(1).u32(0); // entity meshes: the quad
   for (let angle = -180; angle <= 180; angle += 1) for (let i = 0; i < 8; i += 1) out.f32(0);
   for (let i = 0; i < 8; i += 1) out.f32(0);
   return out.done();

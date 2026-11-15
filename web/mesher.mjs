@@ -115,4 +115,37 @@ export class Mesher {
     this.check(this.module.draw_snapshot(this.give(snapshot), snapshot.length));
     return this.output().slice();
   }
+
+  // The faces the tile mesher draws of the block state `state` (named as
+  // Minecraft names it, "minecraft:oak_sign[rotation=4]", a property left
+  // out at its default) alone (lone in renderer/src/lib.rs), those with a
+  // cullface toward `culled` hidden (bits over down, up, north, south,
+  // west, east): { models, entities, partner }, its models' faces and what
+  // Minecraft's block entity renderer draws of it, and the step to its other
+  // half (a double chest's, a bed's; 0, 0, 0 for none), each list { count, position
+  // (9 per triangle, blocks), uv (6, over the texture), color (3), material
+  // (the map's texture index) }, copied out of the module's memory.
+  lone(state, culled) {
+    const name = new TextEncoder().encode(state);
+    this.check(this.module.lone(this.give(name), name.length, culled));
+    const output = this.output();
+    const view = new DataView(output.buffer, output.byteOffset, output.byteLength);
+    let at = 0;
+    const list = () => {
+      const count = view.getUint32(at, true);
+      at += 4;
+      const faces = { count, position: new Float32Array(count * 9), uv: new Float32Array(count * 6), color: new Float32Array(count * 3), material: new Int32Array(count) };
+      for (let face = 0; face < count; face += 1, at += 76) {
+        for (let k = 0; k < 9; k += 1) faces.position[face * 9 + k] = view.getFloat32(at + k * 4, true);
+        for (let k = 0; k < 6; k += 1) faces.uv[face * 6 + k] = view.getFloat32(at + 36 + k * 4, true);
+        for (let k = 0; k < 3; k += 1) faces.color[face * 3 + k] = view.getFloat32(at + 60 + k * 4, true);
+        faces.material[face] = view.getInt32(at + 72, true);
+      }
+      return faces;
+    };
+    const models = list();
+    const entities = list();
+    const partner = [0, 1, 2].map((axis) => view.getInt32(at + axis * 4, true));
+    return { models, entities, partner };
+  }
 }

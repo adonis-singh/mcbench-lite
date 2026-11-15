@@ -1,4 +1,5 @@
 import { createLight, updateLight, lightAt, lightRule } from './light.mjs';
+import { Mesher } from './mesher.mjs';
 import { mat4 } from '/vendor/gl-matrix/index.js';
 
 // deepslate's bundle (with its own dependencies inlined) is loaded by the
@@ -207,7 +208,8 @@ async function loadResources() {
   // class u32 start, u16 first and length; then by state its emission, light
   // block, full faces (bits over Minecraft's directions: down, up, north,
   // south, west, east) and draw bits (1 drawn as a model, 2 its model
-  // blended, 4 its fluid blended), its six face shapes and six cull shapes,
+  // blended, 4 its fluid blended, 8 it shades, 16 drawn through a block
+  // entity renderer), its six face shapes and six cull shapes,
   // the face shapes' pairs, the cull shapes' pairs (whether
   // Block.shouldRenderFace hides a face of the first beside the second), the
   // skipRendering masks, and the fluids' names.
@@ -278,6 +280,12 @@ async function loadResources() {
       getBlockDefinition(id) { return blockDefinitions[id.toString()]; },
       getBlockModel(id) { return blockModels[id.toString()]; },
       getTextureUV(id) { return textureAtlas.getTextureUV(id); },
+      // A texture's place in the atlas; fails for one it does not hold.
+      textureOf(id) {
+        const uv = idMap[id];
+        if (!uv) throw new Error(`The atlas has no texture ${id}`);
+        return uv;
+      },
       getTextureAtlas() { return textureAtlas.getTextureAtlas(); },
       getPixelSize() { return textureAtlas.getPixelSize(); },
       getBlockProperties(id) {
@@ -590,6 +598,28 @@ export async function createViewer(canvas, floor) {
   const modelTemplates = [];
   const fluidTemplates = [];
 
+  // The live viewer's mesher over its pack, and its map's texture names by
+  // index, loaded by prepare() once a world holds a block drawn through a
+  // block entity renderer (`loneWanted`); a world without one loads nothing.
+  let lone = null;
+  let loneWanted = false;
+  async function prepare() {
+    if (lone || !loneWanted) return;
+    const fetched = async (url) => {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`Failed to load ${url} (HTTP ${response.status})`);
+      return response;
+    };
+    const { mesher, viewerUrl } = await (await fetched('/api/minecraft/status')).json();
+    if (!mesher) throw new Error('The live viewer\'s assets are not made');
+    const [wasm, pack, textures] = await Promise.all([
+      fetched(mesher.wasm).then((response) => response.arrayBuffer()),
+      fetched(mesher.pack).then((response) => response.arrayBuffer()),
+      fetched(`${viewerUrl}maps/live/textures.json`).then((response) => response.json()),
+    ]);
+    lone = { mesher: await Mesher.create(wasm, new Uint8Array(pack)), textures: textures.map((texture) => texture.resourcePath) };
+  }
+
   const FAILED = { quads: 0 };
   // A part's quads as deepslate makes them (`mesh`): per vertex its
   // position, color, texture coordinates and limits.
@@ -616,31 +646,77 @@ export async function createViewer(canvas, floor) {
         for (let k = 0; k < 4; k++) limit[at * 4 + k] = v.textureLimit[k];
       });
     });
-    return { quads: count, pos, color, texture, limit, transparent };
+    return { quads: count, pos, color, texture, limit, transparent, entityFrom: count };
   }
 
-  // The model of a placed block: its block definition's and deepslate's
-  // special renderers' (chests, signs, beds...), with its block's default
-  // properties merged into its state's own as deepslate meshes it. The
-  // fluid is the fluid's own part: deepslate's special renderers are given
-  // the state as holding none.
-  function modelTemplate(placed, cull) {
+  // The model of a placed block: its block definition's, with its block's
+  // default properties merged into its state's own as deepslate meshes it.
+  // A block Minecraft draws through a block entity renderer is the live
+  // viewer's instead (loneTemplate).
+  function modelTemplate(placed, bits) {
     const { state, id } = placed;
+    if (states.draw[id] & 16) return loneTemplate(placed, bits);
     const name = state.getName();
-    return makeTemplate(name, () => {
-      tinting.state = id;
-      const props = state.getProperties();
-      const defaults = resources.getDefaultBlockProperties(name) ?? {};
-      for (const [k, v] of Object.entries(defaults)) if (!props[k]) props[k] = v;
-      const mesh = new Mesh();
-      const definition = resources.getBlockDefinition(name);
-      if (definition) mesh.merge(definition.getMesh(name, props, resources, resources, cull));
-      const dry = Object.create(state);
-      dry.isWaterlogged = () => false;
-      const special = SpecialRenderers.getBlockMesh(dry, undefined, resources, cull);
-      if (!special.isEmpty()) mesh.merge(special);
-      return mesh;
-    }, (states.draw[id] & 2) !== 0);
+    return makeTemplate(name, () => definitionMesh(placed, cullOf(bits)), (states.draw[id] & 2) !== 0);
+  }
+
+  // The mesh of a placed block's block definition, culled toward `cull`.
+  function definitionMesh({ state, id }, cull) {
+    const name = state.getName();
+    tinting.state = id;
+    const props = state.getProperties();
+    const defaults = resources.getDefaultBlockProperties(name) ?? {};
+    for (const [k, v] of Object.entries(defaults)) if (!props[k]) props[k] = v;
+    const mesh = new Mesh();
+    const definition = resources.getBlockDefinition(name);
+    if (definition) mesh.merge(definition.getMesh(name, props, resources, resources, cull));
+    return mesh;
+  }
+
+  // The live viewer's own geometry of a block Minecraft draws through a
+  // block entity renderer (banners, signs, chests, beds, heads ...): the
+  // faces its mesher (renderer/, the same WebAssembly module, over the same
+  // baked pack) draws of the state alone, its models' culled toward the
+  // faces `bits` culls, then the quads Minecraft's renderer draws of it
+  // (from `entityFrom` on), each face's texture found in the atlas by name.
+  function loneTemplate(placed, bits) {
+    if (!lone) throw new Error('A block drawn through a block entity renderer was placed before the live viewer\'s mesher was loaded (prepare)');
+    const { state, id } = placed;
+    const properties = Object.entries(state.getProperties()).map(([key, value]) => `${key}=${value}`).join(',');
+    const name = `${state.getName()}${properties ? `[${properties}]` : ''}`;
+    let culled = 0;
+    for (let side = 0; side < 6; side++) if (bits & (1 << side)) culled |= 1 << DIRECTION[side];
+    const { models, entities, partner } = lone.mesher.lone(name, culled);
+    const lists = [models, entities];
+    for (const faces of lists) if (faces.count % 2 !== 0) throw new Error(`${name} has a face that is not half of a quad`);
+    const count = (models.count + entities.count) / 2;
+    const pos = new Float64Array(count * 12);
+    const color = new Float64Array(count * 12);
+    const texture = new Float64Array(count * 8);
+    const limit = new Float64Array(count * 16);
+    // A quad's two faces are its corners (a, b, c) and (a, c, d): its
+    // corners in order are the first face's three and the second's last.
+    const CORNERS = [[0, 0], [0, 1], [0, 2], [1, 2]];
+    let q = 0;
+    for (const faces of lists) {
+      for (let first = 0; first < faces.count; first += 2, q++) {
+        const material = faces.material[first];
+        if (faces.material[first + 1] !== material) throw new Error(`${name} has a quad of two textures`);
+        const [u0, v0, u1, v1] = resources.textureOf(lone.textures[material]);
+        CORNERS.forEach(([half, k], i) => {
+          const at = q * 4 + i;
+          const face = first + half;
+          for (let axis = 0; axis < 3; axis++) {
+            pos[at * 3 + axis] = faces.position[face * 9 + k * 3 + axis];
+            color[at * 3 + axis] = faces.color[face * 3 + axis];
+          }
+          texture[at * 2] = u0 + faces.uv[face * 6 + k * 2] * (u1 - u0);
+          texture[at * 2 + 1] = v0 + faces.uv[face * 6 + k * 2 + 1] * (v1 - v0);
+          limit.set([u0, v0, u1, v1], at * 4);
+        });
+      }
+    }
+    return { quads: count, pos, color, texture, limit, transparent: (states.draw[id] & 2) !== 0, entityFrom: models.count / 2, partner: partner.some(Boolean) ? partner : null };
   }
 
   // A fluid, as deepslate's special renderers draw the block of its state.
@@ -697,6 +773,18 @@ export async function createViewer(canvas, floor) {
     const emissive = states.rule.emission[placed.light] > 0;
     const tp = template.pos;
     const tc = template.color;
+    // What a block entity renderer draws is lit by the block's cell, a
+    // double block's by the brighter of its two halves where the other is
+    // the same block (BrightnessCombiner).
+    let entityLight = 0;
+    if (template.entityFrom < template.quads) {
+      entityLight = cellLight(px, py, pz);
+      const partner = template.partner;
+      if (partner) {
+        const other = world.at(px + partner[0], py + partner[1], pz + partner[2]);
+        if (other && other.state.getName().equals(placed.state.getName())) entityLight = Math.max(entityLight, cellLight(px + partner[0], py + partner[1], pz + partner[2]));
+      }
+    }
     for (let q = 0; q < template.quads; q++) {
       for (let i = 0; i < 4; i++) {
         const t = (q * 4 + i) * 3;
@@ -737,21 +825,24 @@ export async function createViewer(canvas, floor) {
 
       // Shading: the face's light from the cell it radiates into (its own
       // cell for interior quads like flames), with vertex AO and smooth light
-      // for axis-aligned faces on a cell boundary.
+      // for axis-aligned faces on a cell boundary. What a block entity
+      // renderer draws takes the light of its block's own cell on every
+      // face, unshaded, as Minecraft lights a block entity.
       const cx = (vx[0] + vx[1] + vx[2] + vx[3]) / 4;
       const cy = (vy[0] + vy[1] + vy[2] + vy[3]) / 4;
       const cz = (vz[0] + vz[1] + vz[2] + vz[3]) / 4;
       const fx = Math.floor(cx + nx * 0.5);
       const fy = Math.floor(cy + ny * 0.5);
       const fz = Math.floor(cz + nz * 0.5);
-      const faceLevel = cellLight(fx, fy, fz);
+      const entity = q >= template.entityFrom;
+      const faceLevel = entity ? entityLight : cellLight(fx, fy, fz);
       const faceLight = emissive ? 1.15 : lightCurve(faceLevel);
       let axis = -1;
       if (Math.abs(nx) > 0.99) axis = 0;
       else if (Math.abs(ny) > 0.99) axis = 1;
       else if (Math.abs(nz) > 0.99) axis = 2;
       const centerAxis = axis === 0 ? cx : axis === 1 ? cy : cz;
-      const onBoundary = axis >= 0 && Math.abs(centerAxis - Math.round(centerAxis)) < 1e-3;
+      const onBoundary = !entity && axis >= 0 && Math.abs(centerAxis - Math.round(centerAxis)) < 1e-3;
       if (!onBoundary) {
         for (let i = 0; i < 4; i++) {
           const t = (q * 4 + i) * 3;
@@ -913,7 +1004,7 @@ export async function createViewer(canvas, floor) {
         const bits = cullBits(placed, fluid);
         if (states.draw[id] & 1) {
           const templates = modelTemplates[id] ??= new Array(64);
-          const template = templates[bits] ??= modelTemplate(placed, cullOf(bits));
+          const template = templates[bits] ??= modelTemplate(placed, bits);
           if (template.quads > 0) emitBlock(placed, template);
         }
         if (fluid) {
@@ -1056,6 +1147,7 @@ export async function createViewer(canvas, floor) {
   // faces beside it (`shades`) and its light class (`light`, which holds the
   // light it emits).
   function preparePalette(entries) {
+    for (const { state } of entries) if (states.draw[state] & 16) loneWanted = true;
     return entries.map(({ id, states: properties = {}, state }) => ({
       state: new BlockState(id.replace(/^minecraft:/, ''), properties),
       meta: { id: state, full: states.fullFaces[state], shades: (states.draw[state] & 8) !== 0, light: states.rule.classOf[state] },
@@ -1236,6 +1328,8 @@ export async function createViewer(canvas, floor) {
   return {
     reset,
     applyDelta,
+    // Loads what the blocks applied need beyond the page's own resources.
+    prepare,
     flush,
     setCamera,
     // WebGL buffers are only valid for a screenshot within the same task.

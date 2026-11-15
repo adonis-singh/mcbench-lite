@@ -10,8 +10,9 @@ const fs = require('fs');
 // through, with whether each pair of face shapes occludes; its fluid,
 // whether it is drawn as a model, which neighbours it hides faces from
 // (skipRendering), the face shapes Block.shouldRenderFace culls by, with
-// whether each pair hides a face, and whether its model and its fluid are
-// drawn blended; and each block's name, as Minecraft names it.
+// whether each pair hides a face, whether its model and its fluid are
+// drawn blended, and whether the client draws it through a block entity
+// renderer; and each block's name, as Minecraft names it.
 // see_build's page lights, culls and draws with these (`bytes`, read by
 // web/viewer.js); the world route hides blocks with them and tells the page
 // each palette entry's state id (`ofPalette`).
@@ -49,7 +50,8 @@ class BlockStates {
     this.cull = new Uint8Array(this.count * 6);
     this.fluid = new Uint16Array(this.count);
     // By state: 1 drawn as a model, 2 its model drawn blended, 4 its fluid
-    // drawn blended, 8 it darkens the corners of the faces beside it.
+    // drawn blended, 8 it darkens the corners of the faces beside it, 16
+    // drawn through a block entity renderer.
     this.draw = new Uint8Array(this.count);
     this.skipRow = new Uint16Array(this.count);
     this.skipColumn = new Uint16Array(this.count);
@@ -88,10 +90,11 @@ class BlockStates {
     while (layerLines[0].startsWith('layer\t')) blended.push(layerLines.shift().split('\t')[2] === '1');
     if (layerLines.length !== this.count) throw new Error(`The render layers have ${layerLines.length} states, the block table ${this.count}`);
     layerLines.forEach((line, id) => {
-      const [name, own, fluid] = line.split('\t');
+      const [name, own, fluid, renderer] = line.split('\t');
       if (states[id][0] !== name) throw new Error(`The render layers name state ${id} ${name}, the block table ${states[id][0]}`);
       if (blended[Number(own)]) this.draw[id] |= 2;
       if (blended[Number(fluid)]) this.draw[id] |= 4;
+      if (renderer !== '-') this.draw[id] |= 16;
     });
     // The fluids' states by name, for the page to draw them.
     this.fluidNames = Object.fromEntries([...new Set(this.fluid)].filter(Boolean).map((id) => [id, states[id][0]]));

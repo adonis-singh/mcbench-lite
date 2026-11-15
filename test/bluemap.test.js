@@ -82,7 +82,7 @@ test('the viewer\'s assets are baked once per content, and older bakes and app f
     wasm: `/bluemap/mesher-${blueMap.mesherHash}.wasm`,
   });
   assert.deepStrictEqual(fs.readdirSync(root).sort(), [assets.id, 'bluemap-5.22-cli.jar', 'data'].sort());
-  assert.deepStrictEqual(runs[0].args.slice(-3), ['McbenchBake.java', 'McbenchEntityAssets.java', 'McbenchClient.java'].map((name) => path.join(__dirname, '..', 'server', name)));
+  assert.deepStrictEqual(runs[0].args.slice(-4), ['McbenchBake.java', 'McbenchEntityAssets.java', 'McbenchClient.java', 'McbenchBlockEntities.java'].map((name) => path.join(__dirname, '..', 'server', name)));
   assert.deepStrictEqual(runs[1].args.slice(-4), ['1.21.10', table, LIBRARIES.join(path.delimiter), 'minecraft:plains']);
   assert.strictEqual(runs.length, 2);
   const config = path.join(root, assets.id, 'config');

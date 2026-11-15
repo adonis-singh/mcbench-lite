@@ -109,6 +109,7 @@ const drawn = testBlockStates([
   { name: 'test:stair[waterlogged=false]' },
   { name: 'test:stair[waterlogged=true]', fluid: 'test:water[level=0]', fluidBlended: true },
   { name: 'test:glass', blended: true },
+  { name: 'test:banner', renderer: 'test:banner' },
 ], {
   skips: [
     ['test:pane[joined=true]', 'test:pane[joined=true]', 1 | 2 | 16 | 32],
@@ -150,16 +151,17 @@ test('skipRendering is answered for each ordered pair of states and direction as
   assert.ok(!drawn.skips(stair, water, 1) && !drawn.skips(dry, water, 1), 'a stair does not skip its faces beside water');
 });
 
-test('a state\'s fluid, whether its model is drawn, and the layers they are drawn in reach the page', () => {
+test('a state\'s fluid, whether its model is drawn, the layers they are drawn in and whether a block entity renderer draws it reach the page', () => {
   const id = (name) => drawn.ids.get(name);
   const page = read(drawn.bytes());
   const water = id('test:water[level=0]');
   assert.deepEqual([page.fluid[id('test:stair[waterlogged=true]')], page.fluid[water], page.fluid[id('test:water[level=1]')], page.fluid[id('test:stair[waterlogged=false]')], page.fluid[0]],
     [water, water, id('test:water[level=1]'), 0, 0]);
   assert.deepEqual(page.fluidNames, { [water]: 'test:water[level=0]', [id('test:water[level=1]')]: 'test:water[level=1]' });
-  // 1 drawn as a model, 2 the model blended, 4 the fluid blended.
-  assert.deepEqual([page.draw[0], page.draw[water], page.draw[id('test:stair[waterlogged=true]')], page.draw[id('test:stair[waterlogged=false]')], page.draw[id('test:glass')]],
-    [0, 4, 1 | 4, 1, 1 | 2]);
+  // 1 drawn as a model, 2 the model blended, 4 the fluid blended, 16 drawn
+  // through a block entity renderer.
+  assert.deepEqual([page.draw[0], page.draw[water], page.draw[id('test:stair[waterlogged=true]')], page.draw[id('test:stair[waterlogged=false]')], page.draw[id('test:glass')], page.draw[id('test:banner')]],
+    [0, 4, 1 | 4, 1, 1 | 2, 1 | 16]);
 });
 
 test('render layers that name another state than the block table are refused', () => {

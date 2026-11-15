@@ -37,11 +37,15 @@ function communityBlocks(file) {
   return blocks;
 }
 
-function bakedPack() {
+// A file of the data directory's bake (its web/mcbench-pack.bin, or
+// render-layers.tsv beside it), or null where nothing is baked.
+function bakedFile(name) {
   const root = path.join(DATA, 'minecraft-live', 'bluemap');
   if (!fs.existsSync(root)) return null;
-  const found = fs.readdirSync(root).map((id) => path.join(root, id, 'web', 'mcbench-pack.bin')).find((file) => fs.existsSync(file));
+  const found = fs.readdirSync(root).map((id) => path.join(root, id, name)).find((file) => fs.existsSync(file));
   return found ? fs.readFileSync(found) : null;
 }
 
-module.exports = { communityBuilds, communityBlocks, bakedPack };
+const bakedPack = () => bakedFile(path.join('web', 'mcbench-pack.bin'));
+
+module.exports = { communityBuilds, communityBlocks, bakedPack, bakedFile };

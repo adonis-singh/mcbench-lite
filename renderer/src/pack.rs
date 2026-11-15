@@ -92,6 +92,23 @@ pub enum Variant {
     Empty,
     Model { mesh: u32, transformed: bool, matrix: u32, directions: u32 },
     Liquid { still: i32, flow: i32 },
+    // What Minecraft's block entity renderer draws of the state: an entity
+    // mesh, by index.
+    // `partner`: the step to the block's other half (0, 0, 0 for none),
+    // whose light the renderer draws both halves in, the brighter of each.
+    Entity { mesh: u32, partner: [i32; 3] },
+}
+
+// A quad Minecraft's block entity renderer draws (McbenchBlockEntities.java):
+// its corners in blocks from the block's lowest corner, their texture
+// coordinates over the texture, the texture (the map's) and the colour it is
+// tinted with.
+pub struct EntityQuad {
+    // Its corners and texture coordinates, by entity shape.
+    pub shape: u32,
+    pub texture: i32,
+    // The tint (`tints`) it is drawn in.
+    pub tint: u32,
 }
 
 pub struct VariantSet {
@@ -134,6 +151,10 @@ pub struct Pack {
     pub variants: Vec<Variant>,
     pub sets: Vec<VariantSet>,
     pub selections: Vec<Vec<u32>>,
+    pub entity_shapes: Vec<([[f32; 3]; 4], [f32; 8])>,
+    pub entity_quads: Vec<EntityQuad>,
+    // Each a list of entity quads.
+    pub entity_meshes: Vec<Vec<u32>>,
     pub liquid_up: Vec<[f32; 8]>,
     pub liquid_side: [f32; 8],
 }
@@ -197,8 +218,8 @@ impl<'a> Reader<'a> {
 impl Pack {
     pub fn read(bytes: &[u8]) -> Result<Pack, String> {
         let mut r = Reader { bytes, at: 0 };
-        if r.take(4)? != b"MCBP" || r.u32()? != 3 {
-            return Err("Not a version 3 baked pack".into());
+        if r.take(4)? != b"MCBP" || r.u32()? != 5 {
+            return Err("Not a version 5 baked pack".into());
         }
         let blocks = r.list(|r| {
             let id = r.str()?;
@@ -311,6 +332,7 @@ impl Pack {
             0 => Ok(Variant::Empty),
             1 => Ok(Variant::Model { mesh: r.u32()?, transformed: r.u8()? != 0, matrix: r.u32()?, directions: r.u32()? }),
             2 => Ok(Variant::Liquid { still: r.u32()? as i32, flow: r.u32()? as i32 }),
+            3 => Ok(Variant::Entity { mesh: r.u32()?, partner: [r.i8()? as i32, r.i8()? as i32, r.i8()? as i32] }),
             other => Err(format!("Unknown baked renderer {other}")),
         })?;
         let sets = r.list(|r| {
@@ -330,6 +352,15 @@ impl Pack {
             }
             Ok(list)
         })?;
+        let entity_shapes = r.list(|r| {
+            let mut corners = [[0.0; 3]; 4];
+            for corner in corners.iter_mut() {
+                *corner = r.f32s::<3>()?;
+            }
+            Ok((corners, r.f32s::<8>()?))
+        })?;
+        let entity_quads = r.list(|r| Ok(EntityQuad { shape: r.u32()?, texture: r.u32()? as i32, tint: r.u32()? }))?;
+        let entity_meshes = r.list(|r| r.list(|r| r.u32()))?;
         let mut liquid_up = Vec::new();
         for _ in -180..=180 {
             liquid_up.push(r.f32s::<8>()?);
@@ -365,6 +396,9 @@ impl Pack {
             variants,
             sets,
             selections,
+            entity_shapes,
+            entity_quads,
+            entity_meshes,
             liquid_up,
             liquid_side,
         })
@@ -402,6 +436,21 @@ impl Pack {
         let other = &self.culls[self.cull_of[other as usize] as usize];
         self.skips(own.fluid_row, other.column, direction)
             || (direction != 1 && self.hides[BLOCK_SHAPE * self.cull_shapes + other.shapes[direction ^ 1] as usize])
+    }
+
+    // The state of a name as Minecraft writes it, "id[name=value,...]",
+    // every property it leaves out at the block's default.
+    pub fn named(&self, name: &str) -> Result<u32, String> {
+        let Some(open) = name.find('[') else {
+            return self.state(name, &[]);
+        };
+        let inner = name[open + 1..].strip_suffix(']').ok_or_else(|| format!("Not a block state: {name}"))?;
+        let mut properties = Vec::new();
+        for pair in inner.split(',').filter(|pair| !pair.is_empty()) {
+            let (key, value) = pair.split_once('=').ok_or_else(|| format!("Not a block state: {name}"))?;
+            properties.push((key.to_string(), value.to_string()));
+        }
+        self.state(&name[..open], &properties)
     }
 
     // The state a blueprint palette entry names, every property it leaves

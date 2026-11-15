@@ -41,7 +41,7 @@ const JAR_SHA256 = 'a2289d649f6a83e04cf222abcd3d4f2df4e32e61147015f921c05066f63e
 const JAR_MB = 7;
 const CLIENT_MB = 31;
 const MEMORY = process.env.MCBENCH_BLUEMAP_MEMORY || '2G';
-const BAKE = ['McbenchBake.java', 'McbenchEntityAssets.java', 'McbenchClient.java'].map((name) => path.join(__dirname, name));
+const BAKE = ['McbenchBake.java', 'McbenchEntityAssets.java', 'McbenchClient.java', 'McbenchBlockEntities.java'].map((name) => path.join(__dirname, name));
 // What Minecraft's server entry point (McbenchClient bootstraps Minecraft by
 // it) writes in the bake's folder: its settings and its log.
 const MINECRAFT_LEAVES = ['server.properties', 'eula.txt', 'logs'];
@@ -215,7 +215,7 @@ class BlueMap {
         await this.run(this.java, [`-Xmx${this.memory}`, '-cp', [this.jar, classes].join(path.delimiter), 'McbenchBake', MC_VERSION, blockTable, libraries.join(path.delimiter), BIOME],
           { cwd: staging, timeout: 600_000, maxBuffer: 16 * 1024 * 1024 });
       });
-      for (const name of ['classes', ...MINECRAFT_LEAVES]) fs.rmSync(path.join(staging, name), { recursive: true, force: true });
+      for (const name of ['classes', 'vanilla', ...MINECRAFT_LEAVES]) fs.rmSync(path.join(staging, name), { recursive: true, force: true });
       fs.renameSync(staging, folder);
     }
     this.folder = folder;

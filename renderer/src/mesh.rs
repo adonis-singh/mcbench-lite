@@ -184,14 +184,61 @@ struct Draw<'a> {
     cache: Neighborhood,
     // What `look` found around the main block, for each offset in -1..=1.
     looks: [Cell<Look>; 27],
+    // For a block drawn alone (lone), the directions (bits over down, up,
+    // north, south, west, east) toward which a face with a cullface is
+    // hidden, in place of the neighbours there.
+    culled: Option<u8>,
+    // Which variants model() draws: its models (MODELS), what block entity
+    // renderers draw (ENTITIES), or both.
+    drawn: Cell<u8>,
 }
+
+const MODELS: u8 = 1;
+const ENTITIES: u8 = 2;
 
 // Draws tile tx, tz into `tile`, whose memory it reuses.
 pub fn tile(pack: &Pack, world: &World, tx: i32, tz: i32, tile: &mut Tile) {
     tile.clear();
-    let draw = Draw { pack, world, cache: Neighborhood::new(), looks: [const { Cell::new(UNSEEN) }; 27] };
+    let draw = Draw { pack, world, cache: Neighborhood::new(), looks: [const { Cell::new(UNSEEN) }; 27], culled: None, drawn: Cell::new(MODELS | ENTITIES) };
     let _ = draw.blocks(tile, tx * TILE_SIZE + TILE_OFFSET, tz * TILE_SIZE + TILE_OFFSET);
     tile.sort();
+}
+
+// The faces the tile mesher draws of `state` (not the water it may hold)
+// standing alone at 0, 0, 0 in air in open sky, unshaded, a face with a
+// cullface hidden toward the directions of `culled` (bits over down, up,
+// north, south, west, east): its models' faces into `models` and what
+// Minecraft's block entity renderer draws of it into `entities`. The live
+// viewer's own geometry of a block, which see_build draws the blocks
+// Minecraft draws through a block entity renderer with, culled as it culls
+// them (web/viewer.js).
+pub fn lone(pack: &Pack, state: u32, culled: u8, models: &mut Tile, entities: &mut Tile) {
+    let world = World::open_air(pack);
+    let draw = Draw { pack, world: &world, cache: Neighborhood::new(), looks: [const { Cell::new(UNSEEN) }; 27], culled: Some(culled), drawn: Cell::new(MODELS) };
+    draw.looks[13].set(Look { state, sky: 15, block: 0 });
+    let selection = pack.states[state as usize].selection;
+    models.clear();
+    let _ = draw.model(models, selection);
+    draw.drawn.set(ENTITIES);
+    entities.clear();
+    let _ = draw.model(entities, selection);
+}
+
+// The step to the other half of a double block `state` is (Variant::Entity's
+// partner), 0, 0, 0 for none.
+pub fn partner(pack: &Pack, state: u32) -> [i32; 3] {
+    let selection = pack.states[state as usize].selection;
+    if selection == pack::NONE {
+        return [0; 3];
+    }
+    for &set in &pack.selections[selection as usize] {
+        for &(_, variant) in &pack.sets[set as usize].variants {
+            if let Variant::Entity { partner, .. } = pack.variants[variant as usize] {
+                return partner;
+            }
+        }
+    }
+    [0; 3]
 }
 
 // The liquid LiquidModelRenderer draws: its blockState field. Water is
@@ -326,12 +373,15 @@ impl Draw<'_> {
             }) else {
                 continue;
             };
+            let drawn = self.drawn.get();
             match self.pack.variants[variant as usize] {
                 Variant::Empty => {}
-                Variant::Model { mesh, transformed, matrix, directions } => {
+                Variant::Model { mesh, transformed, matrix, directions } if drawn & MODELS != 0 => {
                     self.resource(tile, mesh, transformed.then_some(matrix), directions)?
                 }
-                Variant::Liquid { still, flow } => self.liquid(tile, still, flow)?,
+                Variant::Liquid { still, flow } if drawn & MODELS != 0 => self.liquid(tile, still, flow)?,
+                Variant::Entity { mesh, partner } if drawn & ENTITIES != 0 => self.entity(tile, mesh, partner)?,
+                _ => {}
             }
         }
         Ok(())
@@ -367,8 +417,12 @@ impl Draw<'_> {
                 let block_light = own.block.max(faced.block);
                 if face.cullface != 255 {
                     let [x, y, z] = relative(table, DIRECTIONS[face.cullface as usize]);
-                    let other = self.look([x, y, z]).state;
-                    if self.pack.hides(own.state, other, DIRECTION_OF[((x + 1) * 9 + (y + 1) * 3 + z + 1) as usize]) {
+                    let toward = DIRECTION_OF[((x + 1) * 9 + (y + 1) * 3 + z + 1) as usize];
+                    let hidden = match self.culled {
+                        Some(bits) => bits >> toward & 1 == 1,
+                        None => self.pack.hides(own.state, self.look([x, y, z]).state, toward),
+                    };
+                    if hidden {
                         continue;
                     }
                 }
@@ -401,6 +455,32 @@ impl Draw<'_> {
             let dx = (offset_hash(x, z, 123984) - 0.5) * 0.75;
             let dz = (offset_hash(x, z, 345542) - 0.5) * 0.75;
             tile.translate(start, dx, 0.0, dz);
+        }
+        Ok(())
+    }
+
+    // What Minecraft's block entity renderer draws of the block: its quads,
+    // tinted as captured, lit by the light of the block's own cell, the same
+    // at every corner, and never culled or shaded, as Minecraft draws a block
+    // entity (the light at its position, BlockEntityRenderState's
+    // lightCoords); a double block whose other half (`partner`) is there, of
+    // the same block, in the brighter sky and block light of the two
+    // (BrightnessCombiner).
+    fn entity(&self, tile: &mut Tile, mesh: u32, partner: [i32; 3]) -> Result<(), Full> {
+        let own = self.look([0, 0, 0]);
+        let (mut sky, mut block) = (own.sky, own.block);
+        if partner != [0, 0, 0] {
+            let other = self.look(partner);
+            if self.props(other.state).block == self.props(own.state).block {
+                sky = sky.max(other.sky);
+                block = block.max(other.block);
+            }
+        }
+        for &at in &self.pack.entity_meshes[mesh as usize] {
+            let quad = &self.pack.entity_quads[at as usize];
+            let (corners, uv) = self.pack.entity_shapes[quad.shape as usize];
+            tile.room(2)?;
+            tile.quad(corners, uv, self.pack.tints[quad.tint as usize], [1.0; 4], sky as u8, block as u8, quad.texture);
         }
         Ok(())
     }

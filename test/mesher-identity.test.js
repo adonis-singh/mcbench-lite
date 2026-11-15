@@ -2,8 +2,9 @@
 
 // The mesher module must draw exactly the bytes it drew before it was made
 // faster: test/fixtures/mesher-reference.wasm is the module built from
-// renderer/ at b8a19b5 (where the baked pack became version 3 and the
-// mesher came to cull and shade as Minecraft does), and every tile of every
+// renderer/ where the baked pack became version 5 (the quads Minecraft's
+// block entity renderers draw; version 3's worlds draw the same, as
+// scripts/mesher-parity.js --ref-pack shows), and every tile of every
 // world below is drawn by
 // both and compared byte for byte, and so is the indexed tile the module
 // makes of each against the reference's tile indexed by

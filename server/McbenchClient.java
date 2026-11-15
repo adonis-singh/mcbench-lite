@@ -47,9 +47,12 @@ import javax.imageio.ImageIO;
 // every block and fluid by. One line per layer, in the order of its enum
 // (ChunkSectionLayer), then one per state:
 //   layer  name  blended
-//   state  blockLayer  fluidLayer
+//   state  blockLayer  fluidLayer  renderer
 // blended is whether the layer's render pipeline has a blend function: the
 // layers drawn blended, after the others, sorted (translucent and tripwire).
+// renderer is the block entity type whose block entity renderer the client
+// draws the state through as well (wholly, for a state whose block model has
+// no elements), or - for none.
 // The layers are the client's under its default graphics (Fancy), under
 // which leaves are drawn cut out: ItemBlockRenderTypes.setCutoutLeaves.
 //
@@ -110,7 +113,19 @@ public class McbenchClient {
   final int indices;
   final int[] world, single, particle;
   final String[] faces;
+  final String[] renderers;
   final ClassLoader loader;
+  // What McbenchBlockEntities runs Minecraft's block entity renderers with:
+  // the client's classes, its block states in order, BlockEntityRenderers's
+  // providers by block entity type, and each state's block entity type with
+  // a renderer (null for none), and BlockEntityType's factory of a block
+  // entity at a position.
+  final List<ClassModel> classes;
+  final List<Object> states;
+  final Map<?, ?> providers;
+  final Object[] stateTypes;
+  final Method createBlockEntity;
+  final Class<?> blockPos;
   final Object ops;
   final Method parse, result, jsonParse;
   final Object tintList, stackCodec;
@@ -128,7 +143,7 @@ public class McbenchClient {
     }
 
     ClassDesc pipeline = ClassDesc.of("com.mojang.blaze3d.pipeline.RenderPipeline");
-    List<ClassModel> classes = new ArrayList<>();
+    classes = new ArrayList<>();
     // By block, the tint indices its models' faces carry (its blockstate
     // file's models, their parents resolved), and the tint source types item
     // definitions name.
@@ -187,7 +202,7 @@ public class McbenchClient {
     // in too: they get a loader of their own.
     List<URL> urls = new ArrayList<>(List.of(client.toUri().toURL()));
     for (String library : libraries.split(java.io.File.pathSeparator)) urls.add(Path.of(library).toUri().toURL());
-    loader = new URLClassLoader(urls.toArray(URL[]::new), ClassLoader.getPlatformClassLoader());
+    loader = new URLClassLoader(urls.toArray(URL[]::new), new IcuLinkage());
     Thread.currentThread().setContextClassLoader(loader);
     Class.forName("net.minecraft.server.Main", true, loader).getMethod("main", String[].class).invoke(null, (Object) new String[] { "--initSettings" });
 
@@ -216,7 +231,7 @@ public class McbenchClient {
       }
     }
     Iterable<?> registry = (Iterable<?>) only("the block state registry", registries.stream().filter((candidate) -> named((Iterable<?>) candidate, names)).toList());
-    List<Object> states = new ArrayList<>();
+    states = new ArrayList<>();
     registry.forEach(states::add);
     Class<?> blockState = states.get(0).getClass();
     Method blockLayer = only("getChunkRenderType", byState.stream().filter((method) -> method.getParameterTypes()[0].isAssignableFrom(blockState)).toList());
@@ -253,7 +268,7 @@ public class McbenchClient {
     Method getColor = colorsType.getMethod(getColorModel.methodName().stringValue(),
       getColorModel.methodTypeSymbol().parameterList().stream().map(this::type).toArray(Class<?>[]::new));
     Class<?> tintGetter = getColor.getParameterTypes()[1];
-    Class<?> blockPos = getColor.getParameterTypes()[2];
+    blockPos = getColor.getParameterTypes()[2];
     // BlockAndTintGetter.getBlockTint(BlockPos, ColorResolver): its one
     // abstract method of a position and an interface; ColorResolver's one
     // method, getColor(Biome, x, z).
@@ -373,6 +388,60 @@ public class McbenchClient {
       particle[id] = (boolean) is.invoke(state, skipped) ? -1 : world[id * indices];
     }
 
+    // The block entity types the client draws through a block entity
+    // renderer: the keys of BlockEntityRenderers's map of providers (the one
+    // class with a static Map whose initializer reads block entity types),
+    // each a value of BuiltInRegistries.BLOCK_ENTITY_TYPE (the registry
+    // whose values make a block entity of a position and a state) named by
+    // the registry's getKey (its method of a value that names every value
+    // "namespace:path"). A state is drawn through the renderer of the type
+    // that is valid for it (BlockEntityType.isValid).
+    Object entityRegistry = only("BuiltInRegistries.BLOCK_ENTITY_TYPE", builtInRegistries.stream().filter((candidate) -> {
+      if (!(candidate instanceof Iterable<?> values) || !values.iterator().hasNext()) return false;
+      return List.of(values.iterator().next().getClass().getMethods()).stream().anyMatch((method) -> !Modifier.isStatic(method.getModifiers())
+        && List.of(method.getParameterTypes()).equals(List.of(blockPos, blockState)));
+    }).toList());
+    Class<?> entityType = ((Iterable<?>) entityRegistry).iterator().next().getClass();
+    Method isValid = only("BlockEntityType.isValid", List.of(entityType.getMethods()).stream().filter((method) -> !Modifier.isStatic(method.getModifiers())
+      && method.getReturnType() == boolean.class && List.of(method.getParameterTypes()).equals(List.of(blockState))).toList());
+    Method getKey = only("Registry.getKey", List.of(entityRegistry.getClass().getMethods()).stream().filter((method) -> {
+      if (Modifier.isStatic(method.getModifiers()) || method.getParameterCount() != 1 || method.getParameterTypes()[0] != Object.class || method.getReturnType().isPrimitive()) return false;
+      for (Object value : (Iterable<?>) entityRegistry) {
+        try {
+          Object key = method.invoke(entityRegistry, value);
+          if (key == null || !key.toString().matches("[a-z0-9_.-]+:[a-z0-9_./-]+")) return false;
+        } catch (ReflectiveOperationException | RuntimeException error) {
+          return false;
+        }
+      }
+      return true;
+    }).toList());
+    String entityTypeDescriptor = entityType.descriptorString();
+    ClassModel renderersClass = only("BlockEntityRenderers", classes.stream().filter((model) -> model.fields().stream()
+      .anyMatch((field) -> field.flags().has(AccessFlag.STATIC) && field.fieldTypeSymbol().descriptorString().equals("Ljava/util/Map;"))
+      && model.methods().stream().anyMatch((method) -> method.methodName().stringValue().equals("<clinit>") && method.code().orElseThrow().elementStream()
+        .anyMatch((element) -> element instanceof FieldInstruction field && field.opcode() == java.lang.classfile.Opcode.GETSTATIC
+          && field.typeSymbol().descriptorString().equals(entityTypeDescriptor)))).toList());
+    Field providers = only("BlockEntityRenderers's providers", List.of(load(renderersClass).getDeclaredFields()).stream()
+      .filter((field) -> Modifier.isStatic(field.getModifiers()) && field.getType() == Map.class).toList());
+    providers.setAccessible(true);
+    this.providers = (Map<?, ?>) providers.get(null);
+    List<Object> drawn = new ArrayList<>(this.providers.keySet());
+    createBlockEntity = only("BlockEntityType.create", List.of(entityType.getMethods()).stream().filter((method) -> !Modifier.isStatic(method.getModifiers())
+      && List.of(method.getParameterTypes()).equals(List.of(blockPos, blockState))).toList());
+    stateTypes = new Object[states.size()];
+    renderers = new String[states.size()];
+    for (int id = 0; id < states.size(); id++) {
+      String found = "-";
+      for (Object type : drawn) {
+        if (!(boolean) isValid.invoke(type, states.get(id))) continue;
+        if (!found.equals("-")) throw new IllegalStateException(names.get(id) + " is valid for more than one block entity type");
+        found = getKey.invoke(entityRegistry, type).toString();
+        stateTypes[id] = type;
+      }
+      renderers[id] = found;
+    }
+
     // ItemTintSources: the class with a static Codec that names every tint
     // source type the item definitions use; ItemTintSource.calculate,
     // the one abstract method of its codec's type; its stack's MAP_CODEC,
@@ -415,7 +484,7 @@ public class McbenchClient {
 
   void writeLayers(Path target) throws Exception {
     var lines = new ArrayList<>(layerLines);
-    for (int id = 0; id < names.size(); id++) lines.add(names.get(id) + "\t" + layerStates.get(id));
+    for (int id = 0; id < names.size(); id++) lines.add(names.get(id) + "\t" + layerStates.get(id) + "\t" + renderers[id]);
     write(target, lines);
   }
 
@@ -564,6 +633,29 @@ public class McbenchClient {
   // As McbenchBlockTable names a state.
   static String name(Object state) {
     return state.toString().replaceFirst("^Block\\{([^}]*)\\}", "$1");
+  }
+
+  // The client's Font catches com.ibm.icu.text.ArabicShapingException where it
+  // shapes right-to-left text, and the JVM resolves that type when it links
+  // Font; the client's own libraries hold ICU, the server's (which this runs
+  // on) do not. The exception, defined here as an Exception of that name, is
+  // all that linking asks: the text the block entity renderers lay out at
+  // rest (a sign's, empty) is never shaped (McbenchBlockEntities).
+  static final class IcuLinkage extends ClassLoader {
+    static final String NAME = "com.ibm.icu.text.ArabicShapingException";
+
+    IcuLinkage() {
+      super(ClassLoader.getPlatformClassLoader());
+    }
+
+    @Override protected Class<?> findClass(String name) throws ClassNotFoundException {
+      if (!name.equals(NAME)) throw new ClassNotFoundException(name);
+      ClassDesc self = ClassDesc.of(NAME), exception = ClassDesc.of("java.lang.Exception");
+      byte[] bytes = ClassFile.of().build(self, (type) -> type.withSuperclass(exception).withFlags(AccessFlag.PUBLIC)
+        .withMethodBody("<init>", MethodTypeDesc.of(ClassDesc.ofDescriptor("V")), AccessFlag.PUBLIC.mask(),
+          (code) -> code.aload(0).invokespecial(exception, "<init>", MethodTypeDesc.of(ClassDesc.ofDescriptor("V"))).return_()));
+      return defineClass(name, bytes, 0, bytes.length);
+    }
   }
 
   static <T> T only(String what, List<T> found) {

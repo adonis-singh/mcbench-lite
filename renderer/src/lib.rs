@@ -27,6 +27,15 @@
 //   draw_indexed(x, z) -> status      the output is tile x, z indexed for the
 //       GPU (prbm::write_indexed): the same triangles, groups and corner
 //       bytes, a quad's repeated corners stored once
+//   lone(ptr, len, culled) -> status  the output is the faces the tile
+//       mesher draws of the models of the state named (UTF-8, as Minecraft
+//       names it, "id[name=value,...]") alone in air, those with a
+//       cullface toward `culled` hidden (mesh::lone): its models' faces,
+//       then what Minecraft's block entity renderer draws of it, each list
+//       u32 n, then n triangles, each f32 x9 corner positions (blocks), f32
+//       x6 uvs, f32 x3 colour and i32 material (the map's texture); then
+//       i32 x3, the step to the block's other half (mesh::partner); needs
+//       only the pack
 //   snapshot(x, z) -> status          the output is what tile x, z reads of
 //       the world (World::snapshot), for another module to draw it
 //   draw_snapshot(ptr, len) -> status the output is a snapshot's tile,
@@ -214,6 +223,43 @@ unsafe fn draw_with(x: i32, z: i32, write: fn(&Tile, &mut Vec<u8>)) -> i32 {
     let tile = &mut *std::ptr::addr_of_mut!(TILE);
     mesh::tile(pack, world, x, z, tile);
     write(tile, &mut *std::ptr::addr_of_mut!(OUTPUT));
+    0
+}
+
+/// # Safety
+/// `ptr`, `len` must come from `alloc`.
+#[no_mangle]
+pub unsafe extern "C" fn lone(ptr: *mut u8, len: usize, culled: u32) -> i32 {
+    let name = take(ptr, len);
+    let pack = match pack() {
+        Ok(pack) => pack,
+        Err(error) => return fail(error),
+    };
+    let state = match std::str::from_utf8(&name).map_err(|_| "A block state's name is not UTF-8".to_string()).and_then(|name| pack.named(name)) {
+        Ok(state) => state,
+        Err(error) => return fail(error),
+    };
+    if culled > 63 {
+        return fail(format!("Not a set of directions: {culled}"));
+    }
+    let tile = &mut *std::ptr::addr_of_mut!(TILE);
+    let mut entities = Tile::new();
+    mesh::lone(pack, state, culled as u8, tile, &mut entities);
+    let out = &mut *std::ptr::addr_of_mut!(OUTPUT);
+    out.clear();
+    for drawn in [&*tile, &entities] {
+        out.extend_from_slice(&(drawn.size as u32).to_le_bytes());
+        for face in 0..drawn.size {
+            let floats = drawn.position[face * 9..face * 9 + 9].iter().chain(&drawn.uv[face * 6..face * 6 + 6]).chain(&drawn.color[face * 3..face * 3 + 3]);
+            for value in floats {
+                out.extend_from_slice(&value.to_le_bytes());
+            }
+            out.extend_from_slice(&drawn.material[face].to_le_bytes());
+        }
+    }
+    for step in mesh::partner(pack, state) {
+        out.extend_from_slice(&step.to_le_bytes());
+    }
     0
 }
 

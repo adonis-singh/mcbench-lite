@@ -21,6 +21,8 @@ import de.bluecolored.bluemap.core.world.World;
 import de.bluecolored.bluemap.core.world.biome.Biome;
 import de.bluecolored.bluemap.core.map.hires.block.LiquidModelRenderer;
 import de.bluecolored.bluemap.core.map.hires.block.ResourceModelRenderer;
+import de.bluecolored.bluemap.core.map.hires.block.BlockStateModelRenderer;
+import de.bluecolored.bluemap.core.map.hires.TileModelView;
 import de.bluecolored.bluemap.core.resources.pack.resourcepack.model.Model;
 import de.bluecolored.bluemap.core.util.Direction;
 import de.bluecolored.bluemap.core.world.BlockProperties;
@@ -65,9 +67,16 @@ import java.util.function.Predicate;
 // McbenchBake made, whose texture list the tiles index), with this file
 // compiled together with server/McbenchBake.java:
 //   java -cp <bluemap cli jar>:<classes> McbenchBlueMapReference --patch <folder>
-//   java -cp <folder>:<bluemap cli jar>:<classes> McbenchBlueMapReference <minecraft version> <block table tsv> <the world's biome>
+//   java -cp <folder>:<bluemap cli jar>:<classes> McbenchBlueMapReference <minecraft version> <block table tsv> <the world's biome> <client jar>
 // It draws the blocks Minecraft's client tints in the client's colours, as
-// the bake does (McbenchBake.minecraftColors, from the bake's tints.tsv).
+// the bake does (McbenchBake.minecraftColors, from the bake's tints.tsv). A
+// block Minecraft draws through a block entity renderer is drawn as the bake
+// gives it to the mesher: by Minecraft's own blockstate and models (the
+// client jar read by BlueMap without its resource extensions) and then the
+// quads Minecraft's renderer draws, read from the bake's pack
+// (web/mcbench-pack.bin), lit by the block's cell or the brighter of a
+// double block's two (Minecraft.entity, which --patch has BlueMap's
+// BlockStateModelRenderer call after a state's models).
 // Where BlueMap's renderer asks its own block flags, it asks what Minecraft
 // says, as the mesher does (Minecraft, from the block table): --patch writes
 // BlueMap's ResourceModelRenderer and LiquidModelRenderer into <folder>, each
@@ -94,6 +103,25 @@ public class McbenchBlueMapReference {
       biome = service.loadDataPack(List.of()).getBiome(Key.parse(args[2]));
     }
     McbenchBake.minecraftColors(resources, Path.of("tints.tsv"));
+    Minecraft.entities = Entities.read(Path.of("web/mcbench-pack.bin"));
+    var vanilla = new ResourcePack(resources.getPackVersion());
+    vanilla.loadResources(List.of(Path.of(args[3])));
+    for (String id : Minecraft.entities.blocks) {
+      Key key = Key.parse(id);
+      var blockState = vanilla.getBlockStates().get(key);
+      if (blockState == null) {
+        resources.getBlockStates().remove(key);
+        continue;
+      }
+      resources.getBlockStates().put(key, blockState);
+      var sets = new ArrayList<de.bluecolored.bluemap.core.resources.pack.resourcepack.blockstate.VariantSet>();
+      if (blockState.getVariants() != null) sets.addAll(List.of(blockState.getVariants().getVariants()));
+      if (blockState.getMultipart() != null) sets.addAll(List.of(blockState.getMultipart().getParts()));
+      for (var set : sets) for (var variant : set.getVariants()) {
+        Key model = variant.getModel().getKey();
+        if (vanilla.getModels().get(model) != null) resources.getModels().put(model, vanilla.getModels().get(model));
+      }
+    }
     TextureGallery gallery;
     try (var in = Files.newInputStream(Path.of("web/maps/live/textures.json"))) { gallery = TextureGallery.readTexturesFile(in); }
     var table = BlockTable.read(Path.of(args[1]));
@@ -197,6 +225,14 @@ public class McbenchBlueMapReference {
         code.with(element);
       }
     }, Map.of("isSameLiquid", 1, "isCulling", 1));
+    ClassDesc state = ClassDesc.of(BlockState.class.getName()), view = ClassDesc.of(TileModelView.class.getName());
+    write(folder, BlockStateModelRenderer.class, Map.of("renderModel", 4), (method, counts) -> (code, element) -> {
+      if (element instanceof java.lang.classfile.instruction.ReturnInstruction) {
+        code.aload(1).aload(2).aload(3).invokestatic(minecraft, "entity", MethodTypeDesc.of(ClassDesc.ofDescriptor("V"), neighbourhood, state, view));
+        counts.merge("return", 1, Integer::sum);
+      }
+      code.with(element);
+    }, Map.of("return", 2));
   }
 
   interface Patch {
@@ -229,6 +265,38 @@ public class McbenchBlueMapReference {
   // state as BlueprintWorld builds it).
   public static final class Minecraft {
     static BlockTable table;
+    static Entities entities;
+
+    // After a state's models, the quads Minecraft's block entity renderer
+    // draws of it, as renderer/'s Draw::entity draws them: unculled,
+    // unshaded, in the sky and block light of the block's cell, the brighter
+    // of each where the other half of a double block is the same block.
+    public static void entity(BlockNeighborhood block, BlockState state, TileModelView view) {
+      Entities.Drawn drawn = entities.of(state);
+      if (drawn == null) return;
+      var light = block.getLightData();
+      int sky = light.getSkyLight(), glow = light.getBlockLight();
+      if (drawn.partner()[0] != 0 || drawn.partner()[1] != 0 || drawn.partner()[2] != 0) {
+        ExtendedBlock other = block.getNeighborBlock(drawn.partner()[0], drawn.partner()[1], drawn.partner()[2]);
+        if (other.getBlockState().getId().equals(state.getId())) {
+          sky = Math.max(sky, other.getLightData().getSkyLight());
+          glow = Math.max(glow, other.getLightData().getBlockLight());
+        }
+      }
+      var own = new TileModelView(view.getTileModel()).initialize();
+      var tile = own.getTileModel();
+      for (Entities.Quad quad : drawn.quads()) {
+        float[] p = quad.corners(), uv = quad.uv();
+        int face = own.add(2);
+        tile.setPositions(face, p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7], p[8]);
+        tile.setPositions(face + 1, p[0], p[1], p[2], p[6], p[7], p[8], p[9], p[10], p[11]);
+        tile.setUvs(face, uv[0], uv[1], uv[2], uv[3], uv[4], uv[5]);
+        tile.setUvs(face + 1, uv[0], uv[1], uv[4], uv[5], uv[6], uv[7]);
+        for (int f = face; f < face + 2; f++) {
+          tile.setAOs(f, 1, 1, 1).setColor(f, quad.color()[0], quad.color()[1], quad.color()[2]).setSunlight(f, sky).setBlocklight(f, glow).setMaterialIndex(f, quad.texture());
+        }
+      }
+    }
 
     static int id(BlockState state) {
       return table.ids.get(state);
@@ -278,6 +346,144 @@ public class McbenchBlueMapReference {
   // skipRendering classes, fluid's state id, whether it shades the faces
   // beside it and its emission; whether each ordered pair of cull shapes
   // hides a face, and the skipRendering classes' masks.
+  // The block entity quads of the bake's pack (McbenchBake.java's format,
+  // version 5), by state as BlueMap names it: each state's entity variant's
+  // mesh and step to its other half.
+  static final class Entities {
+    record Quad(float[] corners, float[] uv, int texture, float[] color) {}
+    record Drawn(List<Quad> quads, int[] partner) {}
+    record Property(String name, List<String> values) {}
+    record Block(int first, List<Property> properties) {}
+
+    final Map<String, Block> byId = new HashMap<>();
+    final Set<String> blocks = new java.util.TreeSet<>();
+    int[] selection;
+    List<int[]> selections = new ArrayList<>(), sets = new ArrayList<>();
+    List<Object[]> variants = new ArrayList<>();
+    List<List<Quad>> meshes = new ArrayList<>();
+
+    Drawn of(BlockState state) {
+      Block block = byId.get(state.getId().getFormatted());
+      if (block == null) return null;
+      int index = 0;
+      for (Property property : block.properties()) {
+        String value = state.getProperties().get(property.name());
+        index = index * property.values().size() + property.values().indexOf(value);
+      }
+      int chosen = selection[block.first() + index];
+      if (chosen < 0) return null;
+      for (int set : selections.get(chosen)) for (int variant : sets.get(set)) {
+        Object[] entry = variants.get(variant);
+        if (entry != null) return new Drawn(meshes.get((Integer) entry[0]), (int[]) entry[1]);
+      }
+      return null;
+    }
+
+    // Moves past `count` bytes (counted before the move).
+    static void skip(java.nio.ByteBuffer in, int count) {
+      in.position(in.position() + count);
+    }
+
+    static Entities read(Path file) throws IOException {
+      var in = java.nio.ByteBuffer.wrap(Files.readAllBytes(file)).order(java.nio.ByteOrder.LITTLE_ENDIAN);
+      var entities = new Entities();
+      byte[] magic = new byte[4];
+      in.get(magic);
+      if (!new String(magic).equals("MCBP") || in.getInt() != 5) throw new IOException("Not a version 5 baked pack");
+      java.util.function.Supplier<String> str = () -> { byte[] b = new byte[Short.toUnsignedInt(in.getShort())]; in.get(b); return new String(b, java.nio.charset.StandardCharsets.UTF_8); };
+      for (int n = in.getInt(), i = 0; i < n; i++) {
+        String id = str.get();
+        int first = in.getInt();
+        var properties = new ArrayList<Property>();
+        for (int p = Byte.toUnsignedInt(in.get()); p > 0; p--) {
+          String name = str.get();
+          in.get();
+          var values = new ArrayList<String>();
+          for (int v = Byte.toUnsignedInt(in.get()); v > 0; v--) values.add(str.get());
+          properties.add(new Property(name, values));
+        }
+        entities.byId.put(id, new Block(first, properties));
+      }
+      int states = in.getInt();
+      entities.selection = new int[states];
+      for (int i = 0; i < states; i++) {
+        skip(in, 14);
+        entities.selection[i] = in.getInt();
+      }
+      skip(in, in.getInt() * 6);
+      int shapes = Short.toUnsignedInt(in.getShort());
+      skip(in, (shapes * shapes + 7) / 8);
+      skip(in, in.getInt() * 12);
+      int cullShapes = Short.toUnsignedInt(in.getShort());
+      skip(in, (cullShapes * cullShapes + 7) / 8);
+      for (int rows = Short.toUnsignedInt(in.getShort()); rows > 0; rows--) {
+        in.getShort();
+        skip(in, Short.toUnsignedInt(in.getShort()));
+      }
+      skip(in, 13);
+      var tints = new ArrayList<float[]>();
+      for (int n = in.getInt(); n > 0; n--) tints.add(new float[] { in.getFloat(), in.getFloat(), in.getFloat() });
+      skip(in, in.getInt() * 48); // matrices
+      skip(in, in.getInt() * 81); // direction tables
+      for (int n = in.getInt(); n > 0; n--) { // elements
+        skip(in, 32);
+        skip(in, Byte.toUnsignedInt(in.get()) * 39);
+      }
+      for (int n = in.getInt(); n > 0; n--) { // meshes
+        in.get();
+        skip(in, Short.toUnsignedInt(in.getShort()) * 4);
+      }
+      for (int n = in.getInt(); n > 0; n--) {
+        int kind = in.get();
+        if (kind == 1) { skip(in, 13); entities.variants.add(null); }
+        else if (kind == 2) { skip(in, 8); entities.variants.add(null); }
+        else if (kind == 3) entities.variants.add(new Object[] { in.getInt(), new int[] { in.get(), in.get(), in.get() } });
+        else entities.variants.add(null);
+      }
+      for (int n = in.getInt(); n > 0; n--) {
+        in.getDouble();
+        int[] list = new int[Short.toUnsignedInt(in.getShort())];
+        for (int i = 0; i < list.length; i++) { in.getDouble(); list[i] = in.getInt(); }
+        entities.sets.add(list);
+      }
+      for (int n = in.getInt(); n > 0; n--) {
+        int[] list = new int[Short.toUnsignedInt(in.getShort())];
+        for (int i = 0; i < list.length; i++) list[i] = in.getInt();
+        entities.selections.add(list);
+      }
+      var quadShapes = new ArrayList<float[][]>();
+      for (int n = in.getInt(); n > 0; n--) {
+        float[] corners = new float[12], uv = new float[8];
+        for (int i = 0; i < 12; i++) corners[i] = in.getFloat();
+        for (int i = 0; i < 8; i++) uv[i] = in.getFloat();
+        quadShapes.add(new float[][] { corners, uv });
+      }
+      var pool = new ArrayList<Quad>();
+      for (int n = in.getInt(); n > 0; n--) {
+        float[][] shape = quadShapes.get(in.getInt());
+        int texture = in.getInt();
+        pool.add(new Quad(shape[0], shape[1], texture, tints.get(in.getInt())));
+      }
+      for (int n = in.getInt(); n > 0; n--) {
+        var quads = new ArrayList<Quad>();
+        for (int q = in.getInt(); q > 0; q--) quads.add(pool.get(in.getInt()));
+        entities.meshes.add(quads);
+      }
+      // The blocks some state of which draws quads.
+      for (var entry : entities.byId.entrySet()) {
+        Block block = entry.getValue();
+        int count = 1;
+        for (Property property : block.properties()) count *= property.values().size();
+        for (int i = 0; i < count; i++) {
+          int chosen = entities.selection[block.first() + i];
+          if (chosen < 0) continue;
+          for (int set : entities.selections.get(chosen)) for (int variant : entities.sets.get(set)) if (entities.variants.get(variant) != null) entities.blocks.add(entry.getKey());
+        }
+      }
+      return entities;
+    }
+  }
+
   static final class BlockTable {
     final Map<String, Map<String, String>> defaults = new HashMap<>();
     final Map<String, int[]> light = new HashMap<>(); // emission, lightBlock, then the face shapes down, up, north, south, west, east

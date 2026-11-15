@@ -7,7 +7,9 @@ const vm = require('node:vm');
 // The see_build viewer (web/viewer.js) with deepslate itself, over a stand-in
 // WebGL context that keeps what each buffer was given, reading `states`
 // (a BlockStates), `tints` (a BlockTints of them) and the page's `assets` (by
-// file name under /api/assets/).
+// file name under /api/assets/), and, given `live` ({ wasm, pack, textures:
+// the map's texture names }), the live viewer's mesher module, pack and
+// texture list. `fetched` collects every address asked.
 const ROOT = path.join(__dirname, '..', '..');
 
 // A WebGL context that does nothing but keep each buffer's data.
@@ -40,7 +42,7 @@ function fakeGl(canvas) {
 // Loads the viewer into this process (once per test file); resolves with
 // open(), which makes a viewer and gives it with what it holds: the world,
 // deepslate's chunks, what a frame draws, and the buffers alive.
-async function viewerHarness(states, assets, tints) {
+async function viewerHarness(states, assets, tints, live = null, fetched = []) {
   let captured;
   const deepslate = require(path.join(ROOT, 'node_modules', 'deepslate', 'dist', 'deepslate.umd.cjs'));
   // The renderer and the world it draws, as the viewer makes them.
@@ -51,10 +53,22 @@ async function viewerHarness(states, assets, tints) {
     }
   }
   globalThis.deepslate = { ...deepslate, StructureRenderer };
-  const binary = { '/api/block-states': states, '/api/block-tints': tints };
-  globalThis.fetch = async (url) => (binary[url]
-    ? { arrayBuffer: async () => { const bytes = binary[url].bytes(); return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.length); } }
-    : { json: async () => assets[url.slice('/api/assets/'.length)] });
+  const binary = { '/api/block-states': () => states.bytes(), '/api/block-tints': () => tints.bytes() };
+  const json = {};
+  if (live) {
+    binary['/live/mesher.wasm'] = () => live.wasm;
+    binary['/live/pack.bin'] = () => live.pack;
+    json['/api/minecraft/status'] = { mesher: { wasm: '/live/mesher.wasm', pack: '/live/pack.bin' }, viewerUrl: '/live/' };
+    json['/live/maps/live/textures.json'] = live.textures.map((resourcePath) => ({ resourcePath }));
+  }
+  const copy = (bytes) => bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.length);
+  globalThis.fetch = async (url) => {
+    fetched.push(url);
+    if (binary[url]) return { ok: true, arrayBuffer: async () => copy(binary[url]()) };
+    if (json[url]) return { ok: true, json: async () => json[url] };
+    if (!url.startsWith('/api/assets/')) return { ok: false, status: 404 };
+    return { ok: true, json: async () => assets[url.slice('/api/assets/'.length)] };
+  };
   globalThis.Image = class {
     constructor() { this.width = 32; this.height = 16; }
     set src(_) { queueMicrotask(() => this.onload()); }
@@ -67,9 +81,10 @@ async function viewerHarness(states, assets, tints) {
       }),
     }),
   };
-  globalThis.__viewer = { light: await import('../../web/light.mjs'), glMatrix: require('gl-matrix') };
+  globalThis.__viewer = { light: await import('../../web/light.mjs'), mesher: await import('../../web/mesher.mjs'), glMatrix: require('gl-matrix') };
   const source = fs.readFileSync(path.join(ROOT, 'web', 'viewer.js'), 'utf8')
     .replace(/^import (\{.*\}) from '\.\/light\.mjs';$/m, 'const $1 = globalThis.__viewer.light;')
+    .replace(/^import (\{.*\}) from '\.\/mesher\.mjs';$/m, 'const $1 = globalThis.__viewer.mesher;')
     .replace(/^import (\{.*\}) from '\/vendor\/gl-matrix\/index\.js';$/m, 'const $1 = globalThis.__viewer.glMatrix;')
     .replace('export async function createViewer', 'globalThis.__viewer.createViewer = async function createViewer');
   vm.runInThisContext(source, { filename: 'viewer.js' });

@@ -119,6 +119,7 @@ window.__shot = {
       if (done) break;
     }
     viewer.applyDelta({ bounds: meta.bounds, chunks: [], removed: [] });
+    await viewer.prepare();
   },
 
   settle() {

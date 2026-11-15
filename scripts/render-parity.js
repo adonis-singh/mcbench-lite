@@ -70,7 +70,7 @@ async function bake(blockTable) {
   writeFiles(FOLDER, configFiles(path.join(blueMap.root, 'data')));
   const classes = path.join(FOLDER, 'classes');
   execFileSync(JAVAC, ['-proc:none', '-classpath', blueMap.jar, '-d', classes,
-    ...['McbenchBake.java', 'McbenchEntityAssets.java', 'McbenchClient.java'].map((name) => path.join(ROOT, 'server', name)), path.join(__dirname, 'McbenchBlueMapReference.java')], { stdio: 'inherit' });
+    ...['McbenchBake.java', 'McbenchEntityAssets.java', 'McbenchClient.java', 'McbenchBlockEntities.java'].map((name) => path.join(ROOT, 'server', name)), path.join(__dirname, 'McbenchBlueMapReference.java')], { stdio: 'inherit' });
   const classpath = [blueMap.jar, classes].join(path.delimiter);
   const flowTable = path.join(FOLDER, 'flow-angles.bin');
   const started = Date.now();
@@ -83,7 +83,7 @@ async function bake(blockTable) {
   // block flags, as the mesher culls and shades (McbenchBlueMapReference.patch).
   const patched = path.join(FOLDER, 'patched');
   execFileSync(JAVA, ['-cp', classpath, 'McbenchBlueMapReference', '--patch', patched], { stdio: 'inherit' });
-  const java = spawn(JAVA, ['-Xmx4G', '-cp', [patched, classpath].join(path.delimiter), 'McbenchBlueMapReference', MC_VERSION, blockTable, BIOME], { cwd: FOLDER, stdio: ['pipe', 'pipe', 'inherit'] });
+  const java = spawn(JAVA, ['-Xmx4G', '-cp', [patched, classpath].join(path.delimiter), 'McbenchBlueMapReference', MC_VERSION, blockTable, BIOME, path.join(blueMap.root, 'data', `minecraft-client-${MC_VERSION}.jar`)], { cwd: FOLDER, stdio: ['pipe', 'pipe', 'inherit'] });
   const replies = readline.createInterface({ input: java.stdout })[Symbol.asyncIterator]();
   let drawn = 0;
   // Every tile BlueMap draws for `blueprint` (bytes) under `mask`, as
@@ -300,6 +300,39 @@ const FIXTURES = {
       ['minecraft:daylight_detector', { inverted: 'false', power: '0' }], ['minecraft:scaffolding', { bottom: 'false', distance: '0', waterlogged: 'false' }],
       ['minecraft:big_dripleaf', { facing: 'north', tilt: 'partial', waterlogged: 'false' }], ['minecraft:sea_pickle', { pickles: '3', waterlogged: 'false' }]);
     grid(world, items);
+  },
+  // Blocks Minecraft draws through block entity renderers (the quads
+  // McbenchBlockEntities captured): double chests and beds whose halves are
+  // lit differently (a glowstone and a roof beside one half), every facing
+  // of a shulker box, heads, statues, books.
+  'block-entities'(world) {
+    const items = [];
+    for (const chest of ['chest', 'trapped_chest', 'copper_chest', 'oxidized_copper_chest']) for (const facing of FACINGS) items.push([`minecraft:${chest}`, { facing, type: 'single', waterlogged: 'false' }]);
+    for (const facing of ['up', 'down', 'north', 'south', 'west', 'east']) items.push(['minecraft:lime_shulker_box', { facing }]);
+    for (const head of ['skeleton_skull', 'wither_skeleton_skull', 'zombie_head', 'player_head', 'creeper_head', 'dragon_head', 'piglin_head']) {
+      items.push([`minecraft:${head}`, { rotation: '3', powered: 'false' }]);
+      items.push([`minecraft:${head.replace(/_(skull|head)$/, '_wall_$1')}`, { facing: 'east', powered: 'false' }]);
+    }
+    for (const pose of ['standing', 'sitting', 'running', 'star']) items.push(['minecraft:weathered_copper_golem_statue', { copper_golem_pose: pose, facing: 'west', waterlogged: 'false' }]);
+    items.push(['minecraft:lectern', { facing: 'north', has_book: 'true', powered: 'false' }], ['minecraft:enchanting_table'], ['minecraft:conduit', { waterlogged: 'false' }],
+      ['minecraft:decorated_pot', { facing: 'east', cracked: 'false', waterlogged: 'false' }], ['minecraft:blue_wall_banner', { facing: 'west' }], ['minecraft:birch_wall_sign', { facing: 'south', waterlogged: 'false' }],
+      ['minecraft:spruce_wall_hanging_sign', { facing: 'north', waterlogged: 'false' }]);
+    for (const attachment of ['floor', 'ceiling', 'double_wall']) items.push(['minecraft:bell', { facing: 'north', attachment, powered: 'false' }]);
+    grid(world, items);
+    // Pairs, one half under a roof beside a glowstone.
+    FACINGS.forEach((facing, i) => {
+      const x = i * 4, z = 60;
+      // A left half's other is clockwise of its facing (ChestBlock.getConnectedDirection).
+      const step = { north: [1, 0], south: [-1, 0], west: [0, -1], east: [0, 1] }[facing];
+      world.set(x, 1, z, 'minecraft:chest', { facing, type: 'left', waterlogged: 'false' });
+      world.set(x + step[0], 1, z + step[1], 'minecraft:chest', { facing, type: 'right', waterlogged: 'false' });
+      world.set(x, 1, z + 8, 'minecraft:red_bed', { facing, part: 'foot', occupied: 'false' });
+      const [dx, dz] = { north: [0, -1], south: [0, 1], west: [-1, 0], east: [1, 0] }[facing];
+      world.set(x + dx, 1, z + 8 + dz, 'minecraft:red_bed', { facing, part: 'head', occupied: 'false' });
+      world.set(x, 2, z, 'minecraft:stone');
+      world.set(x, 2, z + 8, 'minecraft:stone');
+      world.set(x - 1, 1, z - 1, 'minecraft:glowstone');
+    });
   },
   liquids(world) {
     for (let level = 0; level < 16; level += 1) {

@@ -58,10 +58,12 @@ function blockTable(states, { shapes = 2, pairs = [], skips = [], cullShapes = 2
 }
 
 // Render layers in McbenchClient.java's format for such states: a
-// state's model is drawn blended if `blended`, its fluid if `fluidBlended`.
+// state's model is drawn blended if `blended`, its fluid if `fluidBlended`,
+// and it is drawn through the block entity renderer of `renderer` (a block
+// entity type) if one is given.
 function renderLayers(states) {
   const lines = ['layer\tOPAQUE\t0', 'layer\tBLENDED\t1'];
-  for (const { name, blended = false, fluidBlended = false } of states) lines.push(`${name}\t${blended ? 1 : 0}\t${fluidBlended ? 1 : 0}`);
+  for (const { name, blended = false, fluidBlended = false, renderer = '-' } of states) lines.push(`${name}\t${blended ? 1 : 0}\t${fluidBlended ? 1 : 0}\t${renderer}`);
   return `${lines.join('\n')}\n`;
 }
 
