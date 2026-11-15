@@ -958,6 +958,22 @@ function revert(conversation, messageId) {
   return target;
 }
 
+// An edited prompt: the chat goes back to before prompt `messageId`, and
+// `append` adds the new version in its place. Stored whole or not at all;
+// one that fails drops the chat from `live`, as a failed save does. The
+// prompt it replaces, and everything after it, stay stored on their branch.
+function editPrompt(conversation, messageId, append) {
+  try {
+    database.transaction(() => {
+      revert(conversation, messageId);
+      append();
+    })();
+  } catch (error) {
+    live.delete(conversation.id);
+    throw error;
+  }
+}
+
 function archiveConversation(id) {
   const result = database.prepare(`
     UPDATE conversations SET archived_at = ? WHERE id = ? AND archived_at IS NULL
@@ -1467,14 +1483,17 @@ function benchChange(bench, members, change) {
   }
 }
 
-// Goes back to before round `index` of the line: every model sent it returns
-// to its world then, and the line ends at the round before. Returns those
-// models.
-function revertBenchRound(bench, index) {
+// An edited round: the line goes back to before round `index`, every model
+// sent it returns to its world then, and the new version of the round
+// (`content`, sent from the library prompts `links`) follows on the line.
+// The rounds after it stay stored, one branch switch away. Returns the
+// models that went back.
+function editBenchRound(bench, index, content, links) {
   const reverted = benchMembers(bench.id).filter((member) => prompts(member)[index]);
   benchChange(bench, reverted, () => {
     for (const member of reverted) revert(member, prompts(member)[index].id);
     setBenchHead(bench, bench.rounds[index].parentId);
+    appendRound(bench, content, links);
   });
   return reverted;
 }
@@ -1644,9 +1663,9 @@ function close() {
 
 module.exports = {
   createConversation, getConversation, appendMessage, dismissError, messagePayload, publicMessages, save, revert,
-  messageTree, activateBranch, setTitle, repeatsLatestRootPrompt,
+  messageTree, activateBranch, editPrompt, setTitle, repeatsLatestRootPrompt,
   archiveConversation, clearExpiredArchive, nextArchiveExpiry, listArchive, restoreConversation, restoreBench, deleteConversation, deleteBench, listConversations, promptTitles, listConversationIds, listBenchIds, markFinished, markSeen, close,
-  createBench, getBench, appendRound, revertBenchRound, followBenchBranch, retryBenchRound, revealBench, castVote, clearVote, voteCount, clearAllVotes, leaderboard, setBenchTitle, listBenches, benchMembers, archiveBench, forkConversation,
+  createBench, getBench, appendRound, editBenchRound, followBenchBranch, retryBenchRound, revealBench, castVote, clearVote, voteCount, clearAllVotes, leaderboard, setBenchTitle, listBenches, benchMembers, archiveBench, forkConversation,
   shareAttachment, benchProgress, endTurn, unansweredResult, endUnfinishedTurn, interruptUnfinished, INTERRUPTED, UNSAVED, search, collectChunks, persistWorld, reportReferences,
   saveImages, readImage, imageFile, saveAttachment, saveAttachments, discardAttachments, readAttachment, attachmentFile,
   IMAGES_DIR: imagesDir,

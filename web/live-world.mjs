@@ -18,6 +18,38 @@
 
 import { Changes, InputBlocks, emptyBlueprint, readBlueprint, readPatch } from './live-patch.mjs';
 
+// A standing player's eye height (Avatar.POSES, standing: 1.62f).
+const EYE_HEIGHT = Math.fround(1.62);
+
+// Where player mode starts the player in the box of a build, `min` to `max`
+// (blocks, inclusive), for a camera looking at `target` with heading
+// `rotation` (BlueMap's: it looks along sin rotation, -cos rotation across
+// the ground). What the camera looks at is taken into the build's footprint;
+// from there the line of sight back toward the camera leaves the footprint
+// at an edge, and the player is to stand half a block past it, at the
+// build's floor level (`near`, feet), looking at the middle of the
+// footprint along that line, at the build's middle height (`look`). So the
+// player starts at the side the person was looking from, before what they
+// were looking at, with the build ahead.
+export function besideBuild({ min, max }, target, rotation) {
+  const heading = [Math.sin(rotation), -Math.cos(rotation)];
+  const low = [min[0], min[2]];
+  const high = [max[0] + 1, max[2] + 1];
+  const seen = [0, 1].map((axis) => Math.min(Math.max(target[axis * 2], low[axis]), high[axis]));
+  // How far from `seen` along `direction` the footprint ends.
+  const exit = (direction) => Math.min(...[0, 1].map((axis) => {
+    if (direction[axis] > 0) return (high[axis] - seen[axis]) / direction[axis];
+    if (direction[axis] < 0) return (low[axis] - seen[axis]) / direction[axis];
+    return Infinity;
+  }));
+  const back = exit(heading.map((value) => -value));
+  const ahead = exit(heading);
+  const along = (distance) => [0, 1].map((axis) => seen[axis] + heading[axis] * distance);
+  const edge = along(-back - 0.5);
+  const middle = along((ahead - back) / 2);
+  return { near: [edge[0], min[1], edge[1]], look: [middle[0], (min[1] + max[1] + 1) / 2, middle[1]] };
+}
+
 const POLL_MS = 1000;
 const BUSY_POLL_MS = 50;
 const TICKS_DRAWN_MS = 250;
@@ -181,7 +213,6 @@ export class LiveWorld {
       viewerRevision: this.base?.number ?? null,
       viewerBlueprint: this.base?.url ?? null,
       viewerMask: view?.mask ?? null,
-      cameraHash: view?.cameraHash ?? null,
       bounds: view?.bounds ?? null,
       blockCount: view?.blockCount ?? null,
       layout: view?.layout ?? null,
@@ -608,16 +639,19 @@ export class LiveWorld {
     return turn;
   }
 
-  // Rejects when the player does not stand in the world on show: the spawn
-  // failed, or the world let the player go (another view, its engine gone)
-  // before the engine answered.
+  // `spawn` is where the player stands, { x, y, z, yaw, pitch, flying }, or
+  // { beside: { target, rotation } } for player mode's start: beside the
+  // build, where standBeside puts it for a camera looking at `target` with
+  // heading `rotation` (BlueMap's). Rejects when the player does not stand in
+  // the world on show: the spawn failed, or the world let the player go
+  // (another view, its engine gone) before the engine answered.
   spawnPlayer(spawn) {
     return this.playerTurn(async () => {
       const engine = this.shownEngine();
       if (this.player === 'none') this.playerTo('spawning');
       let view;
       try {
-        view = await engine.spawnPlayer(spawn);
+        view = await engine.spawnPlayer(spawn.beside ? await this.standBeside(engine, spawn.beside) : spawn);
       } catch (error) {
         if (this.player === 'spawning') this.playerTo('none');
         throw error;
@@ -626,6 +660,28 @@ export class LiveWorld {
       this.playerTo('standing', view);
       return view;
     });
+  }
+
+  // Where player mode stands the player as it starts, for a camera looking at
+  // `target` with heading `rotation`: on the open top of the build's column
+  // nearest the edge the camera looks across (besideBuild), standing as
+  // Minecraft lets a player stand up there (CoreWorld.standingSpot), facing
+  // the middle of the build. A build with no such top flies the player at
+  // that edge, at the build's floor level.
+  async standBeside(engine, { target, rotation }) {
+    const { yOffset } = this.state;
+    const { min, max } = this.base.view.bounds;
+    const box = { min: [min[0], min[1] + yOffset, min[2]], max: [max[0], max[1] + yOffset, max[2]] };
+    const { near, look } = besideBuild(box, target, rotation);
+    const spot = await engine.standingSpot(box.min, box.max, near);
+    const [x, y, z] = spot ?? near;
+    const [dx, dy, dz] = [look[0] - x, look[1] - (y + EYE_HEIGHT), look[2] - z];
+    return {
+      x, y, z,
+      yaw: Math.atan2(-dx, dz) * 180 / Math.PI,
+      pitch: -Math.atan2(dy, Math.hypot(dx, dz)) * 180 / Math.PI,
+      flying: spot === null,
+    };
   }
 
   // What the player holds, kept for a fresh placement to give its respawn

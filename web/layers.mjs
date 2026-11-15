@@ -1,11 +1,13 @@
 // The layers that open over the app, topmost first. style.css stacks them in
-// this order (.cmdk-overlay, .lightbox, .overlay, .viewer.full, .share-panel).
-// A modal layer takes the keyboard from the app under it; the viewer filling
-// the window, and the chat's Share panel, are still the app.
+// this order (.cmdk-overlay, .lightbox, .overlay, the narrow window's list
+// drawer, .viewer.full, .share-panel). A modal layer takes the keyboard from
+// the app under it; the viewer filling the window, and the chat's Share
+// panel, are still the app.
 export const LAYERS = [
   { id: 'command', modal: true },
   { id: 'lightbox', modal: true },
   { id: 'settings', modal: true },
+  { id: 'drawer', modal: true },
   { id: 'viewer', modal: false },
   { id: 'share', modal: false },
 ];
@@ -21,8 +23,9 @@ export function modalOpen(open) {
 }
 
 // Whether a bind's action runs now. The search bind opens and closes the
-// command panel, the topmost layer, from anywhere; every other bind acts on
-// the app, and waits while a modal layer covers it.
+// command panel, the topmost layer, from anywhere, and the sidebar bind
+// closes the drawer it opens; every other bind acts on the app, and waits
+// while a modal layer covers it.
 export function bindRuns(action, open) {
-  return action === 'search' || !modalOpen(open);
+  return action === 'search' || (action === 'sidebar' && topLayer(open) === 'drawer') || !modalOpen(open);
 }

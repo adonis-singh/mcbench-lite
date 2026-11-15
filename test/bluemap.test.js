@@ -8,20 +8,13 @@ const path = require('path');
 const { PassThrough } = require('stream');
 const { test } = require('node:test');
 
-const { BlueMap, cameraHash, renderMask } = require('../server/bluemap');
+const { BlueMap, renderMask } = require('../server/bluemap');
 
 function temporaryRoot(t) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'mcbench-lite-bluemap-test-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   return root;
 }
-
-test('camera links frame the active voxel build at its Minecraft height', () => {
-  assert.strictEqual(
-    cameraHash({ min: [-10, 2, 4], max: [9, 21, 23] }, 64),
-    '#live:0:76:14:50:0:0.47:0:0:perspective',
-  );
-});
 
 test('render masks leave growth room and have no height limit', () => {
   const initial = renderMask({ min: [0, 0, 0], max: [0, 0, 0] });

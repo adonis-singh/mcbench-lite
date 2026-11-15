@@ -7,6 +7,9 @@
 //   { kind: 'member', benchId, memberId }    one model's chat in a bench
 //   { kind: 'leaderboard' }
 //   { kind: 'prompt' }                       the prompt library
+//   { kind: 'missing', mode, id, address }   a chat or bench an address names
+//                                            that the lists do not have
+//                                            (address.mjs listedPlace)
 // Everything else that says where the page is derives from it (placeKeys).
 
 // The draft keys. A new chat's is the same before and after its row exists.
@@ -39,6 +42,8 @@ export function placeKeys(place, rounds) {
     case 'leaderboard':
     case 'prompt':
       return { mode: 'bench', chatId: null, viewKey: null, draftKey: null };
+    case 'missing':
+      return { mode: place.mode, chatId: null, viewKey: null, draftKey: null };
     default:
       throw new Error(`Unknown place: ${place.kind}`);
   }

@@ -21,6 +21,10 @@
 //       or null (CoreWorld.click)
 //   { id, type: 'player', spawn: { x, y, z, yaw, pitch, flying } | null }
 //       puts the creative player in the world (null removes it); answers { view }
+//   { id, type: 'stand', min, max, near }
+//       where a player can stand on top of the columns of the box min to max
+//       nearest to the feet position near; answers { spot }, the feet or null
+//       (CoreWorld.standingSpot)
 //   { id, type: 'player', input: { keys, taps, yaw, pitch } }
 //       what the player holds from the next tick on (the keys as flags: 1
 //       forward, 2 backward, 4 left, 8 right, 16 jump, 32 shift, 64 sprint,
@@ -185,6 +189,8 @@ async function handle(request) {
       if (world.refused === null) world.removePlayer();
       player = null;
       return [{}];
+    case 'stand':
+      return [{ spot: world.standingSpot(request.min, request.max, request.near) }];
     case 'state':
       return [{ text: world.state() }];
     case 'export': {

@@ -17,6 +17,7 @@ mod autojump;
 mod inside;
 mod motion;
 pub mod read;
+pub mod stand;
 mod vanilla;
 pub mod script;
 

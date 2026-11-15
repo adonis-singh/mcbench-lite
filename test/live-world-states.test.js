@@ -49,6 +49,7 @@ class FakeEngine extends Gates {
     this.placed = []; // what each placement was asked with
     // The worker's player, as the requests leave it in the order they were asked.
     this.player = false;
+    this.spot = null; // what standingSpot answers
   }
   async request(type, args, answer) {
     if (this.dead) throw this.dead;
@@ -78,6 +79,9 @@ class FakeEngine extends Gates {
     this.player = true;
     return this.request('spawn', [spawn.x, spawn], () => new Float64Array(28).fill(spawn.x));
   }
+  standingSpot(min, max, near) {
+    return this.request('stand', [min, max, near], () => this.spot);
+  }
   setPlayerInput(input) {
     const { player } = this;
     return this.request('playerInput', [input], () => { if (!player) throw new Error('The engine failed: There is no player in the world'); });
@@ -98,7 +102,7 @@ const DELTA = 'setblock 1 64 0 minecraft:stone\n';
 function fakeHost({ sleep = (ms) => new Promise((resolve) => setTimeout(resolve, Math.min(ms, 5))) } = {}) {
   const h = new Gates();
   Object.assign(h, {
-    server: { version: 1, core: 'core-a', mask: { minX: 0, maxX: 15, minZ: 0, maxZ: 15 }, blockCount: 1 },
+    server: { version: 1, core: 'core-a', mask: { minX: 0, maxX: 15, minZ: 0, maxZ: 15 }, blockCount: 1, bounds: { min: [0, 0, 0], max: [0, 0, 0] } },
     calls: [],
     engines: [],
     starts: 0,
@@ -112,9 +116,9 @@ function fakeHost({ sleep = (ms) => new Promise((resolve) => setTimeout(resolve,
       // A request takes a turn of the event loop, as one over the network does.
       await new Promise((resolve) => setImmediate(resolve));
       await h.pass(kind);
-      const { version, core, mask, blockCount } = h.server;
+      const { version, core, mask, blockCount, bounds } = h.server;
       if (kind === 'status') {
-        return { yOffset: 64, mesher: {}, core, coreError: null, view: key ? { version, mask, blockCount, bounds: { min: [0, 0, 0], max: [0, 0, 0] } } : null };
+        return { yOffset: 64, mesher: {}, core, coreError: null, view: key ? { version, mask, blockCount, bounds } : null };
       }
       if (h.importFails) throw new Error(h.importFails);
       const since = url.searchParams.has('since') ? Number(url.searchParams.get('since')) : null;
@@ -642,4 +646,24 @@ test('a first spawn that fails stands no one, and the player goes only where its
   assert.equal(live.player, 'none');
   assert.throws(() => live.playerTo('standing', new Float64Array(28)), /cannot go from none to standing/);
   assert.throws(() => live.playerTo('spawning', new Float64Array(28)), /A standing player, and only one, has a view/);
+});
+
+test('player mode stands the player on the spot the engine finds beside the build, facing its middle, or flies it at the edge when there is none', async (t) => {
+  const { live, h } = open(t);
+  h.server.bounds = { min: [0, 0, 0], max: [9, 2, 9] };
+  const engine = await running(live, h);
+  // A camera south of the build looking north at its middle (BlueMap's rotation 0).
+  engine.spot = [5.5, 65, 9.5];
+  await live.spawnPlayer({ beside: { target: [5, 70, 5], rotation: 0 } });
+  const [, min, max, near] = engine.calls.find(([type]) => type === 'stand');
+  assert.deepEqual([min, max, near], [[0, 64, 0], [9, 66, 9], [5, 64, 10.5]], 'the build\'s box as the engine holds it, and the edge before the camera at its floor');
+  const spawn = engine.calls.find(([type]) => type === 'spawn')[2];
+  assert.deepEqual([spawn.x, spawn.y, spawn.z, spawn.flying], [5.5, 65, 9.5, false]);
+  assert.ok(Math.abs(Math.abs(spawn.yaw) - 180) < 10, `facing north (yaw ${spawn.yaw})`);
+  assert.ok(spawn.pitch > 0 && spawn.pitch < 30, `looking a little down at the middle (pitch ${spawn.pitch})`);
+  // Nothing to stand on: flying at the edge, at the floor.
+  engine.spot = null;
+  await live.spawnPlayer({ beside: { target: [5, 70, 5], rotation: 0 } });
+  const flown = engine.calls.filter(([type]) => type === 'spawn')[1][2];
+  assert.deepEqual([flown.x, flown.y, flown.z, flown.flying], [5, 64, 10.5, true]);
 });

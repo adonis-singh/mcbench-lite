@@ -228,6 +228,27 @@ test('a restart keeps the player standing where it was, its look, flight and key
   assert.ok(views.at(-1).view[0] < before[0], `still moving forward (${views.at(-1).view[0]} from ${before[0]})`);
 });
 
+test('player mode stands the player on the build\'s ground before what the camera looks at, facing it, and it stays standing', async (t) => {
+  // A 9 by 9 floor with a roofed room in its middle.
+  const blocks = [];
+  for (let x = 0; x < 9; x += 1) for (let z = 0; z < 9; z += 1) blocks.push([x, 0, z, 'minecraft:stone']);
+  for (let x = 2; x < 7; x += 1) for (let y = 1; y < 4; y += 1) for (let z = 2; z < 7; z += 1) if (y === 3 || x % 4 === 2 || z % 4 === 2) blocks.push([x, y, z, 'minecraft:oak_planks']);
+  const world = build3(...blocks);
+  const { live } = open(t, () => ({ world, layout: null }));
+  const views = [];
+  live.onFrame(({ view }) => { if (view) views.push(Array.from(view)); });
+  await live.show('chat');
+  await until(() => live.ticks >= 1, 'a tick');
+  // The map camera south of the build, looking north at the room.
+  const view = Array.from(await live.spawnPlayer({ beside: { target: [4.5, 66, 4.5], rotation: 0 } }));
+  assert.deepStrictEqual(view.slice(0, 3), [4.5, 65, 8.5], 'on the floor, on the room\'s camera side, at the edge');
+  assert.strictEqual(view[17], 0, 'standing, not flying');
+  assert.ok(Math.abs(Math.abs(view[9]) - 180) < 1, `facing north (yaw ${view[9]})`);
+  await until(() => views.length >= 10, 'ticks with the player');
+  assert.deepStrictEqual(views.at(-1).slice(0, 3), [4.5, 65, 8.5], 'it stays where it stood');
+  assert.strictEqual(views.at(-1)[21], 1, 'on the ground');
+});
+
 test('an edit that reaches what the engine does not model stops the world with the reason; a restart places it afresh', async (t) => {
   let world = build3([0, 0, 0, 'minecraft:stone']);
   const { live } = open(t, () => ({ world, layout: null }));

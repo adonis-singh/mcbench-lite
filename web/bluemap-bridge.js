@@ -190,7 +190,7 @@
       return;
     }
     if (data.type === 'mcbench-lite:fly') {
-      fly(data.min, data.max);
+      fly(data.min, data.max, 700);
       return;
     }
     if (data.type === 'mcbench-lite:player') {
@@ -355,9 +355,8 @@
         linkTo('loading', null);
         var sync = await syncPromise;
         if (link !== mine) return;
-        if (mine.request.cameraHash && window.location.hash !== mine.request.cameraHash) {
-          window.location.hash = mine.request.cameraHash;
-        }
+        // Another chat's build is framed at once, as a turn frames it.
+        if (mine.request.frame) fly(mine.request.frame.min, mine.request.frame.max, 0);
         await sync.refresh(mine.request, { fresh: mine.request.fresh === true || mine.afresh });
         if (link !== mine) return;
         linkTo('shown', null);
@@ -486,25 +485,29 @@
     if (mode === 'changing' || !flyWaiting) return;
     var waiting = flyWaiting;
     flyWaiting = null;
-    fly(waiting.min, waiting.max);
+    fly(waiting.min, waiting.max, waiting.ms);
   }
 
   // Frames one build: the player is moved to look at it, any other camera
-  // flown to it. During a change of mode it waits, so nothing cancels
-  // BlueMap's move.
-  function fly(min, max) {
-    if (cameraMode === 'changing') flyWaiting = { min: min, max: max };
+  // flown to it over `ms` (0: placed at once). During a change of mode it
+  // waits, so nothing cancels BlueMap's move.
+  function fly(min, max, ms) {
+    if (cameraMode === 'changing') flyWaiting = { min: min, max: max, ms: ms };
     else if (cameraMode === 'player') teleportTo(min, max);
-    else flyTo(min, max);
+    else flyTo(min, max, ms);
   }
 
   // ---- camera: frame one build, whatever the controls ----
-  // The camera sits at position - direction * distance, looking at position.
-  // Map controls look at a point from a distance; free flight has no
-  // distance, so position is the eye. Either way the build's bounding sphere
-  // ends up filling the view, seen from the current heading.
+  // The one framing of a build: after a turn (flown to), on a chat opened
+  // (placed at once) and on a selection's focus. The camera sits at
+  // position - direction * distance, looking at position. Map controls look
+  // at a point from a distance; free flight has no distance, so position is
+  // the eye. Either way the build's bounding sphere ends up filling the
+  // view, seen from the current heading, looking down at it at an angle
+  // between 0.45 and 1.3 from straight down: a camera looking straight down
+  // (BlueMap's start) or level is tilted into that.
   var flight = null;
-  function flyTo(min, max) {
+  function flyTo(min, max, ms) {
     if (!overlay) return;
     var app = window.bluemap;
     var viewer = app.mapViewer;
@@ -516,12 +519,11 @@
     var horizontal = 2 * Math.atan(Math.tan(vertical / 2) * viewer.camera.aspect);
     // A fifth to spare keeps labels over builds at the edges in view.
     var distance = Math.max(radius / Math.sin(Math.min(vertical, horizontal) / 2) * 1.2, 12);
+    var angle = Math.min(Math.max(controls.angle, 0.45), 1.3);
     var free = app.appState.controls.state === 'free';
     var from = { x: controls.position.x, y: controls.position.y, z: controls.position.z, distance: controls.distance, angle: controls.angle };
     var to;
     if (free) {
-      // Looking down at the build from a little above it.
-      var angle = Math.min(Math.max(controls.angle, 0.45), 1.3);
       var heading = new Three.Vector3(Math.sin(controls.rotation), 0, -Math.cos(controls.rotation));
       var look = heading.clone().applyAxisAngle(new Three.Vector3(0, 1, 0).cross(heading), Math.PI / 2 - angle);
       var eye = center.clone().sub(look.normalize().multiplyScalar(distance));
@@ -529,25 +531,24 @@
     } else {
       // Map controls lower the target toward y 0 by distance / 500, which
       // brings the camera that much nearer the build; stand back to match.
-      to = { x: center.x, z: center.z, distance: distance / (1 - center.y * Math.cos(controls.angle) / 500) };
+      to = { x: center.x, z: center.z, angle: angle, distance: distance / (1 - center.y * Math.cos(angle) / 500) };
     }
-    if (flight) flight.cancel();
-    // BlueMap's zoom to a double-clicked point; its moves between modes have
-    // ended (fly).
-    if (app.viewAnimation) app.viewAnimation.cancel();
-    flight = window.BlueMap.animate(function (progress) {
-      viewer.redraw();
-      var eased = window.BlueMap.EasingFunctions.easeInOutQuad(progress);
+    var step = function (eased) {
       var mix = function (a, b) { return a + (b - a) * eased; };
       controls.position.x = mix(from.x, to.x);
       controls.position.z = mix(from.z, to.z);
-      if (free) {
-        controls.position.y = mix(from.y, to.y);
-        controls.angle = mix(from.angle, to.angle);
-      } else {
-        controls.distance = mix(from.distance, to.distance);
-      }
-    }, 700);
+      controls.angle = mix(from.angle, to.angle);
+      if (free) controls.position.y = mix(from.y, to.y);
+      else controls.distance = mix(from.distance, to.distance);
+      viewer.redraw();
+    };
+    if (flight) flight.cancel();
+    flight = null;
+    // BlueMap's zoom to a double-clicked point; its moves between modes have
+    // ended (fly).
+    if (app.viewAnimation) app.viewAnimation.cancel();
+    if (ms === 0) step(1);
+    else flight = window.BlueMap.animate(function (progress) { step(window.BlueMap.EasingFunctions.easeInOutQuad(progress)); }, ms);
   }
 
   // ---- the two free-flight modes ----
@@ -556,6 +557,10 @@
   // through everything. BlueMap takes app.freeFlightControls when its move
   // to eye level ends, so that answers with the mode last chosen.
   var flightMode = 'player';
+  // The map's view as the map controls were last taken off ({ state,
+  // position, distance, rotation, angle, tilt, ortho }), which leaving player
+  // mode for the map gives back; null once given back.
+  var mapView = null;
   var PLAYER_TITLE = 'Player mode: walk and fly as a Minecraft player';
   var SPECTATOR_TITLE = 'Spectator: fly through everything';
   var EYE_GLYPH = '<svg viewBox="0 0 30 30" aria-hidden="true"><path d="M15 8.5C8.6 8.5 4 15 4 15s4.6 6.5 11 6.5S26 15 26 15s-4.6-6.5-11-6.5zm0 11a4.5 4.5 0 1 1 0-9 4.5 4.5 0 0 1 0 9zm0-7a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z"/></svg>';
@@ -567,7 +572,8 @@
       get: function () { return flightMode === 'spectator' ? spectator : playerControls; },
     });
     // The controls BlueMap gives its manager, and takes off it, are the
-    // camera's mode.
+    // camera's mode. The map's view is kept as the map controls are taken
+    // off, for player mode to give back (mapView).
     var manager = app.mapViewer.controlsManager;
     var controls = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(manager), 'controls');
     var modeOf = function (given) {
@@ -577,11 +583,56 @@
       configurable: true,
       get: function () { return controls.get.call(this); },
       set: function (given) {
+        if (cameraMode === 'map' && modeOf(given) !== 'map') {
+          mapView = {
+            state: app.appState.controls.state,
+            position: [manager.position.x, manager.position.y, manager.position.z],
+            distance: manager.distance, rotation: manager.rotation, angle: manager.angle, tilt: manager.tilt, ortho: manager.ortho,
+          };
+        }
         controls.set.call(this, given);
         cameraTo(modeOf(given));
       },
     });
     cameraTo(modeOf(manager.controls));
+    // Player mode starts where the map camera is, without BlueMap's move
+    // down to eye level: the player is stood beside what the camera looks at
+    // (PlayerControls.start), and the camera stays on the map's view until
+    // the player is in the world. Spectator is BlueMap's own free flight.
+    var setFreeFlight = app.setFreeFlight;
+    app.setFreeFlight = function (ms, height) {
+      if (flightMode === 'spectator') return setFreeFlight.call(app, ms, height);
+      if (cameraMode === 'player') return;
+      if (app.viewAnimation) app.viewAnimation.cancel();
+      manager.controls = null;
+      app.appState.controls.state = 'free';
+      manager.controls = playerControls;
+      app.updatePageAddress();
+    };
+    // Leaving player mode for the map gives the map back the view it had
+    // when player mode started, exactly; for the other map view than the
+    // one it had, BlueMap then moves there from it.
+    ['setPerspectiveView', 'setFlatView'].forEach(function (name) {
+      var original = app[name];
+      app[name] = function (ms, distance) {
+        if (cameraMode !== 'player' || !mapView) return original.call(app, ms, distance);
+        var view = mapView;
+        mapView = null;
+        if (app.viewAnimation) app.viewAnimation.cancel();
+        manager.controls = null;
+        manager.position.set(view.position[0], view.position[1], view.position[2]);
+        manager.distance = view.distance;
+        manager.rotation = view.rotation;
+        manager.angle = view.angle;
+        manager.tilt = view.tilt;
+        manager.ortho = view.ortho;
+        app.mapControls.reset();
+        app.appState.controls.state = view.state;
+        manager.controls = app.mapControls;
+        app.updatePageAddress();
+        if (view.state !== (name === 'setFlatView' ? 'flat' : 'perspective')) original.call(app, ms, distance);
+      };
+    });
     var free = function () { return app.appState.controls.state === 'free'; };
     var eye = document.createElement('div');
     eye.id = 'mcbench-spectate';
@@ -628,16 +679,18 @@
     var heading = new Three.Vector3(Math.sin(rotation), 0, -Math.cos(rotation));
     var look = heading.clone().applyAxisAngle(new Three.Vector3(0, 1, 0).cross(heading), Math.PI / 2 - angle);
     var eye = center.clone().sub(look.normalize().multiplyScalar(distance));
-    player.pitch = pitchOf(angle);
-    spawnPlayer(eye.x, eye.y - 1.62, eye.z, true);
+    spawnPlayer({ x: eye.x, y: eye.y - 1.62, z: eye.z, yaw: player.yaw, pitch: pitchOf(angle), flying: true });
   }
 
   // ---- player mode: BlueMap's free flight is a creative Minecraft player ----
   // The page's engine holds the player (core/src/player, the client's own
-  // movement) and ticks it with the world. This sends it the keys held and
-  // the look, and puts the camera at its eyes, between its last two ticks for
-  // the time since the last one. The look follows the mouse at once, as in
-  // Minecraft; the next tick takes it.
+  // movement) and ticks it with the world. Player mode stands it beside the
+  // build, before what the map camera looks at (live-world.mjs standBeside),
+  // and the camera goes to its eyes once it stands there. This sends it the
+  // keys held and the look, and puts the camera at its eyes, between its last
+  // two ticks for the time since the last one. The look follows the mouse at
+  // once, as in Minecraft; the next tick takes it. Each spawn's answer gives
+  // the look it stands with, and is where a fall out of the world respawns it.
   var PLAYER_KEYS = { KeyW: 1, KeyS: 2, KeyA: 4, KeyD: 8, Space: 16, ShiftLeft: 32, ShiftRight: 32, ControlLeft: 64, ControlRight: 64 };
   var LOOK_PER_PIXEL = 0.15; // degrees, at Minecraft's default mouse sensitivity
   var REACH = 5; // blocks: a creative player's block interaction range
@@ -666,13 +719,14 @@
   // camera's heading. A fence gate opens away from the side its user faces.
   var lookYaw = function () { return player ? player.yaw : yawOf(window.bluemap.mapViewer.controlsManager.rotation); };
   PlayerControls.prototype.start = function (manager) {
-    var eye = manager.position;
+    var target = manager.position;
     player = {
       manager: manager, view: null,
       // The physical keys held, by code: two can hold one of the engine's keys.
       held: {}, taps: 0, dirty: false,
       yaw: yawOf(manager.rotation), pitch: Math.max(-90, Math.min(90, pitchOf(manager.angle))),
-      spawn: [eye.x, eye.y - 1.62, eye.z], respawning: false,
+      // Where the last spawn answered stood the player: { x, y, z, flying }.
+      spawn: null, respawning: false,
       camera: null, tick: null, clock: null, bob: null, fov: window.bluemap.mapViewer.camera.fov,
     };
     // BlueMap places the camera only when its values change and has no roll:
@@ -684,7 +738,7 @@
       if (player && player.bob) bobCamera(this.camera, player.bob);
     };
     drawPlayerHud();
-    spawnPlayer(eye.x, eye.y - 1.62, eye.z, true);
+    spawnPlayer({ beside: { target: [target.x, target.y, target.z], rotation: manager.rotation } });
   };
   PlayerControls.prototype.stop = function () {
     if (!player) return;
@@ -702,17 +756,12 @@
     if (!player) return;
     var manager = player.manager;
     if (player.dirty) sendPlayerInput();
-    manager.distance = 0;
-    manager.ortho = 0;
     var v = player.view;
     var c = player.camera;
-    if (!v || !c) {
-      manager.rotation = (player.yaw + 180) * Math.PI / 180;
-      manager.angle = (90 - player.pitch) * Math.PI / 180;
-      manager.tilt = 0;
-      window.bluemap.mapViewer.redraw();
-      return;
-    }
+    // Until the player stands in the world the camera keeps the view it has.
+    if (!v || !c) return;
+    manager.distance = 0;
+    manager.ortho = 0;
     // The partial tick: how far the steady clock is past the latest tick.
     var t = player.clock === null ? 1 : Math.max(0, Math.min(1, (performance.now() - (player.clock + player.tick * TICK_MS)) / TICK_MS));
     var mix = function (from, to) { return from + (to - from) * t; };
@@ -734,10 +783,11 @@
     window.bluemap.mapViewer.redraw();
   };
 
-  function spawnPlayer(x, y, z, flying) {
-    player.spawn = [x, y, z];
+  // `spawn` is { x, y, z, yaw, pitch, flying }, or { beside } for player
+  // mode's start (live-world.mjs spawnPlayer).
+  function spawnPlayer(spawn) {
     spawnsPending += 1;
-    window.parent.postMessage({ type: 'mcbench-lite:player-spawn', x: x, y: y, z: z, yaw: player.yaw, pitch: player.pitch, flying: flying }, window.location.origin);
+    window.parent.postMessage({ type: 'mcbench-lite:player-spawn', spawn: spawn }, window.location.origin);
   }
 
   // The keys held, the keys pressed since the last send (the engine's next
@@ -805,6 +855,11 @@
   // the view a placement answers with, which the camera starts from).
   function playerTicked(view, tick) {
     if (!player) return;
+    if (tick === undefined) {
+      player.yaw = view[9];
+      player.pitch = view[10];
+      player.spawn = { x: view[0], y: view[1], z: view[2], flying: view[17] === 1 };
+    }
     if (tick === undefined || !player.camera) {
       cameraJoined(view);
       player.tick = null;
@@ -822,7 +877,7 @@
     if (view[1] < VOID_Y && !player.respawning) {
       player.respawning = true;
       showPlayerNote('Fell out of the world');
-      spawnPlayer(player.spawn[0], player.spawn[1], player.spawn[2], true);
+      spawnPlayer({ x: player.spawn.x, y: player.spawn.y, z: player.spawn.z, yaw: player.yaw, pitch: player.pitch, flying: player.spawn.flying });
     } else if (view[1] >= VOID_Y) {
       player.respawning = false;
     }

@@ -424,9 +424,8 @@ test('an edited bench round branches, and each model follows the branch it answe
   turn(roof, 'minecraft:oak_planks');
 
   // Editing the second round: back to before it, then a new version.
-  assert.deepEqual(store.revertBenchRound(bench, 1), [member]);
-  assert.deepEqual(bench.rounds.map((round) => round.content), ['A tower']);
-  store.appendRound(bench, 'Add a spire', []);
+  assert.deepEqual(store.editBenchRound(bench, 1, 'Add a spire', []), [member]);
+  assert.deepEqual(bench.rounds.map((round) => round.content), ['A tower', 'Add a spire']);
   const spire = bench.rounds[1];
   turn(spire, 'minecraft:cobblestone');
   assert.deepEqual(spire.branch, { index: 1, count: 2, previousId: roof.id, nextId: null });
@@ -630,17 +629,17 @@ test('a bench round edit, branch switch or retry is stored whole or not at all',
   const before = lines();
 
   // The first model's chat is saved, the second's is not.
-  assert.throws(() => failingSave(second.id, () => store.revertBenchRound(bench, 1)), /the disk is full/);
+  assert.throws(() => failingSave(second.id, () => store.editBenchRound(bench, 1, 'Add a spire', [])), /the disk is full/);
   assert.deepEqual(lines(), before, 'no model goes back without the bench');
-  assert.equal(bench.rounds.length, 2);
+  assert.deepEqual(bench.rounds.map((round) => round.id), [bench.rounds[0].id, roof.id]);
+  assert.equal(bench.nodes.length, 2, 'and the new version is not stored');
 
   assert.throws(() => failingSave(second.id, () => store.retryBenchRound(bench, store.getConversation(second.id))), /the disk is full/);
   assert.deepEqual(store.getBench(bench.id).votes[roof.id], { pick: first.id, blind: true }, 'a retry that failed takes no vote back');
   assert.deepEqual(bench.votes, store.getBench(bench.id).votes);
   assert.deepEqual(lines(), before);
 
-  store.revertBenchRound(bench, 1);
-  store.appendRound(bench, 'Add a spire', []);
+  store.editBenchRound(bench, 1, 'Add a spire', []);
   for (const member of store.benchMembers(bench.id)) turn(member, bench.rounds[1]);
   const onSpire = lines();
   assert.throws(() => failingSave(second.id, () => store.followBenchBranch(bench, roof.id)), /the disk is full/);

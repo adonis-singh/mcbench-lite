@@ -170,6 +170,16 @@ export class CoreWorld {
     return this.view();
   }
 
+  // Where a player can stand on top of the columns of the box `min` to
+  // `max` (x, y, z each, inclusive) nearest to the feet position `near`:
+  // the feet [x, y, z] of Minecraft's own test of a place a player stands up
+  // at (core/src/player/stand.rs), or null when no column has one.
+  standingSpot(min, max, near) {
+    this.guard();
+    if (!this.call('mcb_standing_spot', ...min, ...max, ...near)) return null;
+    return [...new Float64Array(this.result('view').buffer)];
+  }
+
   removePlayer() {
     this.guard();
     this.call('mcb_player_remove');

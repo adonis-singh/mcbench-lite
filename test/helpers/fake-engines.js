@@ -13,6 +13,10 @@ class FakeEngines {
   // rules(blocks): edits the "x,y,z" -> spec map once for each tick.
   static rules = () => {};
 
+  // placing(blocks): edits the map after a placement's commands, as
+  // Minecraft's block updates during the placement do.
+  static placing = () => {};
+
   static places = [];
 
   // unsupported(blocks): the "x,y,z" keys of the blocks that cannot survive.
@@ -94,6 +98,7 @@ class FakeEngines {
         else this.blocks.set(`${x},${y},${z}`, spec);
       }
     }
+    FakeEngines.placing(this.blocks);
     fs.writeFileSync(blueprintFile, blocksBlueprint([...this.blocks].map(([key, spec]) => [...key.split(',').map(Number), spec])));
   }
 

@@ -6,8 +6,16 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { execFileSync } = require('child_process');
+const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mcbench-schematic-'));
+process.env.MCBENCH_DATA_DIR = dataDir;
+process.env.MCBENCH_SETTLE_ENGINES = '1';
+const { FakeEngines, installFakeEngines } = require('./helpers/fake-engines');
+installFakeEngines();
 const { World } = require('../server/world');
-const { writeSchematic } = require('../server/schematic');
+const { writeSchematic, buildSchematic } = require('../server/schematic');
+const { stopShotEngines } = require('../server/shot-world');
+
+test.after(async () => { await stopShotEngines(); fs.rmSync(dataDir, { recursive: true, force: true }); });
 const { PYTHON, nbtlibMissing } = require('./helpers/python');
 
 const skip = nbtlibMissing();
@@ -72,4 +80,38 @@ test('palettes past 128 states use multi-byte indexes', { skip }, () => {
 
 test('an empty build has nothing to export', () => {
   assert.throws(() => writeSchematic(new World()), /empty/);
+});
+
+test('a chat\'s schematic is the world the engine holds after placing the build, kept for the next export', { skip }, async () => {
+  const world = new World();
+  world.fill([0, 0, 0], [2, 0, 0], 'minecraft:glass_pane');
+  world.set(0, 1, 0, 'minecraft:torch');
+  world.finalize();
+  // The placement's updates: the panes join, the torch with nothing under it goes.
+  FakeEngines.placing = (blocks) => {
+    blocks.set('0,64,0', 'minecraft:glass_pane[east=true,north=false,south=false,waterlogged=false,west=false]');
+    blocks.set('1,64,0', 'minecraft:glass_pane[east=true,north=false,south=false,waterlogged=false,west=true]');
+    blocks.set('2,64,0', 'minecraft:glass_pane[east=false,north=false,south=false,waterlogged=false,west=true]');
+    blocks.delete('0,65,0');
+  };
+  const places = FakeEngines.places.length;
+  const result = readBack(await buildSchematic('chat', world), [[0, 0, 0], [1, 0, 0], [2, 0, 0]]);
+  assert.deepEqual(result.size, [3, 1, 1], 'the torch Minecraft did not keep is not in it');
+  assert.deepEqual(result.blocks, [
+    'minecraft:glass_pane[east=true,north=false,south=false,waterlogged=false,west=false]',
+    'minecraft:glass_pane[east=true,north=false,south=false,waterlogged=false,west=true]',
+    'minecraft:glass_pane[east=false,north=false,south=false,waterlogged=false,west=true]',
+  ]);
+  await buildSchematic('chat', world);
+  assert.equal(FakeEngines.places.length, places + 1, 'placed once: the second export reads the kept world');
+  FakeEngines.placing = () => {};
+});
+
+test('a build Minecraft keeps none of has no schematic', async () => {
+  const world = new World();
+  world.set(0, 0, 0, 'minecraft:torch');
+  world.finalize();
+  FakeEngines.placing = (blocks) => blocks.clear();
+  await assert.rejects(buildSchematic('gone', world), (error) => error.statusCode === 400 && /keeps none/.test(error.message));
+  FakeEngines.placing = () => {};
 });

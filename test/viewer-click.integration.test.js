@@ -66,7 +66,7 @@ test(
         mask,
         wasm: mesher.wasm,
         pack: mesher.pack,
-        cameraHash: null,
+        frame: null,
         fresh: true,
       });
     }, { bytes: [...blocksBlueprint(blocks)], mask: renderMask(bounds), mesher: status.mesher, bounds });

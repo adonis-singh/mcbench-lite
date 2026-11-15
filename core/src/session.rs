@@ -110,6 +110,13 @@ impl Session {
         self.level.player = Some(Box::new(player));
     }
 
+    // Where a player can stand on top of the columns of the box `min`..`max`
+    // nearest to `near` (crate::player::stand::standing_spot): its feet, or
+    // none. It reads the world and changes nothing.
+    pub fn standing_spot(&self, min: [i32; 3], max: [i32; 3], near: [f64; 3]) -> Option<[f64; 3]> {
+        crate::player::stand::standing_spot(&self.level, min, max, near)
+    }
+
     pub fn remove_player(&mut self) {
         self.level.player = None;
     }

@@ -665,14 +665,6 @@ body.dragging .viewer iframe { pointer-events: none; }
 }
 .bluemap-loading { position: absolute; inset: 0; }
 
-/* ---- responsive ---- */
-
-@media (max-width: 980px) {
-  .sidebar .meta { display: none; }
-  .conv-list { flex-direction: row; overflow-x: auto; }
-  .conv-item { flex: none; max-width: 180px; }
-}
-
 /* ==========================================================================
    2026 interface pass
    The world is the visual event. Chrome stays neutral, precise, and quiet.
@@ -998,8 +990,10 @@ body.sizing-sidebar .sidebar-edge::after { background: color-mix(in srgb, var(--
   color: var(--dim-text);
 }
 .user-block .mtool:hover { color: var(--bone); background: var(--well); }
-/* Waiting for a branch switch or an edit's revert to end. */
+/* Waiting for a branch switch to end, or for the edit open to be sent or cancelled. */
 .user-block .mtool:disabled { color: var(--dim-text); background: none; cursor: default; }
+/* The prompt the composer holds a new version of. */
+.user-block.editing .msg.user { border-color: color-mix(in srgb, var(--bone) 28%, transparent); }
 .branch-picker {
   display: inline-flex;
   align-items: center;
@@ -1493,7 +1487,10 @@ body.sizing-sidebar .sidebar-edge::after { background: color-mix(in srgb, var(--
     height: 100dvh;
     min-height: 0;
   }
-  .sidebar {
+  /* The sidebar is a bar over the world: the list's button, the mode, New
+     and Settings. The list opens from it as a drawer over the page. */
+  .layout > .sidebar {
+    grid-row: 1;
     flex-direction: row;
     align-items: center;
     gap: 6px;
@@ -1501,16 +1498,33 @@ body.sizing-sidebar .sidebar-edge::after { background: color-mix(in srgb, var(--
     border-bottom: 1px solid var(--line);
     padding: 6px 10px;
   }
-  .brand { min-height: 38px; padding: 0; }
+  .layout:not(.drawer-open) > .sidebar > :not(.brand, .sidebar-foot) { display: none; }
+  .brand { min-height: 38px; padding: 0; gap: 6px; }
   .brand .wordmark em { display: none; }
-  .brand-actions { margin-left: 2px; }
-  .conv-list, .archived { display: none; }
+  .brand-actions { display: contents; }
+  .sidebar-toggle { order: -1; }
   .sidebar-foot { margin-left: auto; padding: 0; }
   .sidebar-edge, .sidebar-reveal { display: none; }
-  .viewer { order: 2; min-height: 38vh; }
-  .strata { order: 3; }
+  .layout.drawer-open > .sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 12;
+    width: min(340px, 88vw);
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    overflow-y: auto;
+    border-right: 1px solid var(--line);
+    border-bottom: 0;
+    padding: 10px 9px 9px;
+    box-shadow: var(--shadow-panel);
+  }
+  .layout.drawer-open .sidebar-foot { margin: auto 0 0; padding-left: 2px; }
+  .drawer-scrim { position: fixed; inset: 0; z-index: 11; background: rgba(0, 0, 0, 0.55); }
+  .viewer { grid-row: 2; min-height: 38vh; }
+  .strata { grid-row: 3; }
   .strata::after { inset: 0; width: auto; height: 1px; }
-  .chat { order: 4; min-height: 0; border-right: 0; }
+  .chat { grid-row: 4; min-height: 0; border-right: 0; }
   .chat-header { min-height: 49px; padding: 8px 12px; }
   .messages { padding: 20px 16px 14px; }
   .composer { padding: 8px 12px 12px; }
@@ -1953,6 +1967,16 @@ body.sizing-sidebar .sidebar-edge::after { background: color-mix(in srgb, var(--
 }
 .layout.prompts-mode.sidebar-closed { grid-template-columns: minmax(0, 1fr); }
 .layout.prompts-mode .chat { border-right: 0; }
+/* A touch screen has no hover: the controls a pointer's hover shows are
+   always there, to be tapped. */
+@media (hover: none) {
+  .conv-item .archive, .user-block .mtool, .branch-picker, .model-star, .pp-edit, .ce-remove, .pe-item-actions button, .s-grip { opacity: 1; }
+}
+/* Narrow, the prompt library takes the page under the bar. */
+@media (max-width: 980px) {
+  .layout.prompts-mode { grid-template-columns: minmax(0, 1fr); grid-template-rows: 52px minmax(0, 1fr); }
+  .layout.prompts-mode .chat { grid-row: 2; }
+}
 
 /* Prompt palette: opens over the composer from "/" or the prompts button.
    List on the left, the highlighted prompt previewed on the right. */
@@ -2673,7 +2697,9 @@ a.btn { display: inline-flex; align-items: center; text-decoration: none; }
 .s-row-control .title-model-controls .model-picker { flex: 0 1 auto; }
 .s-row-control .theme-picker { margin: 0; }
 
-@media (max-width: 760px) {
+/* Narrow windows: the sections above the pane, which takes the panel's
+   width, so a row's label never shares it with a wide field. */
+@media (max-width: 980px) {
   .settings-panel.sidebar { height: calc(100vh - 32px); }
   .settings-body { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); }
   .settings-nav { max-height: 38vh; }
@@ -3494,6 +3520,9 @@ button.bench-status:hover { background: var(--well); color: var(--bone); }
 /* A send held until the app is ready, over the composer. */
 .composer-held { display: flex; align-items: center; gap: 8px; padding: 0 4px; color: var(--ash); font-size: 12.5px; }
 .composer-held .text-link { margin-left: auto; white-space: nowrap; }
+/* An edit of a sent prompt, over the composer that holds it. */
+.composer-editing { display: flex; align-items: center; gap: 8px; padding: 0 4px; color: var(--ash); font-size: 12.5px; }
+.composer-editing .text-link { margin-left: auto; white-space: nowrap; }
 
 /* Settings' Connect an AI pane: one card per way in, with a button to each
    provider pane that sets it up. */
@@ -3860,6 +3889,8 @@ button.bench-status:hover { background: var(--well); color: var(--bone); }
 .danger-confirm { display: flex; align-items: center; gap: 8px; color: var(--err-text); font-size: 13px; white-space: nowrap; }
 .btn.danger:disabled { background: var(--raised); color: var(--dim-text); }
 .empty-sub { color: var(--dim-text); font-size: 13px; }
+/* An address of a chat or bench that is not there: the ways on from it. */
+.missing-actions { display: flex; justify-content: center; gap: 8px; margin-top: 6px; }
 .text-link {
   padding: 0;
   border: 0;

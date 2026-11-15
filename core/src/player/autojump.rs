@@ -129,7 +129,7 @@ fn intersects_segment(b: &Aabb, v1: Vec3, v2: Vec3) -> bool {
 }
 
 // VoxelShape.max(Axis.Y).
-fn shape_max_y(shape: &crate::registry::Shape) -> f64 {
+pub(super) fn shape_max_y(shape: &crate::registry::Shape) -> f64 {
     if let Some(single) = shape.single {
         return single[4];
     }

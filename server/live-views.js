@@ -11,7 +11,7 @@
 // version the server no longer keeps.
 
 const { importCommands } = require('./live-placement');
-const { renderMask, cameraHash } = require('./bluemap');
+const { renderMask } = require('./bluemap');
 const { Y_OFFSET, validateWorldHeight } = require('./minecraft-dimension');
 
 // Versions kept per view: a page that fell further behind places afresh.
@@ -64,7 +64,6 @@ class LiveViews {
       key,
       version: this.counter,
       mask: renderMask(bounds),
-      cameraHash: cameraHash(bounds, this.yOffset),
       bounds,
       blockCount: reference.size(),
       layout: view.layout,

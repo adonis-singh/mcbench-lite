@@ -205,11 +205,13 @@ function bridge(t, { broken = null, clock = Date } = {}) {
     const app = {
       mapViewer: viewer,
       events: { addEventListener() {} },
-      mapControls: { map: true },
+      mapControls: { map: true, reset() {} },
       freeFlightControls: { spectator: true },
       appState: { controls: { state: 'perspective' } },
       viewAnimation: null,
       perspectiveViews: 0,
+      flatViews: 0,
+      updatePageAddress() {},
       // A move between modes, as BlueMap makes it: the last one is cancelled,
       // the controls come off at once, and the new mode's go on when the
       // move ends, unless it was cancelled.
@@ -222,6 +224,10 @@ function bridge(t, { broken = null, clock = Date } = {}) {
       setPerspectiveView(ms) {
         this.perspectiveViews += 1;
         this.move(ms, 'perspective', () => this.mapControls);
+      },
+      setFlatView(ms) {
+        this.flatViews += 1;
+        this.move(ms, 'flat', () => this.mapControls);
       },
       setFreeFlight(ms) {
         this.move(ms, 'free', () => this.freeFlightControls);
@@ -317,16 +323,16 @@ test('every end of player mode is told to the page as a leave, the world letting
   const b = bridge(t);
   const app = b.ready();
   await b.until(() => b.of('mcbench-lite:bluemap-ready').length === 1, 'ready');
-  b.enterPlayer(app);
+  const manager = b.enterPlayer(app);
   assert.equal(b.of('mcbench-lite:player-spawn').length, 1);
   b.send({ type: 'mcbench-lite:player', view: view(2) });
   b.send({ type: 'mcbench-lite:player', gone: true });
-  assert.equal(app.perspectiveViews, 1, 'back to the map');
+  assert.equal(manager.controls, app.mapControls, 'back to the map');
   // A spawn may still be on its way: the page's removal waits for it.
   assert.equal(b.of('mcbench-lite:player-leave').length, 1, 'the leave goes to the page');
   // Gone again with no player: nothing.
   b.send({ type: 'mcbench-lite:player', gone: true });
-  assert.equal(app.perspectiveViews, 1);
+  assert.equal(manager.controls, app.mapControls);
   assert.equal(b.of('mcbench-lite:player-leave').length, 1);
   b.enterPlayer(app);
   b.send({ type: 'mcbench-lite:player', view: view(3) });
@@ -349,7 +355,7 @@ test('the world letting the player go while its respawn is on its way still send
   assert.equal(b.of('mcbench-lite:player-leave').length, 1);
   // The respawn's answer, after the leave: the camera stays on the map.
   b.send({ type: 'mcbench-lite:player', view: view(5) });
-  assert.equal(app.mapViewer.controlsManager.controls, null);
+  assert.equal(app.mapViewer.controlsManager.controls, app.mapControls);
 });
 
 test('the answer to a spawn superseded by a later one, and the ticks before it, leave the camera alone', async (t) => {
@@ -478,17 +484,100 @@ test('a fly asked for while BlueMap moves between modes waits for the move to en
   assert.equal(manager.controls, app.mapControls, 'the camera takes input again');
   assert.equal(b.animations.length, 2, 'the fly runs once the move has ended');
   assert.equal(b.animations[1].ms, 700);
-  // Into player mode: the fly asked during the move stands the player before the build.
+  // Player mode starts at once, with no move: a fly stands the player before the build.
   app.setFreeFlight(500);
-  b.send({ type: 'mcbench-lite:fly', min: [0, 64, 0], max: [4, 68, 4] });
-  assert.equal(app.viewAnimation.cancelled, false);
-  assert.equal(b.of('mcbench-lite:player-spawn').length, 0);
-  app.viewAnimation.finish();
   assert.equal(manager.controls, app.freeFlightControls);
-  assert.equal(b.of('mcbench-lite:player-spawn').length, 2, 'player mode\'s spawn, then the fly\'s');
-  // With the mode settled a fly runs at once.
+  assert.equal(b.of('mcbench-lite:player-spawn').length, 1, 'player mode\'s spawn');
   b.send({ type: 'mcbench-lite:fly', min: [0, 64, 0], max: [4, 68, 4] });
-  assert.equal(b.of('mcbench-lite:player-spawn').length, 3);
+  assert.equal(b.of('mcbench-lite:player-spawn').length, 2, 'then the fly\'s');
+  assert.equal(b.of('mcbench-lite:player-spawn')[1].spawn.flying, true);
+});
+
+// A player's view as a spawn answers it: standing at x, y, z with a look.
+const stood = (x, y, z, yaw, pitch, flying) => {
+  const v = view(x);
+  v[1] = y; v[4] = y; v[2] = z; v[5] = z; v[9] = yaw; v[10] = pitch; v[17] = flying ? 1 : 0;
+  return v;
+};
+
+test('player mode starts at once beside what the map camera looks at, and the camera keeps the map\'s view until the player stands', async (t) => {
+  const b = bridge(t);
+  const app = b.ready();
+  await b.until(() => b.of('mcbench-lite:bluemap-ready').length === 1, 'ready');
+  const manager = app.mapViewer.controlsManager;
+  manager.rotation = 0.5;
+  app.setFreeFlight(500);
+  assert.equal(app.viewAnimation, null, 'no move down to eye level');
+  assert.equal(manager.controls, app.freeFlightControls);
+  assert.equal(app.appState.controls.state, 'free');
+  assert.equal(JSON.stringify(b.of('mcbench-lite:player-spawn')[0].spawn), JSON.stringify({ beside: { target: [1, 70, 1], rotation: 0.5 } }));
+  manager.controls.update();
+  assert.equal(manager.distance, 100, 'the map\'s view, until the player stands in the world');
+  // The page stood it on the build, looking at it: the camera goes to its eyes, looking as it does.
+  b.send({ type: 'mcbench-lite:player', view: stood(8.5, 65, -3.5, 30, 12, false) });
+  manager.controls.update();
+  assert.deepEqual(manager.position.placed, [8.5, 65 + 1.62, -3.5]);
+  assert.equal(manager.distance, 0);
+  assert.equal(manager.rotation, (30 + 180) * Math.PI / 180);
+  assert.equal(manager.angle, (90 - 12) * Math.PI / 180);
+  // Fallen out of the world, it stands again where it stood, as it stood: on the ground.
+  const fallen = stood(8.5, -200, -3.5, 30, 12, false);
+  b.send({ type: 'mcbench-lite:player', view: fallen, tick: 1 });
+  assert.equal(JSON.stringify(b.of('mcbench-lite:player-spawn')[1].spawn), JSON.stringify({ x: 8.5, y: 65, z: -3.5, yaw: 30, pitch: 12, flying: false }));
+  // Asked again while in it, player mode stays as it is.
+  app.setFreeFlight(500);
+  assert.equal(b.of('mcbench-lite:player-spawn').length, 2);
+  assert.equal(b.of('mcbench-lite:player-leave').length, 0);
+});
+
+test('leaving player mode for the map gives back the view the map had, exactly, and the other map view moves on from it', async (t) => {
+  const b = bridge(t);
+  const app = b.ready();
+  await b.until(() => b.of('mcbench-lite:bluemap-ready').length === 1, 'ready');
+  const manager = app.mapViewer.controlsManager;
+  const looked = { distance: 37.5, rotation: 1.1, angle: 0.8, tilt: 0, ortho: 0 };
+  Object.assign(manager, looked);
+  app.setFreeFlight(500);
+  b.send({ type: 'mcbench-lite:player', view: stood(8.5, 65, -3.5, 30, 12, false) });
+  manager.controls.update();
+  app.setPerspectiveView(500);
+  assert.equal(manager.controls, app.mapControls, 'on the map at once');
+  assert.equal(app.perspectiveViews, 0, 'with no move of BlueMap\'s');
+  assert.equal(app.appState.controls.state, 'perspective');
+  assert.deepEqual(manager.position.placed, [1, 70, 1]);
+  assert.deepEqual({ distance: manager.distance, rotation: manager.rotation, angle: manager.angle, tilt: manager.tilt, ortho: manager.ortho }, looked);
+  assert.equal(b.of('mcbench-lite:player-leave').length, 1);
+  // Left for the flat view instead: the view is given back, then BlueMap moves from it.
+  app.setFreeFlight(500);
+  b.send({ type: 'mcbench-lite:player', view: stood(8.5, 65, -3.5, 30, 12, false) });
+  manager.controls.update();
+  app.setFlatView(500);
+  assert.equal(manager.distance, 37.5);
+  assert.equal(app.flatViews, 1);
+  assert.equal(app.appState.controls.state, 'flat');
+});
+
+test('a chat opened is framed as a turn frames its build', async (t) => {
+  const b = bridge(t);
+  const app = b.ready();
+  await b.until(() => b.of('mcbench-lite:bluemap-ready').length === 1, 'ready');
+  const manager = app.mapViewer.controlsManager;
+  const box = { min: [-1, 64, -2], max: [14, 66, 2] };
+  // BlueMap's start: straight down from far away.
+  const start = () => Object.assign(manager, { distance: 1500, angle: 0, rotation: 0.3 });
+  const camera = () => ({ x: manager.position.x, z: manager.position.z, distance: manager.distance, angle: manager.angle, rotation: manager.rotation });
+  start();
+  b.send({ type: 'mcbench-lite:refresh', key: 'a:1', blueprint: 'blob:1', fresh: true, frame: box });
+  await b.until(() => b.of('mcbench-lite:refreshed').length === 1, 'a shown');
+  const opened = camera();
+  assert.equal(b.animations.length, 0, 'placed at once');
+  start();
+  b.send({ type: 'mcbench-lite:fly', min: box.min, max: box.max });
+  b.animations.at(-1).finish();
+  assert.deepEqual(camera(), opened);
+  assert.equal(opened.x, 7);
+  assert.equal(opened.angle, 0.45, 'looking down at it, not straight down');
+  assert.ok(opened.distance > 12 && opened.distance < 40, `distance ${opened.distance}`);
 });
 
 const key = (code, extra) => ({ code, key: code, metaKey: false, altKey: false, ctrlKey: false, shiftKey: false, repeat: false, target: element(), ...extra });

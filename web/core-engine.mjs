@@ -157,6 +157,13 @@ export class CoreEngine {
     await this.request({ type: 'player', spawn: null });
   }
 
+  // Where a player can stand on top of the columns of the box `min` to `max`
+  // nearest to the feet position `near`: the feet [x, y, z], or null when no
+  // column has a spot (CoreWorld.standingSpot).
+  async standingSpot(min, max, near) {
+    return (await this.request({ type: 'stand', min, max, near })).spot;
+  }
+
   // What the world holds besides its blocks, as text.
   async state() {
     return (await this.request({ type: 'state' })).text;

@@ -2,8 +2,9 @@ import { h, html, render, useState, useEffect, useLayoutEffect, useMemo, useRef,
 import { groupItems, entryKeys, applyEvent, IDLE, turnTo, turnRunning, turnToJoin, turnOver, LOADING, SHOWN, readFailed, dismissError } from '/transcript.mjs';
 import { Shared } from '/shared.mjs';
 import { topLayer, modalOpen, bindRuns } from '/layers.mjs';
-import { EMPTY_DRAFT, draftEmpty, draftFiles, holdsRead, beginRead, endRead, Drafts } from '/draft.mjs';
+import { EMPTY_DRAFT, draftEmpty, draftFiles, holdsRead, beginRead, endRead, beginEdit, endEdit, afterSend, sentBack, Drafts } from '/draft.mjs';
 import { placeKeys, withRow, asChat, chatDraft, benchDraft, NEW_CHAT_DRAFT, NEW_BENCH_DRAFT } from '/place.mjs';
+import { placeAddress, addressPlace, startPlace, listedPlace } from '/address.mjs';
 import { PromptSync, promptsLoaded } from '/prompt-sync.mjs';
 import { RESOLUTIONS, resolutionStop, resolutionHelp } from '/resolution.mjs';
 import { GROUPS, NO_FILTERS, filtering, toggled, chatFacets, benchFacets, listed, offered, inEffect } from '/filters.mjs';
@@ -348,7 +349,7 @@ function itemsFromMessages(messages) {
           items.push({ kind: 'user', text, attachments, selections, messageId: msg.id });
         }
       } else {
-        items.push({ kind: 'user', text: msg.content, messageId: msg.id });
+        items.push({ kind: 'user', text: msg.content, attachments: [], selections: [], messageId: msg.id });
       }
     } else if (msg.role === 'error') {
       if (!msg.dismissed) items.push({ kind: 'error', text: msg.content, messageId: msg.id });
@@ -1226,6 +1227,24 @@ function SetupStatus({ status, noAI, onConnect, onRetry }) {
 // Sidebar width in px: its default, its resize range, and the pull past which
 // it collapses instead.
 const SIDEBAR = { width: 236, min: 200, max: 420, collapseBelow: 140 };
+
+// Narrow windows, phones and tablets held upright (style.css lays the page
+// out for them under the same width): the sidebar is a bar over the world,
+// and its list a drawer over the page.
+const NARROW = '(max-width: 980px)';
+
+// Whether the window matches a media query, kept current.
+function useMedia(query) {
+  const [matches, setMatches] = useState(() => window.matchMedia(query).matches);
+  useEffect(() => {
+    const list = window.matchMedia(query);
+    const update = () => setMatches(list.matches);
+    list.addEventListener('change', update);
+    update();
+    return () => list.removeEventListener('change', update);
+  }, [query]);
+  return matches;
+}
 
 const initialModelSelection = storedJson('mcb-last-model', { provider: '', model: '' });
 const initialPromptModelSelection = storedJson('mcb-prompt-ai-model', initialModelSelection);
@@ -3121,7 +3140,7 @@ function BlueMapViewer({ live, world, exportName, onError, activeId, labels, foc
       mask: current.viewerMask,
       wasm: current.mesher.wasm,
       pack: current.mesher.pack,
-      cameraHash: focus ? current.cameraHash : null,
+      frame: focus && current.bounds ? { min: [current.bounds.min[0], current.bounds.min[1] + current.yOffset, current.bounds.min[2]], max: [current.bounds.max[0], current.bounds.max[1] + current.yOffset, current.bounds.max[2]] } : null,
       fresh: focus,
     }, window.location.origin);
     // What the world did since this base goes first, then each tick as it comes.
@@ -3169,8 +3188,7 @@ function BlueMapViewer({ live, world, exportName, onError, activeId, labels, foc
       // its world, and says so.
       if (event.data?.type === 'mcbench-lite:player-spawn') {
         const conversationId = activeRef.current;
-        const { x, y, z, yaw, pitch, flying } = event.data;
-        worldRef.current.spawnPlayer({ x, y, z, yaw, pitch, flying }).then(
+        worldRef.current.spawnPlayer(event.data.spawn).then(
           (view) => postPlayer(activeRef.current === conversationId ? { view } : { error: 'Another world came on show before the player stood in this one' }),
           (error) => postPlayer({ error: String(error.message || error) }),
         );
@@ -3470,37 +3488,18 @@ function App() {
   }
   // The controller of a send whose Stop came before the server took it.
   const stopAskedRef = useRef(null);
-  // An edit's prompt on its way back to its draft (the revert, then the
-  // prompt's files): that draft's key, or null. It belongs to the draft, not
-  // to the screen, so leaving the place does not end it. One at a time; a
-  // send from that draft waits for it.
-  const restoringRef = useRef(null);
-  const [restoringKey, setRestoringKey] = useState(null);
-  function beginRestore(key) {
-    if (restoringRef.current) throw new Error('An edit is already bringing its prompt back');
-    restoringRef.current = key;
-    setRestoringKey(key);
-  }
-  // The restore is over. `draft` is the prompt the server reverted to, which
-  // lands in its draft: the composer if that draft is on screen, parked if
-  // not. Null when the revert itself failed.
-  function endRestore(draft) {
-    const key = restoringRef.current;
-    restoringRef.current = null;
-    setRestoringKey(null);
-    if (!draft) return;
-    if (where().draftKey === key) applyDraft(draft);
-    else draftsRef.current.put(key, draft);
-  }
   // Whether the composer holds text. Only this is state: a keystroke that
   // does not change it re-renders nothing.
   const [hasText, setHasText] = useState(false);
   const [attachments, setAttachments] = useState([]);
   const [reading, setReading] = useState([]); // the draft's files still being read (draft.mjs)
+  // The sent prompt or round the draft is a new version of, with what the
+  // composer held before it (draft.mjs beginEdit), or null.
+  const [edit, setEdit] = useState(null);
   const [copied, setCopied] = useState(null); // the message item just copied
   const [minecraftLive, setMinecraftLive] = useState({
     status: 'idle', conversationId: null, address: null, error: null, syncError: null,
-    viewerUrl: null, viewerRevision: null, cameraHash: null, mesher: null,
+    viewerUrl: null, viewerRevision: null, mesher: null,
   });
   const [lightbox, setLightbox] = useState(null);
   // The search-everything panel: { query, active } while open, `active`
@@ -3553,14 +3552,22 @@ function App() {
   const titleModelCaps = useModelInfo(settings?.titleModel?.provider, settings?.titleModel?.model);
   const [theme, setTheme] = useState(() => localStorage.getItem('mcb-theme') || 'dark');
   const [sidebarOpen, setSidebarOpen] = useState(() => localStorage.getItem('mcb-sidebar') !== 'closed');
+  // In a narrow window the sidebar's list is a drawer: open or not, never
+  // kept. The sidebar's own open and width are the wide window's.
+  const narrow = useMedia(NARROW);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const drawer = narrow && drawerOpen;
+  const toggleSidebar = () => (narrow ? setDrawerOpen((open) => !open) : setSidebarOpen((open) => !open));
   const [chatWidth, setChatWidth] = useState(() => Number(localStorage.getItem('mcb-chat-width')) || null);
   const [sidebarWidth, setSidebarWidth] = useState(() => Number(localStorage.getItem('mcb-sidebar-width')) || SIDEBAR.width);
   const [viewerFull, setViewerFull] = useState(false);
   // The place on screen (place.mjs): one value. Build shows a chat or the
   // new chat; Bench a new bench, a bench's comparison, one model's chat in
   // it, the leaderboard or the prompt library. The mode, the chat shown, the
-  // viewer's world and the composer's draft all derive from it.
-  const [place, setPlaceState] = useState(() => (localStorage.getItem('mcb-app-mode') === 'bench' ? { kind: 'new-bench' } : { kind: 'new-chat', id: null }));
+  // viewer's world, the composer's draft and the address all derive from it.
+  // The page starts on what its address names (address.mjs), as far as it
+  // can before the lists come.
+  const [place, setPlaceState] = useState(() => startPlace(addressPlace(location.pathname), localStorage.getItem('mcb-app-mode')));
   const placeRef = useRef(place);
   // The place each mode was last on: Bench keeps its own, and Build comes
   // back to its chat.
@@ -3570,11 +3577,27 @@ function App() {
   const [benchRounds, setBenchRounds] = useState({}); // bench id -> round on screen
   const benchRoundsRef = useRef(benchRounds);
   // Every change of place ends here: a navigation (which parks and restores
-  // the drafts around it), or the new chat taking its row or its first message.
+  // the drafts around it), or the new chat taking its row or its first
+  // message. So does every change of address: a place opened is a new entry
+  // in the tab's history, which Back and Forward move through (openAddress);
+  // one that only renames the place on screen, or stands in for a place
+  // that is gone, takes the entry's place (replacingAddress).
+  const replaceAddressRef = useRef(false);
   function setPlace(next) {
-    leftRef.current[placeKeys(next, benchRoundsRef.current).mode] = next;
+    if (next.kind !== 'missing') leftRef.current[placeKeys(next, benchRoundsRef.current).mode] = next;
     placeRef.current = next;
     setPlaceState(next);
+    const address = placeAddress(next);
+    if (address !== location.pathname) history[replaceAddressRef.current ? 'replaceState' : 'pushState'](null, '', address);
+  }
+  // Runs a navigation whose address replaces the one in the address bar.
+  function replacingAddress(navigate) {
+    replaceAddressRef.current = true;
+    try {
+      navigate();
+    } finally {
+      replaceAddressRef.current = false;
+    }
   }
   // What the place means (its mode, chat, world and draft): `where()` is
   // current between renders, for handlers and async results.
@@ -3604,6 +3627,8 @@ function App() {
   const [archivedCounts, setArchivedCounts] = useState({ conversations: 0, benches: 0 });
   // A restored item to open once the list stream brings it back.
   const restoredRef = useRef(null);
+  // The first lists have come: an address can be opened (openAddress).
+  const listedRef = useRef(false);
   // The sidebar search: what is typed, and the server's ranked matches for
   // the current mode (null while nothing is typed).
   // Actions added since the binds were saved start on their defaults.
@@ -3648,8 +3673,15 @@ function App() {
   const loadPrompts = () => promptSyncRef.current.load();
   useEffect(loadPrompts, []);
   const [promptsActiveId, setPromptsActiveId] = useState(null); // the prompt open in Bench
-  const shownPromptId = prompts.some((prompt) => prompt.id === promptsActiveId) ? promptsActiveId : prompts[0]?.id ?? null;
-  const shownPrompt = prompts.find((prompt) => prompt.id === shownPromptId) || null;
+  // A prompt made with New prompt, open in the editor and not in the library
+  // until something is written in it (updatePrompt), or null. Left
+  // untouched, it is never saved.
+  const [newPrompt, setNewPrompt] = useState(null);
+  const newPromptRef = useRef(null);
+  newPromptRef.current = newPrompt;
+  const editorPrompts = newPrompt ? [...prompts, newPrompt] : prompts;
+  const shownPromptId = editorPrompts.some((prompt) => prompt.id === promptsActiveId) ? promptsActiveId : prompts[0]?.id ?? null;
+  const shownPrompt = editorPrompts.find((prompt) => prompt.id === shownPromptId) || null;
 
   const messagesRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -3678,7 +3710,7 @@ function App() {
     // A "/query" the palette followed is gone with the text it was in.
     setPalette(null);
   }
-  draftRef.current = { attachments, selections, reading, choice: { provider, model, effort, resolution } };
+  draftRef.current = { attachments, selections, reading, choice: { provider, model, effort, resolution }, edit };
   // What the composer holds now: typing updates the segments without a render.
   const currentDraft = () => ({ ...draftRef.current, segments: segmentsRef.current });
   function applyDraft(draft) {
@@ -3686,6 +3718,7 @@ function App() {
     setAttachments(draft.attachments);
     setSelections(draft.selections);
     setReading(draft.reading);
+    setEdit(draft.edit);
   }
   // Transcripts already fetched, by chat: going back to a chat shows it at
   // once, and hovering a chat fetches it ahead of the click.
@@ -3827,8 +3860,10 @@ function App() {
     const at = placeRef.current;
     if (at.kind === 'chat' && gone.some((row) => row.id === at.id)) {
       const next = successor(before.filter((row) => !row.benchId), listed, at.id);
-      if (next) openConversation(next.id).catch(showError);
-      else showNewChat();
+      replacingAddress(() => {
+        if (next) openConversation(next.id).catch(showError);
+        else showNewChat();
+      });
     }
     for (const row of gone) draftsRef.current.drop(chatDraft(row.id));
   }
@@ -3849,7 +3884,7 @@ function App() {
     if (view.benchId && !listed.has(view.benchId) && before.some((bench) => bench.id === view.benchId)) {
       const next = successor(before, listed, view.benchId);
       const moved = next ? { kind: 'compare', benchId: next.id } : { kind: 'new-bench' };
-      if (where().mode === 'bench') showBenchView(moved);
+      if (where().mode === 'bench') replacingAddress(() => showBenchView(moved));
       else leftRef.current.bench = moved;
     }
     for (const id of gone) draftsRef.current.drop(benchDraft(id));
@@ -3883,23 +3918,11 @@ function App() {
       openRestored();
       if (!first) return;
       first = false;
+      listedRef.current = true;
       setListReady(true);
       if (navigationRef.current !== 0) return; // the user already moved
-      if (where().mode === 'bench') {
-        // A prompt typed before the list came stays on the new bench it was typed for.
-        if (benchRows.length && draftEmpty(currentDraft())) showBenchView({ kind: 'compare', benchId: benchRows[0].id });
-        setTranscriptState(SHOWN);
-        return;
-      }
-      const latest = rows.find((row) => !row.benchId);
-      if (!latest) {
-        setTranscriptState(SHOWN);
-        return;
-      }
-      openConversation(latest.id).catch(showError);
-      // What was typed before the list came goes with the chat that opens.
-      const typed = draftsRef.current.take(NEW_CHAT_DRAFT);
-      if (!draftEmpty(typed)) applyDraft(typed);
+      // Where the page opens: what its address names.
+      replacingAddress(() => openAddress(addressPlace(location.pathname)));
     };
     (async () => {
       while (!stopped) {
@@ -4083,7 +4106,7 @@ function App() {
   const shareShown = shareSubject !== null && shareFor === shareKey(shareSubject);
   // A bench with a model still running cannot be shared yet.
   const shareBlocked = shareSubject?.kind === 'bench' && conversations.some((row) => row.benchId === shareSubject.id && row.runningSince);
-  const layers = { command: Boolean(command), lightbox: Boolean(lightbox), settings: settingsOpen, viewer: viewerFull, share: shareShown };
+  const layers = { command: Boolean(command), lightbox: Boolean(lightbox), settings: settingsOpen, drawer, viewer: viewerFull, share: shareShown };
   const layersRef = useRef(layers);
   layersRef.current = layers;
   // Escape closes the topmost layer: the key pressed here, or passed on by
@@ -4094,17 +4117,21 @@ function App() {
     command: () => setCommand(null),
     lightbox: () => setLightbox(null),
     settings: closeSettings,
+    drawer: () => setDrawerOpen(false),
     viewer: () => setViewerFull(false),
     share: closeShare,
   };
-  const closeTopLayer = () => {
+  // With none open, it cancels an edit, as it does in the message box,
+  // unless it was pressed in another field.
+  const closeTopLayer = (target = null) => {
     const top = topLayer(layersRef.current);
     if (top) closeLayer[top]();
+    else if (draftRef.current.edit && !target?.closest?.('input, textarea, select, [contenteditable]:not([contenteditable="false"])')) cancelEdit();
   };
   const closeTopLayerRef = useRef(closeTopLayer);
   closeTopLayerRef.current = closeTopLayer;
   useEffect(() => {
-    const onKey = (evt) => { if (evt.key === 'Escape') closeTopLayerRef.current(); };
+    const onKey = (evt) => { if (evt.key === 'Escape') closeTopLayerRef.current(evt.target); };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
@@ -4490,11 +4517,12 @@ function App() {
   }
 
   // A message that did not go out goes back where it was written (the draft
-  // `key`, in the composer or parked), unless something new was written
-  // there since.
+  // `key`, in the composer or parked), as draft.mjs sentBack says.
   function putBack(key, draft) {
-    if (where().draftKey !== key) draftsRef.current.putBack(key, draft);
-    else if (draftEmpty(currentDraft())) applyDraft(draft);
+    if (where().draftKey !== key) return draftsRef.current.putBack(key, draft);
+    const now = currentDraft();
+    const back = sentBack(draft, now);
+    if (back !== now) applyDraft(back);
   }
 
   function clearTranscript() {
@@ -4649,11 +4677,11 @@ function App() {
   }
 
   // The new chat got its first message: it is the chat `id` from here on,
-  // and the next new chat is another, with its own row.
+  // at the chat's address, and the next new chat is another, with its own row.
   function settleNewChat(id) {
     if (newChatRef.current?.id !== id) return;
     newChatRef.current = null;
-    if (placeRef.current.kind === 'new-chat') setPlace(asChat(placeRef.current));
+    if (placeRef.current.kind === 'new-chat') replacingAddress(() => setPlace(asChat(placeRef.current)));
   }
 
   // The new chat exists on the server from the start (the live world opens
@@ -4807,6 +4835,57 @@ function App() {
     showBenchView(view);
   }
 
+  // Opens what an address names (address.mjs), once the lists are in: where
+  // the page opens, and Back and Forward. A chat or bench the lists do not
+  // have shows as missing, never another one in its place.
+  function openAddress(target) {
+    if (target.kind === 'landing') return openLanding();
+    const next = listedPlace(target, location.pathname, conversationsRef.current, benchesRef.current);
+    if (next.kind === 'missing') showMissing(next);
+    else if (next.kind === 'chat') openConversation(next.id).catch(showError);
+    else if (next.kind === 'new-chat') showNewChat();
+    else showBenchView(next);
+  }
+  const openAddressRef = useRef(openAddress);
+  openAddressRef.current = openAddress;
+  // Back and Forward. Before the first list, that list opens the address.
+  useEffect(() => {
+    const onPop = () => { if (listedRef.current) openAddressRef.current(addressPlace(location.pathname)); };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+
+  // The landing (/): Build's newest chat, or in Bench, the mode last used,
+  // its newest bench; the new chat or a new bench when there is none. A
+  // prompt typed for the new bench before the list came stays on it.
+  function openLanding() {
+    if (where().mode === 'bench') {
+      const latest = benchesRef.current[0];
+      showBenchView(latest && draftEmpty(currentDraft()) ? { kind: 'compare', benchId: latest.id } : { kind: 'new-bench' });
+      return;
+    }
+    const latest = conversationsRef.current.find((row) => !row.benchId);
+    if (!latest) return showNewChat();
+    openConversation(latest.id).catch(showError);
+    // What was typed before the list came goes with the chat that opens.
+    const typed = draftsRef.current.take(NEW_CHAT_DRAFT);
+    if (!draftEmpty(typed)) applyDraft(typed);
+  }
+
+  // A chat or bench an address names that is not there: the page says so,
+  // and once the archive is read, whether it is archived, to be restored.
+  function showMissing(missing) {
+    leaveConversation();
+    const navigation = navigationRef.current;
+    arrive({ ...missing, archived: null });
+    clearTranscript();
+    api('/api/archive').then((data) => {
+      if (navigationRef.current !== navigation) return;
+      const rows = missing.mode === 'bench' ? data.benches : data.conversations;
+      setPlace({ ...placeRef.current, archived: rows.some((row) => row.id === missing.id) });
+    }).catch(showError);
+  }
+
   // Build on the chat `id` while the list has it; if not, on the new chat,
   // with the draft and model it was left with.
   function goBuild(id) {
@@ -4823,7 +4902,7 @@ function App() {
     bench: () => switchMode('bench'),
     search: () => setCommand((open) => (open ? null : { query: '', active: null })),
     new: () => (where().mode === 'bench' ? showBenchView({ kind: 'new-bench' }) : newConversation().catch(showError)),
-    sidebar: () => setSidebarOpen((open) => !open),
+    sidebar: toggleSidebar,
     select: () => setSelectToggle((count) => count + 1),
   };
   const bindsRef = useRef(binds);
@@ -4963,7 +5042,7 @@ function App() {
       { key: 'new-bench', icon: 'bench', title: 'New bench', keywords: 'compare models create start', hint: appMode === 'bench' ? binds.new : null, run: () => goBench({ kind: 'new-bench' }) },
       { key: 'switch', icon: 'swap', title: `Switch to ${other === 'build' ? 'Build' : 'Bench'}`, keywords: 'mode build bench', hint: binds[other], run: () => switchMode(other) },
       { key: 'leaderboard', icon: 'trophy', title: 'Leaderboard', keywords: 'votes ranking ratings blind', run: () => goBench({ kind: 'leaderboard' }) },
-      { key: 'sidebar', icon: 'panel', title: sidebarOpen ? 'Hide the sidebar' : 'Show the sidebar', keywords: 'panel toggle', hint: binds.sidebar, run: () => setSidebarOpen((open) => !open) },
+      { key: 'sidebar', icon: 'panel', title: narrow ? 'Show the list' : sidebarOpen ? 'Hide the sidebar' : 'Show the sidebar', keywords: 'panel toggle drawer list', hint: binds.sidebar, run: toggleSidebar },
       { key: 'theme', icon: theme === 'dark' ? 'sun' : 'moon', title: theme === 'dark' ? 'Light theme' : 'Dark theme', keywords: 'appearance colors dark light', run: () => setTheme(theme === 'dark' ? 'light' : 'dark') },
       { key: 'settings', icon: 'settings', title: 'Settings', keywords: 'preferences options', run: () => openSettings().catch(showError) },
     ];
@@ -5074,9 +5153,9 @@ function App() {
   function takeMessage() {
     const message = composedMessage();
     const key = where().draftKey;
-    if (!message || (!message.text && attachments.length === 0) || restoringRef.current === key || draftRef.current.reading.length) return null;
+    if (!message || (!message.text && attachments.length === 0) || draftRef.current.reading.length) return null;
     const draft = { ...currentDraft(), segments: message.segments };
-    applyDraft(EMPTY_DRAFT);
+    applyDraft(afterSend(draft));
     return { text: message.text, prompts: message.prompts, draft, key, navigation: navigationRef.current };
   }
 
@@ -5100,7 +5179,7 @@ function App() {
     if (!sent) return;
     let rounds;
     try {
-      ({ rounds } = await postJson(`/api/benches/${benchId}/rounds`, { text: sent.text, prompts: sent.prompts, files: sent.draft.attachments }));
+      ({ rounds } = await postJson(`/api/benches/${benchId}/rounds`, { text: sent.text, prompts: sent.prompts, files: sent.draft.attachments, ...(sent.draft.edit ? { editOf: sent.draft.edit.of } : {}) }));
     } catch (error) {
       putBack(sent.key, sent.draft);
       throw error;
@@ -5156,32 +5235,41 @@ function App() {
     return { ...file, data: await readBlobAsDataUrl(await response.blob()) };
   }
 
-  // An edit's prompt, as the server gave it back, lands in its draft
-  // (endRestore). Once the server has reverted it always does, wherever the
-  // user is by then: without its files, if they could not be read.
-  async function restorePrompt(data, selections) {
-    let files = [];
+  // Edit and branch: the sent prompt or round `of` comes into the composer
+  // to be changed, its files read back from the server, and nothing else
+  // changes, on screen or on the server, until it is sent: the send makes
+  // the branch (send, sendRound). Cancel, or Escape, puts back what the
+  // composer held (cancelEdit). A file that cannot be read back is left out,
+  // and says so.
+  async function editPrompt(of, { text, attachments: files, selections: boxes }) {
+    const batch = files.map((file) => ({ name: file.name, size: file.size }));
+    // The ref has the edit before the next render, so a read that ends first finds it.
+    draftRef.current = beginEdit(currentDraft(), of, { segments: text ? [{ type: 'text', text }] : [], selections: boxes, reading: batch });
+    applyDraft(draftRef.current);
+    setCaretAtEnd((count) => count + 1);
+    let read;
     try {
-      files = await Promise.all(data.attachments.map(withData));
-    } finally {
-      endRestore({ ...EMPTY_DRAFT, segments: data.text ? [{ type: 'text', text: data.text }] : [], attachments: files, selections });
-    }
-  }
-
-  // Editing a round takes every model back to before it; the prompt returns
-  // to the bench's draft, files and all at once, and sending it starts a new
-  // branch from there. Sending waits until it is back.
-  async function editRound(benchId, roundId) {
-    beginRestore(benchDraft(benchId));
-    let data;
-    try {
-      data = await postJson(`/api/benches/${benchId}/revert`, { roundId });
+      read = await Promise.all(files.map(withData));
     } catch (error) {
-      endRestore(null);
+      finishRead(batch, []);
       throw error;
     }
-    showRound(benchId, data.rounds);
-    await restorePrompt(data, []);
+    finishRead(batch, read);
+  }
+
+  function cancelEdit() {
+    applyDraft(endEdit(currentDraft()));
+    setCaretAtEnd((count) => count + 1);
+  }
+
+  // A round's prompt and files, for its edit.
+  function editRound(round) {
+    const content = typeof round.content === 'string' ? [{ type: 'text', text: round.content }] : round.content;
+    return editPrompt(round.id, {
+      text: content.filter((part) => part.type === 'text').map((part) => part.text).join('\n'),
+      attachments: content.filter((part) => part.type === 'attachment').map((part) => part.attachment),
+      selections: [],
+    });
   }
 
   // A bench model's name, or its letter while the bench hides names.
@@ -5344,6 +5432,7 @@ function App() {
       draftRef.current = endRead(draftRef.current, batch, files);
       setAttachments(draftRef.current.attachments);
       setReading(draftRef.current.reading);
+      setEdit(draftRef.current.edit);
     }
     draftsRef.current.endRead(batch, files);
   }
@@ -5392,7 +5481,7 @@ function App() {
   async function send() {
     const key = where().draftKey;
     const row = conversationsRef.current.find((entry) => entry.id === where().chatId);
-    if (turnRunning(turnRef.current, row) || restoringRef.current === key || draftRef.current.reading.length) return;
+    if (turnRunning(turnRef.current, row) || draftRef.current.reading.length) return;
     const message = composedMessage();
     if (!message || (!message.text && attachments.length === 0)) return;
     if (!provider || !model) {
@@ -5403,10 +5492,14 @@ function App() {
     const draft = { ...currentDraft(), segments: message.segments };
     const controller = new AbortController();
     setTurn({ phase: 'sending', controller, status: null });
-    applyDraft(EMPTY_DRAFT);
+    applyDraft(afterSend(draft));
     prevScrollHeightRef.current = 0; // sending always jumps to the live tail
     const shown = { kind: 'user', text, attachments: draft.attachments, selections: draft.selections };
-    setItems((prev) => [...prev, shown]);
+    // An edit's prompt takes the place of the one it edits, on screen as on
+    // the server; a send that does not go out puts the transcript back.
+    const before = itemsRef.current;
+    const kept = draft.edit ? before.slice(0, before.findIndex((item) => item.kind === 'user' && item.messageId === draft.edit.of)) : before;
+    setItems([...kept, shown]);
 
     let conversationId = where().chatId;
     let res;
@@ -5419,14 +5512,17 @@ function App() {
       if (stopAskedRef.current === controller) {
         stopAskedRef.current = null;
         putBack(key, draft);
-        setItems((prev) => prev.filter((item) => item !== shown));
+        setItems(before);
         finishTurn(controller, conversationId, null);
         return;
       }
       res = await fetch(`/api/conversations/${conversationId}/chat`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ text, prompts: message.prompts, provider, model, files: draft.attachments, selections: draft.selections, effort: modelCaps ? effortFor(modelCaps, effort) : effort, resolution }),
+        body: JSON.stringify({
+          text, prompts: message.prompts, provider, model, files: draft.attachments, selections: draft.selections, effort: modelCaps ? effortFor(modelCaps, effort) : effort, resolution,
+          ...(draft.edit ? { editOf: draft.edit.of } : {}),
+        }),
         signal: controller.signal,
       });
       if (!res.ok) throw new Error((await res.json()).error || `HTTP ${res.status}`);
@@ -5434,12 +5530,17 @@ function App() {
       putBack(key, draft);
       if (controller.signal.aborted) return;
       showError(error);
-      setItems((prev) => prev.filter((item) => item !== shown));
+      setItems(before);
       if (conversationId) finishTurn(controller, conversationId, null);
       else setTurn(IDLE);
       return;
     }
     settleNewChat(conversationId);
+    // The edit went back to the world before the prompt it edits.
+    if (draft.edit) {
+      transcriptsRef.current.delete(conversationId);
+      liveWorldRef.current.wake();
+    }
     setTurn({ phase: 'reading', id: conversationId, controller, status: null });
     if (stopAskedRef.current === controller) {
       stopAskedRef.current = null;
@@ -5452,37 +5553,6 @@ function App() {
     await writeMessageClipboard(item);
     setCopied(item);
     setTimeout(() => setCopied((current) => (current === item ? null : current)), 1200);
-  }
-
-  // Edit from an earlier prompt without deleting its existing branch. The
-  // prompt comes back to the chat's draft with its files and selections at
-  // once; sending waits until it has. Leaving the chat meanwhile changes
-  // nothing of that: the prompt is then there to come back to.
-  async function editFrom(messageId) {
-    const conversationId = activeId;
-    const navigation = navigationRef.current;
-    beginRestore(where().draftKey);
-    let data;
-    try {
-      data = await api(`/api/conversations/${conversationId}/revert`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ messageId }),
-      });
-    } catch (error) {
-      endRestore(null);
-      throw error;
-    }
-    transcriptsRef.current.delete(conversationId);
-    liveWorldRef.current.wake();
-    if (navigationRef.current === navigation) {
-      setItems(itemsFromMessages(data.messages));
-      setMessageTree(data.messageTree);
-    } else if (where().chatId === conversationId) {
-      // Left and come back to: what is on screen may be from before the revert.
-      resync(conversationId).catch(showError);
-    }
-    await restorePrompt(data, data.selections);
   }
 
   async function switchBranch(messageId) {
@@ -5515,6 +5585,18 @@ function App() {
   const composerRef = useRef(null);
   const composerBoxRef = useRef(null);
   const caretRef = useRef(null);
+  // Bumped when an edit, or its cancel, swaps the composer's draft: the box
+  // takes the focus with the caret at the end. A layout effect, after the
+  // box's own has written the new draft into it.
+  const [caretAtEnd, setCaretAtEnd] = useState(0);
+  useLayoutEffect(() => {
+    if (!caretAtEnd) return;
+    const root = composerRef.current;
+    root.focus();
+    const selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(composer.rangeAtEnd(root));
+  }, [caretAtEnd]);
 
   useEffect(() => {
     if (!palette) return undefined;
@@ -5617,6 +5699,12 @@ function App() {
 
   function onKeyDown(evt) {
     if (palette && paletteKey(evt)) return;
+    if (evt.key === 'Escape' && draftRef.current.edit) {
+      evt.preventDefault();
+      evt.stopPropagation();
+      cancelEdit();
+      return;
+    }
     // Tab walks through the fill-in boxes.
     if (evt.key === 'Tab') {
       const boxes = composer.fields(composerRef.current);
@@ -5644,12 +5732,15 @@ function App() {
 
   function createPrompt() {
     const entry = { id: crypto.randomUUID(), title: '', text: '', attachments: [], tags: [] };
-    setPrompts((list) => [...list, entry]);
+    newPromptRef.current = entry;
+    setNewPrompt(entry);
     openPrompt(entry.id);
   }
 
-  // The prompt library lives in Bench.
+  // The prompt library lives in Bench. Another prompt opened lets go of a
+  // new one left empty.
   function openPrompt(id) {
+    if (newPromptRef.current?.id !== id) setNewPrompt(null);
     setPromptsActiveId(id);
     goBench({ kind: 'prompt' });
   }
@@ -5657,10 +5748,9 @@ function App() {
   function benchPrompt(prompt) {
     showBenchView({ kind: 'new-bench' });
     applyDraft({
+      ...EMPTY_DRAFT,
       segments: composer.promptSegments(prompt),
       attachments: (prompt.attachments || []).map((file) => ({ ...file, fromPrompt: prompt.id })),
-      selections: [],
-      reading: [],
     });
     updatePrompt(prompt.id, { usedAt: Date.now() });
     requestAnimationFrame(() => composerRef.current?.focus());
@@ -5669,10 +5759,17 @@ function App() {
   // Library edits are functions of the list (prompt-sync.mjs); a prompt they
   // name may be gone from a list a builder changed, and they leave it be.
   // `patch` is the fields to change, or a function of the prompt giving them.
+  // The first edit of a new prompt adds it to the library, edited.
   function updatePrompt(id, patch) {
-    setPrompts((list) => list.map((prompt) => (
-      prompt.id === id ? { ...prompt, ...(typeof patch === 'function' ? patch(prompt) : patch) } : prompt
-    )));
+    const fields = (prompt) => (typeof patch === 'function' ? patch(prompt) : patch);
+    const fresh = newPromptRef.current;
+    if (fresh?.id === id) {
+      newPromptRef.current = null;
+      setNewPrompt(null);
+      setPrompts((list) => [...list, { ...fresh, ...fields(fresh) }]);
+      return;
+    }
+    setPrompts((list) => list.map((prompt) => (prompt.id === id ? { ...prompt, ...fields(prompt) } : prompt)));
   }
 
   function togglePromptFavorite(id) {
@@ -5710,9 +5807,9 @@ function App() {
   const readOnly = Boolean(activeRow?.benchId);
   // The chat's tree, or the bench's, is being changed (a branch switch, an
   // edit's revert): no second change starts until that one is over.
-  const changing = branching || restoringKey !== null;
-  // The composer's own draft is the one an edit's prompt is coming back to.
-  const restoring = restoringKey !== null && restoringKey === draftKey;
+  const changing = branching || edit !== null;
+  // The prompt or round the composer's draft is a new version of.
+  const editedId = edit?.of ?? null;
   // Each entry's vnode is kept until something it shows changes. Preact
   // skips a subtree whose vnode it has seen, so a streamed token re-renders
   // only the entry it lands in, not the whole transcript.
@@ -5724,7 +5821,7 @@ function App() {
       if (item.kind === 'user') {
         const branch = !readOnly && branches.get(item.messageId);
         return html`
-          <div class="user-block">
+          <div class="user-block ${item.messageId === editedId ? 'editing' : ''}">
             <div class="msg user">
               ${item.text}
               ${item.attachments && item.attachments.length > 0 && html`
@@ -5771,7 +5868,7 @@ function App() {
                   title="Edit and branch"
                   aria-label="Edit and branch"
                   disabled=${changing}
-                  onClick=${() => editFrom(item.messageId).catch(showError)}
+                  onClick=${() => editPrompt(item.messageId, item).catch(showError)}
                 >
                   <${Icon} name="compose" size="13" />
                 </button>
@@ -5960,7 +6057,7 @@ function App() {
       if (entry.kind === 'activity') vnode = cached(groupVnodes, entry.children[0], ['activity', ...entry.children], () => renderActivity(entry));
       else if (entry.kind === 'tool-stack') {
         vnode = cached(groupVnodes, entry.calls[0].tool, ['stack', ...entry.calls.flatMap((call) => [call.tool, ...call.outputs])], () => renderItem(entry));
-      } else vnode = cached(itemVnodes, entry, [branches.get(entry.messageId), copied === entry, busy, changing, items.length > 1, readOnly, activeId], () => renderItem(entry));
+      } else vnode = cached(itemVnodes, entry, [branches.get(entry.messageId), copied === entry, busy, changing, items.length > 1, readOnly, activeId, entry.messageId === editedId], () => renderItem(entry));
       return html`<${Keyed} key=${keys[index]}>${vnode}<//>`;
     });
 
@@ -5988,11 +6085,24 @@ function App() {
         />
       `;
     }
-  }, [items, busy, changing, branches, copied, activeId, readOnly]);
+  }, [items, busy, changing, branches, copied, activeId, readOnly, editedId]);
 
   const benchMode = appMode === 'bench';
   const memberRow = place.kind === 'member' ? conversations.find((row) => row.id === place.memberId) || null : null;
-  const transcriptShown = !benchMode || place.kind === 'member';
+  const transcriptShown = (!benchMode && place.kind !== 'missing') || place.kind === 'member';
+  // The sidebar's own button: in a narrow window it opens and closes the list's drawer.
+  const sidebarLabel = !narrow ? 'Collapse sidebar' : drawerOpen ? 'Close the list' : benchMode ? 'Benches and prompts' : 'Chats';
+  // The drawer closes on what is chosen in it, and under Settings and the search panel.
+  useEffect(() => setDrawerOpen(false), [place, promptsActiveId, settingsOpen, Boolean(command)]);
+  // What the tab, its history entries and its bookmarks are called.
+  const placeTitle = place.kind === 'missing' ? (place.archived ? 'Archived' : 'Not found')
+    : !benchMode ? activeTitle
+    : place.kind === 'new-bench' ? 'New bench'
+    : place.kind === 'compare' ? viewedBench?.title
+    : place.kind === 'leaderboard' ? 'Leaderboard'
+    : place.kind === 'member' ? `${viewedBench?.title} / ${memberRow ? nameOf(memberRow) : ''}`
+    : 'Prompts';
+  useEffect(() => { document.title = placeTitle ? `${placeTitle} · mcbench-lite` : 'mcbench-lite'; }, [placeTitle]);
   const composerShown = draftKey !== null;
 
   // A character typed anywhere outside a field: in a comparison, 1–9 fly to
@@ -6216,7 +6326,7 @@ function App() {
           const pick = (choice) => voteRound(viewedBench.id, round.id, vote !== undefined && vote.pick === (choice === 'tie' ? null : choice) ? null : choice).catch(showError);
           return html`
             <section key=${round.id} class="bench-round ${number === shownRoundNumber ? 'shown' : ''}">
-              <div class="user-block">
+              <div class="user-block ${round.id === editedId ? 'editing' : ''}">
                 <div class="msg user bench-prompt" onClick=${() => showWholeRound(viewedBench.id, number)}>
                   ${content.filter((part) => part.type === 'text').map((part) => part.text).join('\n')}
                   ${files.length > 0 && renderFiles(files)}
@@ -6247,7 +6357,7 @@ function App() {
                       title="Edit and branch"
                       aria-label="Edit and branch"
                       disabled=${changing}
-                      onClick=${() => editRound(viewedBench.id, round.id).catch(showError)}
+                      onClick=${() => editRound(round).catch(showError)}
                     ><${Icon} name="compose" size="13" /></button>
                   `}
                 </div>
@@ -6382,7 +6492,7 @@ function App() {
             class="send"
             title="Send message"
             aria-label="Send message"
-            disabled=${(!hasText && attachments.length === 0) || !provider || !model || restoring || reading.length > 0}
+            disabled=${(!hasText && attachments.length === 0) || !provider || !model || reading.length > 0}
             onClick=${() => submit().catch(showError)}
           >
             <${Icon} name="send" size="15" />
@@ -6396,7 +6506,7 @@ function App() {
         class="send"
         title=${label}
         aria-label=${label}
-        disabled=${(!hasText && attachments.length === 0) || (place.kind === 'new-bench' && !benchReady) || restoring || reading.length > 0}
+        disabled=${(!hasText && attachments.length === 0) || (place.kind === 'new-bench' && !benchReady) || reading.length > 0}
         onClick=${() => submit().catch(showError)}
       >
         <${Icon} name="send" size="15" />
@@ -6406,11 +6516,15 @@ function App() {
 
   return html`
     <div
-      class="layout ${sidebarOpen ? '' : 'sidebar-closed'} ${promptView ? 'prompts-mode' : ''}"
+      class="layout ${sidebarOpen || narrow ? '' : 'sidebar-closed'} ${promptView ? 'prompts-mode' : ''}${drawer ? ' drawer-open' : ''}"
       style="--chat-col:${chatWidth ? `${chatWidth}px` : 'minmax(360px, 42%)'}; --sidebar-w:${sidebarWidth}px"
     >
-      ${!sidebarOpen && html`<div class="sidebar-reveal" title="Show sidebar" onMouseDown=${startSidebarDrag}></div>`}
-      <aside class="sidebar">
+      ${!sidebarOpen && !narrow && html`<div class="sidebar-reveal" title="Show sidebar" onMouseDown=${startSidebarDrag}></div>`}
+      ${drawer && html`<div class="drawer-scrim" onClick=${() => setDrawerOpen(false)}></div>`}
+      <aside
+        class="sidebar"
+        onClick=${(evt) => { if (drawer && evt.target.closest('.conv-item, .pe-item') && !evt.target.closest('button')) setDrawerOpen(false); }}
+      >
         <div class="brand">
           ${logo}
           <${ModeSwitcher}
@@ -6429,8 +6543,14 @@ function App() {
             >
               <${Icon} name="compose" size="16" />
             </button>
-            <button class="icon-btn" title="Collapse sidebar" aria-label="Collapse sidebar" onClick=${() => setSidebarOpen(false)}>
-              <${Icon} name="panel" size="16" />
+            <button
+              class="icon-btn sidebar-toggle"
+              title=${sidebarLabel}
+              aria-label=${sidebarLabel}
+              aria-expanded=${narrow ? drawerOpen : undefined}
+              onClick=${() => (narrow ? setDrawerOpen((open) => !open) : setSidebarOpen(false))}
+            >
+              <${Icon} name=${drawer ? 'x' : 'panel'} size="16" />
             </button>
           </div>
         </div>
@@ -6525,7 +6645,7 @@ function App() {
 
       <section class="chat">
         <div class="chat-header">
-          ${!sidebarOpen && html`
+          ${!sidebarOpen && !narrow && html`
             <button class="icon-btn" title="Open sidebar" aria-label="Open sidebar" onClick=${() => setSidebarOpen(true)}>
               <${Icon} name="panel" size="16" />
             </button>
@@ -6539,7 +6659,8 @@ function App() {
             </button>
           `}
           <div class="title">
-            ${!benchMode ? activeTitle
+            ${place.kind === 'missing' ? placeTitle
+              : !benchMode ? activeTitle
               : place.kind === 'new-bench' ? 'New bench'
               : place.kind === 'compare' ? viewedBench?.title
               : place.kind === 'leaderboard' ? 'Leaderboard'
@@ -6651,7 +6772,7 @@ function App() {
         </div>
         ${promptView && promptsReady && html`
           <${PromptEditor}
-            prompts=${prompts}
+            prompts=${editorPrompts}
             activeId=${shownPromptId}
             providers=${providers}
             favorites=${favorites}
@@ -6729,6 +6850,21 @@ function App() {
           </div>
         `}
         ${place.kind === 'compare' && viewedBench && renderBenchCompare()}
+        ${place.kind === 'missing' && html`
+          <div class="messages missing">
+            <div class="empty-hint">
+              ${grassBlock(56)}
+              <div class="big">${place.archived ? `This ${place.mode === 'bench' ? 'bench' : 'chat'} is archived` : `There is no ${place.mode === 'bench' ? 'bench' : 'chat'} at this address`}</div>
+              <div class="empty-sub">${place.archived === null ? 'Looking in the archive…'
+                : place.archived ? 'Restore it to open it here. What is archived is deleted 7 days after it was archived.'
+                : 'It was deleted, or the address was mistyped.'}</div>
+              <div class="missing-actions">
+                ${place.archived && html`<button type="button" class="btn gold" onClick=${() => restoreArchived(place.mode, place.id).catch(showError)}>Restore</button>`}
+                <button type="button" class="btn" onClick=${() => (place.mode === 'bench' ? showBenchView({ kind: 'new-bench' }) : newConversation().catch(showError))}>${place.mode === 'bench' ? 'New bench' : 'New chat'}</button>
+              </div>
+            </div>
+          </div>
+        `}
         ${place.kind === 'leaderboard' && html`
           <div class="messages leaderboard">
             ${leaderboard && !leaderboard.length && html`<div class="empty-hint"><div class="big">No blind votes yet</div><div>Vote on a blind bench's rounds and the models are ranked here.</div></div>`}
@@ -6756,6 +6892,13 @@ function App() {
               ${!preparing.failed && html`<span class="working-dots" aria-hidden="true"><i></i><i></i><i></i></span>`}
               <span>${heldLine(preparing)}</span>
               <button type="button" class="text-link" onClick=${() => setHeld(null)}>Don't send</button>
+            </div>
+          `}
+          ${edit && html`
+            <div class="composer-editing" role="status">
+              <${Icon} name="compose" size="13" />
+              <span>${benchMode ? 'Editing a round: sending it runs the new version on every model' : 'Editing a message: sending it starts a new branch'}</span>
+              <button type="button" class="text-link" aria-label="Cancel edit" title="Cancel edit (Esc)" onClick=${cancelEdit}>Cancel</button>
             </div>
           `}
           <div class="composer-box ${busy ? 'busy' : ''}" ref=${composerBoxRef}>

@@ -180,34 +180,41 @@ test('a chat message is checked whole before anything changes, and a failed save
   assert.deepEqual(store.getConversation(id).messages.map((message) => message.role), ['user', 'assistant']);
 });
 
-test('a revert or branch holds the chat until its sandbox is reset, and none runs under a turn', async () => {
+test('an edit or branch switch holds the chat until its sandbox is reset, and none runs under a turn', async () => {
   const id = await newChat();
-  await call('POST', `/api/conversations/${id}/chat`, { provider: 'openrouter', model: 'chat/model', resolution: 1, text: 'Build a hut' });
+  const send = (text, extra) => ({ provider: 'openrouter', model: 'chat/model', resolution: 1, text, ...extra });
+  await call('POST', `/api/conversations/${id}/chat`, send('Build a hut'));
   const [first] = prompts(id);
 
   const gate = deferred();
   models['chat/model'] = waits(gate.promise);
-  const running = request('POST', `/api/conversations/${id}/chat`, { provider: 'openrouter', model: 'chat/model', resolution: 1, text: 'Add a door' });
+  const running = request('POST', `/api/conversations/${id}/chat`, send('Add a door'));
   await tick();
-  const underTurn = await call('POST', `/api/conversations/${id}/revert`, { messageId: first.id });
+  const underTurn = await call('POST', `/api/conversations/${id}/chat`, send('Build a tower', { editOf: first.id }));
   assert.equal(underTurn.status, 409);
   assert.equal((await call('POST', `/api/conversations/${id}/branch`, { messageId: first.id })).status, 409);
   gate.resolve();
   await running.done;
-  delete models['chat/model'];
 
   const resetting = deferred();
   reset = () => resetting.promise;
-  const revert = request('POST', `/api/conversations/${id}/revert`, { messageId: first.id });
+  let asked = 0;
+  models['chat/model'] = async () => { asked += 1; return { content: 'Done.' }; };
+  const edit = request('POST', `/api/conversations/${id}/chat`, send('Build a tower', { editOf: first.id }));
   await tick();
-  assert.deepEqual(prompts(id), [], 'the revert itself is done before the reset');
-  const blocked = await call('POST', `/api/conversations/${id}/chat`, { provider: 'openrouter', model: 'chat/model', resolution: 1, text: 'Again' });
-  assert.equal(blocked.status, 409, 'no turn starts on a shell about to be killed');
+  assert.deepEqual(prompts(id).map((prompt) => prompt.content), ['Build a tower'], 'the edit is stored before the reset');
+  assert.equal(asked, 0, 'its turn does not start on the shell being reset');
+  const blocked = await call('POST', `/api/conversations/${id}/chat`, send('Again'));
+  assert.equal(blocked.status, 409, 'no other turn starts on it either');
   resetting.resolve();
-  assert.equal((await revert.done).status, 200);
+  assert.equal((await edit.done).lines.at(-1).type, 'done');
+  assert.equal(asked, 1);
   reset = async () => {};
-  const again = await call('POST', `/api/conversations/${id}/chat`, { provider: 'openrouter', model: 'chat/model', resolution: 1, text: 'Again' });
-  assert.equal(again.lines.at(-1).type, 'done');
+  delete models['chat/model'];
+  // The prompt edited stays stored beside its new version, one branch switch away.
+  const roots = store.messageTree(store.getConversation(id)).messages.filter((message) => message.parentId === null);
+  assert.deepEqual(roots.map((message) => message.id).includes(first.id), true);
+  assert.equal(roots.length, 2);
 });
 
 test('a bench retry holds the model until its sandbox is reset, even when another model finishes meanwhile', async () => {
@@ -237,26 +244,30 @@ test('a bench retry holds the model until its sandbox is reset, even when anothe
   assert.deepEqual(store.benchProgress(ids['retry/a']), { round: 1, halted: null });
 });
 
-test('a bench round edit holds the bench: its head moves first, and no round is added until the resets end', async () => {
+test('a bench round edit holds the bench: the new version is on the line first, and no round is added or started until the resets end', async () => {
   const { bench, ids } = await newBench('A tower', 'edit/a', 'edit/b');
   await Promise.all(Object.values(ids).map(free));
   await call('POST', `/api/benches/${bench.id}/rounds`, { text: 'Add a roof' });
   await Promise.all(Object.values(ids).map(free));
   const roof = store.getBench(bench.id).rounds[1];
 
+  const unknown = await call('POST', `/api/benches/${bench.id}/rounds`, { text: 'Add a spire', editOf: 'nope' });
+  assert.deepEqual([unknown.status, unknown.body.error], [400, 'Unknown round']);
   const resetting = deferred();
   reset = () => resetting.promise;
-  const revert = request('POST', `/api/benches/${bench.id}/revert`, { roundId: roof.id });
+  const edit = request('POST', `/api/benches/${bench.id}/rounds`, { text: 'Add a spire', editOf: roof.id });
   await tick();
-  assert.equal(store.getBench(bench.id).rounds.length, 1);
-  const added = await call('POST', `/api/benches/${bench.id}/rounds`, { text: 'Add a spire' });
+  assert.deepEqual(store.getBench(bench.id).rounds.map((round) => round.content), ['A tower', 'Add a spire']);
+  const added = await call('POST', `/api/benches/${bench.id}/rounds`, { text: 'Add a window' });
   assert.equal(added.status, 409);
-  assert.equal(store.getBench(bench.id).nodes.length, 2);
+  assert.equal(store.getBench(bench.id).nodes.length, 3);
+  assert.deepEqual(app.reservations.turns(), [], 'no model starts the new version on the old shell');
   resetting.resolve();
-  const { status, body } = await revert.done;
-  assert.deepEqual([status, body.rounds, body.text], [200, 1, 'Add a roof']);
+  const { status, body } = await edit.done;
+  assert.deepEqual([status, body.rounds], [200, 2]);
   reset = async () => {};
-  for (const id of Object.values(ids)) assert.equal(prompts(id).length, 1);
+  await Promise.all(Object.values(ids).map(free));
+  for (const id of Object.values(ids)) assert.deepEqual(prompts(id).map((prompt) => prompt.content), ['A tower', 'Add a spire']);
 });
 
 // The composer sends the library prompts a message was inserted from; the
@@ -450,12 +461,12 @@ test('a bench round whose prompt cannot be saved is stored as failed once the st
   assert.deepEqual(store.benchProgress(unsaved.id), { round: 1, halted: 'failed' });
 });
 
-test('a bench chat is changed only through its bench: no chat-level prompt, revert, branch or archive', async () => {
+test('a bench chat is changed only through its bench: no chat-level prompt, edit, branch or archive', async () => {
   const { bench, ids } = await newBench('A hut', 'own/a', 'own/b');
   await Promise.all(Object.values(ids).map(free));
   const [prompt] = prompts(ids['own/a']);
   const message = { provider: 'openrouter', model: 'own/a', resolution: 1, text: 'Add a door' };
-  for (const [route, body] of [['chat', message], ['revert', { messageId: prompt.id }], ['branch', { messageId: prompt.id }], ['archive']]) {
+  for (const [route, body] of [['chat', message], ['chat', { ...message, editOf: prompt.id }], ['branch', { messageId: prompt.id }], ['archive']]) {
     const refused = await call('POST', `/api/conversations/${ids['own/a']}/${route}`, body);
     assert.deepEqual([route, refused.status, refused.body.error], [route, 409, 'A bench chat is changed only through its bench']);
   }
@@ -562,8 +573,7 @@ test('a title that arrives for a reverted first prompt is dropped, and the new f
   await call('POST', `/api/conversations/${id}/chat`, { provider: 'openrouter', model: 'chat/model', resolution: 1, text: 'Build a hut' });
   // The hut's title is still under way when the prompt is replaced.
   const [hut] = prompts(id);
-  assert.equal((await call('POST', `/api/conversations/${id}/revert`, { messageId: hut.id })).status, 200);
-  await call('POST', `/api/conversations/${id}/chat`, { provider: 'openrouter', model: 'chat/model', resolution: 1, text: 'Build a tower' });
+  await call('POST', `/api/conversations/${id}/chat`, { provider: 'openrouter', model: 'chat/model', resolution: 1, text: 'Build a tower', editOf: hut.id });
   await tick();
   const before = store.getConversation(id).title;
   slow.resolve();
@@ -604,8 +614,7 @@ test('a bench title that arrives for a first round since edited is dropped, and 
   title = (options) => (titled(options) === 'A hut' ? slow.promise.then(() => ({ content: 'Stone hut' })) : Promise.resolve({ content: 'Tall tower' }));
   const { bench, ids } = await newBench('A hut', 'retitle/a', 'retitle/b');
   await Promise.all(Object.values(ids).map(free));
-  assert.equal((await call('POST', `/api/benches/${bench.id}/revert`, { roundId: bench.rounds[0].id })).status, 200);
-  await call('POST', `/api/benches/${bench.id}/rounds`, { text: 'A tower' });
+  assert.equal((await call('POST', `/api/benches/${bench.id}/rounds`, { text: 'A tower', editOf: bench.rounds[0].id })).status, 200);
   await Promise.all(Object.values(ids).map(free));
   await tick();
   const before = store.getBench(bench.id).title;
@@ -688,10 +697,11 @@ test('a bench round edit that fails at one model moves no model: none is sent th
   const { bench, all, roof, lines } = await benchOnRoundTwo('edit-whole');
   const before = lines();
   // The first model's chat is saved; the second's is not.
-  const revert = await failing(savingChat(all[1]), () => call('POST', `/api/benches/${bench.id}/revert`, { roundId: roof.id }));
-  assert.deepEqual([revert.status, revert.body.error], [500, 'the disk is full']);
+  const edit = await failing(savingChat(all[1]), () => call('POST', `/api/benches/${bench.id}/rounds`, { text: 'Add a spire', editOf: roof.id }));
+  assert.deepEqual([edit.status, edit.body.error], [500, 'the disk is full']);
   assert.deepEqual(lines(), before, 'no model went back without the bench');
-  assert.equal(store.getBench(bench.id).rounds.length, 2);
+  assert.deepEqual(store.getBench(bench.id).rounds.map((round) => round.id), [bench.rounds[0].id, roof.id], 'and the new version is not on the line');
+  assert.equal(store.getBench(bench.id).nodes.length, 2);
   app.advanceBench(bench.id);
   assert.deepEqual(app.reservations.turns(), [], 'so no model has a round to run again');
 });
@@ -707,8 +717,7 @@ test('a bench retry that fails takes back no vote', async () => {
 
 test('a bench branch switch that fails at one model leaves the bench and every model on their line', async () => {
   const { bench, all, roof, lines } = await benchOnRoundTwo('branch-whole');
-  assert.equal((await call('POST', `/api/benches/${bench.id}/revert`, { roundId: roof.id })).status, 200);
-  await call('POST', `/api/benches/${bench.id}/rounds`, { text: 'Add a spire' });
+  assert.equal((await call('POST', `/api/benches/${bench.id}/rounds`, { text: 'Add a spire', editOf: roof.id })).status, 200);
   await Promise.all(all.map(free));
   const spire = store.getBench(bench.id).rounds[1];
   const before = lines();
@@ -762,19 +771,27 @@ test('with no title model chosen, a chat is titled by its own model and a bench 
   assert.deepEqual(asked, [['openrouter', 'chat/model', 'low'], ['openrouter', 'first/model', 'low'], ['openrouter', 'title/model', 'low']]);
 });
 
-test('a revert, branch switch or dismissal that cannot be saved is a 500; one the store refuses is a 400', async () => {
+test('an edit, branch switch or dismissal that cannot be saved is a 500 and changes nothing; one the store refuses is a 400', async () => {
   const id = await newChat();
   models['chat/model'] = async () => { throw new Error('HTTP 400: bad request'); };
   await call('POST', `/api/conversations/${id}/chat`, { provider: 'openrouter', model: 'chat/model', resolution: 1, text: 'Build a hut' });
   delete models['chat/model'];
   const [prompt] = prompts(id);
   const error = store.getConversation(id).messages.at(-1);
-  for (const [route, body] of [['revert', { messageId: prompt.id }], ['branch', { messageId: prompt.id }], ['dismiss-error', { messageId: error.id }]]) {
+  const edit = (editOf) => ({ provider: 'openrouter', model: 'chat/model', resolution: 1, text: 'Build a tower', editOf });
+  const stored = () => store.getConversation(id).messages.map((message) => [message.role, message.content]);
+  const before = stored();
+  for (const [route, body, wrong] of [['chat', edit(prompt.id), edit('nope')], ['branch', { messageId: prompt.id }, { messageId: 'nope' }], ['dismiss-error', { messageId: error.id }, { messageId: 'nope' }]]) {
     const failed = await failing(savingChat(id), () => call('POST', `/api/conversations/${id}/${route}`, body));
     assert.deepEqual([route, failed.status, failed.body.error], [route, 500, 'the disk is full']);
-    const refused = await call('POST', `/api/conversations/${id}/${route}`, { messageId: 'nope' });
+    const refused = await call('POST', `/api/conversations/${id}/${route}`, wrong);
     assert.equal(refused.status, 400, route);
   }
+  // The edit's revert is saved, then its prompt is not: neither stays.
+  const unsaved = await failing(`INSERT ON messages WHEN NEW.conversation_id = '${id}'`, () => call('POST', `/api/conversations/${id}/chat`, edit(prompt.id)));
+  assert.deepEqual([unsaved.status, unsaved.body.error], [500, 'the disk is full']);
+  assert.deepEqual(stored(), before, 'the chat is as it was, in memory and as stored');
+  assert.equal(app.reservations.has(id), false);
 });
 
 test('a bench whose model cannot be loaded is logged by its id when it is advanced, and other benches carry on', async (t) => {

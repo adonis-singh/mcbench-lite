@@ -28,13 +28,14 @@ const { minecraftLive } = require('./minecraft-live');
 const { LiveViews } = require('./live-views');
 const coreWasm = require('./core-wasm');
 const { minecraftVerifier } = require('./minecraft-verify');
-const { writeSchematic } = require('./schematic');
+const { buildSchematic } = require('./schematic');
 const { BenchComposer, worldAtRound } = require('./bench-world');
 const { describeSelection, readSelection } = require('./selection');
 const { blockIcon } = require('./block-icon');
 const { generatePrompt } = require('./prompt-generation');
 const promptLibrary = require('./prompts');
 const { RESOLUTIONS } = require('../web/resolution.mjs');
+const { isPageAddress } = require('../web/address.mjs');
 const settings = require('./settings');
 const { blockStates } = require('./block-states');
 const { blockTints } = require('./block-tints');
@@ -423,7 +424,7 @@ const titleSource = (text, files) => text || `Build from ${files.map((file) => f
 const titleImages = (files) => files.filter((file) => supportsImageData(file?.data)).map((file) => file.data);
 
 // A bench's chats are changed only through the bench's routes, which keep
-// its models on the same rounds: a chat of its own takes no prompt, revert,
+// its models on the same rounds: a chat of its own takes no prompt, edit,
 // branch switch or archive.
 function ownChat(id) {
   const conversation = store.getConversation(id);
@@ -435,7 +436,7 @@ function ownChat(id) {
 async function handleChat(req, res, id) {
   const conversation = ownChat(id);
   // Held before the first await, so two racing POSTs can't both start a
-  // turn, and no revert or branch runs under this one.
+  // turn, and no branch switch runs under this one.
   const [turn] = reservations.take([id], () => new TurnStream(), 'A turn is already running for this conversation');
   let title = null;
   try {
@@ -448,26 +449,35 @@ async function handleChat(req, res, id) {
     if (!model) throw httpError(400, 'Choose a model');
     const resolution = readResolution(body);
     const message = readMessage(body);
+    // An edit sends the new version of prompt `editOf` in that prompt's
+    // place: the one way a chat branches.
+    const edit = body.editOf === undefined ? null : String(body.editOf);
     storeMessage(message, id, ({ files, content, prompts }) => {
-      sandbox.syncAttachments(id, store.ATTACHMENTS_DIR);
-      if (typeof body.effort === 'string') conversation.effort = body.effort.trim() || null;
-      // The resolution (web/resolution.mjs) is chosen with each message, as the model is.
-      conversation.resolution = resolution;
-      conversation.provider = provider;
-      conversation.model = model;
-      // A new first prompt is titled, and so is a chat still untitled (its
-      // title failed, the server stopped first, or the prompt it was being
-      // titled for was reverted), from this message.
-      const state = titleState(id, conversation.title, store.DEFAULT_TITLE, conversation.messages.map((entry) => entry.id));
-      const untitled = state === 'untitled' || state === 'failed'
-        || (conversation.messages.length === 0 && !store.repeatsLatestRootPrompt(conversation, content));
-      // No prompt goes on a turn still under way: this hold shows none is
-      // running, so one left there (its end was not saved) is ended first.
-      store.endUnfinishedTurn(conversation, store.UNSAVED);
-      const prompt = store.appendMessage(conversation, { role: 'user', content, ...(prompts.length ? { prompts } : {}) }, conversation.world.reference());
-      store.save(conversation);
-      if (untitled) title = { prompt: prompt.id, text: titleSource(message.text, files), images: titleImages(message.files), model: { provider, model } };
+      const append = () => {
+        sandbox.syncAttachments(id, store.ATTACHMENTS_DIR);
+        if (typeof body.effort === 'string') conversation.effort = body.effort.trim() || null;
+        // The resolution (web/resolution.mjs) is chosen with each message, as the model is.
+        conversation.resolution = resolution;
+        conversation.provider = provider;
+        conversation.model = model;
+        // A new first prompt is titled, and so is a chat still untitled (its
+        // title failed, the server stopped first, or the prompt it was being
+        // titled for was reverted), from this message.
+        const state = titleState(id, conversation.title, store.DEFAULT_TITLE, conversation.messages.map((entry) => entry.id));
+        const untitled = state === 'untitled' || state === 'failed'
+          || (conversation.messages.length === 0 && !store.repeatsLatestRootPrompt(conversation, content));
+        // No prompt goes on a turn still under way: this hold shows none is
+        // running, so one left there (its end was not saved) is ended first.
+        store.endUnfinishedTurn(conversation, store.UNSAVED);
+        const prompt = store.appendMessage(conversation, { role: 'user', content, ...(prompts.length ? { prompts } : {}) }, conversation.world.reference());
+        store.save(conversation);
+        if (untitled) title = { prompt: prompt.id, text: titleSource(message.text, files), images: titleImages(message.files), model: { provider, model } };
+      };
+      if (edit === null) append();
+      else store.editPrompt(conversation, edit, append);
     });
+    // The shell is the old branch's: the turn starts on a fresh one.
+    if (edit !== null) await sandbox.reset(id);
   } catch (error) {
     releaseTurn(id, turn);
     return sendJson(res, error.statusCode || 500, { error: String(error.message || error) });
@@ -1019,27 +1029,6 @@ async function handleApi(req, res, url) {
       publishConversations();
       return sendJson(res, 200, { ok: true });
     }
-    // Editing a round goes back to before it: every model's chat returns to
-    // its world then, and the next round sent branches off there. The rounds
-    // after it stay stored, one branch switch away. The bench and its models
-    // stay held until their sandboxes are reset.
-    if (req.method === 'POST' && parts[3] === 'revert') {
-      const index = bench.rounds.findIndex((round) => round.id === body.roundId);
-      if (index < 0) return sendJson(res, 400, { error: 'Unknown round' });
-      const { content } = bench.rounds[index];
-      const members = store.benchMembers(bench.id);
-      await editing([benchKey(bench.id), ...members.map((member) => member.id)], 'Stop the running models before editing a round', async () => {
-        const reverted = store.revertBenchRound(bench, index);
-        await Promise.all(reverted.map((member) => sandbox.reset(member.id)));
-      });
-      publishConversations();
-      const parts = typeof content === 'string' ? [{ type: 'text', text: content }] : content;
-      return sendJson(res, 200, {
-        rounds: bench.rounds.length,
-        text: parts.filter((part) => part.type === 'text').map((part) => part.text).join('\n'),
-        attachments: parts.filter((part) => part.type === 'attachment').map((part) => part.attachment),
-      });
-    }
     // Another version of a round: the bench follows its latest line, and each
     // model's chat the branch that answered it.
     if (req.method === 'POST' && parts[3] === 'branch') {
@@ -1055,10 +1044,26 @@ async function handleApi(req, res, url) {
       advanceBench(bench.id);
       return sendJson(res, 200, { round });
     }
+    // The next round, or with `editOf` the new version of that round: every
+    // model's chat goes back to its world before it, the new version follows
+    // on the line, and the rounds after it stay stored, one branch switch
+    // away. The bench and its models stay held until their sandboxes are
+    // reset, so no model starts the round on its old branch's shell.
     if (req.method === 'POST' && parts[3] === 'rounds') {
       if (body.selections?.length) return sendJson(res, 400, { error: 'Selections belong to one build, not a bench' });
-      if (reservations.has(benchKey(bench.id))) return sendJson(res, 409, { error: 'Wait for the round edit to finish' });
-      storeMessage(readMessage(body), bench.id, ({ content, prompts }) => store.appendRound(bench, content, prompts));
+      if (body.editOf === undefined) {
+        if (reservations.has(benchKey(bench.id))) return sendJson(res, 409, { error: 'Wait for the round edit to finish' });
+        storeMessage(readMessage(body), bench.id, ({ content, prompts }) => store.appendRound(bench, content, prompts));
+      } else {
+        const index = bench.rounds.findIndex((round) => round.id === body.editOf);
+        if (index < 0) return sendJson(res, 400, { error: 'Unknown round' });
+        const message = readMessage(body);
+        const members = store.benchMembers(bench.id);
+        await editing([benchKey(bench.id), ...members.map((member) => member.id)], 'Stop the running models before editing a round', async () => {
+          const reverted = storeMessage(message, bench.id, ({ content, prompts }) => store.editBenchRound(bench, index, content, prompts));
+          await Promise.all(reverted.map((member) => sandbox.reset(member.id)));
+        });
+      }
       advanceBench(bench.id);
       titleBench(bench.id);
       return sendJson(res, 200, { rounds: bench.rounds.length });
@@ -1130,12 +1135,13 @@ async function handleApi(req, res, url) {
       const conversation = store.getConversation(id);
       if (!conversation) return sendJson(res, 404, { error: 'Conversation not found' });
       const name = (conversation.title || 'build').replace(/[^\w .-]+/g, '').trim() || 'build';
+      const schematic = await buildSchematic(id, conversation.world);
       res.writeHead(200, {
         'content-type': 'application/octet-stream',
         'content-disposition': `attachment; filename="${name}.schem"`,
         'cache-control': 'no-store',
       });
-      return res.end(writeSchematic(conversation.world));
+      return res.end(schematic);
     }
     // A chat's build on the shared site: its page's address (null when it is
     // not shared there), a publish streamed as NDJSON, one line per move of
@@ -1286,8 +1292,8 @@ async function handleApi(req, res, url) {
       reservations.turn(id)?.controller.abort();
       return sendJson(res, 200, { ok: true });
     }
-    // Both hold the chat until its sandbox is reset, so no turn starts on a
-    // shell that is about to be killed.
+    // A branch switch holds the chat until its sandbox is reset, so no turn
+    // starts on a shell that is about to be killed.
     if (req.method === 'POST' && parts[3] === 'branch') {
       const body = await readJsonBody(req);
       const conversation = ownChat(id);
@@ -1298,26 +1304,6 @@ async function handleApi(req, res, url) {
       return sendJson(res, 200, {
         messages: store.publicMessages(conversation),
         messageTree: store.messageTree(conversation),
-      });
-    }
-    // Move the active history head to just before a user message and restore
-    // its world checkpoint. The old branch remains stored for future history UI.
-    if (req.method === 'POST' && parts[3] === 'revert') {
-      const body = await readJsonBody(req);
-      const conversation = ownChat(id);
-      const target = await editing([id], 'Stop the running turn before reverting', async () => {
-        const reverted = store.revert(conversation, String(body.messageId || ''));
-        await sandbox.reset(id);
-        return reverted;
-      });
-      const content = Array.isArray(target.content) ? target.content : [{ type: 'text', text: target.content }];
-      return sendJson(res, 200, {
-        messages: store.publicMessages(conversation),
-        messageTree: store.messageTree(conversation),
-        title: conversation.title,
-        text: content.filter((p) => p.type === 'text').map((p) => p.text).join('\n'),
-        attachments: content.filter((p) => p.type === 'attachment').map((p) => p.attachment),
-        selections: content.filter((p) => p.type === 'selection').map((p) => p.selection),
       });
     }
   }
@@ -1334,7 +1320,7 @@ const VENDOR = {
 const GL_MATRIX = '/vendor/gl-matrix/';
 
 // Pages and scripts are revalidated on every load and sent again only when
-// they changed.
+// they changed. Every address of the page (web/address.mjs) is the page.
 function serveStatic(req, res, pathname) {
   let file;
   if (VENDOR[pathname]) file = VENDOR[pathname];
@@ -1343,7 +1329,7 @@ function serveStatic(req, res, pathname) {
     file = path.normalize(path.join(root, pathname.slice(GL_MATRIX.length)));
     if (!file.startsWith(`${root}${path.sep}`)) file = null;
   } else {
-    file = path.normalize(path.join(webDir, pathname === '/' ? 'index.html' : pathname.slice(1)));
+    file = path.normalize(path.join(webDir, isPageAddress(pathname) ? 'index.html' : pathname.slice(1)));
     if (!file.startsWith(webDir)) file = null;
   }
   if (!file || !fs.existsSync(file) || !fs.statSync(file).isFile()) {

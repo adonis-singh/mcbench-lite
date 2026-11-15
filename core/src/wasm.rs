@@ -25,7 +25,8 @@ struct Buffers {
     // adds takes, a byte each (Stream::inputs: 0 none, 1 toggle, 2 press, 3 use).
     inputs: Vec<u8>,
     message: Vec<u8>,
-    // The player's view (28 f64, little endian: the host's own byte order).
+    // The player's view (28 f64, little endian: the host's own byte order),
+    // or a standing spot's feet (3 f64).
     view: Vec<u8>,
 }
 
@@ -162,6 +163,21 @@ pub extern "C" fn mcb_player_spawn(x: f64, y: f64, z: f64, yaw: f32, pitch: f32,
         Ok(())
     });
     finish(result, |()| 0)
+}
+
+// Where a player can stand on top of the columns of the box min x, y, z to
+// max x, y, z nearest to the feet position near x, y, z
+// (Session::standing_spot): returns 1 with the feet in the view buffer (3
+// f64), or 0 when no column has a spot.
+#[no_mangle]
+#[allow(clippy::too_many_arguments)]
+pub extern "C" fn mcb_standing_spot(min_x: i32, min_y: i32, min_z: i32, max_x: i32, max_y: i32, max_z: i32, near_x: f64, near_y: f64, near_z: f64) -> i32 {
+    let result = with_session(|session, buffers| {
+        let spot = session.standing_spot([min_x, min_y, min_z], [max_x, max_y, max_z], [near_x, near_y, near_z]);
+        buffers.view = spot.map_or_else(Vec::new, |feet| feet.iter().flat_map(|v| v.to_le_bytes()).collect());
+        Ok(spot.is_some())
+    });
+    finish(result, i32::from)
 }
 
 #[no_mangle]

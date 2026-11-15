@@ -252,3 +252,27 @@ test('a creative player walks in the world, and its view comes with each tick', 
   assert.match(world.state(), /^time 12$/m);
   world.tick(1);
 });
+
+test('a player stands on the open top of the nearest column, as Minecraft lets a player stand up there, and nowhere in the air', () => {
+  const world = new CoreWorld(wasm);
+  world.place([
+    'fill 0 63 0 6 63 6 minecraft:stone',
+    // A room with a roof: its floor is under cover, its roof open.
+    'fill 2 64 2 4 66 4 minecraft:oak_planks',
+    'fill 3 64 3 3 65 3 minecraft:air',
+    // A slab and a fence on the floor's edge.
+    'setblock 0 64 6 minecraft:stone_slab[type=bottom,waterlogged=false]',
+    'setblock 6 64 6 minecraft:oak_fence[east=false,north=false,south=false,waterlogged=false,west=false]',
+  ].map((line) => `${line}\n`).join(''));
+  const box = [[0, 63, 0], [6, 66, 6]];
+  // Feet in the middle of the column, on the top of its collision shape.
+  assert.deepStrictEqual(world.standingSpot(...box, [3.5, 63, 10]), [3.5, 64, 6.5], 'the floor before the room');
+  assert.deepStrictEqual(world.standingSpot(...box, [0.5, 64.5, 7]), [0.5, 64.5, 6.5], 'on the slab, in its block');
+  assert.deepStrictEqual(world.standingSpot(...box, [6.5, 66, 6.5]), [6.5, 65.5, 6.5], 'on the fence, a block and a half up');
+  // The room's inside is under its roof: the player stands on the roof.
+  assert.deepStrictEqual(world.standingSpot([3, 63, 3], [3, 66, 3], [3.5, 63, 3.5]), [3.5, 67, 3.5]);
+  // Columns with nothing in them have no spot.
+  assert.strictEqual(world.standingSpot([10, 60, 10], [12, 70, 12], [11, 60, 11]), null);
+  // It reads the world and changes nothing.
+  assert.match(world.state(), /^time 0$/m);
+});

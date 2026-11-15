@@ -1,12 +1,18 @@
 'use strict';
 
 // Sponge Schematic v3 (.schem), which WorldEdit, FAWE and Litematica load.
-// Blocks keep the exact states the build authored; pasting with neighbour
-// updates connects fences and walls the way the live import's setblocks do.
+// A chat's schematic is its build as the app shows it at tick 0: the world
+// the engine holds once it has placed the build with Minecraft's own block
+// updates (shot-world.js settle at 0 ticks, where the live world starts),
+// so panes, fences, walls, dust and stairs are connected as Minecraft
+// connects them and blocks Minecraft does not keep are gone. A paste sets
+// the states as written, without updates, so they must be the final ones.
+// Minecraft makes each block entity as its block is set.
 
 const zlib = require('zlib');
 const { blockSpec } = require('./live-placement');
 const { MC_DATA_VERSION } = require('./assets');
+const { settle } = require('./shot-world');
 
 // Data holds one palette index per cell of the bounding box.
 const MAX_VOLUME = 1 << 27;
@@ -92,4 +98,13 @@ function writeSchematic(world) {
   return zlib.gzipSync(Buffer.concat([Buffer.from([TAG.compound, 0, 0]), root]));
 }
 
-module.exports = { writeSchematic };
+// The schematic of conversation `conversationId`'s `world` (its current
+// world) at tick 0. The settle is kept with the world, so asking again
+// writes the kept one.
+async function buildSchematic(conversationId, world) {
+  const { world: placed } = (await settle(conversationId, world, [0])).get(0);
+  if (placed.size() === 0) throw Object.assign(new Error('Minecraft keeps none of the blocks of this build: there is nothing to export'), { statusCode: 400 });
+  return writeSchematic(placed);
+}
+
+module.exports = { writeSchematic, buildSchematic };

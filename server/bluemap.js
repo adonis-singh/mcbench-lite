@@ -54,14 +54,6 @@ function sha256(bytes) {
   return crypto.createHash('sha256').update(bytes).digest('hex');
 }
 
-function cameraHash(bounds, yOffset = 64) {
-  if (!bounds) return `#${MAP_ID}:0:80:0:80:0:0.47:0:0:perspective`;
-  const center = bounds.min.map((value, axis) => (value + bounds.max[axis]) / 2);
-  const span = Math.max(...bounds.min.map((value, axis) => bounds.max[axis] - value + 1));
-  const distance = Math.max(50, Math.round(span * 1.6));
-  return `#${MAP_ID}:${Math.round(center[0])}:${Math.round(center[1] + yOffset)}:${Math.round(center[2])}:${distance}:0:0.47:0:0:perspective`;
-}
-
 // A horizontal box around the build, rounded up to a power of two so small
 // edits rarely change it (a changed mask redraws every tile). It has no
 // height limit: the world holds nothing but the build, so one would change
@@ -287,7 +279,6 @@ const blueMap = new BlueMap();
 module.exports = {
   BlueMap,
   blueMap,
-  cameraHash,
   renderMask,
   mapConfig,
   configFiles,
