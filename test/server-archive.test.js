@@ -226,9 +226,14 @@ test('the archive lists the newest first, and the purge after 7 days deletes wha
   assert.deepEqual(list.conversations.slice(0, 2).map((row) => row.id), [later, chat]);
   assert.equal(list.benches[0].id, bench);
 
+  // The server's next purge is when the next of them is due.
+  const due = (now) => Math.min(...[...list.conversations, ...list.benches].map((row) => row.expiresAt).filter((at) => at > now));
+  assert.equal(store.nextArchiveExpiry(list.conversations[1].expiresAt - 1), due(list.conversations[1].expiresAt - 1));
   store.clearExpiredArchive(list.conversations[1].expiresAt - 1);
   assert.deepEqual(folders(chat), FOLDERS, 'nothing goes before its 7 days');
   store.clearExpiredArchive(list.benches[0].expiresAt + 1);
+  assert.equal(store.nextArchiveExpiry(list.benches[0].expiresAt + 1), list.conversations[0].expiresAt);
+  assert.equal(store.nextArchiveExpiry(list.conversations[0].expiresAt), null, 'none due after the last');
   for (const id of [chat, bench, ...members]) {
     assert.deepEqual(rows(id), NONE, id);
     assert.deepEqual(folders(id), [], id);

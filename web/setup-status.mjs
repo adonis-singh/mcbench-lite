@@ -4,8 +4,11 @@
 // view is the server's, read as it is: a step's state is waiting, running,
 // done, failed or unavailable, and nothing else.
 
-// Bytes in MB, as the downloads are sized (tools.js PINS: about 130 MB).
+// Bytes in MB, as the terminal states a download's size (tools.js downloadMb).
 const mb = (bytes) => Math.round(bytes / 1e6);
+
+// A download's size: "172 MB".
+export const downloadSize = (bytes) => `${mb(bytes)} MB`;
 
 // A download's progress ({ done, total } bytes, total null when the server
 // did not say): "84 of 136 MB", or "84 MB".

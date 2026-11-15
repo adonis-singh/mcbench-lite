@@ -109,10 +109,14 @@ body.dragging .viewer iframe { pointer-events: none; }
 
 .conv-list { overflow-y: auto; flex: 1; display: flex; flex-direction: column; }
 
+/* A row is clicked, not selected: a click on its title would leave the caret
+   in it, and Chrome draws no ellipsis on a line that holds the caret. */
 .conv-item {
   display: flex;
   align-items: center;
   cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
   transition: background 140ms var(--ease), color 140ms var(--ease), border-color 140ms var(--ease);
 }
 .conv-item.active {

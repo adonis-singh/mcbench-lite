@@ -1,14 +1,10 @@
 'use strict';
 
-// Names a box the user picked in the viewer by what it mostly holds and
-// where it sits in the build: "Dark oak stairs, top".
+// Names a box the user picked in the viewer by what it mostly holds, by
+// Minecraft's name for that block, and where it sits in the build: "Dark
+// Oak Stairs, top".
 
 const { World, MAX_COORD } = require('./world');
-
-function blockName(id) {
-  const words = id.replace(/^minecraft:/, '').split('_').join(' ');
-  return words[0].toUpperCase() + words.slice(1);
-}
 
 function placement(bounds, min, max) {
   const center = (axis) => (min[axis] + max[axis]) / 2;
@@ -30,7 +26,8 @@ function isBox(value) {
   return Array.isArray(value) && value.length === 3 && value.every(Number.isInteger);
 }
 
-function describeSelection(world, min, max) {
+// `names`: block id -> Minecraft's name of the block (BlockStates names).
+function describeSelection(world, min, max, names) {
   if (!isBox(min) || !isBox(max) || min.some((value, axis) => value > max[axis])
     || [...min, ...max].some((value) => Math.abs(value) > MAX_COORD)) {
     throw Object.assign(new Error(`A selection needs integer corners within +/-${MAX_COORD} with min at most max`), { statusCode: 400 });
@@ -56,7 +53,7 @@ function describeSelection(world, min, max) {
   }
   if (!blocks) return { blocks, block: null, label: 'Empty space' };
   const [material] = [...counts].reduce((best, next) => (next[1] > best[1] ? next : best));
-  return { blocks, block: material, label: `${blockName(material)}, ${placement(world.bounds(), min, max)}` };
+  return { blocks, block: material, label: `${names.get(material)}, ${placement(world.bounds(), min, max)}` };
 }
 
 // A selection part of a message, as the composer sends it.

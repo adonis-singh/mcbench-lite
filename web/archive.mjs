@@ -38,9 +38,12 @@ export function archivedRows(archive) {
 
 const DAY = 24 * 60 * 60 * 1000;
 
-// How long an archived item has before it is deleted, in whole days.
+// How long an archived item has before it is deleted (the server deletes it
+// at `expiresAt`), in whole days rounded up: one archived a moment ago has
+// the 7 days its Archive button says, and "2 days left" is more than one.
 export function timeLeft(expiresAt, now) {
-  const days = Math.floor((expiresAt - now) / DAY);
-  if (days < 1) return 'less than a day left';
+  const left = expiresAt - now;
+  if (left < DAY) return 'less than a day left';
+  const days = Math.ceil(left / DAY);
   return days === 1 ? '1 day left' : `${days} days left`;
 }

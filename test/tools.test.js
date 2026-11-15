@@ -44,7 +44,7 @@ async function serve(t, files) {
 // Pins of one program, the same download for every platform.
 function pins(name, { url, sha, unpack, bin }) {
   const platform = { url, sha256: sha, bin };
-  return { [name]: { title: name, version: '1.2.3', mb: 1, unpack, platforms: { [tools.PLATFORM]: platform } } };
+  return { [name]: { title: name, version: '1.2.3', unpack, platforms: { [tools.PLATFORM]: platform } } };
 }
 
 // A zip of `entries` ({ name, data, mode }), stored or deflated, with each
@@ -85,19 +85,31 @@ function zip(entries) {
   return Buffer.concat([...locals, directory, end]);
 }
 
-test('every program is pinned for the four platforms, by address and sha256, and Chromium is the build playwright-core names', () => {
+test('every program is pinned for the four platforms, by address, sha256 and size, and Chromium is the build playwright-core names', () => {
   for (const [name, pin] of Object.entries(tools.PINS)) {
     assert.deepEqual(Object.keys(pin.platforms).sort(), ['darwin-arm64', 'darwin-x64', 'linux-arm64', 'linux-x64'], name);
-    for (const [platform, { url, sha256: hash, bin }] of Object.entries(pin.platforms)) {
+    for (const [platform, { url, sha256: hash, bytes, bin }] of Object.entries(pin.platforms)) {
       assert.match(url, /^https:\/\//, `${name} ${platform}`);
       assert.match(hash, /^[0-9a-f]{64}$/, `${name} ${platform}`);
+      assert.ok(Number.isInteger(bytes) && bytes > 0, `${name} ${platform}`);
       assert.ok(bin, `${name} ${platform}`);
     }
   }
   const browsers = JSON.parse(fs.readFileSync(path.join(path.dirname(require.resolve('playwright-core')), 'browsers.json'), 'utf8')).browsers;
   const shell = browsers.find((browser) => browser.name === 'chromium-headless-shell');
   assert.equal(tools.PINS.chromium.version, shell.browserVersion);
-  assert.ok(tools.CHROMIUM_SHA256[shell.browserVersion], `Chromium ${shell.browserVersion} has no pinned checksums: pin them in server/tools.js`);
+  assert.ok(tools.CHROMIUM_DOWNLOADS[shell.browserVersion], `Chromium ${shell.browserVersion} has no pinned checksums and sizes: pin them in server/tools.js`);
+});
+
+// The sizes README.md states are the pins' own, from the smallest
+// platform's download to the largest, as the terminal rounds them.
+test('README.md states each pinned download\'s size as the pins have it', () => {
+  const readme = fs.readFileSync(path.join(__dirname, '..', 'README.md'), 'utf8').split('\n');
+  for (const [name, pin] of Object.entries(tools.PINS)) {
+    const mb = Object.values(pin.platforms).map(({ bytes }) => Math.round(bytes / 1e6));
+    const size = `${Math.min(...mb)} to ${Math.max(...mb)} MB`;
+    assert.ok(readme.some((line) => line.includes(pin.version) && line.includes(size)), `README.md names ${pin.title} with ${size}`);
+  }
 });
 
 test('the JDK, rustup and the default tools folder are the tools folder\'s, never the system\'s', () => {
@@ -219,7 +231,7 @@ test('an install whose download fails its checksum leaves no folder, so the next
 });
 
 test('a program with no pin for this platform fails, naming the platform', async () => {
-  const pinned = { program: { title: 'A program', version: '1', mb: 1, unpack: 'file', platforms: {} } };
+  const pinned = { program: { title: 'A program', version: '1', unpack: 'file', platforms: {} } };
   await assert.rejects(tools.install('program', { pins: pinned, dir: path.join(scratch, 'no-platform') }), { message: `mcbench-lite has no pinned A program for ${tools.PLATFORM}` });
 });
 

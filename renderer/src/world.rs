@@ -1423,7 +1423,7 @@ impl View<'_> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::pack::{Block, State, AIR, NONE};
+    use crate::pack::{Block, Cull, SkipRow, State, AIR, NONE, SHADES};
     use std::collections::BTreeMap;
 
     // A pack of light-relevant blocks, one state each: air and cave_air,
@@ -1443,16 +1443,16 @@ mod tests {
         let table: [(u8, u8, u8, u8); 12] = [
             (AIR, 0, 0, 0),
             (AIR, 0, 0, 0),
-            (3, 0, 15, 1),
-            (4, 0, 0, 0),
-            (3, 15, 15, 1),
+            (SHADES, 0, 15, 1),
+            (0, 0, 0, 0),
+            (SHADES, 15, 15, 1),
             (0, 14, 0, 0),
             (0, 0, 1, 0),
-            (1, 0, 0, 2),
-            (0, 0, 1, 0),
+            (0, 0, 0, 2),
+            (SHADES, 0, 1, 0),
             (0, 0, 0, 0),
             (0, 0, 0, 0),
-            (1, 0, 0, 3),
+            (0, 0, 0, 3),
         ];
         let shapes = 4;
         let occludes = (0..shapes * shapes).map(|at| matches!((at / shapes, at % shapes), (1, _) | (_, 1) | (2, 3) | (3, 2))).collect();
@@ -1479,6 +1479,13 @@ mod tests {
             face_sets: vec![[0; 6], [1; 6], [1, 0, 2, 2, 2, 2], [0, 1, 3, 3, 3, 3]],
             shapes,
             occludes,
+            // Light reads no culling: one cull class, nothing hidden.
+            cull_of: vec![0; 12],
+            culls: vec![Cull { shapes: [0; 6], row: 0, column: 0, fluid_row: 0 }],
+            cull_shapes: 2,
+            hides: vec![false; 4],
+            skip_rows: vec![SkipRow { first: 0, len: 0, start: 0 }],
+            skip_masks: Vec::new(),
             air: 0,
             water_selection: NONE,
             water_tint: 0,

@@ -201,16 +201,18 @@ async function loadResources() {
   ]);
   // What Minecraft says of each block state, by the state id each palette
   // entry carries (server/block-states.js bytes), each part on four bytes:
-  // u32 states, face shapes, skipRendering row classes, mask bytes and
-  // fluid names' bytes; by state u16 fluid (the state id of its fluid's
-  // block, 0 for none), skipRendering row and column class; by row class u32
-  // start, u16 first and length; then by state its emission, light block,
-  // full faces (bits over Minecraft's directions: down, up, north, south,
-  // west, east) and draw bits (1 drawn as a model, 2 its model blended, 4
-  // its fluid blended), its six face shapes, the face shapes' pairs, the
+  // u32 states, face shapes, cull shapes, skipRendering row classes, mask
+  // bytes and fluid names' bytes; by state u16 fluid (the state id of its
+  // fluid's block, 0 for none), skipRendering row and column class; by row
+  // class u32 start, u16 first and length; then by state its emission, light
+  // block, full faces (bits over Minecraft's directions: down, up, north,
+  // south, west, east) and draw bits (1 drawn as a model, 2 its model
+  // blended, 4 its fluid blended), its six face shapes and six cull shapes,
+  // the face shapes' pairs, the cull shapes' pairs (whether
+  // Block.shouldRenderFace hides a face of the first beside the second), the
   // skipRendering masks, and the fluids' names.
-  const [stateCount, shapes, rows, maskBytes, nameBytes] = new Uint32Array(stateBytes, 0, 5);
-  let at = 20;
+  const [stateCount, shapes, cullShapes, rows, maskBytes, nameBytes] = new Uint32Array(stateBytes, 0, 6);
+  let at = 24;
   const take = (Type, length) => {
     const part = new Type(stateBytes, at, length);
     at += Math.ceil(part.byteLength / 4) * 4;
@@ -227,7 +229,9 @@ async function loadResources() {
   const fullFaces = take(Uint8Array, stateCount);
   const draw = take(Uint8Array, stateCount);
   const faces = take(Uint8Array, stateCount * 6);
+  const cull = take(Uint8Array, stateCount * 6);
   const occludes = take(Uint8Array, shapes * shapes);
+  const hides = take(Uint8Array, cullShapes * cullShapes);
   const skipMasks = take(Uint8Array, maskBytes);
   const fluidStates = new Map(Object.entries(JSON.parse(new TextDecoder().decode(take(Uint8Array, nameBytes))))
     .map(([id, name]) => [Number(id), BlockState.parse(name)]));
@@ -267,7 +271,7 @@ async function loadResources() {
 
   return {
     states: {
-      fullFaces, draw, fluid, fluidStates, skipRow, skipColumn, skipStart, skipFirst, skipLength, skipMasks, tints, tintIndices,
+      fullFaces, cull, cullShapes, hides, draw, fluid, fluidStates, skipRow, skipColumn, skipStart, skipFirst, skipLength, skipMasks, tints, tintIndices,
       rule: lightRule({ emission, lightBlock, faces, shapes, occludes }),
     },
     resources: {
@@ -467,8 +471,8 @@ export async function createViewer(canvas, floor) {
     }
 
     // A block of `state` with its block state's facts (preparePalette).
-    set(x, y, z, state, { id, full, light }, scale) {
-      const placed = { pos: [x, y, z], state, nbt: undefined, id, full, light, scale };
+    set(x, y, z, state, { id, full, shades, light }, scale) {
+      const placed = { pos: [x, y, z], state, nbt: undefined, id, full, shades, light, scale };
       this.put(placed);
       return placed;
     }
@@ -561,9 +565,6 @@ export async function createViewer(canvas, floor) {
   // objects. A block's quads before they are placed depend only on its
   // state and which of its faces are culled, so deepslate makes them once
   // for each (a template).
-  function isOccluder(x, y, z) {
-    return world.at(x, y, z)?.full === 63;
-  }
 
   const chunkBuilder = renderer.chunkBuilder;
   const preparedChunks = new WeakSet();
@@ -770,11 +771,22 @@ export async function createViewer(canvas, floor) {
         c1[0] = fx; c1[1] = fy; c1[2] = fz; c1[a1] += s1;
         c2[0] = fx; c2[1] = fy; c2[2] = fz; c2[a2] += s2;
         cc[0] = fx; cc[1] = fy; cc[2] = fz; cc[a1] += s1; cc[a2] += s2;
-        const side1 = isOccluder(c1[0], c1[1], c1[2]);
-        const side2 = isOccluder(c2[0], c2[1], c2[2]);
-        const corner = isOccluder(cc[0], cc[1], cc[2]);
-        const occ = side1 && side2 ? 3 : (side1 ? 1 : 0) + (side2 ? 1 : 0) + (corner ? 1 : 0);
-        const ao = AO_CURVE[occ];
+        // The three blocks around the corner. Each darkens it where
+        // Minecraft's ambient occlusion shades with it (`shades`:
+        // getShadeBrightness, on the block table; a barrier and leaves do,
+        // glass does not), and lends it no light where its six faces are full.
+        const b1 = world.at(c1[0], c1[1], c1[2]);
+        const b2 = world.at(c2[0], c2[1], c2[2]);
+        const bc = world.at(cc[0], cc[1], cc[2]);
+        const side1 = b1 !== undefined && b1.full === 63;
+        const side2 = b2 !== undefined && b2.full === 63;
+        const corner = bc !== undefined && bc.full === 63;
+        const shade1 = b1 !== undefined && b1.shades;
+        const shade2 = b2 !== undefined && b2.shades;
+        const occ = shade1 && shade2 ? 3 : (shade1 ? 1 : 0) + (shade2 ? 1 : 0) + (bc !== undefined && bc.shades ? 1 : 0);
+        // A block that emits light is drawn without ambient occlusion
+        // (ModelBlockRenderer).
+        const ao = emissive ? 1 : AO_CURVE[occ];
         let vLight;
         if (emissive) {
           vLight = 1.15;
@@ -811,12 +823,14 @@ export async function createViewer(canvas, floor) {
   }
   // The culled faces of a block's model and of its fluid (`fluid`, its
   // fluid's state id), as Minecraft culls them: a model's face toward a
-  // neighbour whose facing face is full or that it skips rendering beside
-  // (Block.shouldRenderFace); a fluid's toward a neighbour its fluid's
-  // block skips rendering beside (one of the same fluid), or whose facing
-  // face is full but above it (LiquidBlockRenderer: the surface of a fluid
-  // with no fluid above is lower than the block's top). Faces that partial
-  // face shapes cover are not culled.
+  // neighbour that hides it (Block.shouldRenderFace: the neighbour's facing
+  // face is full, or covers the model's face shape, as a slab's side beside
+  // a slab of the same half; or the model skips rendering beside it); a
+  // fluid's toward a neighbour its fluid's block skips rendering beside (one
+  // of the same fluid), or whose facing face is full but above it
+  // (LiquidBlockRenderer: the surface of a fluid with no fluid above is
+  // lower than the block's top).
+  const { cull, cullShapes, hides } = states;
   let fluidBits = 0;
   function cullBits(placed, fluid) {
     const [x, y, z] = placed.pos;
@@ -828,8 +842,9 @@ export async function createViewer(canvas, floor) {
       const neighbor = world.at(x + dx, y + dy, z + dz);
       if (!neighbor) continue;
       const full = (neighbor.full & FACING[side]) !== 0;
-      if (full || skips(id, neighbor.id, DIRECTION[side])) bits |= 1 << side;
-      if (fluid && ((full && side !== 0) || skips(fluid, neighbor.id, DIRECTION[side]))) fluidBits |= 1 << side;
+      const direction = DIRECTION[side];
+      if (hides[cull[id * 6 + direction] * cullShapes + cull[neighbor.id * 6 + (direction ^ 1)]] || skips(id, neighbor.id, direction)) bits |= 1 << side;
+      if (fluid && ((full && side !== 0) || skips(fluid, neighbor.id, direction))) fluidBits |= 1 << side;
     }
     return bits;
   }
@@ -1037,12 +1052,13 @@ export async function createViewer(canvas, floor) {
 
   // Each palette entry's block state, and its facts by the state id it
   // carries (`id`): its full faces (`full`: a block whose six faces are full
-  // hides its neighbours' faces and darkens their corners) and its light
-  // class (`light`, which holds the light it emits).
+  // hides its neighbours' faces), whether it darkens the corners of the
+  // faces beside it (`shades`) and its light class (`light`, which holds the
+  // light it emits).
   function preparePalette(entries) {
     return entries.map(({ id, states: properties = {}, state }) => ({
       state: new BlockState(id.replace(/^minecraft:/, ''), properties),
-      meta: { id: state, full: states.fullFaces[state], light: states.rule.classOf[state] },
+      meta: { id: state, full: states.fullFaces[state], shades: (states.draw[state] & 8) !== 0, light: states.rule.classOf[state] },
     }));
   }
 

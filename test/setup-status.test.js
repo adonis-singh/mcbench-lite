@@ -16,6 +16,12 @@ test('a download says how far it is, in MB of its total when the server said', a
   assert.equal(megabytes({ done: 0, total: 280_000_000 }), '0 of 280 MB');
 });
 
+test('a download\'s size is its bytes in MB, rounded as its progress is', async () => {
+  const { downloadSize, megabytes } = await load();
+  assert.equal(downloadSize(172_466_618), '172 MB');
+  assert.equal(megabytes({ done: 172_466_618, total: 172_466_618 }), '172 of 172 MB');
+});
+
 test('a step reads as what it makes, or what its work does while it runs', async () => {
   const { stepRow } = await load();
   const step = { id: 'jdk', title: 'Java', doing: 'Downloading Java', optional: false };

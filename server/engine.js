@@ -487,7 +487,7 @@ let rustInstall = null;
 let rustTools = null;
 function installRust() {
   rustInstall ||= setup.track('rust', async () => {
-    await step(`[rust] downloading rustup ${tools.PINS['rustup-init'].version} (about ${tools.PINS['rustup-init'].mb} MB) into ${tools.TOOLS_DIR}`, '[rust] rustup installed',
+    await step(`[rust] downloading rustup ${tools.PINS['rustup-init'].version} (${tools.downloadMb('rustup-init')} MB) into ${tools.TOOLS_DIR}`, '[rust] rustup installed',
       () => tools.installRustup({ onProgress: setup.progress('rust') }));
     rustTools = await findRust() || await withLock(path.join(tools.TOOLS_DIR, 'rust', 'toolchain-install.lock'), async () => {
       const found = await findRust();

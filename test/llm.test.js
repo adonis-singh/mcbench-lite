@@ -158,12 +158,19 @@ test('harness providers resolve native ids through their vendor catalog', () => 
 });
 
 test('ChatGPT sign-in resolves to a keyless provider with no network address', (t) => {
-  // A stand-in Codex login, never the developer's own.
+  // A stand-in Codex login and CLI (a login counts only with its CLI there
+  // to run), never the developer's own.
   const home = require('node:fs').mkdtempSync(require('node:path').join(require('node:os').tmpdir(), 'mcbench-codex-home-'));
   require('node:fs').writeFileSync(require('node:path').join(home, 'auth.json'), '{}');
-  const previous = process.env.CODEX_HOME;
+  const previous = { CODEX_HOME: process.env.CODEX_HOME, MCBENCH_CODEX_BINARY: process.env.MCBENCH_CODEX_BINARY };
   process.env.CODEX_HOME = home;
-  t.after(() => { if (previous === undefined) delete process.env.CODEX_HOME; else process.env.CODEX_HOME = previous; });
+  process.env.MCBENCH_CODEX_BINARY = require('node:path').join(__dirname, 'fixtures', 'fake-codex.js');
+  t.after(() => {
+    for (const [name, value] of Object.entries(previous)) {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
+  });
   const provider = resolveProvider('codex');
   assert.strictEqual(provider.baseUrl, undefined);
   assert.strictEqual(provider.protocol, 'responses');

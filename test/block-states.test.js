@@ -10,7 +10,9 @@ const { testBlockStates } = require('./helpers/block-table');
 // A table of states written for these tests: a cube with six full faces that
 // blocks all light, one that also gives light, a clear block, a block that
 // gives light and blocks none, and a slab whose half sides close a face only
-// beside the other half (face shapes 2 and 3).
+// beside the other half (face shapes 2 and 3), and hide each other only
+// beside the same half (cull shapes 2, the bottom half's sides, and 3, the
+// top half's).
 const CUBE = { full: 63, lightBlock: 15 };
 const states = testBlockStates([
   { name: 'test:cube', ...CUBE },
@@ -21,9 +23,9 @@ const states = testBlockStates([
   { name: 'test:glow[level=9,wet=true]', emission: 9, lightBlock: 1 },
   { name: 'test:glow[level=3,wet=false]', emission: 3 },
   { name: 'test:glow[level=3,wet=true]', emission: 3, lightBlock: 1 },
-  { name: 'test:slab[type=bottom]', full: 1, faces: [1, 0, 2, 2, 2, 2] },
-  { name: 'test:slab[type=top]', full: 2, faces: [0, 1, 3, 3, 3, 3] },
-], { shapes: 4, pairs: [[2, 3], [3, 2]] });
+  { name: 'test:slab[type=bottom]', full: 1, faces: [1, 0, 2, 2, 2, 2], cull: [1, 0, 2, 2, 2, 2] },
+  { name: 'test:slab[type=top]', full: 2, faces: [0, 1, 3, 3, 3, 3], cull: [0, 1, 3, 3, 3, 3] },
+], { shapes: 4, pairs: [[2, 3], [3, 2]], cullShapes: 4, hidePairs: [[2, 2], [3, 3]] });
 const fact = (id, properties = {}) => {
   const state = states.idOf(id, properties);
   return { emission: states.emission[state], lightBlock: states.lightBlock[state], full: states.fullFaces[state] };
@@ -39,23 +41,29 @@ test('a state is found by its block and properties, its block\'s default filling
   assert.throws(() => states.idOf('test:nothing', {}), /no block test:nothing/);
 });
 
+test('every block is named by the name the table gives it', () => {
+  assert.equal(states.names.get('test:glow'), 'Test test:glow');
+  assert.equal(states.names.get('minecraft:air'), 'Test minecraft:air');
+});
+
 // The page's reading of the bytes (web/viewer.js loadResources): each part
 // on four bytes.
 function read(bytes) {
   const buffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.length);
-  const [count, shapes, rows, maskBytes, nameBytes] = new Uint32Array(buffer, 0, 5);
-  let at = 20;
+  const [count, shapes, cullShapes, rows, maskBytes, nameBytes] = new Uint32Array(buffer, 0, 6);
+  let at = 24;
   const take = (Type, length) => {
     const part = new Type(buffer, at, length);
     at += Math.ceil(part.byteLength / 4) * 4;
     return part;
   };
   const parts = {
-    count, shapes,
+    count, shapes, cullShapes,
     fluid: take(Uint16Array, count), skipRow: take(Uint16Array, count), skipColumn: take(Uint16Array, count),
     skipStart: take(Uint32Array, rows), skipFirst: take(Uint16Array, rows), skipLength: take(Uint16Array, rows),
     emission: take(Uint8Array, count), lightBlock: take(Uint8Array, count), fullFaces: take(Uint8Array, count), draw: take(Uint8Array, count),
-    faces: take(Uint8Array, count * 6), occludes: take(Uint8Array, shapes * shapes), skipMasks: take(Uint8Array, maskBytes),
+    faces: take(Uint8Array, count * 6), cull: take(Uint8Array, count * 6),
+    occludes: take(Uint8Array, shapes * shapes), hides: take(Uint8Array, cullShapes * cullShapes), skipMasks: take(Uint8Array, maskBytes),
     fluidNames: JSON.parse(Buffer.from(take(Uint8Array, nameBytes)).toString()),
   };
   assert.equal(at, buffer.byteLength, 'the page reads every byte');
@@ -76,6 +84,15 @@ test('the bytes the page reads hold every state\'s facts and the face shape pair
   assert.equal(occludes[east(bottom) * shapes + west(top)], 1);
   assert.equal(occludes[east(bottom) * shapes + west(bottom)], 0);
   assert.equal(occludes[faces[bottom * 6] * shapes], 1, 'its full bottom closes the face below it alone');
+  // A bottom half's side is hidden beside a bottom half, not beside a top
+  // half; any face is hidden beside a full one, and none beside air.
+  const { cull, hides, cullShapes } = page;
+  const pageHides = (a, b, direction) => hides[cull[a * 6 + direction] * cullShapes + cull[b * 6 + (direction ^ 1)]] === 1;
+  const cube = states.idOf('test:cube', {});
+  for (const [a, b, direction, hidden] of [[bottom, bottom, 5, true], [bottom, top, 5, false], [top, top, 4, true], [bottom, cube, 2, true], [bottom, 0, 2, false], [cube, bottom, 5, false], [cube, bottom, 1, true]]) {
+    assert.equal(states.hidesFace(a, b, direction), hidden, `${a} beside ${b} to ${direction}`);
+    assert.equal(pageHides(a, b, direction), hidden, `the page: ${a} beside ${b} to ${direction}`);
+  }
 });
 
 // A table of what a block is drawn as: a pane that skips rendering beside

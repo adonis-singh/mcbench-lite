@@ -247,12 +247,13 @@ async function logout(provider) {
 
 // What Settings shows for a provider's sign-in: its methods, its CLI (the
 // name cli-install.js installs it by, and the pinned release's title and
-// about how many MB it downloads), and the latest sign-in, or null.
+// the bytes of its download for this platform), and the latest sign-in, or
+// null.
 function describe(provider) {
   const id = LOGIN_OF[provider];
   if (!id) return null;
   const entry = LOGINS[id];
-  const program = entry.program && { name: entry.program, title: tools.PINS[entry.program].title, mb: tools.PINS[entry.program].mb };
+  const program = entry.program && { name: entry.program, title: tools.PINS[entry.program].title, bytes: tools.PINS[entry.program].platforms[tools.PLATFORM].bytes };
   return { methods: entry.methods || null, program: program || null, current: signIns.get(id)?.view() || null };
 }
 

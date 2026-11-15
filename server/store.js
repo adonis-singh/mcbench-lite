@@ -1016,6 +1016,19 @@ function listArchive() {
   };
 }
 
+// When the next archived Build chat or bench is due to be deleted (its
+// `expiresAt`) after `now`, or null when none is. One that is due already
+// and was not deleted is left to the daily purge.
+function nextArchiveExpiry(now = Date.now()) {
+  const archivedAt = database.prepare(`
+    SELECT min(archived_at) FROM (
+      SELECT archived_at FROM conversations WHERE archived_at IS NOT NULL AND bench_id IS NULL
+      UNION ALL SELECT archived_at FROM benches WHERE archived_at IS NOT NULL
+    ) WHERE archived_at > ?
+  `).pluck().get(now - ARCHIVE_TTL_MS);
+  return archivedAt === null ? null : archivedAt + ARCHIVE_TTL_MS;
+}
+
 // Throws unless `id` is an archived Build chat; `unarchived` is what a chat
 // that is not archived gets.
 function checkArchivedChat(id, unarchived) {
@@ -1632,7 +1645,7 @@ function close() {
 module.exports = {
   createConversation, getConversation, appendMessage, dismissError, messagePayload, publicMessages, save, revert,
   messageTree, activateBranch, setTitle, repeatsLatestRootPrompt,
-  archiveConversation, clearExpiredArchive, listArchive, restoreConversation, restoreBench, deleteConversation, deleteBench, listConversations, promptTitles, listConversationIds, listBenchIds, markFinished, markSeen, close,
+  archiveConversation, clearExpiredArchive, nextArchiveExpiry, listArchive, restoreConversation, restoreBench, deleteConversation, deleteBench, listConversations, promptTitles, listConversationIds, listBenchIds, markFinished, markSeen, close,
   createBench, getBench, appendRound, revertBenchRound, followBenchBranch, retryBenchRound, revealBench, castVote, clearVote, voteCount, clearAllVotes, leaderboard, setBenchTitle, listBenches, benchMembers, archiveBench, forkConversation,
   shareAttachment, benchProgress, endTurn, unansweredResult, endUnfinishedTurn, interruptUnfinished, INTERRUPTED, UNSAVED, search, collectChunks, persistWorld, reportReferences,
   saveImages, readImage, imageFile, saveAttachment, saveAttachments, discardAttachments, readAttachment, attachmentFile,

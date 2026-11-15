@@ -2,8 +2,8 @@
 
 // The mesher module must draw exactly the bytes it drew before it was made
 // faster: test/fixtures/mesher-reference.wasm is the module built from
-// renderer/ at 278df9f (where the baked pack became version 2 and light
-// came to close faces by Minecraft's face shapes), and every tile of every
+// renderer/ at b8a19b5 (where the baked pack became version 3 and the
+// mesher came to cull and shade as Minecraft does), and every tile of every
 // world below is drawn by
 // both and compared byte for byte, and so is the indexed tile the module
 // makes of each against the reference's tile indexed by

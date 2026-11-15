@@ -38,7 +38,7 @@ function start(name) {
   if (process.env[PROGRAMS[name]] || tools.cliInstalled(name, PROGRAMS[name])) throw httpError(409, `${name} is installed already, and the app runs that one`);
   const install = { state: 'running', progress: null, error: null };
   installs.set(name, install);
-  console.log(`[tools] installing ${tools.PINS[name].title} (about ${tools.PINS[name].mb} MB) into ${tools.TOOLS_DIR}`);
+  console.log(`[tools] installing ${tools.PINS[name].title} (${tools.downloadMb(name)} MB) into ${tools.TOOLS_DIR}`);
   tools.install(name, { onProgress: (bytes) => { install.progress = bytes; } }).then(() => {
     settings.refreshRuntimes();
     Object.assign(install, { state: 'done', progress: null });

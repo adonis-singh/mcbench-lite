@@ -176,7 +176,7 @@ test('an exported world reads back, with the existing region reader, as the blue
   const path = require('path');
   const zlib = require('zlib');
   const { readZipEntry } = require('../server/zip-entry');
-  const { readBlockStates, readNbt } = require('../server/region');
+  const { readBlockStates, readChunks, readNbt } = require('../server/region');
   const { forEachBlueprintBlock } = require('../server/blueprint');
   const world = new CoreWorld(wasm);
   // Blocks over a chunk border and below zero, a chest (a block entity), water (a fluid tick).
@@ -198,6 +198,13 @@ test('an exported world reads back, with the existing region reader, as the blue
   assert.ok(names.size > 1, 'the build spans regions');
   for (const name of names) fs.writeFileSync(path.join(folder, name), readZipEntry(zipFile, `Test build/region/${name}`));
   const saved = readBlockStates(folder);
+  // One biome everywhere, the live world's (server/minecraft-dimension.js),
+  // whose colours see_build bakes: the generator's for chunks not saved,
+  // and every section the engine saved.
+  const { BIOME } = require('../server/minecraft-dimension');
+  assert.strictEqual(level.WorldGenSettings.dimensions['minecraft:overworld'].generator.settings.biome, BIOME);
+  const biomes = new Set(readChunks(folder).flatMap((chunk) => chunk.sections.filter((section) => section.biomes).flatMap((section) => section.biomes.palette)));
+  assert.deepStrictEqual([...biomes], [BIOME]);
   const expected = new Map();
   forEachBlueprintBlock(Buffer.from(blueprint), (x, y, z, id, properties, state) => expected.set(`${x},${y},${z}`, state));
   // The blueprint is the placement; the toggled lever and the tick since changed some blocks.

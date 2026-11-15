@@ -190,12 +190,22 @@ function packTints(pack) {
     blocks.push({ id, first, properties });
   }
   const stateCount = u32();
-  const states = Array.from({ length: stateCount }, (_, i) => pack.readUInt32LE(at + i * 16 + 8));
-  at += stateCount * 16;
+  const states = Array.from({ length: stateCount }, (_, i) => pack.readUInt32LE(at + i * 18 + 10));
+  at += stateCount * 18;
   const faceSets = u32();
   at += faceSets * 6;
   const shapes = u16();
-  at += Math.ceil((shapes * shapes) / 8) + 13;
+  at += Math.ceil((shapes * shapes) / 8);
+  const cullClasses = u32();
+  at += cullClasses * 12;
+  const cullShapes = u16();
+  at += Math.ceil((cullShapes * cullShapes) / 8);
+  for (let rows = u16(), r = 0; r < rows; r += 1) {
+    u16();
+    const masks = u16();
+    at += masks;
+  }
+  at += 13;
   const colors = Array.from({ length: u32() }, (_, i) => [0, 4, 8].reduce((color, offset) => (color << 8) | Math.round(pack.readFloatLE(at + i * 12 + offset) * 255), 0));
   const byName = new Map();
   for (const { id, first, properties } of blocks) {

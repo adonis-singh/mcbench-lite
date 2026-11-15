@@ -38,13 +38,14 @@ test('a read again keeps the rows on show in the same mode, not in the other', a
   assert.equal(archivedRows(archiveReading(loaded, 'build')), null);
 });
 
-test('time left counts whole days, and under one day says so', async () => {
+test('time left counts whole days rounded up, and under one day says so', async () => {
   const { timeLeft } = await import('../web/archive.mjs');
   const day = 24 * 60 * 60 * 1000;
   const now = 1_000_000;
-  assert.equal(timeLeft(now + 7 * day - 1, now), '6 days left');
+  assert.equal(timeLeft(now + 7 * day - 1, now), '7 days left', 'archived a moment ago: the 7 days the Archive button says');
   assert.equal(timeLeft(now + 7 * day, now), '7 days left');
-  assert.equal(timeLeft(now + day + 5, now), '1 day left');
+  assert.equal(timeLeft(now + day + 5, now), '2 days left');
+  assert.equal(timeLeft(now + day, now), '1 day left');
   assert.equal(timeLeft(now + day - 1, now), 'less than a day left');
   assert.equal(timeLeft(now - 5, now), 'less than a day left');
 });

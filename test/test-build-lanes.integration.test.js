@@ -3,8 +3,7 @@
 // test_build runs the tests of one call on the verifier pool's lanes side by
 // side. A test is a level of its own, so its report must be the same whether
 // it runs alone on one lane or beside others on several. This runs the same
-// tests both ways on real engines (the Rust engine first, the Java engine for
-// what Rust refuses) and compares the reports.
+// tests both ways on the Rust engine and compares the reports.
 //
 //   MCBENCH_ENGINE_INTEGRATION=1 MCBENCH_DATA_DIR=<scratch copy> node --test test/test-build-lanes.integration.test.js
 
@@ -17,9 +16,8 @@ const { VerifierPool } = require('../server/minecraft-verify');
 const { World } = require('../server/world');
 
 // A lever into dust into a lamp, an observer ring that fires for good, and a
-// note block a sculk sensor hears, beside a sculk shrieker (which the Rust
-// engine refuses to let hear the input player: a test that uses the note block
-// runs on the Java engine).
+// note block a sculk sensor hears, beside a sculk shrieker that hears the
+// input player who plays it.
 function circuit() {
   const world = new World();
   world.fill([0, 0, 0], [20, 0, 12], 'minecraft:stone');
@@ -49,17 +47,13 @@ const tests = [
   { probes: [[3, 1, 0], [15, 1, 8]], actions: [{ tick: 1, type: 'use', at: [15, 1, 8] }, { tick: 2, type: 'drop', at: [3.5, 3, 0.5], item: 'minecraft:redstone', count: 5, velocity: [0, 0, 0] }], samples: [0, 10, 40], item_entities: true },
 ];
 
-// What a result holds that depends on the run, not the experiment: timings
-// (and so the size of a report that holds them), and the UUIDs the Java engine
-// draws at random for the entities it makes (the Rust engine's are fixed by
-// the level, and compared as they are). Those are numbered by first appearance.
+// What a result holds that depends on the run, not the experiment: timings,
+// and so the size of a report that holds them. The UUIDs of the entities a
+// test makes are fixed by its level, and compared as they are.
 function comparable(result) {
   const { wallMs, timings, reportFile, metrics, reportBytes, ...rest } = result;
   const { metrics: reportMetrics, ...report } = JSON.parse(fs.readFileSync(reportFile, 'utf8'));
-  const compared = { ...rest, report };
-  if (!report.engine.startsWith('McbenchLevel')) return compared;
-  const numbers = new Map();
-  return JSON.parse(JSON.stringify(compared).replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g, (uuid) => `uuid-${numbers.has(uuid) ? numbers.get(uuid) : numbers.set(uuid, numbers.size).size - 1}`));
+  return { ...rest, report };
 }
 
 test('tests run side by side on the pool\'s lanes report what they report one at a time', { skip: !process.env.MCBENCH_ENGINE_INTEGRATION, timeout: 600_000 }, async () => {
@@ -81,10 +75,10 @@ test('tests run side by side on the pool\'s lanes report what they report one at
     });
     const together = (await Promise.all(tests.map((one) => pool.run(world, one, {})))).map(comparable);
     assert.deepEqual(runs.map((count) => count()).sort(), [2, 3, 3], 'the tests spread over the lanes');
-    assert.deepEqual(together.map((r) => r.report.engine.split(' ')[0]), ['mcbench-core', 'mcbench-core', 'McbenchLevel', 'mcbench-core', 'mcbench-core', 'mcbench-core', 'mcbench-core', 'McbenchLevel'], 'the tests whose shrieker hears the input player ran on the Java engine, the rest on Rust');
+    assert.deepEqual(together.map((r) => r.report.engine.split(' ')[0]), tests.map(() => 'mcbench-core'), 'every test ran on the Rust engine');
     assert.ok(together[6].report.inputs[0].entityUUID, 'a dropped item has a UUID, the same on every run');
     for (let i = 0; i < tests.length; i++) {
-      // A test that makes entities may differ run to run (unseeded entity ids and UUIDs); anything else must not.
+      // Each report is the same alone, again, and beside the others.
       assert.deepEqual(again[i], alone[i], `test ${i} twice alone`);
       assert.deepEqual(together[i], alone[i], `test ${i} beside the others`);
     }

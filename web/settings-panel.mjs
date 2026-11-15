@@ -53,6 +53,12 @@ export const withShareRepo = (draft, text) => ({ ...draft, shareRepo: text.trim(
 // A provider the page can use: connected (a key or a login) and on in Settings.
 export const usable = (provider) => Boolean(provider?.connected && provider.enabled);
 
+// What a CLI login's Account section shows (a provider with no key,
+// server/settings.js's cli-login): 'connected', the login and its CLI to run
+// it; 'install', a login whose CLI is not on this machine, which needs the
+// CLI and no sign-in; 'sign-in', no login.
+export const cliAccount = (connection) => (connection.connected ? 'connected' : connection.signedIn ? 'install' : 'sign-in');
+
 // The Connect an AI pane: the ways to give mcbench a model, in plain words.
 export const CONNECT = 'connect';
 

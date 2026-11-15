@@ -83,12 +83,19 @@ test('a login whose CLI is installed from the app is connected, with no restart'
   const connected = () => ['codex', 'codex-cli'].map((id) => settings.publicSettings().providers[id].connected);
   assert.deepStrictEqual(connected(), [false, false]);
   assert.deepStrictEqual(['codex', 'codex-cli'].map((id) => settings.details().providers[id].summary), ['CLI not installed', 'CLI not installed']);
+  // The pane (web/settings-panel.mjs) offers the install alone, not a sign-in.
+  const { cliAccount } = await import('../web/settings-panel.mjs');
+  const accounts = () => ['codex', 'codex-cli'].map((id) => cliAccount(settings.details({ refresh: true }).providers[id]));
+  assert.deepStrictEqual(accounts(), ['install', 'install']);
   const release = fakeInstall(t);
   cliInstall.start('codex');
   release();
   await settled();
   assert.deepStrictEqual(cliInstall.state('codex'), { state: 'done', progress: null, error: null });
   assert.deepStrictEqual(connected(), [true, true]);
+  assert.deepStrictEqual(accounts(), ['connected', 'connected']);
+  fs.rmSync(path.join(home, 'auth.json'));
+  assert.deepStrictEqual(accounts(), ['sign-in', 'sign-in'], 'no login: a sign-in, though the CLI is there');
   assert.throws(() => cliInstall.start('codex'), { statusCode: 409 }, 'installed in the tools folder already');
   fs.rmSync(tools.installed('codex').folder, { recursive: true });
 });

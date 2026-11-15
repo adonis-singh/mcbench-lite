@@ -124,7 +124,7 @@ public class McbenchClient {
     names = new ArrayList<>();
     for (String line : Files.readAllLines(table)) {
       String first = line.substring(0, line.indexOf('\t'));
-      if (!first.equals("default") && !first.equals("faceoccludes") && !first.equals("skiprendering")) names.add(first);
+      if (!first.equals("default") && !first.equals("facehides") && !first.equals("faceoccludes") && !first.equals("skiprendering")) names.add(first);
     }
 
     ClassDesc pipeline = ClassDesc.of("com.mojang.blaze3d.pipeline.RenderPipeline");

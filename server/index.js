@@ -60,17 +60,28 @@ const PORT = Number(process.env.PORT || 3020);
 // own virtual machine's sign-in gateway reaches it on.
 const BIND = process.env.MCBENCH_BIND || '127.0.0.1';
 store.clearExpiredArchive();
-// A purge that fails is tried again the next day; it is no reason to stop
-// the server (exitOnFatal).
-const archiveCleanup = setInterval(() => {
-  try {
-    store.clearExpiredArchive();
-    publishConversations();
-  } catch (error) {
-    console.error('[archive] purge failed:', error);
-  }
-}, 24 * 60 * 60 * 1000);
-archiveCleanup.unref();
+// The purge runs again when the next archived item is due, so it goes when
+// the archive's count says, and at least once a day, for empty chats and for
+// an item whose deletion failed. A purge that fails is tried again the next
+// day; it is no reason to stop the server (exitOnFatal).
+const PURGE_EVERY_MS = 24 * 60 * 60 * 1000;
+function schedulePurge(wait) {
+  setTimeout(() => {
+    try {
+      store.clearExpiredArchive();
+      publishConversations();
+    } catch (error) {
+      console.error('[archive] purge failed:', error);
+      return schedulePurge(PURGE_EVERY_MS);
+    }
+    schedulePurge(untilNextPurge());
+  }, wait).unref();
+}
+function untilNextPurge() {
+  const next = store.nextArchiveExpiry();
+  return next === null ? PURGE_EVERY_MS : Math.min(PURGE_EVERY_MS, next - Date.now());
+}
+schedulePurge(untilNextPurge());
 const webDir = path.join(__dirname, '..', 'web');
 
 const MIME = {
@@ -1151,7 +1162,7 @@ async function handleApi(req, res, url) {
       const conversation = store.getConversation(id);
       if (!conversation) return sendJson(res, 404, { error: 'Conversation not found' });
       const { min, max } = await readJsonBody(req);
-      return sendJson(res, 200, describeSelection(conversation.world, min, max));
+      return sendJson(res, 200, describeSelection(conversation.world, min, max, (await blockStates()).names));
     }
     if (req.method === 'POST' && parts[3] === 'seen') {
       store.markSeen(id);

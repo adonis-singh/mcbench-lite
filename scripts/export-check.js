@@ -18,6 +18,7 @@ const path = require('path');
 const { spawn, execFileSync } = require('child_process');
 const { minecraftLive } = require('../server/minecraft-live');
 const { RconConnection } = require('../server/rcon');
+const { freePort } = require('../server/paper-server');
 const { graalvmHome } = require('../server/engine');
 const { build } = require('./build-wasm');
 
@@ -56,8 +57,10 @@ async function main() {
   for (const name of ['libraries', 'versions']) fs.symlinkSync(path.join(minecraftLive.paperDir, name), path.join(server, name));
   const jar = classpath.find((file) => /paper-.*\.jar$/.test(file) && !file.includes('/'));
   if (jar) fs.symlinkSync(path.join(minecraftLive.paperDir, jar), path.join(server, jar));
-  const rconPort = 25000 + Math.floor(Math.random() * 3000);
-  const gamePort = rconPort + 3000;
+  // Ports the system gives as free, as the verifier's Paper servers take
+  // theirs, so this server meets no other on this machine.
+  const rconPort = await freePort('127.0.0.1');
+  const gamePort = await freePort('127.0.0.1');
   fs.writeFileSync(path.join(server, 'server.properties'), `level-name=${folder}\nonline-mode=false\nenable-rcon=true\nrcon.password=check\nrcon.port=${rconPort}\nserver-port=${gamePort}\nserver-ip=127.0.0.1\ngenerate-structures=false\nlevel-type=flat\ngenerator-settings={"layers":[{"block":"minecraft:air","height":1}],"biome":"minecraft:plains"}\n`);
   fs.writeFileSync(path.join(server, 'eula.txt'), 'eula=true\n');
   const child = spawn(path.join(graalvmHome(), 'bin', 'java'), ['-Xmx2G', '-cp', classpath.join(path.delimiter), 'org.bukkit.craftbukkit.Main', '--nogui'], { cwd: server, stdio: ['ignore', 'pipe', 'pipe'] });

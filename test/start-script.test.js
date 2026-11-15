@@ -121,7 +121,7 @@ test('start downloads Node.js, installs the packages with it and runs the server
   assert.equal(result.code, 0, result.stderr);
   const nodeDir = path.join(tools, NODE_NAME);
   assert.equal(result.stdout,
-    `Downloading Node.js ${NODE_VERSION} (about 30 MB) into ${tools}\n`
+    `Downloading Node.js ${NODE_VERSION} (31 to 34 MB, by platform) into ${tools}\n`
     + "Installing the app's packages (npm ci)\n"
     + `fake server ["--flag"] PORT=4321 PATH0=${nodeDir}/bin\n`);
   assert.equal(result.stderr, '');
@@ -291,7 +291,7 @@ test('on Linux start goes on to Node.js once bubblewrap makes the sandbox, asked
   const env = { HOME: path.join(dir, 'home'), PATH: `${bin}:/usr/bin:/bin`, MCBENCH_TOOLS_DIR: tools, MCBENCH_SYSTEM_ROOT: systemRoot };
   const result = await run(path.join(app, 'start'), ['--no-open'], { cwd: dir, env });
   assert.equal(result.code, 22, result.stderr);
-  assert.equal(result.stdout, `Downloading Node.js ${NODE_VERSION} (about 30 MB) into ${tools}\n`);
+  assert.equal(result.stdout, `Downloading Node.js ${NODE_VERSION} (31 to 34 MB, by platform) into ${tools}\n`);
   assert.equal(fs.readFileSync(asked, 'utf8'),
     '--unshare-user --unshare-ipc --unshare-pid --unshare-net --unshare-uts --unshare-cgroup --die-with-parent --ro-bind / / --proc /proc --dev /dev -- true\n');
 });

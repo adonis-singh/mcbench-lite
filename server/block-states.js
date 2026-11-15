@@ -9,7 +9,9 @@ const fs = require('fs');
 // blocks, its full faces, the face shapes Paper's light engine tests light
 // through, with whether each pair of face shapes occludes; its fluid,
 // whether it is drawn as a model, which neighbours it hides faces from
-// (skipRendering), and whether its model and its fluid are drawn blended.
+// (skipRendering), the face shapes Block.shouldRenderFace culls by, with
+// whether each pair hides a face, and whether its model and its fluid are
+// drawn blended; and each block's name, as Minecraft names it.
 // see_build's page lights, culls and draws with these (`bytes`, read by
 // web/viewer.js); the world route hides blocks with them and tells the page
 // each palette entry's state id (`ofPalette`).
@@ -19,17 +21,23 @@ class BlockStates {
     const lines = table.split('\n').filter(Boolean);
     const [, rows, columns, ...skipRows] = lines.pop().split('\t');
     const [, shapes, pairs] = lines.pop().split('\t');
+    const [, cullShapes, hides] = lines.pop().split('\t');
     this.shapes = Number(shapes);
+    this.cullShapes = Number(cullShapes);
     // A face shape's number is kept in a byte.
-    if (this.shapes > 256) throw new Error(`The block table has ${this.shapes} face shapes, more than a byte numbers`);
+    if (this.shapes > 256 || this.cullShapes > 256) throw new Error(`The block table has ${this.shapes} face shapes and ${this.cullShapes} cull shapes, more than a byte numbers`);
     this.occludes = Uint8Array.from(pairs, (bit) => (bit === '1' ? 1 : 0));
+    this.hides = Uint8Array.from(hides, (bit) => (bit === '1' ? 1 : 0));
     this.defaults = new Map(); // block id -> its default state's properties
+    this.names = new Map(); // block id -> its name ("Block of Iron")
     this.ids = new Map(); // state name, properties sorted -> state id
     const states = [];
     for (const line of lines) {
       const fields = line.split('\t');
-      if (fields[0] === 'default') this.defaults.set(fields[1], properties(fields[2]));
-      else states.push(fields);
+      if (fields[0] === 'default') {
+        this.defaults.set(fields[1], properties(fields[2]));
+        this.names.set(fields[1], fields[3]);
+      } else states.push(fields);
     }
     this.count = states.length;
     // A state id, and a class of skipRendering, is kept in 16 bits.
@@ -38,19 +46,22 @@ class BlockStates {
     this.lightBlock = new Uint8Array(this.count);
     this.fullFaces = new Uint8Array(this.count);
     this.faces = new Uint8Array(this.count * 6);
+    this.cull = new Uint8Array(this.count * 6);
     this.fluid = new Uint16Array(this.count);
-    // By state: 1 drawn as a model, 2 its model drawn blended, 4 its fluid drawn blended.
+    // By state: 1 drawn as a model, 2 its model drawn blended, 4 its fluid
+    // drawn blended, 8 it darkens the corners of the faces beside it.
     this.draw = new Uint8Array(this.count);
     this.skipRow = new Uint16Array(this.count);
     this.skipColumn = new Uint16Array(this.count);
-    states.forEach(([name, emission, lightBlock, full, faces, fluid, model, skip], id) => {
+    states.forEach(([name, emission, lightBlock, full, faces, fluid, model, skip, cull, shades], id) => {
       this.ids.set(name, id);
       this.emission[id] = Number(emission);
       this.lightBlock[id] = Number(lightBlock);
       this.fullFaces[id] = Number(full);
       faces.split(',').forEach((shape, direction) => { this.faces[id * 6 + direction] = Number(shape); });
+      cull.split(',').forEach((shape, direction) => { this.cull[id * 6 + direction] = Number(shape); });
       this.fluid[id] = Number(fluid);
-      this.draw[id] = Number(model);
+      this.draw[id] = Number(model) | (Number(shades) << 3);
       const [row, column] = skip.split(',');
       this.skipRow[id] = Number(row);
       this.skipColumn[id] = Number(column);
@@ -85,6 +96,13 @@ class BlockStates {
     // The fluids' states by name, for the page to draw them.
     this.fluidNames = Object.fromEntries([...new Set(this.fluid)].filter(Boolean).map((id) => [id, states[id][0]]));
     this.palettes = new WeakMap();
+  }
+
+  // Block.shouldRenderFace: whether state `a` hides its face toward state
+  // `b`, its neighbour to Minecraft's direction `direction` (down, up,
+  // north, south, west, east by Direction.ordinal()).
+  hidesFace(a, b, direction) {
+    return this.hides[this.cull[a * 6 + direction] * this.cullShapes + this.cull[b * 6 + (direction ^ 1)]] === 1 || this.skips(a, b, direction);
   }
 
   // BlockState.skipRendering: whether state `a` hides its face toward
@@ -134,20 +152,21 @@ class BlockStates {
   }
 
   // What the page reads (web/viewer.js loadResources), each part starting
-  // on four bytes: u32 states, face shapes, skipRendering row classes, mask
-  // bytes and fluid names' bytes; by state u16 fluid, skipRendering row and
-  // column; by row class u32 start, u16 first and length; then by state its
-  // emission, light block, full faces and draw bits, its six face shapes, the
-  // face shapes' pairs, the skipRendering masks, and the fluids' names (JSON,
-  // state id -> name).
+  // on four bytes: u32 states, face shapes, cull shapes, skipRendering row
+  // classes, mask bytes and fluid names' bytes; by state u16 fluid,
+  // skipRendering row and column; by row class u32 start, u16 first and
+  // length; then by state its emission, light block, full faces and draw
+  // bits, its six face shapes and its six cull shapes, the face shapes'
+  // pairs, the cull shapes' pairs, the skipRendering masks, and the fluids'
+  // names (JSON, state id -> name).
   bytes() {
     if (this.bytesMade) return this.bytesMade;
     const names = Buffer.from(JSON.stringify(this.fluidNames));
     const parts = [
-      Uint32Array.of(this.count, this.shapes, this.skipFirst.length, this.skipMasks.length, names.length),
+      Uint32Array.of(this.count, this.shapes, this.cullShapes, this.skipFirst.length, this.skipMasks.length, names.length),
       this.fluid, this.skipRow, this.skipColumn,
       this.skipStart, this.skipFirst, this.skipLength,
-      this.emission, this.lightBlock, this.fullFaces, this.draw, this.faces, this.occludes, this.skipMasks, names,
+      this.emission, this.lightBlock, this.fullFaces, this.draw, this.faces, this.cull, this.occludes, this.hides, this.skipMasks, names,
     ].map((part) => Buffer.from(part.buffer, part.byteOffset, part.byteLength));
     this.bytesMade = Buffer.concat(parts.flatMap((part) => [part, Buffer.alloc((4 - (part.length % 4)) % 4)]));
     return this.bytesMade;

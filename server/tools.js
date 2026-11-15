@@ -37,69 +37,66 @@ const CLAUDE_CODE = 'https://storage.googleapis.com/claude-code-dist-86c565f3-f7
 // Chromium's headless shell is the build playwright-core names in its
 // browsers.json, from the addresses Playwright's own installer uses: Chrome
 // for Testing's build, and on ARM Linux, which Chrome for Testing has no
-// build for, Playwright's. Its checksums are kept per version, so a
-// playwright-core that names another build fails here until it is pinned.
+// build for, Playwright's. Its checksums and sizes are kept per version, so
+// a playwright-core that names another build fails here until it is pinned.
 const HEADLESS_SHELL = JSON.parse(fs.readFileSync(path.join(path.dirname(require.resolve('playwright-core')), 'browsers.json'), 'utf8')).browsers.find((browser) => browser.name === 'chromium-headless-shell');
-const CHROMIUM_SHA256 = {
+const CHROMIUM_DOWNLOADS = {
   '149.0.7827.55': {
-    'darwin-arm64': '302f82603be06683947594ecd60f849e362a8fe3dd82a89bd4408477c97e75a6',
-    'darwin-x64': 'a32029e1861329a431b712d5b864e213d9cf8ef51a82ce4c24b27e25f6605434',
-    'linux-arm64': '1652929a70f4afb17aca36fce073fb7ed22262d16825be761b0801972f43ac4f',
-    'linux-x64': '410c9407d5de3fea80d9398666be06f2aa09154a3fa7b327dc254e336bb4c4b7',
+    'darwin-arm64': { sha256: '302f82603be06683947594ecd60f849e362a8fe3dd82a89bd4408477c97e75a6', bytes: 98043456 },
+    'darwin-x64': { sha256: 'a32029e1861329a431b712d5b864e213d9cf8ef51a82ce4c24b27e25f6605434', bytes: 103452247 },
+    'linux-arm64': { sha256: '1652929a70f4afb17aca36fce073fb7ed22262d16825be761b0801972f43ac4f', bytes: 115342043 },
+    'linux-x64': { sha256: '410c9407d5de3fea80d9398666be06f2aa09154a3fa7b327dc254e336bb4c4b7', bytes: 119778157 },
   },
 };
 
-// Each program: its name in the terminal, its version, about how large its
-// download is, how it is unpacked (a .tar.gz, a .zip, or the file itself,
-// made executable), and per platform its address, checksum and the path of
-// its program (`bin`, the folder of its programs, for the JDK) in its folder.
+// Each program: its name in the terminal, its version, how it is unpacked (a
+// .tar.gz, a .zip, or the file itself, made executable), and per platform
+// its address, checksum, size in bytes (the one figure the terminal, the
+// page and README.md state, rounded to MB: downloadMb) and the path of its
+// program (`bin`, the folder of its programs, for the JDK) in its folder.
 const PINS = {
   jdk: {
     title: 'Temurin 25.0.5+8, a JDK 25',
     version: '25.0.5+8',
-    mb: 130,
     unpack: 'tar',
     platforms: {
-      'darwin-arm64': { url: `${TEMURIN}/OpenJDK25U-jdk_aarch64_mac_hotspot_25.0.5_8.tar.gz`, sha256: '36dc14d797aaff6d89aab302cd053fdba6207dfdcf772052fa7b023a94b0e857', bin: 'jdk-25.0.5+8/Contents/Home/bin' },
-      'darwin-x64': { url: `${TEMURIN}/OpenJDK25U-jdk_x64_mac_hotspot_25.0.5_8.tar.gz`, sha256: '32cd4d2151c91aa00d0fc911edfd05245ed40fa6b1aa894d5f35c928cd67a59d', bin: 'jdk-25.0.5+8/Contents/Home/bin' },
-      'linux-arm64': { url: `${TEMURIN}/OpenJDK25U-jdk_aarch64_linux_hotspot_25.0.5_8.tar.gz`, sha256: 'bb5b2ded252f21c6090cf780b0a408ad0d83bbb557e702955643557f13231880', bin: 'jdk-25.0.5+8/bin' },
-      'linux-x64': { url: `${TEMURIN}/OpenJDK25U-jdk_x64_linux_hotspot_25.0.5_8.tar.gz`, sha256: '68982529869257d0ee6b824ec5aa270ff8b118bb438670da0b97ebdab178d7fb', bin: 'jdk-25.0.5+8/bin' },
+      'darwin-arm64': { url: `${TEMURIN}/OpenJDK25U-jdk_aarch64_mac_hotspot_25.0.5_8.tar.gz`, sha256: '36dc14d797aaff6d89aab302cd053fdba6207dfdcf772052fa7b023a94b0e857', bytes: 136446056, bin: 'jdk-25.0.5+8/Contents/Home/bin' },
+      'darwin-x64': { url: `${TEMURIN}/OpenJDK25U-jdk_x64_mac_hotspot_25.0.5_8.tar.gz`, sha256: '32cd4d2151c91aa00d0fc911edfd05245ed40fa6b1aa894d5f35c928cd67a59d', bytes: 120336964, bin: 'jdk-25.0.5+8/Contents/Home/bin' },
+      'linux-arm64': { url: `${TEMURIN}/OpenJDK25U-jdk_aarch64_linux_hotspot_25.0.5_8.tar.gz`, sha256: 'bb5b2ded252f21c6090cf780b0a408ad0d83bbb557e702955643557f13231880', bytes: 140178170, bin: 'jdk-25.0.5+8/bin' },
+      'linux-x64': { url: `${TEMURIN}/OpenJDK25U-jdk_x64_linux_hotspot_25.0.5_8.tar.gz`, sha256: '68982529869257d0ee6b824ec5aa270ff8b118bb438670da0b97ebdab178d7fb', bytes: 141341188, bin: 'jdk-25.0.5+8/bin' },
     },
   },
   'rustup-init': {
     title: 'rustup 1.29.3',
     version: '1.29.3',
-    mb: 12,
     unpack: 'file',
     platforms: {
-      'darwin-arm64': { url: `${RUSTUP_ARCHIVE}/aarch64-apple-darwin/rustup-init`, sha256: '63752a1919a3a4793173ec70f8f212621a7ce38ba6a246095984482f4de20f9f', bin: 'rustup-init' },
-      'darwin-x64': { url: `${RUSTUP_ARCHIVE}/x86_64-apple-darwin/rustup-init`, sha256: 'bc107f1fb0228de7fa32413c89c1b305cea9cd256e94b01150cd054128145429', bin: 'rustup-init' },
-      'linux-arm64': { url: `${RUSTUP_ARCHIVE}/aarch64-unknown-linux-gnu/rustup-init`, sha256: '9f608c142e0e38a78957d0661ba1dfaf0b6fb37184cfaa4b9a0aa57af6184282', bin: 'rustup-init' },
-      'linux-x64': { url: `${RUSTUP_ARCHIVE}/x86_64-unknown-linux-gnu/rustup-init`, sha256: 'b1c8cb14e30889e7e2999e6b69e62d9e9b9ffc0f4df8180564d306d9680e6c55', bin: 'rustup-init' },
+      'darwin-arm64': { url: `${RUSTUP_ARCHIVE}/aarch64-apple-darwin/rustup-init`, sha256: '63752a1919a3a4793173ec70f8f212621a7ce38ba6a246095984482f4de20f9f', bytes: 11408656, bin: 'rustup-init' },
+      'darwin-x64': { url: `${RUSTUP_ARCHIVE}/x86_64-apple-darwin/rustup-init`, sha256: 'bc107f1fb0228de7fa32413c89c1b305cea9cd256e94b01150cd054128145429', bytes: 13041240, bin: 'rustup-init' },
+      'linux-arm64': { url: `${RUSTUP_ARCHIVE}/aarch64-unknown-linux-gnu/rustup-init`, sha256: '9f608c142e0e38a78957d0661ba1dfaf0b6fb37184cfaa4b9a0aa57af6184282', bytes: 20172120, bin: 'rustup-init' },
+      'linux-x64': { url: `${RUSTUP_ARCHIVE}/x86_64-unknown-linux-gnu/rustup-init`, sha256: 'b1c8cb14e30889e7e2999e6b69e62d9e9b9ffc0f4df8180564d306d9680e6c55', bytes: 21347088, bin: 'rustup-init' },
     },
   },
   chromium: {
     title: `Chromium ${HEADLESS_SHELL.browserVersion}'s headless shell`,
     version: HEADLESS_SHELL.browserVersion,
-    mb: 110,
     unpack: 'zip',
     platforms: Object.fromEntries(Object.entries({
       'darwin-arm64': [`${CHROME_FOR_TESTING}/${HEADLESS_SHELL.browserVersion}/mac-arm64/chrome-headless-shell-mac-arm64.zip`, 'chrome-headless-shell-mac-arm64/chrome-headless-shell'],
       'darwin-x64': [`${CHROME_FOR_TESTING}/${HEADLESS_SHELL.browserVersion}/mac-x64/chrome-headless-shell-mac-x64.zip`, 'chrome-headless-shell-mac-x64/chrome-headless-shell'],
       'linux-arm64': [`${PLAYWRIGHT_BUILDS}/${HEADLESS_SHELL.revision}/chromium-headless-shell-linux-arm64.zip`, 'chrome-linux/headless_shell'],
       'linux-x64': [`${CHROME_FOR_TESTING}/${HEADLESS_SHELL.browserVersion}/linux64/chrome-headless-shell-linux64.zip`, 'chrome-headless-shell-linux64/chrome-headless-shell'],
-    }).map(([platform, [url, bin]]) => [platform, { url, sha256: CHROMIUM_SHA256[HEADLESS_SHELL.browserVersion][platform], bin }])),
+    }).map(([platform, [url, bin]]) => [platform, { url, ...CHROMIUM_DOWNLOADS[HEADLESS_SHELL.browserVersion][platform], bin }])),
   },
   claude: {
     title: 'Claude Code 2.1.311',
     version: '2.1.311',
-    mb: 280,
     unpack: 'file',
     platforms: {
-      'darwin-arm64': { url: `${CLAUDE_CODE}/darwin-arm64/claude`, sha256: '85d8c08707fcfd1e78ffa0204eefbc6ec9e4fe22f375fb2767ef85d957ed3161', bin: 'claude' },
-      'darwin-x64': { url: `${CLAUDE_CODE}/darwin-x64/claude`, sha256: 'd34e1cb82015b050471a97574aa6ea6f698ecf3a97a61c980961f43ad9f838f5', bin: 'claude' },
-      'linux-arm64': { url: `${CLAUDE_CODE}/linux-arm64/claude`, sha256: '2e2496c9a8065df93acb0fca2d341f59a6b8777649b2e025ab8c9bcd5eef61f3', bin: 'claude' },
-      'linux-x64': { url: `${CLAUDE_CODE}/linux-x64/claude`, sha256: '86dc1fcc69498159eaf15f446613e847010f9036bfbbdffd4c49350be8489ada', bin: 'claude' },
+      'darwin-arm64': { url: `${CLAUDE_CODE}/darwin-arm64/claude`, sha256: '85d8c08707fcfd1e78ffa0204eefbc6ec9e4fe22f375fb2767ef85d957ed3161', bytes: 276185504, bin: 'claude' },
+      'darwin-x64': { url: `${CLAUDE_CODE}/darwin-x64/claude`, sha256: 'd34e1cb82015b050471a97574aa6ea6f698ecf3a97a61c980961f43ad9f838f5', bytes: 287420928, bin: 'claude' },
+      'linux-arm64': { url: `${CLAUDE_CODE}/linux-arm64/claude`, sha256: '2e2496c9a8065df93acb0fca2d341f59a6b8777649b2e025ab8c9bcd5eef61f3', bytes: 293658808, bin: 'claude' },
+      'linux-x64': { url: `${CLAUDE_CODE}/linux-x64/claude`, sha256: '86dc1fcc69498159eaf15f446613e847010f9036bfbbdffd4c49350be8489ada', bytes: 293776752, bin: 'claude' },
     },
   },
   // Codex's release package keeps the program at bin/codex, the layout
@@ -107,13 +104,12 @@ const PINS = {
   codex: {
     title: 'Codex CLI 0.169.0',
     version: '0.169.0',
-    mb: 180,
     unpack: 'tar',
     platforms: {
-      'darwin-arm64': { url: `${CODEX}/codex-package-aarch64-apple-darwin.tar.gz`, sha256: '8a232260df7a12c5e83e0b4b7659e1c8d9259b41942517bc0068d8ab55c36461', bin: 'bin/codex' },
-      'darwin-x64': { url: `${CODEX}/codex-package-x86_64-apple-darwin.tar.gz`, sha256: '0a3c392235b4712409495ced02bbe0662ce7a038232766d1c1c34af74e905c2f', bin: 'bin/codex' },
-      'linux-arm64': { url: `${CODEX}/codex-package-aarch64-unknown-linux-musl.tar.gz`, sha256: 'c8d0b4ab2a97c595b70b10412d36d0d5464dcef1e1d3246b073d48017cdf5a4f', bin: 'bin/codex' },
-      'linux-x64': { url: `${CODEX}/codex-package-x86_64-unknown-linux-musl.tar.gz`, sha256: '3b8ed091149cc63a59046b9f094bcfa21cdb4dda15ede441ce369bcee4a71ba0', bin: 'bin/codex' },
+      'darwin-arm64': { url: `${CODEX}/codex-package-aarch64-apple-darwin.tar.gz`, sha256: '8a232260df7a12c5e83e0b4b7659e1c8d9259b41942517bc0068d8ab55c36461', bytes: 172466618, bin: 'bin/codex' },
+      'darwin-x64': { url: `${CODEX}/codex-package-x86_64-apple-darwin.tar.gz`, sha256: '0a3c392235b4712409495ced02bbe0662ce7a038232766d1c1c34af74e905c2f', bytes: 187188284, bin: 'bin/codex' },
+      'linux-arm64': { url: `${CODEX}/codex-package-aarch64-unknown-linux-musl.tar.gz`, sha256: 'c8d0b4ab2a97c595b70b10412d36d0d5464dcef1e1d3246b073d48017cdf5a4f', bytes: 194441793, bin: 'bin/codex' },
+      'linux-x64': { url: `${CODEX}/codex-package-x86_64-unknown-linux-musl.tar.gz`, sha256: '3b8ed091149cc63a59046b9f094bcfa21cdb4dda15ede441ce369bcee4a71ba0', bytes: 192339692, bin: 'bin/codex' },
     },
   },
 };
@@ -181,6 +177,10 @@ async function downloadOnce(url, target, { sha256, onProgress = () => {} }) {
   fs.renameSync(temporary, target);
 }
 
+// How many MB `name`'s download for this platform is, as the page rounds
+// a download's bytes (web/setup-status.mjs).
+const downloadMb = (name) => Math.round(PINS[name].platforms[PLATFORM].bytes / 1e6);
+
 // The folder `name` is installed in, and the path of its program there.
 function installed(name, { pins = PINS, dir = TOOLS_DIR } = {}) {
   const pin = pins[name];
@@ -234,7 +234,7 @@ function installJdk() {
   jdk ||= setup.track('jdk', async () => {
     if (process.env.MCBENCH_JAVA && process.env.MCBENCH_JAVAC) return;
     setup.report('jdk', { detail: `Downloading ${PINS.jdk.title}` });
-    await step(`[jdk] downloading ${PINS.jdk.title} (about ${PINS.jdk.mb} MB) into ${TOOLS_DIR}`, '[jdk] JDK installed', () => install('jdk', { onProgress: setup.progress('jdk') }));
+    await step(`[jdk] downloading ${PINS.jdk.title} (${downloadMb('jdk')} MB) into ${TOOLS_DIR}`, '[jdk] JDK installed', () => install('jdk', { onProgress: setup.progress('jdk') }));
   }).catch((error) => {
     jdk = null;
     throw error;
@@ -278,7 +278,7 @@ async function installRustup({ onProgress } = {}) {
 let shell = null;
 function headlessShell() {
   shell ||= setup.track('browser', async () => {
-    const program = await step(`[see_build] downloading ${PINS.chromium.title} (about ${PINS.chromium.mb} MB) into ${TOOLS_DIR}`, '[see_build] headless browser installed',
+    const program = await step(`[see_build] downloading ${PINS.chromium.title} (${downloadMb('chromium')} MB) into ${TOOLS_DIR}`, '[see_build] headless browser installed',
       () => install('chromium', { onProgress: setup.progress('browser') }));
     await checkShell(program);
     return program;
@@ -347,6 +347,6 @@ function onPath(program) {
 }
 
 module.exports = {
-  PINS, PLATFORM, TOOLS_DIR, JAVA, JAVAC, RUST_ENV, RUSTUP, CHROMIUM_SHA256,
-  download, install, installed, installJdk, installRustup, headlessShell, checkShell, onPath, cliProgram, cliInstalled,
+  PINS, PLATFORM, TOOLS_DIR, JAVA, JAVAC, RUST_ENV, RUSTUP, CHROMIUM_DOWNLOADS,
+  download, downloadMb, install, installed, installJdk, installRustup, headlessShell, checkShell, onPath, cliProgram, cliInstalled,
 };

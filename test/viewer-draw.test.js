@@ -12,8 +12,10 @@ const { viewerHarness } = require('./helpers/viewer');
 // blended, skipping beside every state that holds water); a stair that holds
 // water and one that does not; stone; leaves whose top is tinted, and
 // petals whose top is of tint index 1 and north side of 0, by colours
-// written for the test. Every model is a cube whose faces cull toward their
-// own sides, so a block's quads are its faces drawn.
+// written for the test; a barrier, which draws nothing and darkens the
+// corners beside it, and a structure void, which does neither. Every model
+// is a cube whose faces cull toward their own sides, so a block's quads are
+// its faces drawn.
 const ALL = 63;
 const WATER = 'minecraft:water[level=0]';
 const WET = 'minecraft:oak_stairs[waterlogged=true]';
@@ -25,6 +27,9 @@ const STATES = testBlockStates([
   { name: WET, fluid: WATER, fluidBlended: true, lightBlock: 1 },
   { name: 'minecraft:oak_leaves' },
   { name: 'minecraft:pink_petals' },
+  { name: 'minecraft:barrier', model: false, shades: true },
+  { name: 'minecraft:structure_void', model: false },
+  { name: 'minecraft:glowstone', full: ALL, lightBlock: 15, emission: 15 },
 ], {
   skips: [['minecraft:glass', 'minecraft:glass', ALL], [WATER, WATER, ALL], [WATER, WET, ALL]],
 });
@@ -44,7 +49,7 @@ const cube = (texture, tints = {}) => ({
 const ASSETS = {
   'blocks.json': {
     stone: [{}, {}], glass: [{}, {}], water: [{ level: ['0'] }, { level: '0' }], oak_stairs: [{ waterlogged: ['false', 'true'] }, { waterlogged: 'false' }],
-    oak_leaves: [{}, {}], pink_petals: [{}, {}],
+    oak_leaves: [{}, {}], pink_petals: [{}, {}], barrier: [{}, {}], structure_void: [{}, {}], glowstone: [{}, {}],
   },
   'block_definitions.json': {
     stone: { variants: { '': { model: 'minecraft:block/stone' } } },
@@ -52,6 +57,7 @@ const ASSETS = {
     oak_stairs: { variants: { '': { model: 'minecraft:block/oak_stairs' } } },
     oak_leaves: { variants: { '': { model: 'minecraft:block/oak_leaves' } } },
     pink_petals: { variants: { '': { model: 'minecraft:block/pink_petals' } } },
+    glowstone: { variants: { '': { model: 'minecraft:block/stone' } } },
   },
   'models.json': {
     'block/stone': cube('minecraft:block/stone'), 'block/glass': cube('minecraft:block/glass'), 'block/oak_stairs': cube('minecraft:block/oak_planks'),
@@ -131,4 +137,32 @@ test('a waterlogged stair is its model, opaque and drawn toward water, and its w
   assert.deepEqual(await draw([[0, 0, 0, WET], [1, 0, 0, WATER]]), [6, 10]);
   // A stair that holds no water beside water: its six faces, the water's six.
   assert.deepEqual(await draw([[0, 0, 0, 'minecraft:oak_stairs[waterlogged=false]'], [1, 0, 0, WATER]]), [6, 6]);
+});
+
+// The brightnesses of the vertices drawn of one world, each a vertex's
+// largest channel, sorted.
+async function brightnesses(blocks) {
+  const { viewer, drawn } = await open();
+  const names = [...new Set(blocks.map(([, , , name]) => name))];
+  const palette = names.map((name) => ({ id: name, states: {}, state: STATES.ids.get(name) }));
+  viewer.applyDelta({ chunks: [{ key: 'a', version: 1, origin: [0, 64, 0], palette, blocks: blocks.map(([x, y, z, name]) => [x, y, z, names.indexOf(name)]) }], removed: [] });
+  viewer.flush();
+  const seen = new Set();
+  for (const [, color] of drawn()) {
+    for (let at = 0; at < color.length; at += 3) seen.add(Math.max(color[at], color[at + 1], color[at + 2]).toFixed(3));
+  }
+  return [...seen].map(Number).sort((a, b) => a - b);
+}
+
+test('a corner is darkened by the blocks Minecraft shades with, not by those with six full faces, and not on a block that emits light', async () => {
+  // A structure void above and beside the stone darkens nothing: the stone alone is drawn the same.
+  const plain = await brightnesses([[0, 0, 0, 'minecraft:stone']]);
+  assert.deepEqual(await brightnesses([[0, 0, 0, 'minecraft:stone'], [1, 1, 0, 'minecraft:structure_void']]), plain);
+  // A barrier there (no full face, drawn as nothing) darkens the corners of
+  // the stone's top and east side beside it by one neighbour's worth.
+  const shaded = await brightnesses([[0, 0, 0, 'minecraft:stone'], [1, 1, 0, 'minecraft:barrier']]);
+  const darkened = shaded.filter((value) => !plain.includes(value));
+  assert.ok(darkened.length > 0 && darkened.every((value) => plain.some((whole) => Math.abs(value / whole - 0.78) < 0.005)), `the barrier darkens to ${darkened} of ${plain}`);
+  // Glowstone's faces are not darkened by the barrier.
+  assert.deepEqual(await brightnesses([[0, 0, 0, 'minecraft:glowstone'], [1, 1, 0, 'minecraft:barrier']]), await brightnesses([[0, 0, 0, 'minecraft:glowstone']]));
 });

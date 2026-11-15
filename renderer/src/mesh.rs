@@ -4,7 +4,14 @@
 // rest comes baked (see pack.rs). Faces are written and transformed in the
 // same windows and order as BlueMap's, so a tile cut short by the face limit
 // holds exactly what BlueMap's does. Every block is read through
-// Neighborhood, BlueMap's block cache, quirks included.
+// Neighborhood, BlueMap's block cache, quirks included. Where BlueMap asks
+// its own block flags, the mesher asks what Minecraft says (the block table,
+// through the pack): a face is culled as Block.shouldRenderFace and
+// LiquidBlockRenderer cull it, the blocks that darken a corner are those
+// Minecraft shades with, and a block that emits light is not shaded, as
+// Minecraft's ModelBlockRenderer leaves it
+// (scripts/McbenchBlueMapReference.java runs BlueMap's renderer with the
+// same answers).
 
 use crate::pack::{self, Pack, Variant};
 use crate::tile::{Full, Tile};
@@ -17,6 +24,18 @@ const BLOCK_SCALE: f32 = 1.0 / 16.0;
 // Direction vectors in render order: down, up, north, south, west, east.
 const DIRECTIONS: [[i32; 3]; 6] = [[0, -1, 0], [0, 1, 0], [0, 0, -1], [0, 0, 1], [-1, 0, 0], [1, 0, 0]];
 const UP: usize = 1;
+// By neighbour offset ((dx+1)*9 + (dy+1)*3 + dz+1), the direction toward it,
+// for the six offsets of a face.
+const DIRECTION_OF: [usize; 27] = {
+    let mut table = [usize::MAX; 27];
+    let mut direction = 0;
+    while direction < 6 {
+        let [x, y, z] = DIRECTIONS[direction];
+        table[((x + 1) * 9 + (y + 1) * 3 + z + 1) as usize] = direction;
+        direction += 1;
+    }
+    table
+};
 // The element corners each face is drawn from (ResourceModelRenderer.buildModelElementResource).
 const CORNERS: [[usize; 4]; 6] = [[0, 2, 3, 1], [5, 7, 6, 4], [2, 0, 4, 6], [1, 3, 7, 5], [0, 1, 5, 4], [3, 2, 6, 7]];
 
@@ -347,9 +366,9 @@ impl Draw<'_> {
                 let sun = own.sky.max(faced.sky);
                 let block_light = own.block.max(faced.block);
                 if face.cullface != 255 {
-                    let other = self.look(relative(table, DIRECTIONS[face.cullface as usize])).state;
-                    let props = self.props(other);
-                    if props.has(pack::CULLING) || (props.has(pack::CULLING_IDENTICAL) && other == own.state) {
+                    let [x, y, z] = relative(table, DIRECTIONS[face.cullface as usize]);
+                    let other = self.look([x, y, z]).state;
+                    if self.pack.hides(own.state, other, DIRECTION_OF[((x + 1) * 9 + (y + 1) * 3 + z + 1) as usize]) {
                         continue;
                     }
                 }
@@ -365,7 +384,7 @@ impl Draw<'_> {
                 } else {
                     [1.0, 1.0, 1.0]
                 };
-                let ao = if mesh.ambient_occlusion {
+                let ao = if mesh.ambient_occlusion && own_props.emission == 0 {
                     c.map(|corner| self.ao(table, corner, DIRECTIONS[direction]))
                 } else {
                     [1.0; 4]
@@ -387,11 +406,11 @@ impl Draw<'_> {
     }
 
     // ResourceModelRenderer.testAo: the corner (in element space) is
-    // darkened by each occluding block around it on the face's side.
+    // darkened by each block around it on the face's side that shades.
     fn ao(&self, table: &[[i8; 3]; 27], vertex: [f32; 3], direction: [i32; 3]) -> f32 {
         let side = |value: f32| if value == 16.0 { 1 } else if value == 0.0 { -1 } else { 0 };
         let (x, y, z) = (side(vertex[0]), side(vertex[1]), side(vertex[2]));
-        let occluding = |offset: [i32; 3]| self.props(self.look(relative(table, offset)).state).has(pack::OCCLUDING);
+        let occluding = |offset: [i32; 3]| self.props(self.look(relative(table, offset)).state).has(pack::SHADES);
         let mut count = 0;
         if x * direction[0] + y * direction[1] > 0 && occluding([x, y, 0]) {
             count += 1;
@@ -444,7 +463,7 @@ impl Draw<'_> {
         let start = tile.size;
         for (direction, &step) in DIRECTIONS.iter().enumerate() {
             let neighbor = self.look(step);
-            if self.same_liquid(&liquid, step) || (direction != UP && self.props(neighbor.state).has(pack::CULLING)) {
+            if self.pack.hides_fluid(own.state, neighbor.state, direction) {
                 continue;
             }
             tile.room(2)?;

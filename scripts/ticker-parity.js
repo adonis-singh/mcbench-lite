@@ -1,7 +1,8 @@
 'use strict';
 
-// Checks the engine (McbenchExperiment on McbenchLevel) against Paper's
-// verifier on real builds. For each community redstone build in
+// Checks the app's engine (the Rust engine, core/; with --jvm the Java
+// engine, McbenchExperiment on McbenchLevel) against Paper's verifier on real
+// builds. For each community redstone build in
 // the corpus MCBENCH_CORPUS names (or the builds named), it makes one experiment: every
 // redstone component probed, each lever toggled and each button pressed,
 // every tick (or every Nth) sampled. The experiment runs in the isolated Paper verifier and
@@ -11,6 +12,7 @@
 //   MCBENCH_DATA_DIR=<scratch copy> node scripts/ticker-parity.js \
 //     [--limit N] [--match regex] [--ticks N] [--every N] [--placement updates|strict]
 //     [--report file.json] [--keep folder] [--jvm] [--seed N] [--fixtures]
+//     [--settled N]
 //
 // --fixtures runs scripts/verifier-fixtures.js (worlds and requests that use
 // the verifier's imports, inputs and censuses, which the community builds
@@ -18,11 +20,19 @@
 // compared as written (--ticks and --every do not apply); a fixture's
 // placementMode replaces --placement, and fixtures run grouped by mode.
 //
-// --jvm runs the engine's classes on GraalVM's JVM instead of building the
-// native program, for checking a change quickly. --seed fixes both worlds'
+// --jvm runs the Java engine's classes on GraalVM's JVM instead of the Rust
+// engine. --seed fixes both worlds'
 // random draws (dispensers, droppers, drops), which Paper otherwise leaves
 // unseeded; entities' UUIDs stay random on both sides, so reports are
 // compared without them, their entity lists in a canonical order.
+//
+// --settled N (with --seed) compares the worlds the import leaves: each
+// case's request without its inputs, observed once after N settling ticks.
+// A seeded report holds every column's saved chunks at its end (blocks, block
+// entities, scheduled ticks, light) and the level random as placement left
+// it, so Paper's world and the engine's are compared block for block, with
+// the probes' readings, after N ticks. N of 1 is the nearest the verifier
+// comes to the placement itself, which it observes only after a tick.
 //
 // --keep saves both reports of each build whose reports differ.
 
@@ -36,7 +46,7 @@ if (!process.env.MCBENCH_DATA_DIR || fs.realpathSync(path.resolve(process.env.MC
 }
 const { minecraftLive } = require('../server/minecraft-live');
 const { jvmEngine } = require('../server/engine');
-const { MinecraftVerifier } = require('../server/minecraft-verify');
+const { MinecraftVerifier, placedPalette } = require('../server/minecraft-verify');
 const { importCommands } = require('../server/live-placement');
 const { Y_OFFSET } = require('../server/minecraft-dimension');
 const { World } = require('../server/world');
@@ -127,6 +137,11 @@ function communityCases(ticks, every, placementMode) {
   }));
 }
 
+// A case's request as --settled N runs it.
+function settledArgs({ actions, samples, settle_ticks: settleTicks, ...args }, ticks) {
+  return { ...args, samples: [0], settle_ticks: ticks };
+}
+
 function fixtureCases(placementMode) {
   const seen = new Set();
   return require('./verifier-fixtures').map((fixture) => {
@@ -159,6 +174,8 @@ async function main() {
   // Grouped by placement mode (a stable sort), so one verifier serves each mode in turn.
   const cases = all.filter(({ name }) => new RegExp(match).test(name)).slice(0, limit).sort((a, b) => PLACEMENT_MODES.indexOf(a.placementMode) - PLACEMENT_MODES.indexOf(b.placementMode));
   const seed = option('seed', null);
+  const settled = option('settled', null);
+  if (settled !== null && seed === null) throw new Error('--settled compares the worlds a seeded report holds: give --seed');
   let verifier = null;
   const scratch = path.join(DATA_DIR, 'ticker-parity', 'engine');
   fs.mkdirSync(scratch, { recursive: true });
@@ -173,7 +190,8 @@ async function main() {
       await verifier?.stop();
       verifier = new MinecraftVerifier({ root: path.join(DATA_DIR, 'ticker-parity', 'paper'), placementMode, seed: seed === null ? null : Number(seed) });
     }
-    const { world, args } = load();
+    const { world, args: written } = load();
+    const args = settled === null ? written : settledArgs(written, Number(settled));
     const request = verifier.request(world, args);
     const result = { name, blocks: world.size(), probes: request.probes.length, actions: request.actions.length };
     try {
@@ -182,7 +200,7 @@ async function main() {
       const requestFile = path.join(folder, 'request.json');
       fs.writeFileSync(requestFile, JSON.stringify(verifier.transport(request)));
       const commandsFile = path.join(folder, 'commands.txt');
-      fs.writeFileSync(commandsFile, `${importCommands(world, null, Y_OFFSET).commands.join('\n')}\n`);
+      fs.writeFileSync(commandsFile, `${importCommands(world, null, Y_OFFSET, await placedPalette(world, request)).commands.join('\n')}\n`);
       let started = Date.now();
       let engineError = null;
       await minecraftLive.engine.verify(requestFile, commandsFile, folder).catch((error) => { engineError = error; });

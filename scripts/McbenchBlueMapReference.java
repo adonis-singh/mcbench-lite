@@ -19,11 +19,28 @@ import de.bluecolored.bluemap.core.world.LightData;
 import de.bluecolored.bluemap.core.world.Region;
 import de.bluecolored.bluemap.core.world.World;
 import de.bluecolored.bluemap.core.world.biome.Biome;
+import de.bluecolored.bluemap.core.map.hires.block.LiquidModelRenderer;
+import de.bluecolored.bluemap.core.map.hires.block.ResourceModelRenderer;
+import de.bluecolored.bluemap.core.resources.pack.resourcepack.model.Model;
+import de.bluecolored.bluemap.core.util.Direction;
+import de.bluecolored.bluemap.core.world.BlockProperties;
+import de.bluecolored.bluemap.core.world.block.BlockNeighborhood;
+import de.bluecolored.bluemap.core.world.block.ExtendedBlock;
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.lang.classfile.ClassFile;
+import java.lang.classfile.ClassTransform;
+import java.lang.classfile.CodeBuilder;
+import java.lang.classfile.CodeElement;
+import java.lang.classfile.CodeTransform;
+import java.lang.classfile.Opcode;
+import java.lang.classfile.instruction.InvokeInstruction;
+import java.lang.classfile.instruction.StoreInstruction;
+import java.lang.constant.ClassDesc;
+import java.lang.constant.MethodTypeDesc;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayDeque;
@@ -47,18 +64,28 @@ import java.util.function.Predicate;
 // Run in a bake folder (server/bluemap.js's configuration, with the web app
 // McbenchBake made, whose texture list the tiles index), with this file
 // compiled together with server/McbenchBake.java:
-//   java -cp <bluemap cli jar>:<classes> McbenchBlueMapReference <minecraft version> <block table tsv> <the world's biome>
+//   java -cp <bluemap cli jar>:<classes> McbenchBlueMapReference --patch <folder>
+//   java -cp <folder>:<bluemap cli jar>:<classes> McbenchBlueMapReference <minecraft version> <block table tsv> <the world's biome>
 // It draws the blocks Minecraft's client tints in the client's colours, as
 // the bake does (McbenchBake.minecraftColors, from the bake's tints.tsv).
+// Where BlueMap's renderer asks its own block flags, it asks what Minecraft
+// says, as the mesher does (Minecraft, from the block table): --patch writes
+// BlueMap's ResourceModelRenderer and LiquidModelRenderer into <folder>, each
+// call of a flag replaced with a call of Minecraft's answer and nothing else
+// changed (patch), and the renderer runs with <folder> ahead of BlueMap's jar.
 // Requests on stdin, one per line: <blueprint> <config folder> <tile folder>.
 // <config folder> holds maps/live.conf, the map settings with the render
 // mask. Every tile over each built chunk column and one block past it is
 // written to <tile folder> as BlueMap's file storage lays it out; the reply
 // is "MCBENCH_RENDERED <ms>".
-class McbenchBlueMapReference {
+public class McbenchBlueMapReference {
   static final TileMetaConsumer NO_LOWRES = (x, z, color, height, blockLight) -> {};
 
   public static void main(String[] args) throws Exception {
+    if (args[0].equals("--patch")) {
+      patch(Path.of(args[1]));
+      return;
+    }
     McbenchBake.logFailures();
     ResourcePack resources;
     Biome biome;
@@ -70,6 +97,10 @@ class McbenchBlueMapReference {
     TextureGallery gallery;
     try (var in = Files.newInputStream(Path.of("web/maps/live/textures.json"))) { gallery = TextureGallery.readTexturesFile(in); }
     var table = BlockTable.read(Path.of(args[1]));
+    if (!ResourceModelRenderer.class.getProtectionDomain().getCodeSource().getLocation().getPath().endsWith("/")) {
+      throw new IllegalStateException("BlueMap's renderer is not the patched one: run with --patch's folder ahead of BlueMap's jar");
+    }
+    Minecraft.table = table;
     ExecutorService workers = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
     var input = new BufferedReader(new InputStreamReader(System.in));
     for (String line; (line = input.readLine()) != null;) {
@@ -105,21 +136,190 @@ class McbenchBlueMapReference {
 
   static long key(int x, int z) { return (long) x << 32 | (z & 0xffffffffL); }
 
+  // BlueMap's renderer classes with each block flag they ask replaced by
+  // Minecraft's answer (Minecraft's methods): in ResourceModelRenderer's
+  // createElementFace, the culling test of a face toward its cullface
+  // neighbour (isCulling, getCullingIdentical) by Block.shouldRenderFace's
+  // and whether the model is shaded (isAmbientocclusion) by Minecraft's
+  // (also not for a state that emits light); in its testAo, each neighbour's
+  // isOccluding by whether it shades; in LiquidModelRenderer's
+  // createElementFace, the culling of a fluid's face (isSameLiquid, then
+  // isCulling but upward) by LiquidBlockRenderer's. Each is found by the
+  // calls it makes, and fails unless found as often as BlueMap makes them.
+  static void patch(Path folder) throws Exception {
+    ClassDesc minecraft = ClassDesc.of("McbenchBlueMapReference$Minecraft");
+    ClassDesc extended = ClassDesc.of(ExtendedBlock.class.getName()), neighbourhood = ClassDesc.of(BlockNeighborhood.class.getName());
+    ClassDesc model = ClassDesc.of(Model.class.getName()), direction = ClassDesc.of(Direction.class.getName());
+    ClassDesc properties = ClassDesc.of(BlockProperties.class.getName());
+    ClassDesc bool = ClassDesc.ofDescriptor("Z");
+    write(folder, ResourceModelRenderer.class, Map.of("createElementFace", 6, "testAo", 2), (method, counts) -> new CodeTransform() {
+      int neighbour = -1;
+      boolean afterNeighbour, dropOccluding;
+      public void accept(CodeBuilder code, CodeElement element) {
+        ClassDesc self = ClassDesc.of(ResourceModelRenderer.class.getName());
+        if (element instanceof StoreInstruction store && afterNeighbour) neighbour = store.slot();
+        afterNeighbour = element instanceof InvokeInstruction call && call.name().equalsString("getRotationRelativeBlock")
+          && call.typeSymbol().parameterList().equals(List.of(direction));
+        if (element instanceof InvokeInstruction call && call.owner().asSymbol().equals(properties) && call.name().equalsString("isCulling")) {
+          if (neighbour < 0) throw new IllegalStateException("isCulling before the cullface neighbour is read");
+          code.pop().aload(neighbour).aload(0).getfield(self, "block", neighbourhood)
+            .invokestatic(minecraft, "hides", MethodTypeDesc.of(bool, extended, neighbourhood));
+          counts.merge("isCulling", 1, Integer::sum);
+        } else if (element instanceof InvokeInstruction call && call.owner().asSymbol().equals(properties) && call.name().equalsString("getCullingIdentical")) {
+          code.pop().iconst_0();
+          counts.merge("getCullingIdentical", 1, Integer::sum);
+        } else if (element instanceof InvokeInstruction call && call.owner().asSymbol().equals(model) && call.name().equalsString("isAmbientocclusion")) {
+          code.aload(0).getfield(self, "block", neighbourhood).invokestatic(minecraft, "ambientOcclusion", MethodTypeDesc.of(bool, model, neighbourhood));
+          counts.merge("isAmbientocclusion", 1, Integer::sum);
+        } else if (method.equals("testAo") && element instanceof InvokeInstruction call && call.owner().asSymbol().equals(extended) && call.name().equalsString("getProperties")) {
+          code.invokestatic(minecraft, "shades", MethodTypeDesc.of(bool, extended));
+          dropOccluding = true;
+          counts.merge("getProperties", 1, Integer::sum);
+        } else if (dropOccluding && element instanceof InvokeInstruction call && call.name().equalsString("isOccluding")) {
+          dropOccluding = false;
+          counts.merge("isOccluding", 1, Integer::sum);
+        } else {
+          if (dropOccluding) throw new IllegalStateException("testAo reads a neighbour's properties for more than isOccluding");
+          code.with(element);
+        }
+      }
+    }, Map.of("isCulling", 1, "getCullingIdentical", 1, "isAmbientocclusion", 1, "getProperties", 4, "isOccluding", 4));
+    write(folder, LiquidModelRenderer.class, Map.of("createElementFace", 8), (method, counts) -> (code, element) -> {
+      ClassDesc self = ClassDesc.of(LiquidModelRenderer.class.getName());
+      if (element instanceof InvokeInstruction call && call.owner().asSymbol().equals(self) && call.name().equalsString("isSameLiquid")) {
+        code.swap().getfield(self, "block", neighbourhood).swap().aload(1)
+          .invokestatic(minecraft, "hidesFluid", MethodTypeDesc.of(bool, neighbourhood, extended, direction));
+        counts.merge("isSameLiquid", 1, Integer::sum);
+      } else if (element instanceof InvokeInstruction call && call.owner().asSymbol().equals(properties) && call.name().equalsString("isCulling")) {
+        code.pop().iconst_0();
+        counts.merge("isCulling", 1, Integer::sum);
+      } else {
+        code.with(element);
+      }
+    }, Map.of("isSameLiquid", 1, "isCulling", 1));
+  }
+
+  interface Patch {
+    CodeTransform of(String method, Map<String, Integer> counts);
+  }
+
+  // Writes `type`'s class file into `folder` with the methods named in
+  // `methods` (by their parameter count) transformed, failing unless each
+  // replacement was made as often as `expected` says.
+  static void write(Path folder, Class<?> type, Map<String, Integer> methods, Patch patch, Map<String, Integer> expected) throws Exception {
+    String file = type.getName().replace('.', '/') + ".class";
+    byte[] original;
+    try (var in = type.getClassLoader().getResourceAsStream(file)) { original = in.readAllBytes(); }
+    var counts = new HashMap<String, Integer>();
+    var classFile = ClassFile.of();
+    byte[] patched = classFile.transformClass(classFile.parse(original), (ClassTransform) (builder, element) -> {
+      if (element instanceof java.lang.classfile.MethodModel method && methods.containsKey(method.methodName().stringValue())
+        && method.methodTypeSymbol().parameterCount() == methods.get(method.methodName().stringValue())) {
+        builder.transformMethod(method, java.lang.classfile.MethodTransform.transformingCode(patch.of(method.methodName().stringValue(), counts)));
+      } else builder.with(element);
+    });
+    if (!counts.equals(expected)) throw new IllegalStateException(type.getSimpleName() + " made the replacements " + counts + ", not " + expected);
+    Path target = folder.resolve(file);
+    Files.createDirectories(target.getParent());
+    Files.write(target, patched);
+  }
+
+  // What Minecraft says where BlueMap's renderer asks its block flags, from
+  // the block table, by the table's state of each BlueMap BlockState (the
+  // state as BlueprintWorld builds it).
+  public static final class Minecraft {
+    static BlockTable table;
+
+    static int id(BlockState state) {
+      return table.ids.get(state);
+    }
+
+    // The direction (0 down, 1 up, 2 north, 3 south, 4 west, 5 east) from
+    // `own` to its neighbour `other`.
+    static int direction(ExtendedBlock own, ExtendedBlock other) {
+      int dx = other.getX() - own.getX(), dy = other.getY() - own.getY(), dz = other.getZ() - own.getZ();
+      for (int d = 0; d < 6; d++) {
+        if (BlueprintWorld.STEPS[d][0] == dx && BlueprintWorld.STEPS[d][1] == dy && BlueprintWorld.STEPS[d][2] == dz) return d;
+      }
+      throw new IllegalStateException("Not a neighbour: " + dx + ", " + dy + ", " + dz);
+    }
+
+    // Block.shouldRenderFace: whether the block hides its face toward `neighbour`.
+    public static boolean hides(ExtendedBlock neighbour, BlockNeighborhood own) {
+      int a = id(own.getBlockState()), b = id(neighbour.getBlockState()), d = direction(own, neighbour);
+      return table.hides[table.cull[a][d] * table.cullShapes + table.cull[b][d ^ 1]] || table.skips(table.row[a], table.column[b], d);
+    }
+
+    // LiquidBlockRenderer: whether the fluid of the block hides its face
+    // toward `neighbour` in `toward`: the fluid's block skips rendering beside
+    // it, or its face turned to the fluid is full and not above it.
+    public static boolean hidesFluid(BlockNeighborhood own, ExtendedBlock neighbour, Direction toward) {
+      int a = table.fluid[id(own.getBlockState())], b = id(neighbour.getBlockState()), d = direction(own, neighbour);
+      return table.skips(table.row[a], table.column[b], d) || (toward != Direction.UP && table.hides[1 * table.cullShapes + table.cull[b][d ^ 1]]);
+    }
+
+    // Whether the block darkens the corners of the faces beside it.
+    public static boolean shades(ExtendedBlock block) {
+      return table.shades[id(block.getBlockState())];
+    }
+
+    // ModelBlockRenderer: a model is drawn with ambient occlusion where it
+    // asks for it and its state emits no light.
+    public static boolean ambientOcclusion(Model model, BlockNeighborhood own) {
+      return model.isAmbientocclusion() && table.emission[id(own.getBlockState())] == 0;
+    }
+  }
+
   // What Minecraft says of each block state: its default state, and how it
   // emits, blocks and passes light (written by McbenchBlockTable.java from
   // the pinned server): per state its emission, light block and six face
   // shapes, and whether each ordered pair of face shapes closes a face.
+  // And how Minecraft culls and shades: by state id its six cull shapes,
+  // skipRendering classes, fluid's state id, whether it shades the faces
+  // beside it and its emission; whether each ordered pair of cull shapes
+  // hides a face, and the skipRendering classes' masks.
   static final class BlockTable {
     final Map<String, Map<String, String>> defaults = new HashMap<>();
     final Map<String, int[]> light = new HashMap<>(); // emission, lightBlock, then the face shapes down, up, north, south, west, east
     int shapes;
     boolean[] occludes; // by a * shapes + b
+    final Map<BlockState, Integer> ids = new HashMap<>();
+    int[][] cull;
+    int[] row, column, fluid, emission;
+    boolean[] shades;
+    int cullShapes;
+    boolean[] hides; // by a * cullShapes + b
+    int[] first;
+    int[][] masks; // by row class, from column class first on
+
+    boolean skips(int row, int column, int direction) {
+      int at = column - first[row];
+      return at >= 0 && at < masks[row].length && (masks[row][at] >> direction & 1) == 1;
+    }
 
     static BlockTable read(Path file) throws IOException {
       var table = new BlockTable();
+      var states = new ArrayList<String[]>();
       for (String line : Files.readAllLines(file)) {
         String[] fields = line.split("\t");
-        if (fields[0].equals("skiprendering")) continue;
+        if (fields[0].equals("skiprendering")) {
+          int rows = Integer.parseInt(fields[1]);
+          table.first = new int[rows];
+          table.masks = new int[rows][];
+          for (int r = 0; r < rows; r++) {
+            String[] masks = fields[3 + r].split(",");
+            table.first[r] = Integer.parseInt(masks[0]);
+            table.masks[r] = new int[masks.length - 1];
+            for (int i = 1; i < masks.length; i++) table.masks[r][i - 1] = Integer.parseInt(masks[i]);
+          }
+          continue;
+        }
+        if (fields[0].equals("facehides")) {
+          table.cullShapes = Integer.parseInt(fields[1]);
+          table.hides = new boolean[table.cullShapes * table.cullShapes];
+          for (int at = 0; at < table.hides.length; at++) table.hides[at] = fields[2].charAt(at) == '1';
+          continue;
+        }
         if (fields[0].equals("faceoccludes")) {
           table.shapes = Integer.parseInt(fields[1]);
           table.occludes = new boolean[table.shapes * table.shapes];
@@ -136,8 +336,30 @@ class McbenchBlueMapReference {
         String[] faces = fields[4].split(",");
         for (int i = 0; i < 6; i++) light[2 + i] = Integer.parseInt(faces[i]);
         table.light.put(fields[0], light);
+        states.add(fields);
       }
-      if (table.occludes == null) throw new IOException("The block table has no faceoccludes line");
+      if (table.occludes == null || table.hides == null || table.masks == null) throw new IOException("The block table has no faceoccludes, facehides or skiprendering line");
+      int n = states.size();
+      table.cull = new int[n][6];
+      table.row = new int[n];
+      table.column = new int[n];
+      table.fluid = new int[n];
+      table.emission = new int[n];
+      table.shades = new boolean[n];
+      for (int id = 0; id < n; id++) {
+        String[] fields = states.get(id);
+        String name = fields[0];
+        String block = name.contains("[") ? name.substring(0, name.indexOf('[')) : name;
+        table.ids.put(McbenchBake.state(block, new TreeMap<>(McbenchBake.properties(name))), id);
+        table.emission[id] = Integer.parseInt(fields[1]);
+        table.fluid[id] = Integer.parseInt(fields[5]);
+        String[] skip = fields[7].split(",");
+        table.row[id] = Integer.parseInt(skip[0]);
+        table.column[id] = Integer.parseInt(skip[1]);
+        String[] cull = fields[8].split(",");
+        for (int d = 0; d < 6; d++) table.cull[id][d] = Integer.parseInt(cull[d]);
+        table.shades[id] = fields[9].equals("1");
+      }
       return table;
     }
   }

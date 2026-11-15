@@ -86,6 +86,27 @@ async function nodeWorker(t, count = 2, spawned = []) {
   }, count);
 }
 
+// Faces are culled as Minecraft culls them, from the pack's cull classes:
+// a face beside a full face is hidden (Block.shouldRenderFace), glass beside
+// glass hides the faces between them (skipRendering), and glass hides
+// nothing of stone.
+test('a face is culled by its neighbour\'s face shape and by skipRendering', async () => {
+  const { Mesher } = await import('../web/mesher.mjs');
+  const mesher = await Mesher.create(WASM, PACK);
+  const faces = (blocks) => {
+    const world = new Map(blocks.map((name, x) => [`${x},64,0`, name]));
+    const { tiles } = mesher.load(blueprint(world), renderMask(bounds(world)), false);
+    return tiles.reduce((sum, [x, z]) => {
+      const tile = mesher.draw(x, z);
+      return sum + (tile[2] | tile[3] << 8 | tile[4] << 16) / 6;
+    }, 0);
+  };
+  assert.equal(faces(['minecraft:stone']), 6);
+  assert.equal(faces(['minecraft:stone', 'minecraft:stone']), 10);
+  assert.equal(faces(['minecraft:glass', 'minecraft:glass']), 10);
+  assert.equal(faces(['minecraft:stone', 'minecraft:glass']), 11);
+});
+
 test('the viewer draws exactly the module\'s tiles: the worker\'s indexed tiles expand to the module\'s bytes', async (t) => {
   const { Mesher } = await import('../web/mesher.mjs');
   const blocks = sampleBlocks();

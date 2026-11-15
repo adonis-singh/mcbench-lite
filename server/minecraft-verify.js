@@ -350,6 +350,15 @@ class Experiments {
 
 }
 
+// The palette of a test's world as the verifier places it, by which the
+// import orders its commands (live-placement.js importCommands): its blocks
+// as the data fixer brings them forward from the request's
+// block_data_version (engine.js fixedPalette). Both runtimes and the
+// harnesses that compare them place a test's world by it.
+function placedPalette(world, request) {
+  return fixedPalette(world.palette, request.block_data_version ?? MC_DATA_VERSION);
+}
+
 // Whether a finished experiment observed everything its request asked for.
 function checkComplete(request, result, reportFile) {
   if (result.elapsedTicks !== request.duration || result.sampleCount !== request.samples.length
@@ -511,7 +520,7 @@ class MinecraftVerifier extends Experiments {
       phase('resetMs');
       signal.throwIfAborted();
       onUpdate({ phase: 'placing', message: `Importing blueprint revision ${world.revision}` });
-      await live.applyWorld(world, { resumeTicks: false, placed: await fixedPalette(world.palette, request.block_data_version ?? MC_DATA_VERSION) });
+      await live.applyWorld(world, { resumeTicks: false, placed: await placedPalette(world, request) });
       phase('placementMs');
       signal.throwIfAborted();
       onUpdate({ phase: 'running', message: 'Running Minecraft inputs and observations' });
@@ -690,8 +699,7 @@ class EngineVerifier extends Experiments {
       const requestFile = path.join(folder, 'request.json');
       const commandsFile = path.join(folder, 'commands.txt');
       fs.writeFileSync(requestFile, JSON.stringify(this.transport(request)));
-      const placed = await fixedPalette(world.palette, request.block_data_version ?? MC_DATA_VERSION);
-      fs.writeFileSync(commandsFile, `${importCommands(world, null, Y_OFFSET, placed).commands.join('\n')}\n`);
+      fs.writeFileSync(commandsFile, `${importCommands(world, null, Y_OFFSET, await placedPalette(world, request)).commands.join('\n')}\n`);
       onUpdate({ phase: 'running', message: 'Running Minecraft inputs and observations' });
       const progressFile = path.join(folder, 'progress.json');
       let lastProgress = '';
@@ -819,4 +827,4 @@ class VerifierPool {
 }
 
 const minecraftVerifier = new VerifierPool();
-module.exports = { MAX_LANES, minecraftVerifier, MinecraftVerifier, EngineVerifier, VerifierPool, START_REJECTIONS, verificationFailure, TEST_BUILD_TOOL, callTests, validateRequest, compilePlugin, VerificationBudgetError, WallBudgetError };
+module.exports = { MAX_LANES, minecraftVerifier, MinecraftVerifier, EngineVerifier, VerifierPool, START_REJECTIONS, verificationFailure, TEST_BUILD_TOOL, callTests, validateRequest, placedPalette, compilePlugin, VerificationBudgetError, WallBudgetError };

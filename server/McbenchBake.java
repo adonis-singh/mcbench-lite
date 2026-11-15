@@ -94,21 +94,23 @@ import java.util.function.Predicate;
 //
 // Format, little endian; str = u16 byte length + UTF-8; matrices are the 12
 // floats m00..m23 (BlueMap's transforms never read the last row):
-//   "MCBP" u32 version (2)
+//   "MCBP" u32 version (3)
 //   u32 blocks, each: str id, u32 first state, u8 properties, each:
 //       str name, u8 default value, u8 values, each: str value
 //     A block's states follow its first state in mixed radix over its
 //     properties (sorted by name, the last varying fastest).
-//   u32 states, each 16 bytes:
-//       u8 flags: 1 culling, 2 occluding, 4 cullingIdentical, 8 alwaysWaterlogged,
-//                 16 randomOffset, 32 waterlogged, 64 water, 128 air
+//   u32 states, each 18 bytes:
+//       u8 flags: 1 shades, 2 alwaysWaterlogged, 4 randomOffset, 8 waterlogged,
+//                 16 water, 32 air
 //       u8 liquid level, u8 light emission, u8 light block, u8 tint blends (0 or 1),
-//       u8 light faces (a face set, below),
+//       u8 light faces (a face set, below), u16 cull class (below),
 //       u16 block, u32 tint, u32 selection (0xFFFFFFFF: no blockstate resource)
-//     (emission, light block and light faces from Paper's block table,
-//     everything else from BlueMap; "tint blends": the state's color
-//     calculator averages the 5x3x5 blocks around it, reading each through
-//     BlueMap's BlockNeighborhood cache)
+//     (shades, emission, light block, light faces and the cull class from
+//     Paper's block table, everything else from BlueMap; "shades": the
+//     state darkens the corners of the faces beside it in ambient
+//     occlusion; "tint blends": the state's color calculator averages the
+//     5x3x5 blocks around it, reading each through BlueMap's
+//     BlockNeighborhood cache)
 //   u32 face sets, each: 6 x u8 face shape (down, up, north, south, west,
 //     east), set 0 the six empty shapes: a state's face shapes light is
 //     tested through, as the block table numbers them (the empty shape for
@@ -117,6 +119,21 @@ import java.util.function.Predicate;
 //     byte first, the last byte padded with zeros): the block table's
 //     faceoccludes, whether light is stopped between two blocks whose faces
 //     turned to each other have those shapes (Shapes.faceShapeOccludes)
+//   u32 cull classes, each: 6 x u8 cull shape (down, up, north, south, west,
+//     east), u16 skipRendering row class, u16 skipRendering column class,
+//     u16 the row class of the block of its fluid state: what Minecraft
+//     culls a state's faces and its fluid's faces by, from the block table
+//     (its cullShapes, skip and fluid columns)
+//   u16 cull shapes n, then n * n bits as above: the block table's
+//     facehides, whether Block.shouldRenderFace hides a face of the first
+//     shape beside a neighbour whose face turned to it has the second (cull
+//     shape 1 is Shapes.block(), so a face is full where its shape hides a
+//     face of shape 1)
+//   u16 skipRendering row classes, each: u16 first column class, u16 masks,
+//     masks x u8 (bits over the directions down, up, north, south, west,
+//     east): the block table's skiprendering line, whether a state of the
+//     row class skips rendering beside a state of each column class from
+//     the first on, toward each direction
 //   u32 air state, u32 BlockState.WATER selection, u32 BlockState.WATER tint,
 //     u8 BlockState.WATER tint blends
 //   u32 tints, each: f32 r, g, b (the color BlueMap's calculator gives the
@@ -505,20 +522,32 @@ class McbenchBake {
     }
   }
 
-  // A block table state: its name, emission, light block and six face shapes.
-  record TableState(String name, int emission, int lightBlock, String faces) {}
+  // A block table state: its name, emission, light block, six face shapes,
+  // fluid's state id, skipRendering classes ("row,column"), six cull shapes
+  // and whether it shades the faces beside it.
+  record TableState(String name, int emission, int lightBlock, String faces, int fluid, String skip, String cull, boolean shades) {}
 
   void write(Path tablePath, Path target) throws Exception {
     // The block table: per block its default state, then its states, and
-    // last the pairs of face shapes that stop light.
+    // last the pairs of cull shapes that hide a face, the pairs of face
+    // shapes that stop light and the skipRendering classes' masks.
     var blocks = new LinkedHashMap<String, String>(); // id -> default state
     var blockStates = new LinkedHashMap<String, List<TableState>>();
-    int shapes = 0;
-    String occludes = null;
+    var rows = new ArrayList<Integer>(); // by state id, its skipRendering row class
+    int shapes = 0, cullShapes = 0;
+    String occludes = null, hides = null;
+    String[] skipRows = null;
     for (String line : Files.readAllLines(tablePath)) {
       String[] fields = line.split("\t");
-      // see_build's skipRendering classes; the mesher culls by BlueMap's flags.
-      if (fields[0].equals("skiprendering")) continue;
+      if (fields[0].equals("skiprendering")) {
+        skipRows = java.util.Arrays.copyOfRange(fields, 3, fields.length);
+        continue;
+      }
+      if (fields[0].equals("facehides")) {
+        cullShapes = Integer.parseInt(fields[1]);
+        hides = fields[2];
+        continue;
+      }
       if (fields[0].equals("faceoccludes")) {
         shapes = Integer.parseInt(fields[1]);
         occludes = fields[2];
@@ -530,16 +559,19 @@ class McbenchBake {
         continue;
       }
       String id = fields[0].contains("[") ? fields[0].substring(0, fields[0].indexOf('[')) : fields[0];
-      blockStates.get(id).add(new TableState(fields[0], Integer.parseInt(fields[1]), Integer.parseInt(fields[2]), fields[4]));
+      blockStates.get(id).add(new TableState(fields[0], Integer.parseInt(fields[1]), Integer.parseInt(fields[2]), fields[4],
+        Integer.parseInt(fields[5]), fields[7], fields[8], fields[9].equals("1")));
+      rows.add(Integer.parseInt(fields[7].substring(0, fields[7].indexOf(','))));
     }
-    if (occludes == null) throw new IOException("The block table has no faceoccludes line");
-    // A face shape's number is a byte of a face set.
-    if (shapes > 256) throw new IOException("The block table has " + shapes + " face shapes, more than a byte numbers");
+    if (occludes == null || hides == null || skipRows == null) throw new IOException("The block table has no faceoccludes, facehides or skiprendering line");
+    // A face shape's and a cull shape's number is a byte of a set.
+    if (shapes > 256 || cullShapes > 256) throw new IOException("The block table has " + shapes + " face shapes and " + cullShapes + " cull shapes, more than a byte numbers");
     var faceSets = new Pool();
     faceSets.intern(new Out().u8(0).u8(0).u8(0).u8(0).u8(0).u8(0));
+    var cullClasses = new Pool();
     var out = new Out();
     out.writeBytes("MCBP".getBytes(StandardCharsets.US_ASCII));
-    out.u32(2);
+    out.u32(3);
     var states = new Out();
     int stateCount = 0, air = NONE, block = 0;
     out.u32(blocks.size());
@@ -578,14 +610,17 @@ class McbenchBake {
         var faces = new Out();
         for (String shape : lightOf.faces().split(",")) faces.u8(Integer.parseInt(shape));
         int faceSet = faceSets.intern(faces);
+        var cull = new Out();
+        for (String shape : lightOf.cull().split(",")) cull.u8(Integer.parseInt(shape));
+        for (String skip : lightOf.skip().split(",")) cull.u16(Integer.parseInt(skip));
+        int cullClass = cullClasses.intern(cull.u16(rows.get(lightOf.fluid())));
         BlockState state = state(id, properties);
         if (state.isAir() && id.equals("minecraft:air")) air = stateCount;
         BlockProperties props = pack.getBlockProperties(state);
-        int flags = (props.isCulling() ? 1 : 0) | (props.isOccluding() ? 2 : 0) | (props.getCullingIdentical() ? 4 : 0)
-          | (props.isAlwaysWaterlogged() ? 8 : 0) | (props.isRandomOffset() ? 16 : 0) | (state.isWaterlogged() ? 32 : 0)
-          | (state.isWater() ? 64 : 0) | (state.isAir() ? 128 : 0);
+        int flags = (lightOf.shades() ? 1 : 0) | (props.isAlwaysWaterlogged() ? 2 : 0) | (props.isRandomOffset() ? 4 : 0)
+          | (state.isWaterlogged() ? 8 : 0) | (state.isWater() ? 16 : 0) | (state.isAir() ? 32 : 0);
         states.u8(flags).u8(state.getLiquidLevel()).u8(lightOf.emission()).u8(lightOf.lightBlock()).u8(blends(state)).u8(faceSet)
-          .u16(block).u32(tint(state)).u32(selection(state));
+          .u16(cullClass).u16(block).u32(tint(state)).u32(selection(state));
         stateCount++;
       }
       block++;
@@ -594,10 +629,17 @@ class McbenchBake {
     out.u32(stateCount);
     out.writeBytes(states.toByteArray());
     faceSets.writeTo(out);
-    byte[] pairs = new byte[(shapes * shapes + 7) / 8];
-    for (int at = 0; at < shapes * shapes; at++) if (occludes.charAt(at) == '1') pairs[at >> 3] |= (byte) (1 << (at & 7));
+    byte[] pairs = bits(occludes);
     out.u16(shapes);
     out.writeBytes(pairs);
+    cullClasses.writeTo(out);
+    out.u16(cullShapes).writeBytes(bits(hides));
+    out.u16(skipRows.length);
+    for (String row : skipRows) {
+      String[] masks = row.split(",");
+      out.u16(Integer.parseInt(masks[0])).u16(masks.length - 1);
+      for (int i = 1; i < masks.length; i++) out.u8(Integer.parseInt(masks[i]));
+    }
     out.u32(air).u32(selection(BlockState.WATER)).u32(tint(BlockState.WATER)).u8(blends(BlockState.WATER));
     for (Pool pool : new Pool[] { tints, matrices, tables, elements, meshes, variants, sets, selections }) pool.writeTo(out);
     liquidUvs(out);
@@ -606,6 +648,13 @@ class McbenchBake {
     Files.move(partial, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
     System.out.println("MCBENCH_BAKED " + stateCount + " states, " + elements.ids.size() + " elements, " + variants.ids.size()
       + " variants, " + out.size() + " bytes");
+  }
+
+  // A line of the block table's '0' and '1' as bits, the lowest of each byte first.
+  static byte[] bits(String line) {
+    byte[] bits = new byte[(line.length() + 7) / 8];
+    for (int at = 0; at < line.length(); at++) if (line.charAt(at) == '1') bits[at >> 3] |= (byte) (1 << (at & 7));
+    return bits;
   }
 
   // For renderer/'s test: LiquidModelRenderer.getFlowingAngle, called on

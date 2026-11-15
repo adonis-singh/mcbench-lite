@@ -149,7 +149,7 @@ install_node() {
   [ -x "$node_dir/bin/node" ] && return
   local expected="${MCBENCH_NODE_SHA256:-$(node_sha256 "$os-$arch")}"
   local url="${MCBENCH_NODE_DIST:-https://nodejs.org/dist}/v$NODE_VERSION/$name.tar.xz"
-  echo "Downloading Node.js $NODE_VERSION (about 30 MB) into $tools"
+  echo "Downloading Node.js $NODE_VERSION (31 to 34 MB, by platform) into $tools"
   mkdir -p "$tools"
   work="$(mktemp -d "$tools/.download.XXXXXX")"
   trap 'rm -rf "$work"' EXIT

@@ -204,7 +204,7 @@ test('a message with viewer selections names build coordinates that a following 
   // The viewer selects blocks of the blueprint (build coordinates): the stone under the tower.
   const min = [1, 0, 1];
   const max = [3, 0, 3];
-  const selection = { letter: 'A', ...describeSelection(conversation.world, min, max), min, max };
+  const selection = { letter: 'A', ...describeSelection(conversation.world, min, max, new Map([['minecraft:stone', 'Stone']])), min, max };
   send(conversation, [{ type: 'text', text: 'Make A planks.' }, { type: 'selection', selection }]);
   let seen = null;
   let sent = false;

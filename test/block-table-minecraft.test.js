@@ -75,6 +75,16 @@ test('the block table holds Minecraft\'s light, faces and face shape pairs', { s
 const [DOWN, UP, NORTH, SOUTH, WEST, EAST] = [0, 1, 2, 3, 4, 5];
 const ALL = [DOWN, UP, NORTH, SOUTH, WEST, EAST];
 
+// Minecraft names a block by its own description id: every word capitalised,
+// some names other words than the id, and a wall banner by its standing
+// banner's key, the wall banner having none of its own.
+test('the block table names every block as Minecraft does', { skip: !ready && 'needs Paper laid out in the data folder and the JDK in the tools folder', timeout: 300000 }, async () => {
+  const { names } = opaqueStates(fs.readFileSync(await minecraftLive.blockTable(), 'utf8'));
+  assert.equal(names.size, 1166);
+  assert.deepEqual(['dark_oak_stairs', 'repeater', 'iron_block', 'jack_o_lantern', 'white_wall_banner', 'red_candle_cake', 'air'].map((id) => names.get(`minecraft:${id}`)),
+    ['Dark Oak Stairs', 'Redstone Repeater', 'Block of Iron', "Jack o'Lantern", 'White Banner', 'Cake with Red Candle', 'Air']);
+});
+
 test('the block table holds Minecraft\'s fluids, render shapes and skipRendering', { skip: !ready && 'needs Paper laid out in the data folder and the JDK in the tools folder', timeout: 300000 }, async () => {
   const states = opaqueStates(fs.readFileSync(await minecraftLive.blockTable(), 'utf8'));
   const id = (block, properties = {}) => states.idOf(block, properties);
@@ -120,6 +130,67 @@ test('the block table holds Minecraft\'s fluids, render shapes and skipRendering
   // Render shapes: a liquid, air, light and a barrier are drawn as no model.
   for (const block of ['minecraft:water', 'minecraft:lava', 'minecraft:air', 'minecraft:light', 'minecraft:barrier']) assert.equal(states.draw[id(block)] & 1, 0, block);
   for (const block of ['minecraft:stone', 'minecraft:glass', 'minecraft:kelp', 'minecraft:chest']) assert.equal(states.draw[id(block)] & 1, 1, block);
+});
+
+test('the block table holds the faces Block.shouldRenderFace hides by their shapes', { skip: !ready && 'needs Paper laid out in the data folder and the JDK in the tools folder', timeout: 300000 }, async () => {
+  const states = opaqueStates(fs.readFileSync(await minecraftLive.blockTable(), 'utf8'));
+  const id = (block, properties = {}) => states.idOf(block, properties);
+  // The directions state `a` hides its face in toward neighbour `b`.
+  const hidden = (a, b) => ALL.filter((direction) => states.hidesFace(a, b, direction));
+  const stone = id('minecraft:stone');
+  assert.deepEqual(hidden(stone, stone), ALL);
+  assert.deepEqual(hidden(stone, 0), [], 'nothing hides a face beside air');
+  // `hidden(a, b)` names the directions in which a hides its face with b
+  // the neighbour there. Two slabs of one half side by side hide the sides
+  // between them; a bottom half beside a top half hides neither. A slab's
+  // face toward the full bottom of a slab above, or the full top of a top
+  // half below, is hidden too (a bottom half's top has no cullface in its
+  // model, so it is drawn all the same).
+  const bottom = id('minecraft:stone_slab', { type: 'bottom' });
+  const top = id('minecraft:stone_slab', { type: 'top' });
+  assert.deepEqual(hidden(bottom, bottom), [UP, NORTH, SOUTH, WEST, EAST]);
+  assert.deepEqual(hidden(bottom, id('minecraft:oak_slab', { type: 'bottom' })), [UP, NORTH, SOUTH, WEST, EAST], 'any two bottom slabs');
+  assert.deepEqual(hidden(bottom, top), [DOWN]);
+  assert.deepEqual(hidden(top, bottom), [UP]);
+  assert.deepEqual(hidden(bottom, stone), ALL);
+  // Stairs facing north (the full back to the north, the low front to the
+  // south) in a row hide their sides, and each low front is hidden by the
+  // full back of the stair south of it; the back is not hidden by a low
+  // front. Beside stairs facing south, a back is hidden by a back and a
+  // low front by a low front.
+  const stair = (facing) => id('minecraft:oak_stairs', { facing, half: 'bottom', shape: 'straight' });
+  assert.deepEqual(hidden(stair('north'), stair('north')), [UP, SOUTH, WEST, EAST]);
+  assert.deepEqual(hidden(stair('north'), stair('south')), [UP, NORTH, SOUTH]);
+  // A face that cannot occlude is hidden only by Shapes.block() itself:
+  // glass beside a stair is drawn, beside stone it is not.
+  const glass = id('minecraft:glass');
+  assert.deepEqual(hidden(glass, stair('north')), []);
+  assert.deepEqual(hidden(glass, stone), ALL);
+});
+
+// The live viewer's mesher takes a face of cull shape 1 (Shapes.block()) as
+// a full face, which a fluid's face is culled by: a face shape is full
+// exactly where it hides a face of shape 1.
+test('a face is full exactly where its cull shape hides a full face', { skip: !ready && 'needs Paper laid out in the data folder and the JDK in the tools folder', timeout: 300000 }, async () => {
+  const states = opaqueStates(fs.readFileSync(await minecraftLive.blockTable(), 'utf8'));
+  for (let id = 0; id < states.count; id++) {
+    for (const direction of ALL) {
+      assert.equal(states.hides[states.cullShapes + states.cull[id * 6 + direction]] === 1, (states.fullFaces[id] >> direction & 1) === 1, `state ${id} toward ${direction}`);
+    }
+  }
+});
+
+// Which states darken the corners of the faces beside them in the client's
+// ambient occlusion (getShadeBrightness 0.2): those whose collision shape is
+// a full block, unless their class says otherwise.
+test('the block table holds which states shade the faces beside them', { skip: !ready && 'needs Paper laid out in the data folder and the JDK in the tools folder', timeout: 300000 }, async () => {
+  const shades = new Map(fs.readFileSync(await minecraftLive.blockTable(), 'utf8').split('\n')
+    .filter((line) => line && !/^(default|facehides|faceoccludes|skiprendering)\t/.test(line)).map((line) => line.split('\t')).map((fields) => [fields[0], fields[9]]));
+  const of = (name) => shades.get(name);
+  assert.deepEqual(['minecraft:stone', 'minecraft:oak_leaves[distance=7,persistent=false,waterlogged=false]', 'minecraft:ice', 'minecraft:spawner',
+    'minecraft:shulker_box[facing=up]', 'minecraft:mangrove_roots[waterlogged=false]'].map(of), ['1', '1', '1', '1', '1', '1']);
+  assert.deepEqual(['minecraft:air', 'minecraft:glass', 'minecraft:honey_block', 'minecraft:copper_grate[waterlogged=false]', 'minecraft:water[level=0]',
+    'minecraft:stone_slab[type=bottom,waterlogged=false]', 'minecraft:stone_slab[type=double,waterlogged=false]'].map(of), ['0', '0', '0', '0', '0', '0', '1']);
 });
 
 // The block table and the render layers of the bake for it, as the data

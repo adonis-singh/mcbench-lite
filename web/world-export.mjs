@@ -87,6 +87,10 @@ const str = (text) => ['string', text];
 // blocks tall.
 export const MIN_MC_Y = -64;
 export const WORLD_HEIGHT = 1024;
+// The world's one biome (server/minecraft-dimension.js's BIOME, the one
+// see_build's colours are baked for; the test checks they agree), the flat
+// generator's for chunks the save does not hold.
+export const BIOME = 'minecraft:plains';
 export function dimensionPack() {
   return new Map([
     ['datapacks/mcbench/pack.mcmeta', JSON.stringify({ pack: { description: 'mcbench build height', min_format: [88, 0], max_format: [88, 0] } }, null, 2)],
@@ -110,7 +114,7 @@ export function levelData({ name, gameTime, spawn, now = Date.now() }) {
     doDaylightCycle: 'false', doWeatherCycle: 'false', doMobSpawning: 'false', doFireTick: 'false', randomTickSpeed: '0',
     keepInventory: 'true', spawnRadius: '0', commandBlocksEnabled: 'true', announceAdvancements: 'false',
   };
-  const flat = { type: str('minecraft:flat'), settings: ['compound', { layers: ['list', 'compound', [{ block: str('minecraft:air'), height: ['int', 1] }]], features: bool(false), lakes: bool(false), biome: str('minecraft:plains') }] };
+  const flat = { type: str('minecraft:flat'), settings: ['compound', { layers: ['list', 'compound', [{ block: str('minecraft:air'), height: ['int', 1] }]], features: bool(false), lakes: bool(false), biome: str(BIOME) }] };
   return {
     Data: ['compound', {
       DataVersion: ['int', DATA_VERSION],

@@ -4,7 +4,9 @@
 // BlueMap. For each community build in the corpus MCBENCH_CORPUS names (or those
 // --match names), and for fixtures of BlueMap's riskiest cases, it places
 // the build with the engine, draws the blueprint with BlueMap's own renderer
-// (McbenchBlueMapReference.java), meshes the same blueprint with the
+// (McbenchBlueMapReference.java; where BlueMap asks its block flags, which
+// faces to cull and which blocks shade, it asks Minecraft's answers from the
+// block table, as the mesher does), meshes the same blueprint with the
 // WebAssembly module, and compares every tile byte for byte. It then edits
 // each blueprint (a roof, a light, removed blocks), draws the edit with
 // BlueMap afresh, and checks that the tiles the module reports changed,
@@ -38,6 +40,7 @@ const { blocksBlueprint, readBlueprint, worldBlueprint } = require('../server/bl
 const { MC_VERSION } = require('../server/assets');
 const { JAVA, JAVAC } = require('../server/tools');
 const { World } = require('../server/world');
+const { BlockStates } = require('../server/block-states');
 const { Y_OFFSET, BIOME } = require('../server/minecraft-dimension');
 const { build, MODULE } = require('./build-renderer');
 const { corpusArtifacts } = require('./corpus');
@@ -76,7 +79,11 @@ async function bake(blockTable) {
   console.log(`baked in ${Date.now() - started} ms`);
   execFileSync(path.join(RENDERER, 'target', 'release', 'mcbench-mesh'), ['flow', flowTable], { stdio: 'inherit' });
 
-  const java = spawn(JAVA, ['-Xmx4G', '-cp', classpath, 'McbenchBlueMapReference', MC_VERSION, blockTable, BIOME], { cwd: FOLDER, stdio: ['pipe', 'pipe', 'inherit'] });
+  // BlueMap's renderer with Minecraft's culling and shading in place of its
+  // block flags, as the mesher culls and shades (McbenchBlueMapReference.patch).
+  const patched = path.join(FOLDER, 'patched');
+  execFileSync(JAVA, ['-cp', classpath, 'McbenchBlueMapReference', '--patch', patched], { stdio: 'inherit' });
+  const java = spawn(JAVA, ['-Xmx4G', '-cp', [patched, classpath].join(path.delimiter), 'McbenchBlueMapReference', MC_VERSION, blockTable, BIOME], { cwd: FOLDER, stdio: ['pipe', 'pipe', 'inherit'] });
   const replies = readline.createInterface({ input: java.stdout })[Symbol.asyncIterator]();
   let drawn = 0;
   // Every tile BlueMap draws for `blueprint` (bytes) under `mask`, as
@@ -239,7 +246,7 @@ function random(seed) {
 
 // Fixtures written as blueprints directly (worldBlueprint), and those
 // drawn under a render mask of their own rather than renderMask's.
-const DIRECT = new Set(['rotated-elements', 'liquids', 'light', 'materials', 'cache-origin']);
+const DIRECT = new Set(['rotated-elements', 'liquids', 'light', 'materials', 'cache-origin', 'shape-pairs', 'shading']);
 const MASKS = { 'cache-origin': { minX: 0, maxX: 127, minZ: 0, maxZ: 127 } };
 const FIXTURES = {
   'stairs-slabs'(world) {
@@ -514,6 +521,71 @@ const FIXTURES = {
     world.set(2, y, 2, 'minecraft:grass_block', { snowy: 'false' });
     world.set(2, y + 1, 2, 'minecraft:fern');
   },
+  // Every block whose default state skips rendering beside itself
+  // (BlockState.skipRendering, from the block table: water, lava, glass,
+  // panes and bars, slime, honey, copper grates, ice...), two side by side,
+  // two stacked and a 3x3 wall of it, placed as a build places them (panes
+  // and bars join), each pair on stone; then the same beside stone.
+  'skip-pairs'(world, table, states) {
+    const ids = [...table.keys()].filter((id) => {
+      const state = states.idOf(id, {});
+      return [0, 1, 2, 3, 4, 5].some((direction) => states.skips(state, state, direction));
+    });
+    ids.forEach((id, i) => {
+      const x = (i % 8) * 8;
+      const z = Math.floor(i / 8) * 8;
+      for (let dx = 0; dx < 5; dx += 1) for (let dz = 0; dz < 5; dz += 1) world.set(x + dx, 0, z + dz, 'minecraft:stone');
+      world.set(x, 1, z, id); world.set(x + 1, 1, z, id);
+      world.set(x, 1, z + 2, id); world.set(x, 2, z + 2, id);
+      for (let dy = 1; dy <= 3; dy += 1) for (let dz = 2; dz <= 4; dz += 1) world.set(x + 3, dy, z + dz, id);
+      world.set(x + 4, 1, z, id); world.set(x + 4, 2, z, 'minecraft:stone');
+    });
+  },
+  // Faces Block.shouldRenderFace hides by their shapes: bottom slabs beside
+  // bottom slabs, top beside top, stairs in a row and back to back, and
+  // walls of blocks whose six faces are full that BlueMap's flags did not
+  // cull beside (chiseled bookshelves, respawn anchors).
+  'shape-pairs'(world) {
+    for (let x = 0; x < 6; x += 1) {
+      world.set(x, 1, 0, 'minecraft:stone_slab', { type: 'bottom', waterlogged: 'false' });
+      world.set(x, 1, 2, 'minecraft:oak_slab', { type: 'top', waterlogged: 'false' });
+      world.set(x, 1, 4, 'minecraft:oak_stairs', { facing: 'north', half: 'bottom', shape: 'straight', waterlogged: 'false' });
+      world.set(x, 1, 6, 'minecraft:stone_brick_stairs', { facing: 'south', half: 'top', shape: 'straight', waterlogged: 'false' });
+      world.set(x, 1, 7, 'minecraft:stone_brick_stairs', { facing: 'north', half: 'top', shape: 'straight', waterlogged: 'false' });
+      for (let dz = 0; dz < 8; dz += 1) world.set(x, 0, dz, 'minecraft:stone');
+    }
+    for (let x = 0; x < 2; x += 1) for (let z = 0; z < 2; z += 1) world.set(10 + x, 1 + z, 0, 'minecraft:stone_slab', { type: 'bottom', waterlogged: 'false' });
+    world.set(10, 1, 2, 'minecraft:oak_stairs', { facing: 'east', half: 'bottom', shape: 'straight', waterlogged: 'false' });
+    world.set(11, 1, 2, 'minecraft:oak_stairs', { facing: 'west', half: 'bottom', shape: 'straight', waterlogged: 'false' });
+    for (let x = 0; x < 5; x += 1) for (let y = 0; y < 4; y += 1) {
+      world.set(20 + x, y, 0, 'minecraft:chiseled_bookshelf', { facing: 'south', slot_0_occupied: 'true', slot_1_occupied: String(x % 2 === 0), slot_2_occupied: 'false', slot_3_occupied: 'true', slot_4_occupied: 'false', slot_5_occupied: String(y % 2 === 0) });
+      world.set(20 + x, y, 2, 'minecraft:respawn_anchor', { charges: String((x + y) % 5) });
+      world.set(20 + x, y, 3, 'minecraft:stone');
+    }
+  },
+  // Ambient occlusion as Minecraft's client shades: corners darkened by the
+  // blocks that shade (BlueMap's flags left out shulker boxes, chiseled
+  // bookshelves and mangrove roots and put in honey and copper grates), and
+  // blocks that emit light not shaded at all.
+  shading(world) {
+    const shaders = ['minecraft:shulker_box', 'minecraft:chiseled_bookshelf', 'minecraft:mangrove_roots', 'minecraft:chorus_flower',
+      'minecraft:honey_block', 'minecraft:copper_grate', 'minecraft:stone', 'minecraft:glass', 'minecraft:oak_leaves'];
+    shaders.forEach((id, i) => {
+      const x = i * 4;
+      for (let dx = 0; dx < 3; dx += 1) for (let dz = 0; dz < 3; dz += 1) world.set(x + dx, 0, dz, 'minecraft:stone');
+      world.set(x + 1, 1, 1, id);
+      world.set(x, 1, 0, id);
+    });
+    const glowing = ['minecraft:glowstone', 'minecraft:sea_lantern', 'minecraft:shroomlight', 'minecraft:jack_o_lantern', 'minecraft:magma_block', 'minecraft:crying_obsidian', 'minecraft:ochre_froglight'];
+    glowing.forEach((id, i) => {
+      const x = i * 4;
+      for (let dx = 0; dx < 3; dx += 1) for (let dz = 0; dz < 3; dz += 1) world.set(x + dx, 0, 10 + dz, 'minecraft:stone');
+      world.set(x + 1, 1, 11, id);
+      world.set(x + 2, 1, 11, 'minecraft:stone');
+    });
+    world.set(0, 1, 20, 'minecraft:redstone_lamp', { lit: 'true' }); world.set(1, 1, 20, 'minecraft:redstone_lamp', { lit: 'false' });
+    world.set(0, 0, 20, 'minecraft:stone'); world.set(1, 0, 20, 'minecraft:stone'); world.set(0, 1, 21, 'minecraft:stone'); world.set(1, 1, 21, 'minecraft:stone');
+  },
   // A tile past BlueMap's million-face limit: solid leaves, every face drawn.
   'face-limit'(world) {
     for (let y = 0; y < 90; y += 1) for (let x = 2; x <= 33; x += 1) for (let z = 2; z <= 33; z += 1) {
@@ -548,16 +620,18 @@ async function main() {
   const table = new Map();
   for (const line of fs.readFileSync(blockTable, 'utf8').split('\n').filter(Boolean)) {
     const [name] = line.split('\t');
-    if (name === 'default' || name === 'faceoccludes' || name === 'skiprendering') continue;
+    if (name === 'default' || name === 'facehides' || name === 'faceoccludes' || name === 'skiprendering') continue;
     const [id, properties = ''] = name.replace(/]$/, '').split('[');
     if (!table.has(id)) table.set(id, []);
     table.get(id).push(Object.fromEntries(properties ? properties.split(',').map((pair) => pair.split('=')) : []));
   }
 
+  const states = new BlockStates(fs.readFileSync(blockTable, 'utf8'), fs.readFileSync(path.join(FOLDER, 'render-layers.tsv'), 'utf8'));
+
   const cases = [];
   if (!flag('no-fixtures')) {
     for (const [name, fill] of Object.entries(FIXTURES)) {
-      cases.push([`fixture:${name}`, () => { const world = new World(); fill(world, table); return world; }, DIRECT.has(name)]);
+      cases.push([`fixture:${name}`, () => { const world = new World(); fill(world, table, states); return world; }, DIRECT.has(name)]);
     }
   }
   if (!flag('no-builds')) {

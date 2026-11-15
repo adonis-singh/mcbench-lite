@@ -24,7 +24,7 @@ const { minecraftLive } = require('../server/minecraft-live');
 const { spawn } = require('child_process');
 const zlib = require('zlib');
 const { Engine, compileNative, jvmEngine, NATIVE, PROFILE } = require('../server/engine');
-const { MinecraftVerifier } = require('../server/minecraft-verify');
+const { MinecraftVerifier, placedPalette } = require('../server/minecraft-verify');
 const { importCommands } = require('../server/live-placement');
 const { Y_OFFSET } = require('../server/minecraft-dimension');
 const { World } = require('../server/world');
@@ -73,8 +73,8 @@ async function exercise(engine, scratch) {
   for (const fixture of fixtures) {
     const world = fixture.world();
     const commands = path.join(scratch, 'commands.txt');
-    fs.writeFileSync(commands, `${importCommands(world, null, Y_OFFSET).commands.join('\n')}\n`);
     verifier.placementMode = fixture.placementMode || 'updates';
+    fs.writeFileSync(commands, `${importCommands(world, null, Y_OFFSET, await placedPalette(world, verifier.request(world, fixture.args))).commands.join('\n')}\n`);
     for (const seed of [null, 1]) {
       verifier.seed = seed;
       const request = path.join(scratch, 'request.json');

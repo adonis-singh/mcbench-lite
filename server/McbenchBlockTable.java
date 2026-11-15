@@ -1,8 +1,11 @@
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.world.level.EmptyBlockGetter;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.shapes.BooleanOp;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import java.io.InputStream;
@@ -30,9 +33,10 @@ import java.util.stream.IntStream;
 // emits, blocks and passes light, its fluid, whether it is drawn as a model,
 // and which neighbours it hides its faces from. One line per state, in the
 // order of Minecraft's state ids:
-//   state  emission  lightBlock  fullFaces  faceShapes  fluid  model  skip
-// one per block:  default  id  state
-// and last:  faceoccludes  n  bits
+//   state  emission  lightBlock  fullFaces  faceShapes  fluid  model  skip  cullShapes  shades
+// one per block:  default  id  state  name
+// and last:  facehides  n  bits
+//            faceoccludes  n  bits
 //            skiprendering  rows  columns  row...
 // fullFaces is a bit mask over Direction.ordinal(): down, up, north, south,
 // west, east. faceShapes are the six face shapes (getFaceOcclusionShape, in that
@@ -64,6 +68,29 @@ import java.util.stream.IntStream;
 // others the program proves from the pinned server's own bytecode, each time
 // it runs, that the answer is false for every neighbour and direction (see
 // Skips.neverSkips).
+// cullShapes are the six face shapes Block.shouldRenderFace culls a face
+// by (getFaceOcclusionShape, every state's, Shapes.empty() for one that
+// cannot occlude), numbered among all of them apart from faceShapes: 0
+// Shapes.empty(), 1 Shapes.block(), as shouldRenderFace tells those two
+// apart, by identity. facehides holds, for every ordered pair of the n
+// cull shapes (a block's own face, then its neighbour's face turned to it),
+// whether shouldRenderFace hides the face for its shapes: the neighbour's
+// is Shapes.block(), or neither is empty and the neighbour's covers the
+// block's (Shapes.joinIsNotEmpty(own, neighbour's, ONLY_FIRST) is false).
+// skipRendering hides more (skip above). The pairs are checked against
+// shouldRenderFace of states that have them, in every direction, before
+// the table is written. A slab's side beside a slab of the same half, or
+// a stair's beside a stair's that matches it, is hidden this way.
+// shades is 1 where the state darkens the corners of the faces beside it:
+// the client's ambient occlusion asks the blocks around a face for their
+// getShadeBrightness, 0.2 for a block whose collision shape is a full block
+// (unless its class answers otherwise) and 1 for any other, asked here of
+// an empty level at the origin, as the state's cached shapes are made (a
+// block of dynamic shape, a shulker box, answers as it does closed).
+// name is the block's name as Minecraft gives it: Block.getName(), the
+// block's own description id (a wall banner's is its standing banner's)
+// looked up in the language Minecraft loads from its jar's en_us.json, the
+// same file as the client jar's.
 public class McbenchBlockTable {
   public static void main(String[] args) throws Exception {
     net.minecraft.SharedConstants.tryDetectVersion();
@@ -73,11 +100,18 @@ public class McbenchBlockTable {
     Map<String, Integer> numbers = new LinkedHashMap<>();
     List<VoxelShape> shapes = new ArrayList<>();
     faceNumber(numbers, shapes, Shapes.empty());
+    Map<String, Integer> cullNumbers = new LinkedHashMap<>();
+    List<VoxelShape> cullShapes = new ArrayList<>();
+    cullNumber(cullNumbers, cullShapes, Shapes.empty());
+    cullNumber(cullNumbers, cullShapes, Shapes.block());
+    // By direction, a state whose face toward it has each cull shape.
+    List<Map<Integer, BlockState>> cullStates = IntStream.range(0, 6).mapToObj((d) -> (Map<Integer, BlockState>) new HashMap<Integer, BlockState>()).toList();
     Skips skips = new Skips();
     try (PrintWriter out = new PrintWriter(Files.newBufferedWriter(partial))) {
       int id = 0;
       for (Block block : BuiltInRegistries.BLOCK) {
-        out.println("default\t" + BuiltInRegistries.BLOCK.getKey(block) + "\t" + name(block.defaultBlockState()));
+        if (!net.minecraft.locale.Language.getInstance().has(block.getDescriptionId())) throw new IllegalStateException(block + " has no name for " + block.getDescriptionId());
+        out.println("default\t" + BuiltInRegistries.BLOCK.getKey(block) + "\t" + name(block.defaultBlockState()) + "\t" + block.getName().getString());
         for (BlockState state : block.getStateDefinition().getPossibleStates()) {
           if (Block.getId(state) != id++) throw new IllegalStateException(name(state) + " is not state " + (id - 1));
           int full = 0;
@@ -89,12 +123,35 @@ public class McbenchBlockTable {
             int number = state.starlight$isConditionallyFullOpaque() ? faceNumber(numbers, shapes, state.getFaceOcclusionShape(direction)) : 0;
             faces.append(direction.ordinal() == 0 ? "" : ",").append(number);
           }
+          StringBuilder cull = new StringBuilder();
+          for (Direction direction : Direction.values()) {
+            int number = cullNumber(cullNumbers, cullShapes, state.getFaceOcclusionShape(direction));
+            cullStates.get(direction.ordinal()).putIfAbsent(number, state);
+            cull.append(direction.ordinal() == 0 ? "" : ",").append(number);
+          }
           int fluid = Block.getId(state.getFluidState().createLegacyBlock());
           int model = state.getRenderShape() == RenderShape.MODEL ? 1 : 0;
+          float shade = state.getShadeBrightness(EmptyBlockGetter.INSTANCE, BlockPos.ZERO);
+          if (shade != 0.2F && shade != 1.0F) throw new IllegalStateException(name(state) + " shades the faces beside it by " + shade);
           out.println(name(state) + "\t" + state.getLightEmission() + "\t" + state.getLightBlock() + "\t" + full + "\t" + faces
-            + "\t" + fluid + "\t" + model + "\t" + skips.row[Block.getId(state)] + "," + skips.column[Block.getId(state)]);
+            + "\t" + fluid + "\t" + model + "\t" + skips.row[Block.getId(state)] + "," + skips.column[Block.getId(state)] + "\t" + cull + "\t" + (shade == 0.2F ? 1 : 0));
         }
       }
+      int n = cullShapes.size();
+      boolean[] hides = new boolean[n * n];
+      for (int a = 0; a < n; a++) for (int b = 0; b < n; b++) hides[a * n + b] = hides(cullShapes.get(a), cullShapes.get(b));
+      for (Direction direction : Direction.values()) {
+        Map<Integer, BlockState> own = cullStates.get(direction.ordinal()), facing = cullStates.get(direction.getOpposite().ordinal());
+        for (var a : own.entrySet()) for (var b : facing.entrySet()) {
+          if (a.getValue().skipRendering(b.getValue(), direction)) continue;
+          if (hides[a.getKey() * n + b.getKey()] == Block.shouldRenderFace(a.getValue(), b.getValue(), direction)) {
+            throw new IllegalStateException("facehides differs from Block.shouldRenderFace for " + name(a.getValue()) + " beside " + name(b.getValue()) + " to the " + direction);
+          }
+        }
+      }
+      StringBuilder hidden = new StringBuilder();
+      for (boolean hide : hides) hidden.append(hide ? '1' : '0');
+      out.println("facehides\t" + n + "\t" + hidden);
       StringBuilder bits = new StringBuilder();
       for (VoxelShape a : shapes) for (VoxelShape b : shapes) bits.append(Shapes.faceShapeOccludes(a, b) ? '1' : '0');
       out.println("faceoccludes\t" + shapes.size() + "\t" + bits);
@@ -279,6 +336,26 @@ public class McbenchBlockTable {
       shapes.add(shape);
       return shapes.size() - 1;
     });
+  }
+
+  // A cull shape's number: Shapes.empty() and Shapes.block() are their own,
+  // which shouldRenderFace tells by identity, and other shapes made of the
+  // same boxes are one.
+  static int cullNumber(Map<String, Integer> numbers, List<VoxelShape> shapes, VoxelShape shape) {
+    String key = shape == Shapes.empty() ? "empty" : shape == Shapes.block() ? "block" : shape.toAabbs().toString();
+    return numbers.computeIfAbsent(key, (k) -> {
+      shapes.add(shape);
+      return shapes.size() - 1;
+    });
+  }
+
+  // Block.shouldRenderFace for a face of shape `own` beside a neighbour whose
+  // face turned to it has shape `facing`, skipRendering aside: whether it is
+  // hidden.
+  static boolean hides(VoxelShape own, VoxelShape facing) {
+    if (facing == Shapes.block()) return true;
+    if (facing == Shapes.empty() || own == Shapes.empty()) return false;
+    return !Shapes.joinIsNotEmpty(own, facing, BooleanOp.ONLY_FIRST);
   }
 
   // "minecraft:oak_stairs[facing=east,half=bottom,...]", properties by name.

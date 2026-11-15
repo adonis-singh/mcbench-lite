@@ -8,8 +8,8 @@ import { PromptSync, promptsLoaded } from '/prompt-sync.mjs';
 import { RESOLUTIONS, resolutionStop, resolutionHelp } from '/resolution.mjs';
 import { GROUPS, NO_FILTERS, filtering, toggled, chatFacets, benchFacets, listed, offered, inEffect } from '/filters.mjs';
 import { Favorites } from '/favorites.mjs';
-import { CLOSED, panelTo, panelEdit, panelDraft, withTitleModel, withShareRepo, usable, CONNECT, firstPane, connectWays } from '/settings-panel.mjs';
-import { megabytes, setupStatus, heldLine, linkParts } from '/setup-status.mjs';
+import { CLOSED, panelTo, panelEdit, panelDraft, withTitleModel, withShareRepo, usable, CONNECT, firstPane, connectWays, cliAccount } from '/settings-panel.mjs';
+import { megabytes, downloadSize, setupStatus, heldLine, linkParts } from '/setup-status.mjs';
 import { SHARE_UNKNOWN, shareKey, shareUrl, shareReading, shareRead, shareUnread, sharePublishing, shareStep, shareFailed, shareStoppedEarly, shareRemoving, shareRemoved, shareKept, sharePublishingNow, shareStepText, postUrl, readShareStream } from '/share.mjs';
 import { detailsReading, detailsRead, detailsFailed, detailsVotes } from '/bench-details.mjs';
 import { paintUpload } from '/upload-image.mjs';
@@ -752,7 +752,7 @@ function ModelsSection({ id, connection, favorites, onToggleFavorite, onChange, 
   const catalog = { models: entry?.value?.models || (entry?.error ? [] : null), error: entry?.error ? String(entry.error.message || entry.error) : '' };
 
   if (!connection.connected) {
-    return html`<${SettingsSection} title="Models"><div class="s-empty">${connection.envKey ? 'Add a key' : 'Sign in'} to list ${connection.label}'s models.</div><//>`;
+    return html`<${SettingsSection} title="Models"><div class="s-empty">${connection.envKey ? 'Add a key' : cliAccount(connection) === 'install' ? `Install ${connection.signIn.program.title}` : 'Sign in'} to list ${connection.label}'s models.</div><//>`;
   }
   const hidden = new Set(connection.hiddenModels);
   const ordered = orderModels(catalog.models || [], connection.modelOrder);
@@ -898,6 +898,12 @@ const SIGN_IN_HELP = {
   'codex-cli': 'Sign in with your ChatGPT account. The sign-in page opens in a new tab and asks for a one-time code shown here.',
   cursor: 'Sign in with your Cursor account instead of a key. The sign-in page opens in a new tab.',
 };
+// What a CLI login is, beside its account.
+const LOGIN_THROUGH = {
+  'claude-code': 'Claude login through Claude Code',
+  codex: 'ChatGPT login through the Codex CLI',
+  'codex-cli': 'ChatGPT login through the Codex CLI',
+};
 const SIGN_IN_NEXT = {
   'claude-code': 'Sign in there. The page then shows a code: paste it below.',
   codex: 'Sign in there and enter the one-time code below. This pane updates when you are done.',
@@ -915,12 +921,18 @@ const SIGN_IN_NEXT = {
 //
 // A login whose CLI is not on this machine installs it first, from the same
 // button (server/cli-install.js): `install` is the latest install as the
-// server reports it, read each second while it runs, and `after` the
-// sign-in that starts once Settings, read again, find the CLI installed
-// (`{ method }`), or null. `startWith`, when set, is a button pressed from
-// Connect an AI: `{ method }`, started once when the pane opens.
+// server reports it, read each second while it runs, and `after`, from the
+// press until Settings, read again, find the CLI installed, what follows the
+// install: the sign-in (`{ signIn: true, method }`), or none
+// (`{ signIn: false }`) for a login already there whose CLI is missing
+// (cliAccount's 'install'), which Settings read again find connected. The
+// Installing row stays until then, so a finished install never shows the
+// button it was started from again.
+// `startWith`, when set, is a button pressed from Connect an AI:
+// `{ method }`, started once when the pane opens.
 function SignInRows({ id, connection, startWith, onStarted, onInstalled, onSignedIn, onError }) {
   const { methods, program, installed } = connection.signIn;
+  const loginOnly = !connection.envKey && cliAccount(connection) === 'install';
   const [signIn, setSignIn] = useState(connection.signIn.current);
   const [code, setCode] = useState('');
   const [install, setInstall] = useState(null);
@@ -960,15 +972,17 @@ function SignInRows({ id, connection, startWith, onStarted, onInstalled, onSigne
   }, [id, installing]);
   const post = (path, body) => api(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
   const start = (method) => post('/api/provider-logins', { provider: id, method }).then(setSignIn).catch(onError);
+  // A sign-in clears `after` once it has started, so the Installing row
+  // gives way to the sign-in's own rows and never to the button.
   useEffect(() => {
     if (!installed || !after) return;
-    setAfter(null);
-    start(after.method);
+    if (after.signIn) start(after.method).then(() => setAfter(null));
+    else setAfter(null);
   }, [installed, after]);
   // The one button: the sign-in, after installing the CLI when it is missing.
   const begin = (method) => {
     if (installed) return start(method);
-    setAfter({ method });
+    setAfter(loginOnly ? { signIn: false } : { signIn: true, method });
     return post('/api/cli-installs', { program: program.name }).then(setInstall).catch((error) => { setAfter(null); onError(error); });
   };
   useEffect(() => {
@@ -986,7 +1000,7 @@ function SignInRows({ id, connection, startWith, onStarted, onInstalled, onSigne
     return html`
       <${SettingsRow}
         title=${`Installing ${program.title}`}
-        help=${`${install.state === 'done' ? 'Installed.' : install.progress ? `Downloading, ${megabytes(install.progress)}.` : 'Starting the download.'}${after ? ' The sign-in starts when it is done.' : ''}`}
+        help=${`${install.state === 'done' ? 'Installed.' : install.progress ? `Downloading, ${megabytes(install.progress)}.` : 'Starting the download.'}${after?.signIn ? ' The sign-in starts when it is done.' : ''}`}
       >
         <span class="working-dots" aria-hidden="true"><i></i><i></i><i></i></span>
       <//>
@@ -1039,10 +1053,20 @@ function SignInRows({ id, connection, startWith, onStarted, onInstalled, onSigne
   }
   const failure = install?.state === 'failed' ? `${program.title} was not installed: ${install.error}`
     : signIn?.state === 'failed' ? signIn.error : null;
+  if (loginOnly) {
+    return html`
+      <${SettingsRow}
+        title=${connection.account || 'Signed in'}
+        help=${html`${[connection.plan, LOGIN_THROUGH[id]].filter(Boolean).join(' · ')}. ${program.title} is not installed: the app installs it, a ${downloadSize(program.bytes)} download, to use this login.${failure && html`<span class="s-signin-error">${failure}</span>`}`}
+      >
+        <button type="button" class="btn gold" onClick=${() => begin()}>Install ${program.title}</button>
+      <//>
+    `;
+  }
   return html`
     <${SettingsRow}
       title=${connection.envKey ? 'Cursor login' : 'Not signed in'}
-      help=${html`${SIGN_IN_HELP[id]}${!installed && ` The app installs ${program.title} first, about ${program.mb} MB.`}${failure && html`<span class="s-signin-error">${failure}</span>`}`}
+      help=${html`${SIGN_IN_HELP[id]}${!installed && ` The app installs ${program.title} first, a ${downloadSize(program.bytes)} download.`}${failure && html`<span class="s-signin-error">${failure}</span>`}`}
     >
       <div class="s-signin-start">
         ${methods
@@ -1056,7 +1080,7 @@ function SignInRows({ id, connection, startWith, onStarted, onInstalled, onSigne
 function ProviderPane({ id, connection, favorites, onToggleFavorite, onChange, checkedAt, onRecheck, startWith, onStarted, onError }) {
   const runtime = connection.runtime;
   // Cursor's sign-in is beside its key; the others are their only connection.
-  const signedIn = connection.envKey ? connection.signedIn : connection.connected;
+  const signedIn = connection.envKey ? connection.signedIn : cliAccount(connection) === 'connected';
   const signOut = () => api('/api/provider-logouts', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ provider: id }) })
     .then(onRecheck).catch(onError);
   return html`
@@ -1071,7 +1095,7 @@ function ProviderPane({ id, connection, favorites, onToggleFavorite, onChange, c
 
     <${SettingsSection} title="Account">
       ${signedIn && !connection.envKey && html`
-        <${SettingsRow} title=${connection.account || 'Signed in'} help=${[connection.plan, id === 'codex' || id === 'codex-cli' ? 'ChatGPT login through the Codex CLI' : 'Claude login through Claude Code'].filter(Boolean).join(' · ')}>
+        <${SettingsRow} title=${connection.account || 'Signed in'} help=${[connection.plan, LOGIN_THROUGH[id]].filter(Boolean).join(' · ')}>
           <button type="button" class="btn" onClick=${signOut}>Sign out</button>
         <//>
       `}
@@ -1122,8 +1146,9 @@ function ProviderPane({ id, connection, favorites, onToggleFavorite, onChange, c
 
 // Settings' Connect an AI pane: each way to give mcbench a model, what it
 // needs and who bills it, with a button to each provider pane that sets it
-// up. A subscription not signed in (a CLI's login) is one button: it opens
-// its pane on its sign-in, installing the CLI first when it is missing.
+// up. A subscription not connected (a CLI's login) is one button: it opens
+// its pane on its sign-in, installing the CLI first when it is missing, or
+// on the install alone when the login is there already.
 function ConnectPane({ providers, onSelect, onConnect }) {
   return html`
     <div class="pane-head"><${Icon} name="plug" size="20" /><h3>Connect an AI</h3></div>
@@ -1139,7 +1164,7 @@ function ConnectPane({ providers, onSelect, onConnect }) {
                 onClick=${() => (connection.auth === 'cli-login' && !connection.connected ? onConnect(id) : onSelect(id))}>
                 <${Logo} name=${id} size="16" />
                 <span class="connect-pane-name">${connection.label}</span>
-                <span class="connect-pane-state">${connection.auth === 'cli-login' && !connection.connected ? 'Sign in' : connection.summary}</span>
+                <span class="connect-pane-state">${connection.auth === 'cli-login' && cliAccount(connection) === 'sign-in' ? 'Sign in' : connection.summary}</span>
                 <${Icon} name="forward" size="13" />
               </button>
             `)}
@@ -1299,6 +1324,7 @@ function ModelPicker({
   }, [activeProvider, providers]);
   const [query, setQuery] = useState('');
   const needle = query.trim().toLowerCase();
+  const searchRef = useRef(null);
   useEffect(() => {
     if (!openNow) return;
     onOpened();
@@ -1327,6 +1353,9 @@ function ModelPicker({
       rail.scrollTop = tab.offsetTop - (rail.clientHeight - tab.offsetHeight) / 2;
       rail.scrollLeft = tab.offsetLeft - (rail.clientWidth - tab.offsetWidth) / 2;
     }
+    // Typing goes to the search at once (the autofocus attribute works only
+    // in the page as it loads); with no AI connected there is none.
+    searchRef.current?.focus();
   }, [open]);
 
   // The providers listed: with a query, every provider that can be used (each
@@ -1424,7 +1453,7 @@ function ModelPicker({
               <div class="model-picker-search">
                 <${Icon} name="search" size="15" />
                 <input
-                  autofocus
+                  ref=${searchRef}
                   value=${query}
                   placeholder="Search models..."
                   onInput=${(evt) => setQuery(evt.target.value)}
@@ -1709,6 +1738,13 @@ function PromptPalette({ prompts, query, index, withSearch, onQuery, onIndex, on
   useEffect(() => {
     listRef.current?.querySelector('.pp-row.active')?.scrollIntoView({ block: 'nearest' });
   }, [index, query]);
+  // The prompts button's search takes the typing at once (the autofocus
+  // attribute works only in the page as it loads); after "/" the message
+  // box keeps it.
+  const searchRef = useRef(null);
+  useLayoutEffect(() => {
+    if (withSearch) searchRef.current.focus();
+  }, [withSearch]);
   let position = -1;
   return html`
     <div class="prompt-palette" onMouseDown=${(evt) => { if (!evt.target.closest('input')) evt.preventDefault(); }}>
@@ -1716,7 +1752,7 @@ function PromptPalette({ prompts, query, index, withSearch, onQuery, onIndex, on
         ${withSearch && html`
           <label class="pp-search">
             <${Icon} name="search" size="14" />
-            <input id="prompt-palette-search" autofocus value=${query} placeholder="Search prompts"
+            <input id="prompt-palette-search" ref=${searchRef} value=${query} placeholder="Search prompts"
               onInput=${(evt) => onQuery(evt.target.value)} onKeyDown=${onKey} />
           </label>
         `}
@@ -2238,6 +2274,12 @@ function PromptEditor({
   const [noteOpen, setNoteOpen] = useState(false);
   const [note, setNote] = useState('');
   const aiRef = useRef(null);
+  // The note's box takes the typing when it opens (the autofocus attribute
+  // works only in the page as it loads).
+  const noteRef = useRef(null);
+  useLayoutEffect(() => {
+    if (noteOpen) noteRef.current.focus();
+  }, [noteOpen]);
   useEffect(() => { localStorage.setItem('mcb-improve-source', aiSource); }, [aiSource]);
   useEffect(() => {
     if (!aiMenu && !noteOpen) return undefined;
@@ -2423,7 +2465,7 @@ function PromptEditor({
                   <form class="pe-ai-note" onSubmit=${(evt) => { evt.preventDefault(); improveWithAi(note); }}>
                     <textarea
                       id="improve-note"
-                      autofocus
+                      ref=${noteRef}
                       rows="3"
                       value=${note}
                       placeholder="e.g. a lighthouse on a cliff, stormy"
@@ -3864,6 +3906,8 @@ function App() {
         if (document.visibilityState !== 'visible') await new Promise((resolve) => { shown = resolve; });
         if (stopped) return;
         controller = new AbortController();
+        // The first list of each connection: the server is there again.
+        let connected = true;
         try {
           const res = await fetch('/api/conversations/stream', { signal: controller.signal });
           if (!res.ok) throw new Error(`The chat list failed to load (HTTP ${res.status})`);
@@ -3874,6 +3918,10 @@ function App() {
             // of the request or the stream reaches the catch below.
             try {
               receiveLists(lists);
+              // A transcript that could not be read while the server was
+              // away is read again once it is back, as the list is.
+              if (connected && transcriptStateRef.current.phase === 'failed') readAgain();
+              connected = false;
             } catch (error) {
               console.error(error);
               showError(error);
@@ -5958,10 +6006,14 @@ function App() {
   typeKeyRef.current = (key) => {
     const member = place.kind === 'compare' && /^[1-9]$/.test(key) && viewedMembers[Number(key) - 1];
     if (member) return focusBuild(member.id);
+    // A caret left in the box stays where it was; from anywhere else the key
+    // goes at the end of the draft. focus() puts the caret at the start, so
+    // where it was is read before.
     const root = composerRef.current;
-    root.focus();
     const selection = window.getSelection();
-    if (!root.contains(selection.anchorNode)) selection.collapse(root, root.childNodes.length);
+    const inBox = root.contains(selection.anchorNode);
+    root.focus();
+    if (!inBox) selection.collapse(root, root.childNodes.length);
     document.execCommand('insertText', false, key);
   };
   useEffect(() => {

@@ -56,7 +56,7 @@ require('../server/assets').getBlockRegistry = async () => ({ stone: [{}, {}] })
 const store = require('../server/store');
 const { Edit } = require('../server/turn-stream');
 const app = require('../server/index');
-const { PINS } = require('../server/tools');
+const { PINS, PLATFORM } = require('../server/tools');
 
 after(() => fs.rmSync(scratch, { recursive: true, force: true }));
 
@@ -97,7 +97,7 @@ test('Claude Code signs in with a pasted code that reaches the CLI and no respon
   assert.equal((await settingsOf('claude-code')).account, null);
   // No sign-in started yet.
   assert.equal((await call('GET', '/api/provider-logins/claude-code')).raw, 'null');
-  assert.deepEqual((await settingsOf('claude-code')).signIn, { methods: ['claudeai', 'console'], program: { name: 'claude', title: PINS.claude.title, mb: PINS.claude.mb }, current: null, installed: true });
+  assert.deepEqual((await settingsOf('claude-code')).signIn, { methods: ['claudeai', 'console'], program: { name: 'claude', title: PINS.claude.title, bytes: PINS.claude.platforms[PLATFORM].bytes }, current: null, installed: true });
   const started = await call('POST', '/api/provider-logins', { provider: 'claude-code', method: 'claudeai' });
   assert.equal(started.status, 200, started.raw);
   assert.equal(started.body.state, 'starting');

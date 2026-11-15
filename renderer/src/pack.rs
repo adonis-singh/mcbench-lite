@@ -1,15 +1,17 @@
 // The baked pack (server/McbenchBake.java documents the format): what BlueMap
 // computes once from the resource pack, read back as plain tables.
 
-pub const CULLING: u8 = 1;
-pub const OCCLUDING: u8 = 2;
-pub const CULLING_IDENTICAL: u8 = 4;
-pub const ALWAYS_WATERLOGGED: u8 = 8;
-pub const RANDOM_OFFSET: u8 = 16;
-pub const WATERLOGGED: u8 = 32;
-pub const WATER: u8 = 64;
-pub const AIR: u8 = 128;
+// The state darkens the corners of the faces beside it in ambient occlusion
+// (Minecraft's getShadeBrightness, from the block table).
+pub const SHADES: u8 = 1;
+pub const ALWAYS_WATERLOGGED: u8 = 2;
+pub const RANDOM_OFFSET: u8 = 4;
+pub const WATERLOGGED: u8 = 8;
+pub const WATER: u8 = 16;
+pub const AIR: u8 = 32;
 pub const NONE: u32 = u32::MAX;
+// The cull shape of a full face: Shapes.block(), as the block table numbers it.
+const BLOCK_SHAPE: usize = 1;
 
 pub struct Property {
     pub name: String,
@@ -42,6 +44,26 @@ impl State {
     pub fn has(&self, flag: u8) -> bool {
         self.flags & flag != 0
     }
+}
+
+// What Minecraft culls a state's faces by (from the block table): the six
+// face shapes Block.shouldRenderFace tests (cull shapes, down, up, north,
+// south, west, east), its skipRendering row and column classes, and the
+// row class of its fluid's block, which its fluid's faces are culled by.
+pub struct Cull {
+    pub shapes: [u8; 6],
+    pub row: u16,
+    pub column: u16,
+    pub fluid_row: u16,
+}
+
+// A skipRendering row class: its masks (bits over the directions) against
+// the column classes from `first` on, `len` of them, at `start` in
+// Pack::skip_masks.
+pub struct SkipRow {
+    pub first: u16,
+    pub len: u16,
+    pub start: u32,
 }
 
 pub struct Face {
@@ -82,6 +104,9 @@ pub struct Pack {
     // block indices sorted by id, for lookups
     pub by_id: Vec<u32>,
     pub states: Vec<State>,
+    // By state, the cull class (culls) its faces and its fluid's are culled
+    // by: kept apart from State, which stays 16 bytes.
+    pub cull_of: Vec<u16>,
     // Six face shapes a set (down, up, north, south, west, east), set 0 all
     // empty, and for each ordered pair of the `shapes` face shapes whether
     // light is stopped between two faces of those shapes, by a * shapes + b
@@ -89,6 +114,14 @@ pub struct Pack {
     pub face_sets: Vec<[u8; 6]>,
     pub shapes: usize,
     pub occludes: Vec<bool>,
+    pub culls: Vec<Cull>,
+    // For each ordered pair of the `cull_shapes` cull shapes whether a face
+    // of the first is hidden beside a face of the second (facehides), by
+    // a * cull_shapes + b.
+    pub cull_shapes: usize,
+    pub hides: Vec<bool>,
+    pub skip_rows: Vec<SkipRow>,
+    pub skip_masks: Vec<u8>,
     pub air: u32,
     pub water_selection: u32,
     pub water_tint: u32,
@@ -164,8 +197,8 @@ impl<'a> Reader<'a> {
 impl Pack {
     pub fn read(bytes: &[u8]) -> Result<Pack, String> {
         let mut r = Reader { bytes, at: 0 };
-        if r.take(4)? != b"MCBP" || r.u32()? != 2 {
-            return Err("Not a version 2 baked pack".into());
+        if r.take(4)? != b"MCBP" || r.u32()? != 3 {
+            return Err("Not a version 3 baked pack".into());
         }
         let blocks = r.list(|r| {
             let id = r.str()?;
@@ -184,6 +217,7 @@ impl Pack {
             }
             Ok(Block { id, first, properties })
         })?;
+        let mut cull_of = Vec::new();
         let states = r.list(|r| {
             Ok(State {
                 flags: r.u8()?,
@@ -192,7 +226,10 @@ impl Pack {
                 light_block: r.u8()?,
                 blends: r.u8()? != 0,
                 faces: r.u8()?,
-                block: r.u16()?,
+                block: {
+                    cull_of.push(r.u16()?);
+                    r.u16()?
+                },
                 tint: r.u32()?,
                 selection: r.u32()?,
             })
@@ -206,6 +243,29 @@ impl Pack {
             || face_sets.iter().flatten().any(|&shape| shape as usize >= shapes)
         {
             return Err("The baked pack's face sets are not its face shapes'".into());
+        }
+        let culls = r.list(|r| {
+            Ok(Cull { shapes: [r.u8()?, r.u8()?, r.u8()?, r.u8()?, r.u8()?, r.u8()?], row: r.u16()?, column: r.u16()?, fluid_row: r.u16()? })
+        })?;
+        let cull_shapes = r.u16()? as usize;
+        let bits = r.take((cull_shapes * cull_shapes).div_ceil(8))?;
+        let hides = (0..cull_shapes * cull_shapes).map(|at| bits[at >> 3] >> (at & 7) & 1 == 1).collect();
+        let mut skip_rows = Vec::new();
+        let mut skip_masks = Vec::new();
+        for _ in 0..r.u16()? {
+            let first = r.u16()?;
+            let len = r.u16()?;
+            skip_rows.push(SkipRow { first, len, start: skip_masks.len() as u32 });
+            skip_masks.extend_from_slice(r.take(len as usize)?);
+        }
+        if cull_of.iter().any(|&cull| cull as usize >= culls.len())
+            || culls.iter().any(|cull| {
+                cull.shapes.iter().any(|&shape| shape as usize >= cull_shapes)
+                    || [cull.row, cull.fluid_row].iter().any(|&row| row as usize >= skip_rows.len())
+            })
+            || cull_shapes <= BLOCK_SHAPE
+        {
+            return Err("The baked pack's cull classes are not its cull shapes' and row classes'".into());
         }
         let air = r.u32()?;
         let water_selection = r.u32()?;
@@ -284,9 +344,15 @@ impl Pack {
             blocks,
             by_id,
             states,
+            cull_of,
             face_sets,
             shapes,
             occludes,
+            culls,
+            cull_shapes,
+            hides,
+            skip_rows,
+            skip_masks,
             air,
             water_selection,
             water_tint,
@@ -302,6 +368,40 @@ impl Pack {
             liquid_up,
             liquid_side,
         })
+    }
+
+    // BlockState.skipRendering: whether a state of row class `row` hides
+    // its face toward a neighbour of column class `column` in `direction`
+    // (0 down, 1 up, 2 north, 3 south, 4 west, 5 east).
+    #[inline(always)]
+    pub fn skips(&self, row: u16, column: u16, direction: usize) -> bool {
+        let row = &self.skip_rows[row as usize];
+        let at = column.wrapping_sub(row.first);
+        at < row.len && self.skip_masks[(row.start + at as u32) as usize] >> direction & 1 == 1
+    }
+
+    // Block.shouldRenderFace: whether state `own` hides its face toward its
+    // neighbour `other` in `direction`, by the face shapes the two turn to
+    // each other or skipRendering.
+    #[inline(always)]
+    pub fn hides(&self, own: u32, other: u32, direction: usize) -> bool {
+        let own = &self.culls[self.cull_of[own as usize] as usize];
+        let other = &self.culls[self.cull_of[other as usize] as usize];
+        self.hides[own.shapes[direction] as usize * self.cull_shapes + other.shapes[direction ^ 1] as usize]
+            || self.skips(own.row, other.column, direction)
+    }
+
+    // What LiquidBlockRenderer culls the fluid of state `own` by, toward its
+    // neighbour `other` in `direction`: the fluid's block skips rendering
+    // beside it (it holds the same fluid), or its face turned to the fluid
+    // is full and not above it (a fluid's surface with none above lies below
+    // the block's top).
+    #[inline(always)]
+    pub fn hides_fluid(&self, own: u32, other: u32, direction: usize) -> bool {
+        let own = &self.culls[self.cull_of[own as usize] as usize];
+        let other = &self.culls[self.cull_of[other as usize] as usize];
+        self.skips(own.fluid_row, other.column, direction)
+            || (direction != 1 && self.hides[BLOCK_SHAPE * self.cull_shapes + other.shapes[direction ^ 1] as usize])
     }
 
     // The state a blueprint palette entry names, every property it leaves

@@ -80,7 +80,7 @@ test('a CLI login is connected only when its CLI is there to run', (t) => {
     settings.refreshRuntimes();
     fs.rmSync(scratch, { recursive: true, force: true });
   });
-  // PATH keeps the system folders: the Codex CLI's version is read through `which`.
+  // PATH keeps the system folders: the programs the test starts are found there.
   Object.assign(process.env, { PATH: [bin, '/usr/bin', '/bin'].join(path.delimiter), CODEX_HOME: codexHome, CLAUDE_CONFIG_DIR: claudeHome });
   delete process.env.MCBENCH_CODEX_BINARY;
   delete process.env.MCBENCH_CLAUDE_BINARY;
@@ -161,14 +161,41 @@ test('model favorites are normalized before persistence', () => {
   ]);
 });
 
-test('the binary a CLI harness runs is the environment\'s, and no settings update names one', () => {
+test('the binary a CLI harness runs is the environment\'s, and no settings update names one', (t) => {
+  const fs = require('node:fs');
+  const os = require('node:os');
+  const path = require('node:path');
   const claudeCode = require('../server/claude-code');
-  const current = settings.get();
-  const providers = Object.fromEntries(Object.entries(current.providers).map(([id, p]) => [id, { ...p }]));
-  providers['claude-code'] = { ...providers['claude-code'], binary: '/tmp/not-claude', home: '/tmp/elsewhere' };
-  settings.update({ providers, titleModel: current.titleModel, shareRepo: current.shareRepo });
-  assert.strictEqual(claudeCode.runtime.binary, process.env.MCBENCH_CLAUDE_BINARY || 'claude');
-  assert.strictEqual('binary' in settings.get().providers['claude-code'], false);
+  const tools = require('../server/tools');
+  // A scratch PATH, with or without a stand-in claude: never the developer's own.
+  const bin = fs.mkdtempSync(path.join(os.tmpdir(), 'mcbench-settings-bin-'));
+  const previous = { PATH: process.env.PATH, MCBENCH_CLAUDE_BINARY: process.env.MCBENCH_CLAUDE_BINARY };
+  t.after(() => {
+    for (const [name, value] of Object.entries(previous)) {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
+    settings.refreshRuntimes();
+    fs.rmSync(bin, { recursive: true, force: true });
+  });
+  process.env.PATH = [bin, '/usr/bin', '/bin'].join(path.delimiter);
+  delete process.env.MCBENCH_CLAUDE_BINARY;
+  const update = () => {
+    const current = settings.get();
+    const providers = Object.fromEntries(Object.entries(current.providers).map(([id, p]) => [id, { ...p }]));
+    providers['claude-code'] = { ...providers['claude-code'], binary: '/tmp/not-claude', home: '/tmp/elsewhere' };
+    settings.update({ providers, titleModel: current.titleModel, shareRepo: current.shareRepo });
+    assert.strictEqual('binary' in settings.get().providers['claude-code'], false);
+    return claudeCode.runtime.binary;
+  };
+  // Not on PATH: the one the app installs into the tools folder.
+  assert.strictEqual(update(), tools.installed('claude').program);
+  // On PATH: run by its name.
+  fs.writeFileSync(path.join(bin, 'claude'), '#!/bin/sh\n', { mode: 0o755 });
+  assert.strictEqual(update(), 'claude');
+  // Named by its variable: that one.
+  process.env.MCBENCH_CLAUDE_BINARY = '/somewhere/claude';
+  assert.strictEqual(update(), '/somewhere/claude');
 });
 
 test('an update that cannot be written leaves the settings in memory as the file has them', () => {
