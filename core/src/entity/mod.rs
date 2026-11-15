@@ -877,31 +877,61 @@ pub fn json(l: &Level) -> String {
             f(e.width),
             f(e.height)
         ));
+        // What the entity's look changes with (web/entity-draw.mjs): the ticks
+        // it has lived (Entity.tickCount, which the client's renderers time an
+        // item's spin and an orb's colour by), and each kind's own.
+        out.push_str(&format!(",\"ticks\":{}", e.tick_count));
+        let item = |stack: &crate::loot::ItemStack| l.reg.items[stack.item as usize].key.as_str();
         match &e.kind {
             Kind::Item(data) => {
                 if data.stack.count > 0 {
-                    out.push_str(&format!(",\"item\":\"{}\",\"count\":{}", l.reg.items[data.stack.item as usize].key, data.stack.count));
+                    out.push_str(&format!(",\"item\":\"{}\",\"count\":{}", item(&data.stack), data.stack.count));
                 }
             }
             Kind::Falling(data) => out.push_str(&format!(",\"block\":\"{}\"", l.reg.describe(data.state))),
             Kind::Tnt(data) => out.push_str(&format!(",\"block\":\"{}\",\"fuse\":{}", l.reg.describe(data.state), data.fuse)),
-            // The frame's rotation, its item and the way it faces.
+            // The frame's rotation, its item, the way it faces and whether it
+            // is invisible.
             Kind::Frame(data) => {
-                out.push_str(&format!(",\"rotation\":{}", data.rotation));
+                out.push_str(&format!(",\"rotation\":{},\"invisible\":{}", data.rotation, data.invisible));
                 if data.item.count > 0 {
-                    out.push_str(&format!(",\"item\":\"{}\",\"count\":{}", l.reg.items[data.item.item as usize].key, data.item.count));
+                    out.push_str(&format!(",\"item\":\"{}\",\"count\":{}", item(&data.item), data.item.count));
                 }
                 out.push_str(&format!(",\"facing\":\"{}\"", data.direction.name()));
             }
-            // The block a minecart shows.
-            Kind::Minecart(c) => out.push_str(&format!(",\"block\":\"{}\"", l.reg.describe(minecart::display_state(l, c)))),
-            Kind::Boat(_) | Kind::Orb(_) | Kind::Golem(_) => {}
-            Kind::Painting(p) => out.push_str(&format!(",\"facing\":\"{}\",\"variant\":\"{}\"", p.direction.name(), l.reg.paintings[p.variant].key)),
-            // The item in the main hand.
-            Kind::ArmorStand(s) => {
-                if s.equipment[0].count > 0 {
-                    out.push_str(&format!(",\"item\":\"{}\",\"count\":{}", l.reg.items[s.equipment[0].item as usize].key, s.equipment[0].count));
+            // The block a minecart shows, standing off by its display offset,
+            // and a TNT minecart's fuse (-1 when not lit).
+            Kind::Minecart(c) => {
+                out.push_str(&format!(",\"block\":\"{}\",\"offset\":{}", l.reg.describe(minecart::display_state(l, c)), c.display_offset));
+                if c.class == minecart::Class::Tnt {
+                    out.push_str(&format!(",\"fuse\":{}", c.fuse));
                 }
+            }
+            Kind::Boat(_) => {}
+            Kind::Orb(data) => out.push_str(&format!(",\"value\":{}", data.value)),
+            // A copper golem's weather state (its ordinal).
+            Kind::Golem(g) => {
+                if g.golem == golem::Golem::Copper {
+                    out.push_str(&format!(",\"weather\":{}", g.weather));
+                }
+            }
+            Kind::Painting(p) => out.push_str(&format!(",\"facing\":\"{}\",\"variant\":\"{}\"", p.direction.name(), l.reg.paintings[p.variant].key)),
+            // The stand's flags, its pose (head, body, left arm, right arm, left
+            // leg, right leg, degrees) and what it holds and wears, by slot.
+            Kind::ArmorStand(s) => {
+                out.push_str(&format!(",\"small\":{},\"show_arms\":{},\"no_base_plate\":{},\"invisible\":{},\"marker\":{},\"pose\":[", s.small, s.show_arms, s.no_base_plate, s.invisible, s.marker));
+                for (i, [x, y, z]) in s.pose.iter().enumerate() {
+                    out.push_str(&format!("{}[{},{},{}]", if i > 0 { "," } else { "" }, f(*x), f(*y), f(*z)));
+                }
+                out.push_str("],\"equipment\":{");
+                let mut first = true;
+                for (slot, stack) in armor_stand::SLOT_NAMES.iter().zip(s.equipment.iter()) {
+                    if stack.count > 0 {
+                        out.push_str(&format!("{}\"{slot}\":\"{}\"", if first { "" } else { "," }, item(stack)));
+                        first = false;
+                    }
+                }
+                out.push('}');
             }
         }
         out.push('}');

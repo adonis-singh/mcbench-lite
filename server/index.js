@@ -39,7 +39,7 @@ const { isPageAddress } = require('../web/address.mjs');
 const settings = require('./settings');
 const { blockStates } = require('./block-states');
 const { blockTints } = require('./block-tints');
-const { shotWorld, warmShotEngines, stopShotEngines } = require('./shot-world');
+const { shotWorld, shotEntities, warmShotEngines, stopShotEngines } = require('./shot-world');
 const { warmRenderer, closeRenderer } = require('./shot');
 const { Shares, shareId } = require('./share');
 const shareViewer = require('./share-viewer');
@@ -1223,6 +1223,8 @@ async function handleApi(req, res, url) {
         bounds: world.bounds(),
         renderLod,
         removed,
+        // The entities at the tick (the engine's), which see_build draws.
+        entities: shotEntities(conversation, body.clip, body.tick),
       });
       for (const key of send) {
         await writeEvent({ type: 'chunk', chunk: world.chunkSnapshot(key, states, renderLod) });

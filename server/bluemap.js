@@ -3,10 +3,13 @@
 // BlueMap as a build-time tool only. Its checksum-pinned CLI jar makes the
 // viewer's assets once per content (McbenchBake.java): BlueMap's web app,
 // the map's settings and texture list, the baked pack the browser's mesher
-// reads, and the entity layer's atlas (McbenchEntityAssets.java, made from
-// Minecraft's client jar beside the pack); in the same run Minecraft's client
-// says what it says of every block state (McbenchClient.java: the render
-// layers and colours see_build and the icons read). The mesher (renderer/,
+// reads, and what Minecraft's entity renderers draw of every entity the
+// engine holds with its atlas (McbenchEntities.java and
+// McbenchEntityAssets.java, made from Minecraft's client jar, whose classes
+// it names by Mojang's mappings of the jar, beside the pack, which the live
+// viewer's entity layer and see_build draw entities from); in the same run Minecraft's client says what it says of every
+// block state (McbenchClient.java: the render layers and colours see_build
+// and the icons read). The mesher (renderer/,
 // WebAssembly, run in the viewer's worker: web/mesher-worker.mjs) then draws
 // every tile in the browser, byte for byte as BlueMap draws it; no BlueMap
 // runs while the app does.
@@ -37,11 +40,19 @@ const VERSION = '5.22';
 const JAR_NAME = `bluemap-${VERSION}-cli.jar`;
 const JAR_URL = `https://github.com/BlueMap-Minecraft/BlueMap/releases/download/v${VERSION}/${JAR_NAME}`;
 const JAR_SHA256 = 'a2289d649f6a83e04cf222abcd3d4f2df4e32e61147015f921c05066f63eefb7';
+// Mojang's mappings of the Minecraft client jar BlueMap downloads (the
+// version's client_mappings): McbenchEntities names the client's classes
+// and members by their Mojang names and reads their names in the jar here.
+const MAPPINGS_NAME = `minecraft-client-${MC_VERSION}-mappings.txt`;
+const MAPPINGS_URL = 'https://piston-data.mojang.com/v1/objects/7e62354a697f95cf5e7d5981face0583676a9ef7/client.txt';
+const MAPPINGS_SHA256 = '2a6f53f4c1fd048e8fa956e3a3fbbb0afc02d5bbc23e52a16b328aed61b9bf39';
+const MAPPINGS_BYTES = 11511143;
 // Download sizes, for the terminal's account of the first start.
 const JAR_MB = 7;
 const CLIENT_MB = 31;
+const MAPPINGS_MB = Math.round(MAPPINGS_BYTES / 1e6);
 const MEMORY = process.env.MCBENCH_BLUEMAP_MEMORY || '2G';
-const BAKE = ['McbenchBake.java', 'McbenchEntityAssets.java', 'McbenchClient.java', 'McbenchBlockEntities.java'].map((name) => path.join(__dirname, name));
+const BAKE = ['McbenchBake.java', 'McbenchEntityAssets.java', 'McbenchClient.java', 'McbenchBlockEntities.java', 'McbenchEntities.java'].map((name) => path.join(__dirname, name));
 // What Minecraft's server entry point (McbenchClient bootstraps Minecraft by
 // it) writes in the bake's folder: its settings and its log.
 const MINECRAFT_LEAVES = ['server.properties', 'eula.txt', 'logs'];
@@ -154,6 +165,7 @@ class BlueMap {
     this.download = download;
     this.run = run;
     this.jar = path.join(root, JAR_NAME);
+    this.mappings = path.join(root, MAPPINGS_NAME);
     this.mesher = mesher;
     this.mesherHash = sha256(fs.readFileSync(mesher)).slice(0, 16);
     this.assets = null;
@@ -161,11 +173,24 @@ class BlueMap {
     this.preparing = null;
   }
 
-  async ensureJar() {
-    // The download appears whole only once its checksum matched.
-    if (fs.existsSync(this.jar)) return;
-    await step(`[viewer] downloading BlueMap ${VERSION} (about ${JAR_MB} MB)`, `[viewer] BlueMap downloaded`,
-      () => this.download(JAR_URL, this.jar, { sha256: JAR_SHA256, onProgress: setup.progress('viewer') }));
+  // The BlueMap jar and Mojang's client mappings, side by side, each
+  // unless it is there: a download appears whole only once its checksum
+  // matched. The step's progress is the two downloads' bytes together.
+  async ensureDownloads() {
+    const wanted = [
+      { file: this.jar, url: JAR_URL, sha256: JAR_SHA256, what: `BlueMap ${VERSION}`, mb: JAR_MB },
+      { file: this.mappings, url: MAPPINGS_URL, sha256: MAPPINGS_SHA256, what: `Mojang's mappings of the Minecraft ${MC_VERSION} client`, mb: MAPPINGS_MB },
+    ].filter((download) => !fs.existsSync(download.file));
+    const received = wanted.map(() => ({ done: 0, total: null }));
+    const progress = (index) => (bytes) => {
+      received[index] = bytes;
+      setup.progress('viewer')({
+        done: received.reduce((sum, part) => sum + part.done, 0),
+        total: received.every((part) => part.total !== null) ? received.reduce((sum, part) => sum + part.total, 0) : null,
+      });
+    };
+    await Promise.all(wanted.map((download, index) => step(`[viewer] downloading ${download.what} (about ${download.mb} MB)`, `[viewer] ${download.what} downloaded`,
+      () => this.download(download.url, download.file, { sha256: download.sha256, onProgress: progress(index) }))));
   }
 
   // The viewer's assets for `blockTable` (Paper's, see McbenchBlockTable),
@@ -184,7 +209,7 @@ class BlueMap {
   // made yet or not.
   bakeFolder(blockTable) {
     const files = configFiles(path.join(this.root, DOWNLOADS));
-    return path.join(this.root, sha256(JSON.stringify([JAR_SHA256, MC_VERSION, BIOME, BAKE.map((file) => sha256(fs.readFileSync(file))), sha256(fs.readFileSync(blockTable)), files])).slice(0, 16));
+    return path.join(this.root, sha256(JSON.stringify([JAR_SHA256, MAPPINGS_SHA256, MC_VERSION, BIOME, BAKE.map((file) => sha256(fs.readFileSync(file))), sha256(fs.readFileSync(blockTable)), files])).slice(0, 16));
   }
 
   // One process bakes in the folder at a time, under bluemap.lock beside
@@ -193,7 +218,7 @@ class BlueMap {
   // share the staging folder (and each remove the other's as an old bake).
   // One that waited finds the bake made.
   async bake(blockTable, libraries) {
-    await this.ensureJar();
+    await this.ensureDownloads();
     return withLock(`${this.root}.lock`, () => this.bakeAlone(blockTable, libraries));
   }
 
@@ -203,7 +228,7 @@ class BlueMap {
     const id = path.basename(folder);
     // Everything else here is an older bake, or files of an older app.
     for (const name of fs.readdirSync(this.root)) {
-      if (![JAR_NAME, DOWNLOADS, id].includes(name)) fs.rmSync(path.join(this.root, name), { recursive: true, force: true });
+      if (![JAR_NAME, MAPPINGS_NAME, DOWNLOADS, id].includes(name)) fs.rmSync(path.join(this.root, name), { recursive: true, force: true });
     }
     if (!fs.existsSync(folder)) {
       const staging = path.join(this.root, `${id}.partial`);
@@ -212,7 +237,7 @@ class BlueMap {
       const client = fs.existsSync(path.join(this.root, DOWNLOADS)) ? '' : `, downloading the Minecraft ${MC_VERSION} client jar from Mojang (about ${CLIENT_MB} MB) for its textures`;
       await step(`[viewer] making the 3D viewer's assets with BlueMap and reading every block state's render layer and colours from Minecraft's client${client}`, '[viewer] 3D viewer assets, render layers and colours made', async () => {
         await this.run(JAVAC, ['-proc:none', '-classpath', this.jar, '-d', classes, ...BAKE], { timeout: 120_000 });
-        await this.run(this.java, [`-Xmx${this.memory}`, '-cp', [this.jar, classes].join(path.delimiter), 'McbenchBake', MC_VERSION, blockTable, libraries.join(path.delimiter), BIOME],
+        await this.run(this.java, [`-Xmx${this.memory}`, '-cp', [this.jar, classes].join(path.delimiter), 'McbenchBake', MC_VERSION, blockTable, libraries.join(path.delimiter), BIOME, this.mappings],
           { cwd: staging, timeout: 600_000, maxBuffer: 16 * 1024 * 1024 });
       });
       for (const name of ['classes', 'vanilla', ...MINECRAFT_LEAVES]) fs.rmSync(path.join(staging, name), { recursive: true, force: true });

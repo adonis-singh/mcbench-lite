@@ -3,7 +3,7 @@
 const assert = require('node:assert/strict');
 const { test } = require('node:test');
 
-const { entityIndex } = require('./helpers/entity-index');
+const { entityCapture, square, IDENTITY, translation, levels } = require('./helpers/entity-capture');
 
 const near = (actual, expected, message) => {
   assert.equal(actual.length, expected.length, message);
@@ -77,240 +77,261 @@ test('a frame with a repeated id or an entity without a position is refused', as
   assert.deepEqual(tracker.sample(0), [], 'a refused frame changes nothing');
 });
 
-// ---- the index ----
+// ---- what an entity is drawn as (entity-draw.mjs) ----
 
-test('the index must name only textures, models and blocks it holds', async () => {
-  const { validateIndex } = await import('../web/entity-models.mjs');
-  validateIndex(entityIndex());
-  const broken = (change) => {
-    const index = entityIndex();
-    change(index);
-    return index;
+// A capture of the shape McbenchEntities.java writes: a kind "cart" whose
+// variant has a block draw and a model of two parts, both turned by yaw
+// about the origin and the block moved by the display offset; a kind "stand"
+// whose head part turns with Head.x and whose held item follows the arm; an
+// orb kind of two icons; a TNT kind folded from fuse 2 in a period of 2; a
+// painting whose quad is lit by its own cell; and an item with copies.
+const TEXTURES = ['minecraft:entity/cart', 'minecraft:entity/stand', 'minecraft:item/rod', 'minecraft:painting/art', 'minecraft:block/stone'];
+const turn = (value) => ({ value, axis: [0, 1, 0], point: [0, 0, 0], rate: -1 });
+const plain = { block: levels(), sky: levels(), probe: [0, 0.5, 0] };
+function capture() {
+  return entityCapture({
+    textures: TEXTURES,
+    meshes: [[square('minecraft:entity/cart')], [square('minecraft:entity/stand')], [square('minecraft:item/rod')], [square('minecraft:painting/art')]],
+    poses: [IDENTITY, translation(0, 1, 0), translation(0.5, 0, 0), translation(2, 0, 0)],
+    kinds: {
+      'minecraft:minecart': {
+        light: plain, by: [],
+        variants: { '': { base: { yaw: 0, pitch: 0, offset: 6 }, draws: [
+          { kind: 'block', light: 'entity', overlay: 655360, pose: 1, motions: [turn('yaw'), { value: 'offset', vector: [0, 0.0625, 0] }], block: 'entity' },
+          { kind: 'parts', layer: 'entity_cutout_no_cull', light: 'entity', overlay: 655360, pose: 0, motions: [turn('yaw')], parts: [
+            { path: '', pose: [0, 0, 0, 0, 0, 0, 1, 1, 1], deps: {}, mesh: 0 },
+            { path: '/box', parent: '', pose: [16, 0, 0, 0, 0, 0, 1, 1, 1], deps: {}, mesh: 0 },
+          ] },
+        ] } },
+      },
+      'minecraft:armor_stand': {
+        light: plain, by: ['small'],
+        variants: { false: { base: { yaw: 0, 'Head.x': 0 }, draws: [
+          { kind: 'parts', layer: 'entity_cutout_no_cull', light: 'entity', overlay: 655360, pose: 0, motions: [turn('yaw')], parts: [
+            { path: '', pose: [0, 0, 0, 0, 0, 0, 1, 1, 1], deps: {}, mesh: 1 },
+            { path: '/head', parent: '', pose: [0, 16, 0, 0, 0, 0, 1, 1, 1], deps: { 'Head.x': [0, 0, 0, Math.PI / 180, 0, 0, 0, 0, 0] }, mesh: 1 },
+          ] },
+          { kind: 'item', layer: 'item_entity_translucent_cull', light: 'entity', overlay: 655360, attach: { draw: 0, part: '/head', matrix: 2 }, slot: 'mainhand', context: 'third_person_right_hand' },
+        ] } },
+        equipment: {},
+      },
+      'minecraft:experience_orb': {
+        light: { block: levels().map((l) => Math.min(l + 7, 15)), sky: levels(), probe: [0, 0, 0] }, by: ['icon'], icons: [[0, 0], [3, 1]],
+        variants: { 0: { base: {}, draws: [{ kind: 'mesh', layer: 'item_entity_translucent_cull', light: 'entity', pose: 0, motions: [], mesh: 0, billboard: [0, 0.1, 0] }] }, 1: { base: {}, draws: [{ kind: 'mesh', layer: 'item_entity_translucent_cull', light: 'entity', pose: 1, motions: [], mesh: 0, billboard: [0, 0.1, 0] }] } },
+      },
+      'minecraft:tnt': {
+        light: plain, by: ['fuse'], fold: { value: 'fuse', from: 2, period: 2 },
+        variants: Object.fromEntries([0, 1, 2, 3].map((fuse) => [fuse, { base: {}, draws: [{ kind: 'block', light: 'entity', overlay: fuse === 2 ? 655375 : 655360, pose: fuse, motions: [], block: 'entity' }] }])),
+      },
+      'minecraft:painting': {
+        light: plain, by: ['variant', 'facing'],
+        variants: { 'minecraft:art,north': { base: {}, draws: [{ kind: 'mesh', layer: 'entity_solid', light: { cells: [[0, 0, -1]] }, pose: 0, motions: [], mesh: 3 }] } },
+      },
+      'minecraft:item': { light: plain, by: [], variants: {}, tiers: [1, 2, 2, 3] },
+    },
+    items: {
+      'minecraft:rod': {
+        third_person_right_hand: [{ layer: 'item_entity_translucent_cull', overlay: 655360, pose: 0, mesh: 2 }],
+        dropped: [{ layer: 'item_entity_translucent_cull', overlay: 655360, pose: 0, mesh: 2 }],
+        copies: [3, 2],
+      },
+    },
+  });
+}
+
+const stoneBlock = () => [{ ...square('minecraft:block/stone'), color: [1, 1, 1, 1], layer: 'block' }];
+const view = (light = () => [15, 15]) => ({ light, blockQuads: stoneBlock });
+const corners = (quad) => [0, 1, 2, 3].map((k) => quad.corners.slice(k * 3, k * 3 + 3));
+const at = (m, [x, y, z]) => [m[0] * x + m[4] * y + m[8] * z + m[12], m[1] * x + m[5] * y + m[9] * z + m[13], m[2] * x + m[6] * y + m[10] * z + m[14]];
+const nearAll = (actual, expected, message) => actual.forEach((corner, i) => near(corner, expected[i], `${message}, corner ${i}`));
+
+test('a draw is placed by its pose, moved by the values its motions name, and a model\'s parts each by their own pose under their parent\'s', async () => {
+  const draw = await import('../web/entity-draw.mjs');
+  const data = new draw.EntityData(capture());
+  const cart = { id: 1, type: 'minecraft:minecart', pos: [0, 0, 0], yaw: 0, pitch: 0, ticks: 0, block: 'minecraft:stone', offset: 10 };
+  const [block, root, box] = draw.geometry(data, cart, view());
+  // The block: its pose (one up), then 4 more of the display offset's
+  // sixteenths up; the parts: the root's square, and /box sixteen pixels
+  // (one block) east.
+  nearAll(corners(block), [[0, 1.25, 0], [1, 1.25, 0], [1, 2.25, 0], [0, 2.25, 0]], 'the block');
+  nearAll(corners(root), [[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]], 'the root part');
+  nearAll(corners(box), [[1, 0, 0], [2, 0, 0], [2, 1, 0], [1, 1, 0]], 'the box part');
+  assert.equal(block.texture, 'minecraft:block/stone', 'a block draw is the entity\'s block');
+  assert.equal(root.texture, 'minecraft:entity/cart');
+});
+
+test('the motions every draw shares are the entity\'s frame, applied as it moves; the rest are its geometry', async () => {
+  const draw = await import('../web/entity-draw.mjs');
+  const data = new draw.EntityData(capture());
+  const cart = { id: 1, type: 'minecraft:minecart', pos: [3, 4, 5], yaw: 90, pitch: 0, ticks: 0, block: 'minecraft:stone', offset: 6 };
+  const variant = data.kind('minecraft:minecart').variants[''];
+  assert.deepEqual(draw.frameMotions(variant).map((motion) => motion.value), ['yaw'], 'the yaw turns both draws alike, first; the offset only the block');
+  const frame = draw.frame(data, cart, { pos: cart.pos, yaw: 90, pitch: 0, age: 0 }, null);
+  // A turn of -90 degrees about y (rate -1), then at the position: x goes to z.
+  const [, root] = draw.geometry(data, cart, view());
+  nearAll(corners(root).map((corner) => at(frame, corner)), [[3, 4, 5], [3, 4, 6], [3, 5, 6], [3, 5, 5]], 'the root part, turned and placed');
+  assert.equal(draw.appearance(data, cart, () => [15, 15]), draw.appearance(data, { ...cart, yaw: 10, pos: [0, 0, 0] }, () => [15, 15]), 'a turn or a move is not another look');
+  assert.notEqual(draw.appearance(data, cart, () => [15, 15]), draw.appearance(data, { ...cart, offset: 7 }, () => [15, 15]), 'another offset is');
+  assert.notEqual(draw.appearance(data, cart, () => [15, 15]), draw.appearance(data, cart, () => [3, 15]), 'and so is another light');
+});
+
+test('a part that changes with a value turns by its change, and a draw that follows the part goes with it', async () => {
+  const draw = await import('../web/entity-draw.mjs');
+  const data = new draw.EntityData(capture());
+  const stand = { id: 2, type: 'minecraft:armor_stand', pos: [0, 0, 0], yaw: 0, pitch: 0, ticks: 0, small: false, pose: [[90, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]], equipment: { mainhand: 'minecraft:rod' } };
+  const [, head, item] = draw.geometry(data, stand, view());
+  // The head one block up, turned 90 degrees about x (ZYX with x alone): y
+  // goes to z.
+  nearAll(corners(head), [[0, 1, 0], [1, 1, 0], [1, 1, 1], [0, 1, 1]], 'the head, turned by Head.x');
+  // The item: the head's pose, then half a block along the head's own x.
+  nearAll(corners(item), [[0.5, 1, 0], [1.5, 1, 0], [1.5, 1, 1], [0.5, 1, 1]], 'the held item, on the head');
+  assert.equal(item.texture, 'minecraft:item/rod');
+  const empty = draw.geometry(data, { ...stand, equipment: {} }, view());
+  assert.equal(empty.length, 2, 'an empty hand draws no item');
+});
+
+test('a variant is picked by its fields, a folded value by its period, an orb by the icon its value takes', async () => {
+  const draw = await import('../web/entity-draw.mjs');
+  const data = new draw.EntityData(capture());
+  const tnt = (fuse) => draw.variantOf(data.kind('minecraft:tnt'), { type: 'minecraft:tnt', fuse });
+  assert.equal(tnt(1).draws[0].pose, 1);
+  assert.equal(tnt(2).draws[0].pose, 2);
+  assert.equal(tnt(5).draws[0].pose, 3, 'fuse 5 draws as fuse 3');
+  assert.equal(tnt(8).draws[0].pose, 2, 'fuse 8 draws as fuse 2');
+  const orb = (value) => draw.variantOf(data.kind('minecraft:experience_orb'), { type: 'minecraft:experience_orb', value });
+  assert.equal(orb(2).draws[0].pose, 0);
+  assert.equal(orb(3).draws[0].pose, 1);
+  assert.throws(() => draw.variantOf(data.kind('minecraft:painting'), { type: 'minecraft:painting', variant: 'minecraft:art', facing: 'up' }), /No variant/);
+  assert.throws(() => draw.variantOf(data.kind('minecraft:tnt'), { type: 'minecraft:tnt' }), /does not say its fuse/);
+});
+
+test('an entity is lit through its kind\'s light from its probe\'s cell, a painting\'s quad from its own, and a flash blends white in', async () => {
+  const draw = await import('../web/entity-draw.mjs');
+  const data = new draw.EntityData(capture());
+  const asked = [];
+  const light = (x, y, z) => {
+    asked.push([x, y, z]);
+    return [x === 4 && y === 0 && z === 4 ? 9 : 3, 12];
   };
-  assert.throws(() => validateIndex(broken((i) => { i.models['block/stone'].elements[0].faces.up.texture = 'block/nope'; })), /block\/nope/);
-  assert.throws(() => validateIndex(broken((i) => { i.textures['block/stone'] = [250, 0, 16, 16]; })), /outside the atlas/);
-  assert.throws(() => validateIndex(broken((i) => { i.blocks['minecraft:stone'].variants[''].model = 'block/nope'; })), /block\/nope/);
-  assert.throws(() => validateIndex(broken((i) => { i.items['minecraft:redstone'].sprite = 'item/nope'; })), /item\/nope/);
-  assert.throws(() => validateIndex(broken((i) => { i.entities['minecraft:minecart'] = 'entity/nope'; })), /entity\/nope/);
+  const [orb] = draw.geometry(data, { id: 3, type: 'minecraft:experience_orb', pos: [2.5, 0.2, 2.5], yaw: 0, pitch: 0, ticks: 0, value: 1 }, view(light));
+  assert.deepEqual(asked.at(-1), [2, 0, 2], 'the orb reads its probe cell');
+  assert.deepEqual(orb.light, [10, 12], 'its block light seven brighter, as its kind says');
+  asked.length = 0;
+  const [art] = draw.geometry(data, { id: 4, type: 'minecraft:painting', pos: [4.5, 0.5, 5.03], yaw: 0, pitch: 0, ticks: 0, variant: 'minecraft:art', facing: 'north' }, view(light));
+  assert.deepEqual(art.light, [9, 12], 'the painting\'s quad in its cell, one north of the entity\'s');
+  assert.deepEqual(draw.lightCells(data, { type: 'minecraft:painting', pos: [4.5, 0.5, 5.03], variant: 'minecraft:art', facing: 'north' }), [[4, 1, 5], [4, 0, 4]]);
+  const [lit] = draw.geometry(data, { id: 5, type: 'minecraft:tnt', pos: [0, 0, 0], yaw: 0, pitch: 0, ticks: 0, fuse: 2, block: 'minecraft:stone' }, view());
+  assert.deepEqual(lit.overlay, [1, 1, 1, 63 / 255], 'OverlayTexture: u 15 keeps a quarter');
+  assert.deepEqual(draw.overlayColor(655360), [1, 1, 1, 1], 'u 0 keeps all');
 });
 
-test('a block state picks the variant that agrees with its properties, or the multipart parts that apply', async () => {
-  const { blockPlacements, parseState, matchesWhen } = await import('../web/entity-models.mjs');
-  const index = entityIndex();
-  assert.deepEqual(parseState('minecraft:slab[facing=east,half=top]'), { id: 'minecraft:slab', props: { facing: 'east', half: 'top' } });
-  assert.deepEqual(blockPlacements(index, 'minecraft:slab[facing=east]'), [{ model: 'block/slab', y: 90 }]);
-  assert.deepEqual(blockPlacements(index, 'minecraft:slab'), [{ model: 'block/slab' }], 'a state with no properties takes the first variant');
-  assert.throws(() => blockPlacements(index, 'minecraft:slab[facing=west]'), /No model of minecraft:slab fits/);
-  assert.throws(() => blockPlacements(index, 'minecraft:nope'), /no block minecraft:nope/);
-  assert.deepEqual(blockPlacements(index, 'minecraft:fence').map((p) => p.model), ['block/post']);
-  assert.deepEqual(blockPlacements(index, 'minecraft:fence[north=true,east=false,south=false]').map((p) => p.y || 0), [0, 0]);
-  assert.deepEqual(blockPlacements(index, 'minecraft:fence[north=false,east=false,south=true]').map((p) => p.y || 0), [0, 90]);
-  assert.equal(matchesWhen({ shape: 'straight|inner' }, { shape: 'inner' }), true);
-  assert.equal(matchesWhen({ shape: '!straight' }, { shape: 'straight' }), false);
-  assert.equal(matchesWhen({ AND: [{ a: 'true' }, { b: 'true' }] }, { a: 'true', b: 'false' }), false);
-  assert.deepEqual(blockPlacements(index, 'minecraft:air'), []);
+test('a dropped stack draws its copies by count, and spins and bobs with its age', async () => {
+  const draw = await import('../web/entity-draw.mjs');
+  const data = new draw.EntityData(capture());
+  const drop = (count) => draw.geometry(data, { id: 6, type: 'minecraft:item', pos: [0, 0, 0], yaw: 0, pitch: 0, ticks: 0, item: 'minecraft:rod', count }, view());
+  assert.equal(drop(1).length, 1);
+  assert.equal(drop(2).length, 2);
+  assert.equal(drop(4).length, 3);
+  assert.equal(drop(64).length, 3, 'past the tiers, the last');
+  nearAll(corners(drop(4)[2]), [[0.5, 0, 0], [1.5, 0, 0], [1.5, 1, 0], [0.5, 1, 0]], 'the third copy moved as the second copy pose says');
+  const entity = { id: 6, type: 'minecraft:item', pos: [0, 0, 0], item: 'minecraft:rod', count: 1 };
+  const offset = draw.bobOffset(6);
+  const frame = draw.frame(data, entity, { pos: [0, 0, 0], age: 20 }, null);
+  const spin = draw.itemSpin(20, offset);
+  near([frame[0], frame[2], frame[13]], [Math.cos(spin), -Math.sin(spin), draw.itemBob(20, offset) - draw.itemBob(0, 0)], 'turned by the spin about y, lifted by the bob');
 });
 
-test('a block model becomes quads on the atlas, tinted where a face asks and turned by the blockstate', async () => {
-  const { EntityIndex, blockMesh, itemBlockMesh, addModel, MeshBuilder } = await import('../web/entity-models.mjs');
-  const entityIndexed = new EntityIndex(entityIndex());
-  const stone = blockMesh(entityIndexed, 'minecraft:stone', 'world');
-  assert.equal(stone.position.length / 3, 36, 'six faces of two triangles');
-  for (let i = 0; i < stone.uv.length; i += 2) {
-    assert.ok(stone.uv[i] >= 0 && stone.uv[i] <= 16 / 256 && stone.uv[i + 1] >= 0 && stone.uv[i + 1] <= 16 / 128, 'a stone uv stays on the stone texture');
-  }
-  assert.ok(stone.position.every((value) => Math.abs(value) <= 0.5), 'the block is centered on the origin');
-  assert.equal(blockMesh(entityIndexed, 'minecraft:air', 'world'), null);
-
-  const colorsOf = (mesh) => {
-    const colors = new Set();
-    for (let i = 0; i < mesh.color.length; i += 3) colors.add(Array.from(mesh.color.slice(i, i + 3), (v) => v.toFixed(3)).join());
-    return [...colors].sort();
-  };
-  assert.deepEqual(colorsOf(blockMesh(entityIndexed, 'minecraft:grass_block', 'world')), ['0.569,0.741,0.349', '1.000,1.000,1.000'], 'only the top is tinted, in the world\'s colour');
-  assert.deepEqual(colorsOf(blockMesh(entityIndexed, 'minecraft:grass_block', 'single')), ['0.486,0.741,0.420', '1.000,1.000,1.000'], 'a block drawn with no level takes its colour for none');
-  assert.deepEqual(colorsOf(itemBlockMesh(entityIndexed, 'minecraft:grass_block')), ['0.486,0.741,0.420', '1.000,1.000,1.000'], 'an item takes its tint source\'s');
-  assert.deepEqual(colorsOf(blockMesh(entityIndexed, 'minecraft:dust[power=15]', 'world')), ['1.000,0.196,0.000', '1.000,1.000,1.000'], 'dust by its power');
-  assert.throws(() => blockMesh(entityIndexed, 'minecraft:dust', 'world'), /does not say its power/);
-
-  const turned = new MeshBuilder();
-  addModel(turned, entityIndexed, 'block/slab', { y: 90 });
-  near(Array.from(turned.normal.slice(0, 3)), [1, 0, 0], 'a north face turned by y=90 faces east');
-  const tilted = new MeshBuilder();
-  addModel(tilted, entityIndexed, 'block/tilted');
-  near(Array.from(tilted.normal.slice(0, 3)), [-Math.SQRT1_2, 0, -Math.SQRT1_2], 'an element rotation turns the normal too');
-
-  const plain = new MeshBuilder();
-  addModel(plain, entityIndexed, 'block/slab');
-  // The slab lists north then west; its west face is rotated, so its first corner takes the uv another corner has.
-  const north = plain.uv.slice(0, 2);
-  const west = plain.uv.slice(12, 14);
-  near(Array.from(north), [0, 0], 'the north face starts at the texture corner');
-  near(Array.from(west), [0, 16 / 128], 'a face rotated 90 degrees starts at the next corner');
+test('Minecraft\'s small functions: Mth.sin\'s table, a minecart\'s offset by id, an orb\'s colour by age', async () => {
+  const draw = await import('../web/entity-draw.mjs');
+  // Mth.sin(x) = SIN[(int) (x * 10430.378F) & 65535].
+  assert.equal(draw.mthSin(0), 0);
+  assert.equal(draw.mthSin(Math.PI / 2), Math.fround(Math.sin((Math.trunc(Math.fround(Math.fround(Math.PI / 2) * Math.fround(10430.378))) * Math.PI * 2) / 65536)));
+  // Id 0's seed is 0: each axis (0.5 / 8 - 0.5) * 0.004.
+  near(draw.minecartOffset(0), [-0.00175, -0.00175, -0.00175].map(Math.fround), 'id 0');
+  const [r, g, b] = draw.orbColor(0);
+  assert.deepEqual([r, g], [127, 255]);
+  assert.ok(b > 0 && b < 51);
 });
 
-test('a sprite is a thin slab of its texture', async () => {
-  const { EntityIndex, spriteMesh } = await import('../web/entity-models.mjs');
-  const mesh = spriteMesh(new EntityIndex(entityIndex()), 'item/redstone');
-  assert.equal(mesh.position.length / 3, 36, 'two faces and four edges');
-  const zs = Array.from({ length: mesh.position.length / 3 }, (_, i) => mesh.position[i * 3 + 2]);
-  assert.equal(Math.max(...zs), 1 / 32);
-  assert.equal(Math.min(...zs), -1 / 32);
-  for (let i = 0; i < mesh.uv.length; i += 2) {
-    assert.ok(mesh.uv[i] >= 80 / 256 && mesh.uv[i] <= 96 / 256 && mesh.uv[i + 1] >= 0 && mesh.uv[i + 1] <= 16 / 128, 'a uv stays on the sprite');
-  }
-});
+// ---- the live viewer's layer (entities.mjs) ----
 
-// ---- what each kind of entity is drawn as ----
-
-const translationOf = (matrix) => matrix.slice(12, 15);
-
-test('an item entity is its sprite or small block, in a stack as Minecraft draws, spinning and bobbing', async () => {
-  const { EntityIndex, EntityModels, copiesOf } = await import('../web/entity-models.mjs');
-  const models = new EntityModels(new EntityIndex(entityIndex()));
-  assert.deepEqual([0, 1, 2, 16, 17, 32, 33, 48, 49, 64].map(copiesOf), [1, 1, 2, 2, 3, 3, 4, 4, 5, 5]);
-  const sprite = models.describe(entity(7, { item: 'minecraft:redstone', count: 20 }));
-  assert.equal(sprite.parts.length, 3);
-  assert.equal(sprite.animated, true);
-  const heights = [0, 0.5, 1, 1.5, 2].map((seconds) => translationOf(sprite.parts[0].update(seconds))[1]);
-  assert.ok(Math.max(...heights) - Math.min(...heights) > 0.05, 'it bobs');
-  const spin = (seconds) => sprite.parts[0].update(seconds).slice(0, 3);
-  assert.notDeepEqual(spin(0), spin(1), 'it turns');
-  const block = models.describe(entity(8, { item: 'minecraft:stone', count: 1 }));
-  assert.equal(block.parts.length, 1);
-  assert.ok(Math.abs(block.parts[0].update(0).slice(0, 3).reduce((s, v) => s + v * v, 0) - 0.0625) < 1e-9, 'a block is a quarter of a block across');
-  const unknown = models.describe(entity(9, { item: 'minecraft:bundle_of_nothing', width: 0.25, height: 0.25 }));
-  assert.deepEqual(unknown.parts[0].box, { width: 0.25, height: 0.25, label: 'bundle_of_nothing' });
-});
-
-test('falling blocks, primed TNT, minecarts and boats are drawn from their models', async () => {
-  const { EntityIndex, EntityModels } = await import('../web/entity-models.mjs');
-  const models = new EntityModels(new EntityIndex(entityIndex()));
-  const falling = models.describe(entity(1, { type: 'minecraft:falling_block', block: 'minecraft:grass_block' }));
-  assert.equal(falling.parts[0].mesh.position.length / 3, 36);
-  near(translationOf(falling.parts[0].matrix), [0, 0.5, 0], 'it stands on the entity position');
-
-  const tnt = models.describe(entity(2, { type: 'minecraft:tnt', fuse: 80 }));
-  assert.equal(tnt.parts.length, 2);
-  assert.notEqual(tnt.parts[1].update(0, { fuse: 80 }), null, 'white for five ticks');
-  assert.equal(tnt.parts[1].update(0, { fuse: 77 }), null, 'then not for five');
-  const scale = (fuse) => tnt.parts[0].update(0, { fuse })[0];
-  assert.equal(scale(80), 1);
-  assert.ok(scale(0) > 1.19, 'it swells as it runs out');
-
-  const plain = models.describe(entity(3, { type: 'minecraft:minecart' }));
-  assert.equal(plain.parts.length, 1);
-  const loaded = models.describe(entity(4, { type: 'minecraft:minecart', block: 'minecraft:tnt' }));
-  assert.equal(loaded.parts.length, 2, 'the display block rides inside');
-  near(translationOf(loaded.parts[1].matrix), [0, 0.656, 0]);
-  const cart = plain.parts[0].mesh;
-  assert.equal(cart.position.length / 3, 5 * 36);
-  const ys = Array.from({ length: cart.position.length / 3 }, (_, i) => cart.position[i * 3 + 1]);
-  assert.ok(Math.min(...ys) > 0 && Math.max(...ys) < 0.8, 'the cart stands on the ground, under three quarters of a block');
-  near(translationOf(plain.orient(90, 0)), [0, 0, 0]);
-
-  const boat = models.describe(entity(5, { type: 'minecraft:oak_boat' }));
-  assert.equal(boat.parts[0].mesh.position.length / 3, 5 * 36);
-});
-
-test('armor stands, arrows, frames and paintings are placed by their own angles and facing', async () => {
-  const { EntityIndex, EntityModels, transformPoint } = await import('../web/entity-models.mjs');
-  const models = new EntityModels(new EntityIndex(entityIndex()));
-  const stand = models.describe(entity(1, { type: 'minecraft:armor_stand', height: 1.975 }));
-  const ys = Array.from({ length: stand.parts[0].mesh.position.length / 3 }, (_, i) => stand.parts[0].mesh.position[i * 3 + 1]);
-  assert.ok(Math.abs(Math.min(...ys)) < 0.01, 'a stand has its feet on the position');
-  assert.ok(Math.abs(Math.max(...ys) - 1.876) < 0.01, `and its head 1.876 up, not ${Math.max(...ys)}`);
-  const small = models.describe(entity(2, { type: 'minecraft:armor_stand', height: 0.9875 }));
-  assert.ok(Math.max(...Array.from(small.parts[0].mesh.position).filter((_, i) => i % 3 === 1)) < 1.05, 'a small stand is half as tall');
-  near(transformPoint(stand.orient(0, 0), [0, 0, -1]), [0, 0, 1], 'yaw 0 turns the model to face south');
-  near(transformPoint(stand.orient(90, 0), [0, 0, -1]), [-1, 0, 0], 'yaw 90 faces west');
-
-  const arrow = models.describe(entity(3, { type: 'minecraft:arrow', height: 0.5 }));
-  near(transformPoint(arrow.orient(0, 0), [1, 0, 0]), [0, 0, 1], 'an arrow with yaw 0 flies south');
-  assert.ok(transformPoint(arrow.orient(0, 30), [1, 0, 0])[1] < 0, 'and down for a positive pitch');
-
-  const frame = models.describe(entity(4, { type: 'minecraft:item_frame', facing: 'east', item: 'minecraft:redstone', rotation: 2 }));
-  near(translationOf(frame.parts[0].matrix), [0.46875, 0, 0], 'the frame stands out from the wall');
-  near(translationOf(frame.parts[1].matrix), [0.04, 0, 0], 'the item sits just in front of the entity');
-  assert.throws(() => models.describe(entity(5, { type: 'minecraft:item_frame', facing: 'sideways' })), /faces sideways/);
-
-  const painting = models.describe(entity(6, { type: 'minecraft:painting', facing: 'north', width: 2, height: 1, variant: 'minecraft:alban' }));
-  const xs = Array.from({ length: painting.parts[0].mesh.position.length / 3 }, (_, i) => painting.parts[0].mesh.position[i * 3]);
-  assert.equal(Math.max(...xs) - Math.min(...xs), 2);
-  const bare = models.describe(entity(7, { type: 'minecraft:painting', facing: 'north', width: 1, height: 1 }));
-  assert.ok(bare.parts[0].mesh, 'a painting the list gives no variant for shows its back');
-});
-
-test('every other entity type is its bounding box with its name', async () => {
-  const { EntityIndex, EntityModels } = await import('../web/entity-models.mjs');
-  const models = new EntityModels(new EntityIndex(entityIndex()));
-  const zombie = models.describe(entity(1, { type: 'minecraft:zombie', width: 0.6, height: 1.95 }));
-  assert.deepEqual(zombie.parts[0].box, { width: 0.6, height: 1.95, label: 'zombie' });
-  near(translationOf(zombie.parts[0].matrix), [0, 0.975, 0], 'the box stands on the position');
-  assert.equal(zombie.animated, false);
-});
-
-test('an entity is drawn again when what it looks like changes, not when it moves', async () => {
-  const { appearance } = await import('../web/entity-models.mjs');
-  const base = entity(1, { item: 'minecraft:redstone', count: 1 });
-  assert.equal(appearance(base), appearance({ ...base, pos: [5, 5, 5], yaw: 40, fuse: 3 }));
-  assert.notEqual(appearance(base), appearance({ ...base, item: 'minecraft:stone' }));
-  assert.notEqual(appearance(base), appearance({ ...base, count: 20 }));
-});
-
-// ---- the layer's frames ----
-
-// Just enough of BlueMap's three.js for the layer to make box entities.
+// Just enough of BlueMap's three.js for the layer: objects with matrices,
+// geometry that keeps its attributes.
 function fakeBlueMap() {
   class Object3D {
-    constructor() { this.children = []; this.userData = {}; this.matrix = { elements: new Array(16).fill(0) }; this.visible = true; }
+    constructor(geometry, material) { this.children = []; this.matrix = { elements: new Array(16).fill(0) }; this.geometry = geometry; this.material = material; }
     add(...objects) { this.children.push(...objects); }
     remove(object) { this.children = this.children.filter((child) => child !== object); }
-    traverse(visit) { visit(this); for (const child of this.children) child.traverse ? child.traverse(visit) : visit(child); }
+    traverse(visit) { visit(this); for (const child of this.children) child.traverse(visit); }
+    clone() { const copy = new Object3D(this.geometry, this.material); copy.children = this.children.map((child) => child.clone()); return copy; }
   }
+  class BufferGeometry {
+    constructor() { this.attributes = {}; }
+    setAttribute(name, attribute) { this.attributes[name] = attribute; }
+    computeBoundingSphere() {}
+    dispose() { this.disposed = true; }
+  }
+  class BufferAttribute { constructor(array, size) { this.array = array; this.itemSize = size; } }
   class Thing { constructor(...args) { this.args = args; } }
-  class HtmlMarker extends Object3D {
-    constructor(id) { super(); this.id = id; this.isHtmlMarker = true; this.elementObject = { element: { remove() {} } }; }
-    updateFromData() {}
-  }
-  const Three = {
-    Group: Object3D, Mesh: Object3D, LineSegments: Object3D,
-    Texture: Thing, ShaderMaterial: Thing, MeshBasicMaterial: Thing, LineBasicMaterial: Thing, BoxGeometry: Thing, EdgesGeometry: Thing, Color: Thing,
-    NearestFilter: 0, ClampToEdgeWrapping: 0, DoubleSide: 0,
+  const Three = { Group: Object3D, Mesh: Object3D, BufferGeometry, BufferAttribute, Texture: Thing, ShaderMaterial: Thing, NearestFilter: 0, ClampToEdgeWrapping: 0, DoubleSide: 0 };
+  return {
+    Three,
+    HIRES_VERTEX_SHADER: 'attribute float ao; void main() { vNormal = normal; vColor = color; }',
+    HIRES_FRAGMENT_SHADER: 'varying vec3 vColor; void main() { color.rgb *= vColor.rgb; }',
   };
-  return { Three, HtmlMarker, HIRES_VERTEX_SHADER: 'void main() { vNormal = normal; }', HIRES_FRAGMENT_SHADER: '' };
 }
 
 async function entityLayer() {
-  global.document ??= { getElementById: () => ({}), createElement: () => ({}), head: { appendChild() {} } };
   const { EntityLayer } = await import('../web/entities.mjs');
-  const viewer = { markers: { add() {}, remove() {} }, data: { uniforms: {} }, redraws: 0, redraw() { this.redraws += 1; } };
-  const layer = new EntityLayer({ BlueMap: fakeBlueMap(), app: { mapViewer: viewer, events: new EventTarget() }, assets: { index: entityIndex(), atlas: {} } });
-  return { layer, viewer };
+  const { EntityData } = await import('../web/entity-draw.mjs');
+  const viewer = { markers: { add() {}, remove() {} }, data: { uniforms: {} }, camera: { matrixWorld: { elements: [...IDENTITY] } }, redraws: 0, redraw() { this.redraws += 1; } };
+  // The mesher: every cell in light 15 of block and sky, every block stone's square.
+  const asked = [];
+  const mesher = {
+    async entities(cells, states) {
+      asked.push({ cells, states });
+      const models = { count: 2, position: new Float32Array([0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0]), uv: new Float32Array(12), color: new Float32Array(6).fill(1), material: new Int32Array([0, 0]) };
+      return { light: cells.map(() => [15, 15]), blocks: Object.fromEntries(states.map((state) => [state, models])) };
+    },
+  };
+  const data = new EntityData(capture());
+  const layer = new EntityLayer({ BlueMap: fakeBlueMap(), app: { mapViewer: viewer, events: new EventTarget() }, assets: { data, textures: ['minecraft:block/stone'], atlas: {} }, mesher });
+  return { layer, viewer, asked, data };
 }
 
-test('a frame asks the viewer for a frame only when its entity list differs from the last one', async () => {
+const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+const cart = (pos, extra = {}) => ({ id: 1, type: 'minecraft:minecart', pos, yaw: 0, pitch: 0, ticks: 0, block: 'minecraft:stone', offset: 6, width: 0.98, height: 0.7, ...extra });
+
+test('the live viewer\'s layer draws an entity\'s geometry in its frame: the shared module\'s quads, moved by its frame each frame', async () => {
+  const draw = await import('../web/entity-draw.mjs');
+  const { layer, asked, data } = await entityLayer();
+  layer.set([cart([2, 3, 4], { yaw: 90 })], 0);
+  await settle();
+  assert.deepEqual(asked[0].states, ['minecraft:stone'], 'the block it shows is asked of the mesher');
+  assert.deepEqual(asked[0].cells, [[2, 3, 4]], 'and the light at its probe');
+  const object = layer.objects.get(1).object;
+  const positions = object.children[0].geometry.attributes.position.array;
+  const shared = draw.geometry(data, cart([2, 3, 4], { yaw: 90 }), { light: () => [15, 15], blockQuads: (state) => layer.blocks.get(state) });
+  // Each quad two triangles: corners 0, 1, 2 and 0, 2, 3.
+  shared.forEach((quad, q) => [0, 1, 2, 0, 2, 3].forEach((k, i) => near(Array.from(positions.slice((q * 6 + i) * 3, (q * 6 + i) * 3 + 3)), quad.corners.slice(k * 3, k * 3 + 3), `quad ${q} vertex ${i}`)));
+  near(object.matrix.elements, draw.frame(data, cart([2, 3, 4], { yaw: 90 }), { pos: [2, 3, 4], yaw: 90, pitch: 0, age: 0 }, null), 'its frame');
+});
+
+test('a frame of the same look keeps the entity\'s geometry and moves it; another look builds it again', async () => {
   const { layer, viewer } = await entityLayer();
-  const zombie = (pos) => entity(1, { type: 'minecraft:zombie', width: 0.6, height: 1.95, pos });
-  layer.set([], 0);
-  assert.equal(viewer.redraws, 1, 'the first frame is drawn');
-  layer.set([], 50);
-  layer.set([], 100);
-  assert.equal(viewer.redraws, 1, 'a still world with no entities draws nothing more');
-  layer.set([zombie([0, 0, 0])], 150);
-  assert.ok(viewer.redraws > 1, 'an entity appearing is drawn');
-  let before = viewer.redraws;
-  layer.set([zombie([0, 0, 0])], 400);
-  assert.equal(viewer.redraws, before, 'the same entity standing where it stood, its glide over, draws nothing');
-  layer.set([zombie([1, 0, 0])], 450);
-  assert.ok(viewer.redraws > before, 'a move is drawn');
-  before = viewer.redraws;
-  layer.update(470);
-  assert.ok(viewer.redraws > before, 'and keeps asking for frames while it glides');
-  before = viewer.redraws;
-  layer.set([zombie([1, 0, 0])], 480);
-  assert.ok(viewer.redraws > before, 'an unchanged list that arrives mid-glide still draws the glide');
-  before = viewer.redraws;
-  layer.set([], 600);
-  assert.ok(viewer.redraws > before, 'an entity leaving is drawn');
+  layer.set([cart([0, 0, 0])], 0);
+  await settle();
+  const first = layer.objects.get(1).object;
+  const redraws = viewer.redraws;
+  layer.set([cart([0, 0, 0])], 50);
+  await settle();
+  assert.equal(viewer.redraws, redraws, 'a still world draws nothing more');
+  layer.set([cart([1, 0, 0], { yaw: 30 })], 100);
+  await settle();
+  assert.equal(layer.objects.get(1).object, first, 'moved and turned, the same geometry');
+  layer.set([cart([1, 0, 0], { offset: 9 })], 150);
+  await settle();
+  assert.notEqual(layer.objects.get(1).object, first, 'another display offset, built again');
+  layer.set([], 200);
+  assert.equal(layer.objects.size, 0, 'an entity gone is removed');
 });

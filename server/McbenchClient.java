@@ -93,10 +93,6 @@ import javax.imageio.ImageIO;
 // piece not run as Minecraft runs it, checked by
 // test/block-tints-minecraft.test.js against the jar's image.
 //
-// Items: itemTints gives the colours of an item definition's model's tint
-// sources (ItemTintSources.CODEC, ItemTintSource.calculate with the item's
-// own stack and no level or holder), for McbenchEntityAssets.
-//
 //   McbenchClient.read(client.jar, blockTable, <Minecraft's libraries, a class path>, biome)
 //
 // The client jar's classes are obfuscated, so the program finds what it
@@ -127,9 +123,12 @@ public class McbenchClient {
   final Method createBlockEntity;
   final Class<?> blockPos;
   final Object ops;
+  // HolderLookup.Provider over every built-in registry (RegistryOps is made
+  // over it), for McbenchEntities to read saved entities with.
+  final Object lookup;
+  // BuiltInRegistries's registries.
+  final List<Object> registries;
   final Method parse, result, jsonParse;
-  final Object tintList, stackCodec;
-  final Method calculate;
 
   public static McbenchClient read(Path client, Path table, String libraries, String biomeId) throws Exception {
     return new McbenchClient(client, table, libraries, biomeId);
@@ -145,10 +144,8 @@ public class McbenchClient {
     ClassDesc pipeline = ClassDesc.of("com.mojang.blaze3d.pipeline.RenderPipeline");
     classes = new ArrayList<>();
     // By block, the tint indices its models' faces carry (its blockstate
-    // file's models, their parents resolved), and the tint source types item
-    // definitions name.
+    // file's models, their parents resolved).
     Map<String, Set<Integer>> blockTints = new java.util.HashMap<>();
-    Set<String> tintTypes = new TreeSet<>();
     String biomeFile;
     Map<String, int[]> colormaps = new java.util.HashMap<>();
     try (FileSystem jar = FileSystems.newFileSystem(client)) {
@@ -164,9 +161,6 @@ public class McbenchClient {
           for (String model : models(JsonParser.parseString(Files.readString(file)))) used.addAll(modelTints(jar, model, modelTints));
           blockTints.put("minecraft:" + file.getFileName().toString().replaceFirst("\\.json$", ""), used);
         }
-      }
-      try (Stream<Path> files = Files.list(jar.getPath("assets/minecraft/items"))) {
-        for (Path file : (Iterable<Path>) files::iterator) tintTypes(JsonParser.parseString(Files.readString(file)), tintTypes);
       }
       int colon = biomeId.indexOf(':');
       biomeFile = Files.readString(jar.getPath("data/" + biomeId.substring(0, colon) + "/worldgen/biome/" + biomeId.substring(colon + 1) + ".json"));
@@ -202,7 +196,7 @@ public class McbenchClient {
     // in too: they get a loader of their own.
     List<URL> urls = new ArrayList<>(List.of(client.toUri().toURL()));
     for (String library : libraries.split(java.io.File.pathSeparator)) urls.add(Path.of(library).toUri().toURL());
-    loader = new URLClassLoader(urls.toArray(URL[]::new), new IcuLinkage());
+    loader = new URLClassLoader(urls.toArray(URL[]::new), new IcuLinkage(classes));
     Thread.currentThread().setContextClassLoader(loader);
     Class.forName("net.minecraft.server.Main", true, loader).getMethod("main", String[].class).invoke(null, (Object) new String[] { "--initSettings" });
 
@@ -318,6 +312,8 @@ public class McbenchClient {
     }
     if (createOps == null) throw new IllegalStateException("Found no RegistryOps.create in the client jar");
     ops = createOps.invoke(null, json, provider);
+    lookup = provider;
+    this.registries = builtInRegistries;
     Class<?> decoder = Class.forName("com.mojang.serialization.Decoder", true, loader);
     parse = decoder.getMethod("parse", dynamicOps, Object.class);
     result = Class.forName("com.mojang.serialization.DataResult", true, loader).getMethod("result");
@@ -442,44 +438,7 @@ public class McbenchClient {
       renderers[id] = found;
     }
 
-    // ItemTintSources: the class with a static Codec that names every tint
-    // source type the item definitions use; ItemTintSource.calculate,
-    // the one abstract method of its codec's type; its stack's MAP_CODEC,
-    // the one public static MapCodec of the stack's class.
-    ClassModel sourcesClass = only("ItemTintSources", classes.stream().filter((model) -> {
-      Set<String> strings = new HashSet<>();
-      for (var entry : model.constantPool()) if (entry instanceof StringEntry string) strings.add(string.stringValue());
-      return strings.containsAll(tintTypes) && model.fields().stream().anyMatch((field) -> field.flags().has(AccessFlag.STATIC)
-        && field.fieldTypeSymbol().descriptorString().equals("Lcom/mojang/serialization/Codec;"));
-    }).toList());
-    // Its bootstrap, the one public static method of no arguments, registers
-    // the types (the client calls it as it starts).
-    Class<?> sourcesType = load(sourcesClass);
-    only("ItemTintSources.bootstrap", List.of(sourcesType.getMethods()).stream().filter((method) -> Modifier.isStatic(method.getModifiers())
-      && method.getParameterCount() == 0 && method.getReturnType() == void.class && method.getDeclaringClass() == sourcesType).toList()).invoke(null);
-    Field sourcesCodec = only("ItemTintSources.CODEC", List.of(sourcesType.getFields()).stream()
-      .filter((field) -> Modifier.isStatic(field.getModifiers()) && field.getType().getName().equals("com.mojang.serialization.Codec")).toList());
-    Object codec = sourcesCodec.get(null);
-    tintList = codec.getClass().getMethod("listOf").invoke(codec);
-    Class<?> source = (Class<?>) ((ParameterizedType) sourcesCodec.getGenericType()).getActualTypeArguments()[0];
-    calculate = only("ItemTintSource.calculate", List.of(source.getMethods()).stream()
-      .filter((method) -> Modifier.isAbstract(method.getModifiers()) && method.getReturnType() == int.class).toList());
-    Class<?> stack = calculate.getParameterTypes()[0];
-    Field stackMapCodec = only("ItemStack.MAP_CODEC", List.of(stack.getFields()).stream()
-      .filter((field) -> Modifier.isStatic(field.getModifiers()) && field.getType().getName().equals("com.mojang.serialization.MapCodec")).toList());
-    Object mapCodec = stackMapCodec.get(null);
-    stackCodec = mapCodec.getClass().getMethod("codec").invoke(mapCodec);
     this.jsonParse = jsonParse;
-  }
-
-  // The colours (ARGB) of the tint sources `tints` (an item definition's
-  // model's "tints", JSON) for the item `item`, by tint index.
-  public int[] itemTints(String item, String tints) throws Exception {
-    List<?> sources = (List<?>) decode(tintList, jsonParse.invoke(null, tints), "the tints of " + item);
-    Object stack = decode(stackCodec, jsonParse.invoke(null, "{\"id\":\"" + item + "\"}"), "a stack of " + item);
-    int[] colors = new int[sources.size()];
-    for (int i = 0; i < colors.length; i++) colors[i] = (int) calculate.invoke(sources.get(i), stack, null, null);
-    return colors;
   }
 
   void writeLayers(Path target) throws Exception {
@@ -593,20 +552,6 @@ public class McbenchClient {
     return found;
   }
 
-  // The types (without their namespace) of the tint sources an item
-  // definition names.
-  static void tintTypes(JsonElement element, Set<String> into) {
-    if (element.isJsonObject()) {
-      for (var entry : element.getAsJsonObject().entrySet()) {
-        if (entry.getKey().equals("tints")) {
-          for (JsonElement tint : entry.getValue().getAsJsonArray()) into.add(tint.getAsJsonObject().get("type").getAsString().replaceFirst("^minecraft:", ""));
-        } else tintTypes(entry.getValue(), into);
-      }
-    } else if (element.isJsonArray()) {
-      for (JsonElement item : element.getAsJsonArray()) tintTypes(item, into);
-    }
-  }
-
   static boolean isPublic(MethodModel method) {
     return method.flags().has(AccessFlag.PUBLIC);
   }
@@ -640,20 +585,77 @@ public class McbenchClient {
   // Font; the client's own libraries hold ICU, the server's (which this runs
   // on) do not. The exception, defined here as an Exception of that name, is
   // all that linking asks: the text the block entity renderers lay out at
-  // rest (a sign's, empty) is never shaped (McbenchBlockEntities).
+  // rest (a sign's, empty) is never shaped (McbenchBlockEntities). Likewise
+  // the item model property local_time (SelectItemModelProperties, which
+  // McbenchEntities registers as the client does) formats the date with an
+  // ICU SimpleDateFormat: the chest's item model draws a Christmas chest
+  // from December 24 to 26. Each ICU class asked for is defined here with the
+  // constructors and methods the client's classes name of it, each answering
+  // as if ICU knew nothing (null, zero or false): a date formats to null,
+  // which no case of a select matches, so such an item shows its fallback, the
+  // chest of every other day. A class's superclass is ICU's for the two that
+  // are assigned to another.
   static final class IcuLinkage extends ClassLoader {
-    static final String NAME = "com.ibm.icu.text.ArabicShapingException";
+    static final Map<String, String> PARENTS = Map.of(
+      "com/ibm/icu/text/ArabicShapingException", "java/lang/Exception",
+      "com/ibm/icu/text/SimpleDateFormat", "com/ibm/icu/text/DateFormat");
+    // By ICU class, the methods named of it: name and descriptor, and
+    // whether static (an invokestatic, or a static method handle).
+    final Map<String, Map<String, Boolean>> named = new java.util.HashMap<>();
 
-    IcuLinkage() {
+    IcuLinkage(List<ClassModel> classes) {
       super(ClassLoader.getPlatformClassLoader());
+      for (ClassModel model : classes) {
+        // Only a class whose constant pool names ICU is read further.
+        boolean names = false;
+        for (var entry : model.constantPool()) {
+          if (entry instanceof java.lang.classfile.constantpool.ClassEntry type && type.asInternalName().startsWith("com/ibm/icu/")) names = true;
+          if (entry instanceof java.lang.classfile.constantpool.MethodHandleEntry handle && handle.reference().owner().asInternalName().startsWith("com/ibm/icu/")) {
+            add(handle.reference().owner().asInternalName(), handle.reference().name().stringValue() + handle.reference().type().stringValue(), handle.kind() == 6);
+          }
+        }
+        if (!names) continue;
+        for (MethodModel method : model.methods()) {
+          for (InvokeInstruction invoke : invocations(method)) {
+            if (invoke.owner().asInternalName().startsWith("com/ibm/icu/")) add(invoke.owner().asInternalName(), invoke.name().stringValue() + invoke.type().stringValue(), invoke.opcode() == java.lang.classfile.Opcode.INVOKESTATIC);
+          }
+        }
+      }
+    }
+
+    void add(String owner, String method, boolean isStatic) {
+      named.computeIfAbsent(owner, (key) -> new java.util.TreeMap<>()).put(method, isStatic);
     }
 
     @Override protected Class<?> findClass(String name) throws ClassNotFoundException {
-      if (!name.equals(NAME)) throw new ClassNotFoundException(name);
-      ClassDesc self = ClassDesc.of(NAME), exception = ClassDesc.of("java.lang.Exception");
-      byte[] bytes = ClassFile.of().build(self, (type) -> type.withSuperclass(exception).withFlags(AccessFlag.PUBLIC)
-        .withMethodBody("<init>", MethodTypeDesc.of(ClassDesc.ofDescriptor("V")), AccessFlag.PUBLIC.mask(),
-          (code) -> code.aload(0).invokespecial(exception, "<init>", MethodTypeDesc.of(ClassDesc.ofDescriptor("V"))).return_()));
+      String internal = name.replace('.', '/');
+      if (!internal.startsWith("com/ibm/icu/")) throw new ClassNotFoundException(name);
+      ClassDesc self = ClassDesc.ofInternalName(internal), superclass = ClassDesc.ofInternalName(PARENTS.getOrDefault(internal, "java/lang/Object"));
+      byte[] bytes = ClassFile.of().build(self, (type) -> {
+        type.withSuperclass(superclass).withFlags(AccessFlag.PUBLIC);
+        Map<String, Boolean> methods = new java.util.TreeMap<>(named.getOrDefault(internal, Map.of()));
+        methods.put("<init>()V", false);
+        methods.forEach((method, isStatic) -> {
+          int open = method.indexOf('(');
+          String methodName = method.substring(0, open);
+          if (!isStatic && List.of("equals", "hashCode", "toString").contains(methodName)) return;
+          MethodTypeDesc descriptor = MethodTypeDesc.ofDescriptor(method.substring(open));
+          type.withMethodBody(methodName, descriptor, AccessFlag.PUBLIC.mask() | (isStatic ? AccessFlag.STATIC.mask() : 0), (code) -> {
+            if (methodName.equals("<init>")) code.aload(0).invokespecial(superclass, "<init>", MethodTypeDesc.of(ClassDesc.ofDescriptor("V"))).return_();
+            else {
+              var returned = java.lang.classfile.TypeKind.from(descriptor.returnType());
+              switch (returned) {
+                case VOID -> code.return_();
+                case REFERENCE -> code.aconst_null().areturn();
+                case LONG -> code.lconst_0().lreturn();
+                case FLOAT -> code.fconst_0().freturn();
+                case DOUBLE -> code.dconst_0().dreturn();
+                default -> code.iconst_0().ireturn();
+              }
+            }
+          });
+        });
+      });
       return defineClass(name, bytes, 0, bytes.length);
     }
   }

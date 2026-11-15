@@ -348,10 +348,10 @@ async function executeSeeBuild(conversation, args, signal) {
     const made = [...settled.values()].find((result) => !result.cached);
     Object.assign(timings, made ? made.timings : { settle: 'cached' });
     shots = cameras.map(({ camera, tick }, index) => {
-      const { world } = settled.get(tick);
+      const { world, entities } = settled.get(tick);
       if (world.size() === 0) throw new Error(`shot ${index + 1}: Minecraft keeps none of the blocks of this build at tick ${tick}`);
       try {
-        return { ...resolveShot(camera, world), tick };
+        return { ...resolveShot(camera, world, entities), tick };
       } catch (error) {
         throw new Error(`shot ${index + 1}: ${error.message}`);
       }

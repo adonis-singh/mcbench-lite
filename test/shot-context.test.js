@@ -34,7 +34,7 @@ test('context loss reloads the world and retries the whole inspection once', asy
     return browser;
   });
   const { renderShots, resolveShot, closeRenderer } = require('../server/shot');
-    const shots = (world, views) => views.map((view) => resolveShot({ view }, world));
+    const shots = (world, views) => views.map((view) => resolveShot({ view }, world, []));
   t.after(closeRenderer);
   const { World } = require('../server/world');
   const bounds = new World();
@@ -84,7 +84,7 @@ test('a page that closed is opened again, and a render queued behind closeRender
   const { World } = require('../server/world');
   const world = new World();
   world.set(0, 0, 0, 'minecraft:stone');
-  const shot = () => [resolveShot({ view: 'front' }, world)];
+  const shot = () => [resolveShot({ view: 'front' }, world, [])];
   await renderShots('fixture', shot());
   // The page closes on its own (neither a crash nor a disconnect).
   browsers[0].emit('close');

@@ -25,6 +25,9 @@ class FakeEngines {
   // The ticks of each TICK request.
   static ticks = [];
 
+  // The entities each TICK writes (the engine's list).
+  static entities = [];
+
   // The most placements and ticks that ran at once, and a pause (ms) in each placement.
   static running = 0;
 
@@ -108,9 +111,12 @@ class FakeEngines {
     fs.writeFileSync(file, FakeEngines.unsupported(this.blocks).map((key) => `${key.split(',').join(' ')}\n`).join(''));
   }
 
-  async tick(ticks) {
+  // As the engine's TICK: the ticks, then the entities (FakeEngines.entities,
+  // the engine's list, none unless a test gives some) to `entitiesFile`.
+  async tick(ticks, patchFile, entitiesFile) {
     FakeEngines.ticks.push(ticks);
     for (let i = 0; i < ticks; i += 1) FakeEngines.rules(this.blocks);
+    fs.writeFileSync(entitiesFile, JSON.stringify(FakeEngines.entities));
   }
 
   async stop() { this.child = null; }

@@ -117,6 +117,16 @@ export class Mesher {
   }
 
   // The faces the tile mesher draws of the block state `state` (named as
+  // The [block, sky] light of the world at each of `cells` ([x, y, z] each),
+  // which an entity there is drawn in (light in renderer/src/lib.rs).
+  light(cells) {
+    const bytes = new Int32Array(cells.length * 3);
+    cells.forEach((cell, i) => bytes.set(cell, i * 3));
+    const raw = new Uint8Array(bytes.buffer);
+    this.check(this.module.light(this.give(raw), raw.length));
+    return Array.from(this.output(), (level) => [level & 15, level >> 4]);
+  }
+
   // Minecraft names it, "minecraft:oak_sign[rotation=4]", a property left
   // out at its default) alone (lone in renderer/src/lib.rs), those with a
   // cullface toward `culled` hidden (bits over down, up, north, south,

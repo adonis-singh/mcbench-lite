@@ -9,19 +9,26 @@ const vm = require('node:vm');
 // (a BlockStates), `tints` (a BlockTints of them) and the page's `assets` (by
 // file name under /api/assets/), and, given `live` ({ wasm, pack, textures:
 // the map's texture names }), the live viewer's mesher module, pack and
-// texture list. `fetched` collects every address asked.
+// texture list, and with `entities` the bake's entity capture there too.
+// `fetched` collects every address asked.
 const ROOT = path.join(__dirname, '..', '..');
 
-// A WebGL context that does nothing but keep each buffer's data.
+// A WebGL context that does nothing but keep each buffer's data, and every
+// upload in order (`uploads`: { target, data }).
 function fakeGl(canvas) {
   const buffers = new Set();
   const bound = new Map();
+  const uploads = [];
   const own = {
     canvas,
+    uploads,
     createBuffer() { const buffer = { data: null }; buffers.add(buffer); return buffer; },
     deleteBuffer(buffer) { buffers.delete(buffer); },
     bindBuffer(target, buffer) { bound.set(target, buffer); },
-    bufferData(target, data) { bound.get(target).data = Array.from(data); },
+    bufferData(target, data) {
+      bound.get(target).data = Array.from(data);
+      uploads.push({ target, data: Array.from(data) });
+    },
     getShaderParameter: () => true,
     getProgramParameter: () => true,
     getAttribLocation: () => 0,
@@ -60,6 +67,7 @@ async function viewerHarness(states, assets, tints, live = null, fetched = []) {
     binary['/live/pack.bin'] = () => live.pack;
     json['/api/minecraft/status'] = { mesher: { wasm: '/live/mesher.wasm', pack: '/live/pack.bin' }, viewerUrl: '/live/' };
     json['/live/maps/live/textures.json'] = live.textures.map((resourcePath) => ({ resourcePath }));
+    if (live.entities) json['/live/mcbench-entities.json'] = live.entities;
   }
   const copy = (bytes) => bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.length);
   globalThis.fetch = async (url) => {
@@ -81,10 +89,11 @@ async function viewerHarness(states, assets, tints, live = null, fetched = []) {
       }),
     }),
   };
-  globalThis.__viewer = { light: await import('../../web/light.mjs'), mesher: await import('../../web/mesher.mjs'), glMatrix: require('gl-matrix') };
+  globalThis.__viewer = { light: await import('../../web/light.mjs'), mesher: await import('../../web/mesher.mjs'), entities: await import('../../web/entity-draw.mjs'), glMatrix: require('gl-matrix') };
   const source = fs.readFileSync(path.join(ROOT, 'web', 'viewer.js'), 'utf8')
     .replace(/^import (\{.*\}) from '\.\/light\.mjs';$/m, 'const $1 = globalThis.__viewer.light;')
     .replace(/^import (\{.*\}) from '\.\/mesher\.mjs';$/m, 'const $1 = globalThis.__viewer.mesher;')
+    .replace(/^import (\{.*\}) from '\.\/entity-draw\.mjs';$/m, 'const $1 = globalThis.__viewer.entities;')
     .replace(/^import (\{.*\}) from '\/vendor\/gl-matrix\/index\.js';$/m, 'const $1 = globalThis.__viewer.glMatrix;')
     .replace('export async function createViewer', 'globalThis.__viewer.createViewer = async function createViewer');
   vm.runInThisContext(source, { filename: 'viewer.js' });
@@ -99,7 +108,7 @@ async function viewerHarness(states, assets, tints, live = null, fetched = []) {
     // What a frame draws: each mesh's buffers, in the order deepslate draws them.
     const drawn = () => renderer.chunkBuilder.getMeshes().map((mesh) => ['posBuffer', 'colorBuffer', 'textureBuffer', 'textureLimitBuffer', 'normalBuffer', 'indexBuffer']
       .map((field) => mesh[field].data));
-    return { viewer, world, chunks, drawn, buffers };
+    return { viewer, world, chunks, drawn, buffers, uploads: gl.uploads };
   };
 }
 

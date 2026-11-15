@@ -215,11 +215,31 @@ function framingPoints(world, box) {
   return points;
 }
 
-// The camera of a shot of `world`: viewer convention (forward = [cos p sin
-// y, -sin p, -cos p cos y], eye = focus - forward * focusDist), plus a lens.
-// `sizes` are see_build's unless a caller has its own (a shared build's
-// square preview, share.js).
-function resolveShot(spec, world, sizes = SIZES) {
+// The corners of each entity's box (its width across x and z, its height up
+// from its position), cut to `box` when given: an entity is framed with the
+// blocks, also past them (a minecart on a rail at the build's edge), but
+// not past a clip or region the shot was given.
+function entityPoints(entities, box) {
+  const points = [];
+  for (const { pos: [x, y, z], width, height } of entities) {
+    let min = [x - width / 2, y, z - width / 2];
+    let max = [x + width / 2, y + height, z + width / 2];
+    if (box) {
+      min = min.map((v, i) => Math.max(v, box.min[i]));
+      max = max.map((v, i) => Math.min(v, box.max[i] + 1));
+      if (min.some((v, i) => v > max[i])) continue;
+    }
+    for (const px of [min[0], max[0]]) for (const py of [min[1], max[1]]) for (const pz of [min[2], max[2]]) points.push([px, py, pz]);
+  }
+  return points;
+}
+
+// The camera of a shot of `world` and its `entities` (the engine's list at
+// the tick shot): viewer convention (forward = [cos p sin y, -sin p, -cos p
+// cos y], eye = focus - forward * focusDist), plus a lens. `sizes` are
+// see_build's unless a caller has its own (a shared build's square preview,
+// share.js).
+function resolveShot(spec, world, entities, sizes = SIZES) {
   const bounds = world.bounds();
   if (!bounds) throw new Error('Nothing to render (empty world)');
   const known = new Set(['view', 'eye', 'target', 'region', 'clip', 'projection', 'fov', 'grid', 'size']);
@@ -263,6 +283,7 @@ function resolveShot(spec, world, sizes = SIZES) {
   for (const vector of [right, up, forward]) for (let i = 0; i < 3; i += 1) if (Math.abs(vector[i]) < 1e-12) vector[i] = 0;
   const points = framingPoints(world, region);
   if (points.length === 0) throw new Error('Nothing to draw: the framed box holds no blocks');
+  for (const p of entityPoints(entities, spec.region ? region : clip)) points.push(p);
   // Plain loops: a large world has more points than a call takes as spread
   // arguments.
   const lowest = [Infinity, Infinity, Infinity];

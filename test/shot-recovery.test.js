@@ -44,7 +44,7 @@ test('renderer failures release the queue even when evaluate and close never fin
   ]) {
     delete require.cache[require.resolve('../server/shot')];
     const { renderShots, resolveShot } = require('../server/shot');
-  const shots = (world, views) => views.map((view) => resolveShot({ view }, world));
+  const shots = (world, views) => views.map((view) => resolveShot({ view }, world, []));
     mode = failure;
     await assert.rejects(renderShots(failure, shots(bounds, ['front'])), expected);
     mode = 'healthy';

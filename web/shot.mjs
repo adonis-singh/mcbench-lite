@@ -111,6 +111,7 @@ window.__shot = {
           }
           viewer.applyDelta({ chunks: [], removed: event.removed });
           for (const key of event.removed) delete known[key];
+          viewer.setEntities(event.entities);
         } else if (event.type === 'chunk') {
           viewer.applyDelta({ chunks: [event.chunk], removed: [] });
           known[event.chunk.key] = event.chunk.version;

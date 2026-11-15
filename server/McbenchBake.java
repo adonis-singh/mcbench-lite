@@ -77,20 +77,23 @@ import java.util.function.Predicate;
 // transforms, sorting and writing the tile. No BlueMap runs in the app.
 //
 //   java -cp <bluemap cli jar>:<classes> McbenchBake <minecraft version> <block table tsv>
-//     <Minecraft's libraries, a class path> <the world's biome> [flow table out]
+//     <Minecraft's libraries, a class path> <the world's biome> <Mojang's client mappings> [flow table out]
 //
 // run in a folder holding BlueMap's configuration (config/, written by
 // server/bluemap.js, whose map "live" holds the render settings). It writes
 // the web app to web/, the map's settings.json and textures.json to
-// web/maps/live/ and the pack to web/mcbench-pack.bin, and the entity layer's
-// atlas and index to web/mcbench-entities.png and .json (McbenchEntityAssets).
+// web/maps/live/ and the pack to web/mcbench-pack.bin, and what Minecraft's
+// entity renderers draw of every entity the engine holds, with its atlas, to
+// web/mcbench-entities.json and .png (McbenchEntities, which names the
+// client's classes by Mojang's mappings of the client jar, and
+// McbenchEntityAssets).
 // Once BlueMap has the client jar, Minecraft's client is asked what it says
 // of every block state (McbenchClient, on a thread of its own while BlueMap
-// loads its resources), which writes render-layers.tsv and tints.tsv here;
-// BlueMap then draws the blocks the client tints in the client's colours
-// (minecraftColors), and the entity layer is tinted as the client tints it.
+// loads its resources, where the entities are captured too), which writes
+// render-layers.tsv and tints.tsv here; BlueMap then draws the blocks the
+// client tints in the client's colours (minecraftColors).
 // It draws every model variant with BlueMap's own renderer too and fails
-// unless the baked data rebuilds those faces (see check). With a third argument it also writes,
+// unless the baked data rebuilds those faces (see check). With a sixth argument it also writes,
 // for renderer/'s test, the flow angle BlueMap's LiquidModelRenderer gives
 // every own level and four neighbours (see writeFlowTable).
 //
@@ -943,7 +946,19 @@ class McbenchBake {
       // from while BlueMap loads its resources from it.
       service.getOrLoadMinecraftVersion();
       Path clientJar = service.getConfig().getCoreConfig().getData().resolve("minecraft-client-" + args[0] + ".jar");
-      var client = new FutureTask<>(() -> McbenchClient.read(clientJar, Path.of(args[1]), args[2], args[3]));
+      // Minecraft's client is read, and what its block entity renderers
+      // draw captured (McbenchBlockEntities), on a thread of its own while
+      // BlueMap loads its resources; then what its entity renderers draw
+      // (McbenchEntities) on another, while this one goes on with the pack.
+      McbenchBlockEntities[] blockEntities = new McbenchBlockEntities[1];
+      var drawn = new AtomicReference<FutureTask<McbenchEntities>>();
+      var client = new FutureTask<>(() -> {
+        McbenchClient read = McbenchClient.read(clientJar, Path.of(args[1]), args[2], args[3]);
+        blockEntities[0] = McbenchBlockEntities.capture(read);
+        drawn.set(new FutureTask<>(() -> McbenchEntities.capture(read, clientJar, Path.of(args[4]))));
+        new Thread(drawn.get(), "minecraft-entities").start();
+        return read;
+      });
       new Thread(client, "minecraft-client").start();
       ResourcePack resources = service.getOrLoadResourcePack();
       service.createOrUpdateWebApp(true);
@@ -955,7 +970,7 @@ class McbenchBake {
       var map = new BmMap("live", settings.getName(), new ProbeWorld(biome, resources),
         service.getOrLoadStorage(settings.getStorage()).map("live"), resources, settings);
       McbenchClient minecraft = client.get();
-      var entities = McbenchBlockEntities.capture(minecraft);
+      var entities = blockEntities[0];
       entities.refused.forEach((type, why) -> System.out.println("MCBENCH_REFUSED " + type + ": " + why));
       var vanilla = new ResourcePack(resources.getPackVersion());
       vanilla.loadResources(List.of(vanillaFiles(clientJar, entities, Path.of("vanilla"))));
@@ -971,8 +986,21 @@ class McbenchBake {
       minecraftColors(resources, Path.of("tints.tsv"));
       var bake = new McbenchBake(resources, vanilla, entities, map.getTextureGallery(), biome);
       bake.write(Path.of(args[1]), Path.of("web/mcbench-pack.bin"));
-      McbenchEntityAssets.write(clientJar, minecraft, Path.of("web/mcbench-entities.png"), Path.of("web/mcbench-entities.json"));
-      if (args.length > 4) bake.writeFlowTable(Path.of(args[4]));
+      // The entities' atlas: every texture their quads name and every
+      // texture of the map that is a file of the client jar (not BlueMap's
+      // own: its missing texture, the armor trims it makes), which the block
+      // an entity draws names.
+      McbenchEntities captured = drawn.get().get();
+      var atlased = new java.util.TreeSet<>(captured.textures);
+      atlased.remove("");
+      try (var jar = java.nio.file.FileSystems.newFileSystem(clientJar)) {
+        for (var texture : com.google.gson.JsonParser.parseString(Files.readString(Path.of("web/maps/live/textures.json"))).getAsJsonArray()) {
+          String[] name = texture.getAsJsonObject().get("resourcePath").getAsString().split(":", 2);
+          if (Files.exists(jar.getPath("assets/" + name[0] + "/textures/" + name[1] + ".png"))) atlased.add(name[0] + ":" + name[1]);
+        }
+      }
+      captured.write(Path.of("web/mcbench-entities.json"), McbenchEntityAssets.atlas(clientJar, atlased, Path.of("web/mcbench-entities.png")));
+      if (args.length > 5) bake.writeFlowTable(Path.of(args[5]));
     }
     if (failure.get() != null) throw failure.get();
   }

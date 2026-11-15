@@ -1,10 +1,12 @@
 // The entity layer of the viewer: draws the live world's entities, which
-// BlueMap's own renderer leaves out, in BlueMap's web app (three.js). The
-// app streams the whole entity list each frame (`set`); the layer keeps one
-// object per entity id, moves it between frames and adds and removes
-// objects as ids come and go. Models are in entity-models.mjs, textured from
-// the atlas the bake makes (server/McbenchEntityAssets.java).
-import { EntityIndex, EntityModels, appearance, compose, translation } from './entity-models.mjs';
+// BlueMap's own renderer leaves out, in BlueMap's web app (three.js), as
+// Minecraft's own entity renderers draw them (entity-draw.mjs, over what the
+// bake captured of them, server/McbenchEntities.java), textured from the
+// bake's entity atlas and lit by the light the viewer's mesher holds at each
+// entity. The app streams the whole entity list each frame (`set`); the
+// layer keeps one object per entity id, moves it between frames and adds and
+// removes objects as ids come and go.
+import { EntityData, appearance, frame, geometry, lightCells, loneQuads, variantOf } from './entity-draw.mjs';
 
 // An entity's place between frames. Each frame gives every entity's
 // position and angles; the displayed values glide from where they are to the
@@ -87,11 +89,16 @@ export class EntityTracker {
   }
 }
 
-// The atlas image and the index, fetched from the bake's folder.
+// The capture, its atlas and the map's texture names (which a block an
+// entity draws names its textures by), fetched from the bake's folder.
 export async function loadEntityAssets(baseUrl) {
-  const [response, atlas] = await Promise.all([fetch(new URL('mcbench-entities.json', baseUrl)), loadImage(new URL('mcbench-entities.png', baseUrl))]);
-  if (!response.ok) throw new Error(`The entity index is unavailable (HTTP ${response.status})`);
-  return { index: await response.json(), atlas };
+  const fetched = async (name) => {
+    const response = await fetch(new URL(name, baseUrl));
+    if (!response.ok) throw new Error(`${name} is unavailable (HTTP ${response.status})`);
+    return response.json();
+  };
+  const [json, textures, atlas] = await Promise.all([fetched('mcbench-entities.json'), fetched('maps/live/textures.json'), loadImage(new URL('mcbench-entities.png', baseUrl))]);
+  return { data: new EntityData(json), textures: textures.map((texture) => texture.resourcePath), atlas };
 }
 
 function loadImage(url) {
@@ -107,37 +114,46 @@ function columnMajor(matrix, target) {
   for (let i = 0; i < 16; i += 1) target.elements[i] = matrix[i];
 }
 
-const hue = (text) => {
-  let h = 0;
-  for (const c of text) h = (h * 31 + c.charCodeAt(0)) % 360;
-  return h;
-};
+const cellKey = (cell) => cell.join(',');
+
+// A render type drawn blended, after the solid ones (its pipeline's blend).
+const blended = (layer) => /translucent/.test(layer);
 
 export class EntityLayer {
   // BlueMap: the app's `BlueMap` module namespace; app: window.bluemap;
-  // assets: { index, atlas } (loadEntityAssets).
-  constructor({ BlueMap, app, assets }) {
+  // assets: loadEntityAssets's; mesher: the tile sync's MesherClient, which
+  // answers the light of the world and the models of blocks.
+  constructor({ BlueMap, app, assets, mesher }) {
     this.BlueMap = BlueMap;
     this.Three = BlueMap.Three;
     this.viewer = app.mapViewer;
     this.events = app.events;
-    this.models = new EntityModels(new EntityIndex(assets.index));
+    this.data = assets.data;
+    this.textures = assets.textures;
+    this.rects = assets.data.json.atlas.rects;
+    this.atlasSize = [assets.data.json.atlas.width, assets.data.json.atlas.height];
+    this.mesher = mesher;
     this.tracker = new EntityTracker();
-    this.objects = new Map();
+    this.objects = new Map(); // id -> { key, object, entity }
+    this.geometries = new Map(); // appearance -> BufferGeometry
+    this.lights = new Map(); // cell -> [block, sky]
+    this.blocks = new Map(); // block state -> its models' quads
     this.list = null; // the last frame's entity list, as JSON
-    this.geometries = new WeakMap();
+    this.latest = []; // the last frame's entities
+    this.asking = null; // the request for light and blocks in flight
     this.group = new this.Three.Group();
     this.group.name = 'mcbench-entities';
     this.viewer.markers.add(this.group);
     this.materials = this.createMaterials(assets.atlas);
     this.onFrame = () => this.update(performance.now());
     this.events.addEventListener('bluemapRenderFrame', this.onFrame);
-    installStyles();
   }
 
   // The map's own hires material: BlueMap's shaders and uniforms, so entities are
   // lit as the tiles are. Its vertex shader reads normals as world normals
-  // (tiles are never moved); an entity's are turned with it.
+  // (tiles are never moved); an entity's are turned with it. Its fragment
+  // shader blends in the overlay a renderer draws with (OverlayTexture: a
+  // primed TNT's white flash), which tiles never have.
   createMaterials(atlas) {
     const { Three, BlueMap, viewer } = this;
     const texture = new Three.Texture(atlas);
@@ -148,9 +164,16 @@ export class EntityLayer {
     texture.wrapT = Three.ClampToEdgeWrapping;
     texture.flipY = false;
     texture.needsUpdate = true;
-    const vertex = BlueMap.HIRES_VERTEX_SHADER.replace('vNormal = normal;', 'vNormal = normalize(mat3(modelMatrix) * normal);');
-    if (vertex === BlueMap.HIRES_VERTEX_SHADER) throw new Error("BlueMap's hires vertex shader no longer reads vNormal = normal");
-    const atlasMaterial = new Three.ShaderMaterial({
+    const replace = (source, from, to, what) => {
+      if (!source.includes(from)) throw new Error(`BlueMap's hires ${what} shader no longer reads ${from}`);
+      return source.replace(from, to);
+    };
+    let vertex = replace(BlueMap.HIRES_VERTEX_SHADER, 'vNormal = normal;', 'vNormal = normalize(mat3(modelMatrix) * normal);', 'vertex');
+    vertex = replace(vertex, 'attribute float ao;', 'attribute float ao;\nattribute vec4 overlay;\nvarying vec4 vOverlay;', 'vertex');
+    vertex = replace(vertex, 'vColor = color;', 'vColor = color;\n    vOverlay = overlay;', 'vertex');
+    let fragment = replace(BlueMap.HIRES_FRAGMENT_SHADER, 'varying vec3 vColor;', 'varying vec3 vColor;\nvarying vec4 vOverlay;', 'fragment');
+    fragment = replace(fragment, 'color.rgb *= vColor.rgb;', 'color.rgb *= vColor.rgb;\n\tcolor.rgb = mix(vOverlay.rgb, color.rgb, vOverlay.a);', 'fragment');
+    const make = (transparent) => new Three.ShaderMaterial({
       uniforms: {
         ...viewer.data.uniforms,
         textureImage: { type: 't', value: texture },
@@ -160,154 +183,204 @@ export class EntityLayer {
         animationInterpolation: { value: 0 },
       },
       vertexShader: vertex,
-      fragmentShader: BlueMap.HIRES_FRAGMENT_SHADER,
-      transparent: false,
-      depthWrite: true,
+      fragmentShader: fragment,
+      transparent,
+      depthWrite: !transparent,
       depthTest: true,
       vertexColors: true,
       side: Three.DoubleSide,
     });
-    const flash = new Three.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.6, depthWrite: false });
-    return { atlas: atlasMaterial, flash };
+    return { solid: make(false), blended: make(true) };
   }
 
-  geometry(mesh) {
-    let geometry = this.geometries.get(mesh);
-    if (geometry) return geometry;
+  // The geometry of an entity's look, in its frame: a group of two meshes,
+  // its solid and its blended render types' quads.
+  build(entity) {
     const { Three } = this;
-    geometry = new Three.BufferGeometry();
-    const count = mesh.position.length / 3;
-    geometry.setAttribute('position', new Three.BufferAttribute(mesh.position, 3));
-    geometry.setAttribute('normal', new Three.BufferAttribute(mesh.normal, 3));
-    geometry.setAttribute('uv', new Three.BufferAttribute(mesh.uv, 2));
-    geometry.setAttribute('color', new Three.BufferAttribute(mesh.color, 3));
-    // The tiles' light attributes: full sky light, no block light.
-    geometry.setAttribute('ao', new Three.BufferAttribute(new Float32Array(count).fill(1), 1));
-    geometry.setAttribute('sunlight', new Three.BufferAttribute(new Float32Array(count).fill(15), 1));
-    geometry.setAttribute('blocklight', new Three.BufferAttribute(new Float32Array(count), 1));
+    const quads = geometry(this.data, entity, {
+      light: (x, y, z) => this.lightAt(x, y, z),
+      blockQuads: (state) => this.blocks.get(state),
+    });
+    const group = new Three.Group();
+    group.matrixAutoUpdate = false;
+    for (const [material, own] of [['solid', quads.filter((quad) => !blended(quad.layer))], ['blended', quads.filter((quad) => blended(quad.layer))]]) {
+      if (own.length === 0) continue;
+      const mesh = new Three.Mesh(this.buffers(own), this.materials[material]);
+      mesh.raycast = () => {};
+      mesh.matrixAutoUpdate = false;
+      group.add(mesh);
+    }
+    return group;
+  }
+
+  // Quads as BlueMap's hires attributes: two triangles each, with its
+  // texture's place in the atlas, its colour, its overlay and its light.
+  buffers(quads) {
+    const { Three } = this;
+    const n = quads.length * 6;
+    const position = new Float32Array(n * 3), normal = new Float32Array(n * 3), uv = new Float32Array(n * 2), color = new Float32Array(n * 3);
+    const overlay = new Float32Array(n * 4), ao = new Float32Array(n).fill(1), sunlight = new Float32Array(n), blocklight = new Float32Array(n);
+    const [W, H] = this.atlasSize;
+    let v = 0;
+    for (const quad of quads) {
+      // Water's mask (a boat's) draws no colour: not drawn here.
+      if (!quad.texture) continue;
+      const rect = this.rects[quad.texture];
+      if (!rect) throw new Error(`The entity atlas has no texture ${quad.texture}`);
+      const c = quad.corners;
+      const ex = c[3] - c[0], ey = c[4] - c[1], ez = c[5] - c[2], fx = c[6] - c[0], fy = c[7] - c[1], fz = c[8] - c[2];
+      let nx = ey * fz - ez * fy, ny = ez * fx - ex * fz, nz = ex * fy - ey * fx;
+      const length = Math.hypot(nx, ny, nz) || 1;
+      nx /= length; ny /= length; nz /= length;
+      for (const k of [0, 1, 2, 0, 2, 3]) {
+        position.set([c[k * 3], c[k * 3 + 1], c[k * 3 + 2]], v * 3);
+        normal.set([nx, ny, nz], v * 3);
+        uv.set([(rect[0] + quad.uv[k * 2] * rect[2]) / W, (rect[1] + quad.uv[k * 2 + 1] * rect[3]) / H], v * 2);
+        color.set(quad.color.slice(0, 3), v * 3);
+        overlay.set(quad.overlay, v * 4);
+        blocklight[v] = quad.light[0];
+        sunlight[v] = quad.light[1];
+        v += 1;
+      }
+    }
+    const geometry = new Three.BufferGeometry();
+    geometry.setAttribute('position', new Three.BufferAttribute(position.subarray(0, v * 3), 3));
+    geometry.setAttribute('normal', new Three.BufferAttribute(normal.subarray(0, v * 3), 3));
+    geometry.setAttribute('uv', new Three.BufferAttribute(uv.subarray(0, v * 2), 2));
+    geometry.setAttribute('color', new Three.BufferAttribute(color.subarray(0, v * 3), 3));
+    geometry.setAttribute('overlay', new Three.BufferAttribute(overlay.subarray(0, v * 4), 4));
+    geometry.setAttribute('ao', new Three.BufferAttribute(ao.subarray(0, v), 1));
+    geometry.setAttribute('sunlight', new Three.BufferAttribute(sunlight.subarray(0, v), 1));
+    geometry.setAttribute('blocklight', new Three.BufferAttribute(blocklight.subarray(0, v), 1));
     geometry.computeBoundingSphere();
-    this.geometries.set(mesh, geometry);
     return geometry;
   }
 
-  // The objects of one entity: a root that follows the entity, with a child
-  // per part.
-  build(entity) {
-    const { Three } = this;
-    const recipe = this.models.describe(entity);
-    const root = new Three.Group();
-    root.matrixAutoUpdate = false;
-    const parts = recipe.parts.map((part) => {
-      let object;
-      if (part.box) object = this.boxObject(part.box);
-      else {
-        object = new Three.Mesh(this.geometry(part.mesh), this.materials[part.material]);
-        object.raycast = () => {};
-      }
-      object.matrixAutoUpdate = false;
-      columnMajor(part.matrix, object.matrix);
-      object.matrixWorldNeedsUpdate = true;
-      root.add(object);
-      return { object, update: part.update };
-    });
-    this.group.add(root);
-    return { root, recipe, parts };
+  lightAt(x, y, z) {
+    const known = this.lights.get(`${x},${y},${z}`);
+    if (!known) throw new Error(`No light was asked of the mesher at ${x}, ${y}, ${z}`);
+    return known;
   }
 
-  // A type with no model: its bounding box, translucent and outlined, named.
-  boxObject({ width, height, label }) {
-    const { Three, BlueMap } = this;
-    const color = new Three.Color(`hsl(${hue(label)}, 70%, 60%)`);
-    const geometry = new Three.BoxGeometry(width, height, width);
-    const object = new Three.Group();
-    const fill = new Three.Mesh(geometry, new Three.MeshBasicMaterial({ color, transparent: true, opacity: 0.28, depthWrite: false }));
-    const edges = new Three.LineSegments(new Three.EdgesGeometry(geometry), new Three.LineBasicMaterial({ color }));
-    fill.raycast = () => {};
-    edges.raycast = () => {};
-    object.add(fill, edges);
-    const tag = new BlueMap.HtmlMarker(`mcbench-entity-${label}`);
-    tag.updateFromData({
-      position: { x: 0, y: height / 2 + 0.2, z: 0 },
-      html: `<div class="mcbench-entity-tag">${label.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`)}</div>`,
-      anchor: { x: 0, y: 0 },
-      classes: [],
-      listed: false,
-      maxDistance: 60,
-    });
-    object.add(tag);
-    object.userData.tag = tag;
-    return object;
-  }
-
-  // HtmlMarker cleans up only its inner element; its outer one is removed here.
-  release(built) {
-    this.group.remove(built.root);
-    built.root.traverse((object) => {
-      if (object.isHtmlMarker) object.elementObject.element.remove();
-    });
+  // The block states an entity's draws name: the block it shows.
+  statesOf(entity) {
+    const kind = this.data.kind(entity.type);
+    if (entity.type === 'minecraft:item') return [];
+    return variantOf(kind, entity).draws.some((draw) => draw.block === 'entity') ? [entity.block] : [];
   }
 
   // Takes a frame's whole entity list: the entities that appeared are made,
   // the ones that are gone removed, the rest keep their objects and glide to
-  // their new places; an entity that looks different is made again. A frame
+  // their new places; an entity that looks different, or stands in other
+  // light, is made again once the mesher has answered its light. A frame
   // whose list is the last one's (a still world sends one every tick) asks
-  // for no frame of its own: everything is where it was drawn, and an entity
-  // still gliding or animating keeps the frames coming (update).
+  // for no frame of its own.
   set(entities, now = performance.now()) {
     const list = JSON.stringify(entities);
     const changed = list !== this.list;
     this.list = list;
+    this.latest = entities;
     const { removed } = this.tracker.set(entities, now);
     for (const id of removed) {
-      this.release(this.objects.get(id));
+      this.group.remove(this.objects.get(id).object);
       this.objects.delete(id);
     }
-    for (const entity of entities) {
-      const key = appearance(entity);
-      const known = this.objects.get(entity.id);
-      if (known && known.key === key) continue;
-      if (known) this.release(known);
-      this.objects.set(entity.id, { ...this.build(entity), key });
-    }
+    if (changed) this.ask();
     this.update(now);
-    if (changed) this.viewer.redraw();
+  }
+
+  // Asks the mesher for the light at every entity's cells and the models
+  // of the blocks they draw not yet known, then makes what looks different.
+  // One request at a time; a list that came meanwhile is asked for next.
+  ask() {
+    if (this.asking) {
+      this.again = true;
+      return;
+    }
+    const entities = this.latest;
+    // No entity asks nothing.
+    if (entities.length === 0) {
+      this.make(entities);
+      return;
+    }
+    const cells = new Map();
+    const states = new Set();
+    for (const entity of entities) {
+      for (const cell of lightCells(this.data, entity)) cells.set(cellKey(cell), cell);
+      for (const state of this.statesOf(entity)) if (!this.blocks.has(state)) states.add(state);
+    }
+    this.asking = this.mesher.entities([...cells.values()], [...states]).then(({ light, blocks }) => {
+      this.lights = new Map([...cells.keys()].map((key, i) => [key, light[i]]));
+      for (const [state, models] of Object.entries(blocks)) this.blocks.set(state, loneQuads({ lone: () => ({ models }) }, this.textures, state));
+      this.make(entities);
+    }).catch((error) => {
+      // Asked again with the next frame (a world on show sends one a tick).
+      this.list = null;
+      console.error('The entity layer could not draw the entities', error);
+    }).finally(() => {
+      this.asking = null;
+      if (this.again) {
+        this.again = false;
+        this.ask();
+      }
+    });
+  }
+
+  make(entities) {
+    const light = (x, y, z) => this.lightAt(x, y, z);
+    const used = new Set();
+    for (const entity of entities) {
+      const key = appearance(this.data, entity, light);
+      used.add(key);
+      const known = this.objects.get(entity.id);
+      if (known && known.key === key) {
+        known.entity = entity;
+        continue;
+      }
+      if (known) this.group.remove(known.object);
+      let template = this.geometries.get(key);
+      if (!template) this.geometries.set(key, template = this.build(entity));
+      const object = template.clone();
+      this.group.add(object);
+      this.objects.set(entity.id, { key, object, entity });
+    }
+    for (const [key, template] of this.geometries) {
+      if (used.has(key)) continue;
+      template.traverse((object) => object.geometry?.dispose());
+      this.geometries.delete(key);
+    }
+    this.update(performance.now());
+    this.viewer.redraw();
   }
 
   // Puts every entity where it is at `now`. BlueMap draws idle frames only
   // when something changed, so the layer asks for the next one while any
-  // entity glides or animates.
+  // entity glides or animates (a dropped item spins, an orb faces the
+  // camera).
   update(now) {
-    const seconds = now / 1000;
     let awake = this.tracker.moving(now);
+    const camera = this.cameraTurn();
     for (const state of this.tracker.sample(now)) {
       const built = this.objects.get(state.id);
-      const [x, y, z] = state.pos;
-      columnMajor(compose(translation(x, y, z), built.recipe.orient(state.yaw, state.pitch)), built.root.matrix);
-      built.root.matrixWorldNeedsUpdate = true;
-      if (built.recipe.animated) awake = true;
-      for (const part of built.parts) {
-        if (!part.update) continue;
-        const matrix = part.update(seconds, state.entity);
-        part.object.visible = matrix !== null;
-        if (matrix) columnMajor(matrix, part.object.matrix);
-        part.object.matrixWorldNeedsUpdate = true;
-      }
+      if (!built) continue;
+      const ticks = built.entity.ticks + Math.min((now - this.tracker.lastFrame) / 50, 1);
+      columnMajor(frame(this.data, built.entity, { pos: state.pos, yaw: state.yaw, pitch: state.pitch, age: ticks }, camera), built.object.matrix);
+      built.object.matrixWorldNeedsUpdate = true;
+      if (built.entity.type === 'minecraft:item' || built.entity.type === 'minecraft:experience_orb') awake = true;
     }
     if (awake) this.viewer.redraw();
   }
 
+  // The camera's turn (its world rotation, column major), which an orb
+  // faces.
+  cameraTurn() {
+    const m = this.viewer.camera.matrixWorld.elements;
+    return [m[0], m[1], m[2], 0, m[4], m[5], m[6], 0, m[8], m[9], m[10], 0, 0, 0, 0, 1];
+  }
+
   dispose() {
     this.events.removeEventListener('bluemapRenderFrame', this.onFrame);
-    for (const built of this.objects.values()) this.release(built);
     this.objects.clear();
     this.viewer.markers.remove(this.group);
   }
-}
-
-function installStyles() {
-  if (document.getElementById('mcbench-entity-styles')) return;
-  const style = document.createElement('style');
-  style.id = 'mcbench-entity-styles';
-  style.textContent = '.mcbench-entity-tag{transform:translate(-50%,-100%);padding:1px 6px;border-radius:4px;background:rgba(12,12,12,.7);color:#f5f5f5;font:500 11px/1.3 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;white-space:nowrap;pointer-events:none}';
-  document.head.appendChild(style);
 }

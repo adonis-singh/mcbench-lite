@@ -43,7 +43,7 @@ test(
         );
     }
     const events = [
-      { type: 'meta', bounds: world.bounds(), removed: [], renderLod: null },
+      { type: 'meta', bounds: world.bounds(), removed: [], renderLod: null, entities: [] },
       ...[...world.chunks.keys()].map((key) => ({
         type: 'chunk',
         chunk: world.chunkSnapshot(key, STATES),
@@ -95,7 +95,7 @@ test(
       return browser;
     });
     const { renderShots, resolveShot, closeRenderer } = require('../server/shot');
-    const shots = (shown, views) => views.map((view) => resolveShot({ view }, shown));
+    const shots = (shown, views) => views.map((view) => resolveShot({ view }, shown, []));
     t.after(closeRenderer);
     const angles = ['iso_se', 'iso_nw', 'front', 'top'];
     const baseline = await renderShots(

@@ -156,7 +156,8 @@ function clipWorld(world, clip, previous) {
 
 // Settles `world` for each of `ticks` (sorted, no repeats, each checked) in
 // one run of the engine, and answers { ticks: { world: the engine's World
-// after that many ticks, changes: which block ids changed from `world`,
+// after that many ticks, entities: its entities then (the engine's list,
+// core/src/entity/mod.rs json), changes: which block ids changed from `world`,
 // unsupported: the positions of its blocks that cannot survive where they
 // are (the engine's SURVIVE), timings (ms) } }. `chat` is what is kept of the conversation (`kept`).
 function runSettle(chat, conversationId, world, ticks) {
@@ -171,6 +172,7 @@ function runSettle(chat, conversationId, world, ticks) {
     };
     const files = new Map();
     const unsupported = new Map();
+    const entities = new Map();
     let scratch = null;
     try {
       // The engine refuses a placement of no blocks; an empty world settles to itself.
@@ -193,11 +195,14 @@ function runSettle(chat, conversationId, world, ticks) {
           await time('place', () => engine.place(file('commands.txt'), file('placed.bin'), { fresh: true }));
           let at = 0;
           for (const tick of ticks) {
-            if (tick > at) {
-              // Nothing reads light after the last tick: the blocks are written next.
-              await time('ticks', () => engine.tick(tick - at, file('patch.bin'), file('entities.json'), { light: false }));
-              at = tick;
-            }
+            // Nothing reads light after the last tick: the blocks are written
+            // next. The entities are written at every tick asked, at tick 0
+            // by a tick of no ticks (those the placement made, golems).
+            await time('ticks', () => engine.tick(tick - at, file('patch.bin'), file(`entities-${tick}.json`), { light: false }));
+            at = tick;
+            // Each entity as see_build draws it, its height in the world's
+            // (the engine's less the offset, as the blocks are read).
+            entities.set(tick, JSON.parse(fs.readFileSync(file(`entities-${tick}.json`), 'utf8')).map((entity) => ({ ...entity, pos: [entity.pos[0], entity.pos[1] - minecraftLive.yOffset, entity.pos[2]] })));
             if (tick > 0) {
               // A placement of no commands writes the world as it now is.
               await time('write', () => engine.place(file('none.txt'), file(`settled-${tick}.bin`), { fresh: false }));
@@ -225,7 +230,7 @@ function runSettle(chat, conversationId, world, ticks) {
           return out;
         });
         const changes = await time('compare', async () => idChanges(world, settled));
-        const result = { world: settled, changes, unsupported: unsupported.get(tick) || [], timings, ticks: tick, clips: new Map(), previousClips: previous?.clips || new Map() };
+        const result = { world: settled, entities: entities.get(tick) || [], changes, unsupported: unsupported.get(tick) || [], timings, ticks: tick, clips: new Map(), previousClips: previous?.clips || new Map() };
         chat.latest = result;
         results[tick] = result;
       }
@@ -313,4 +318,16 @@ function shotWorld(conversation, clip, tick) {
   return result.clips.get(key);
 }
 
-module.exports = { shotOptions, settle, currentTicks, checkTicks, shotWorld, warmShotEngines, stopShotEngines, DEFAULT_SETTLE_TICKS, _internal: { idChanges } };
+// The entities of `conversation`'s current world after `tick` ticks (its
+// settle ticks when omitted), those inside `clip` ({from, to}) when given:
+// each whose position is in the box; null when that was not settled.
+function shotEntities(conversation, clip, tick) {
+  const result = entryOf(conversation.id, conversation.world)?.done.get(tick ?? currentTicks(conversation.world));
+  if (!result) return null;
+  if (!clip) return result.entities;
+  const min = clip.from.map((v, i) => Math.min(v, clip.to[i]));
+  const max = clip.from.map((v, i) => Math.max(v, clip.to[i]) + 1);
+  return result.entities.filter((entity) => entity.pos.every((v, i) => v >= min[i] && v < max[i]));
+}
+
+module.exports = { shotOptions, settle, currentTicks, checkTicks, shotWorld, shotEntities, warmShotEngines, stopShotEngines, DEFAULT_SETTLE_TICKS, _internal: { idChanges } };

@@ -130,7 +130,7 @@ test('one run to the largest tick writes the world at every tick asked, as separ
   const ticks = [0, 1, 4, 9, 40];
   const together = await settle('snapshots', world, ticks);
   assert.equal(FakeEngines.places.length, 1);
-  assert.deepEqual(FakeEngines.ticks, [1, 3, 5, 31], 'one placement, the ticks between the writes');
+  assert.deepEqual(FakeEngines.ticks, [0, 1, 3, 5, 31], 'one placement, the ticks between the writes (at tick 0 a tick of none, which writes the entities)');
   assert.deepEqual(together.get(0).changes, { removed: 0, added: 0, replaced: 0, examples: { removed: [], added: [], replaced: [] } });
   const blocksOf = (result) => { const out = []; result.world.forEach((x, y, z, entry) => out.push(`${x},${y},${z} ${entry.id}`)); return out.sort(); };
   for (const tick of ticks) {
@@ -151,7 +151,7 @@ test('see_build shows several ticks of one run, reports each, and defaults to th
   const result = await executeSeeBuild(conversation, { shots: [{ view: 'front' }, { view: 'front', tick: 0 }, { view: 'top', tick: 2 }, { view: 'iso_se', tick: 6 }, { view: 'iso_se', tick: 40 }] });
   assert.equal(result.ok, true, result.error);
   assert.equal(FakeEngines.places.length, 1, 'one run for the ticks not settled yet (0, 2, 40)');
-  assert.deepEqual(FakeEngines.ticks, [2, 38]);
+  assert.deepEqual(FakeEngines.ticks, [0, 2, 38], 'tick 0 a tick of none, which writes its entities');
   assert.deepEqual(result.shots.map((one) => one.tick), [6, 0, 2, 6, 40]);
   assert.deepEqual(rendered[0].map((one) => one.tick), [6, 0, 2, 6, 40]);
   assert.deepEqual(result.minecraft.map((report) => report.ticks), [0, 2, 6, 40]);

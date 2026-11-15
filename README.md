@@ -31,7 +31,7 @@ A faster way to light the running world was written and not shipped, because the
 
 ## Network use
 
-There is no hosted version and no telemetry. The app contacts the providers you connect, and openrouter.ai for its public list of models. On the first start it downloads its JDK from GitHub (Adoptium's Temurin releases), rustup from static.rust-lang.org and through it Rust from rust-lang.org, Chromium's headless shell from cdn.playwright.dev, Paper and the Minecraft server from Paper and Mojang, and BlueMap and misode/mcmeta from GitHub. It contacts Docker Hub, PyPI and Debian when it builds the shell's image. When you ask it to install Claude Code or Codex CLI, it downloads Claude Code from Anthropic's release bucket on storage.googleapis.com, or Codex from GitHub (openai/codex). It contacts GitHub and your Pages site when you share a build. Claude Code is started with its non-essential traffic off. The Cursor SDK ships with its own analytics code, which the app neither uses nor turns off.
+There is no hosted version and no telemetry. The app contacts the providers you connect, and openrouter.ai for its public list of models. On the first start it downloads its JDK from GitHub (Adoptium's Temurin releases), rustup from static.rust-lang.org and through it Rust from rust-lang.org, Chromium's headless shell from cdn.playwright.dev, Paper and the Minecraft server from Paper and Mojang, BlueMap and misode/mcmeta from GitHub, and the Minecraft client jar and Mojang's mappings of it from Mojang. It contacts Docker Hub, PyPI and Debian when it builds the shell's image. When you ask it to install Claude Code or Codex CLI, it downloads Claude Code from Anthropic's release bucket on storage.googleapis.com, or Codex from GitHub (openai/codex). It contacts GitHub and your Pages site when you share a build. Claude Code is started with its non-essential traffic off. The Cursor SDK ships with its own analytics code, which the app neither uses nor turns off.
 
 ## Setup
 
@@ -82,7 +82,7 @@ The page opens at once; the first start then prepares the rest in the background
 | Paper 1.21.10, and through it the Minecraft server from Mojang (the libraries come inside the two jars) | about 55 MB, then about 59 MB | `data/minecraft-live/paper` |
 | Minecraft's block, loot and data fixer tables, read from that server jar | none | `core/minecraft/1.21.10` |
 | Minecraft's block data from misode/mcmeta | about 4 MB | `data/assets` |
-| BlueMap 5.22's command-line tool, and the Minecraft 1.21.10 client jar from Mojang (the viewer's textures and models) | about 7 MB and 31 MB | `data/minecraft-live/bluemap` |
+| BlueMap 5.22's command-line tool, the Minecraft 1.21.10 client jar from Mojang (the viewer's textures and models), and Mojang's mappings of that jar (the names the entity capture finds the client's classes by) | about 7 MB, 31 MB and 12 MB | `data/minecraft-live/bluemap` |
 | The Rust engine, compiled natively and to WebAssembly with those tables | none | `core/target` |
 | The model's shell image, from `python:3.12-slim` and packages from PyPI and Debian, when Docker is running | a few hundred MB | Docker |
 
@@ -90,9 +90,9 @@ The tools folder is `~/.mcbench-lite/tools`, or the folder `MCBENCH_TOOLS_DIR` n
 
 The shell's image is built in the background while the app starts, so the first bash call does not wait for it. Without Docker, or with Docker not running, the app starts all the same; the step says what is missing, and so does the model's bash tool until Docker runs.
 
-The repository does not contain Minecraft code, jars, textures or data tables. The engine is a reimplementation that is built with Minecraft's tables (every block, state, collision shape, item and loot table, and the data fixer's rules), and the app reads those tables on your machine from the server jar it downloaded, with the project's own Java code, into `core/minecraft/1.21.10/`, which git ignores.
+The repository does not contain Minecraft code, jars, textures, mappings or data tables. The engine is a reimplementation that is built with Minecraft's tables (every block, state, collision shape, item and loot table, and the data fixer's rules), and the app reads those tables on your machine from the server jar it downloaded, with the project's own Java code, into `core/minecraft/1.21.10/`, which git ignores.
 
-The app downloads the Minecraft server (through Paper) and the Minecraft client jar from Mojang's servers to your machine, and accepts the Minecraft End User Licence Agreement on your behalf: it writes `eula=true` for Paper and sets BlueMap's `accept-download: true`. Read the EULA at https://www.minecraft.net/eula; by running the app you agree to it.
+The app downloads the Minecraft server (through Paper), the Minecraft client jar and Mojang's mappings of it from Mojang's servers to your machine, and accepts the Minecraft End User Licence Agreement on your behalf: it writes `eula=true` for Paper and sets BlueMap's `accept-download: true`. Read the EULA at https://www.minecraft.net/eula; by running the app you agree to it.
 
 ## Connecting an AI
 

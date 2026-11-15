@@ -46,7 +46,7 @@ Some tests are skipped until you give them what they need:
 |---|---|
 | Schematic export | Python with `nbtlib`: `uv venv .venv && uv pip install --python .venv/bin/python nbtlib` |
 | `npm run test:sandbox` | Docker |
-| `npm run test:ui`, `npm run test:settle`, `npm run test:entities` | The Chromium headless shell and the first start's downloads. `test:ui` talks to a running app: the one on port 3020 unless `MCBENCH_UI_URL` names another, with `MCBENCH_DATA_DIR` set to that app's data folder (the test sends its token) |
+| `npm run test:ui`, `npm run test:settle` | The Chromium headless shell and the first start's downloads. `test:ui` talks to a running app: the one on port 3020 unless `MCBENCH_UI_URL` names another, with `MCBENCH_DATA_DIR` set to that app's data folder (the test sends its token) |
 | `npm run test:minecraft` | GraalVM 25 (it runs a real Paper server as the reference) |
 
 Use a data folder of your own for experiments, never the one your own chats are in: `MCBENCH_DATA_DIR=<folder> PORT=3127 node server/index.js`. A data folder belongs to one running server and has its own `settings.json`, saved keys and access token. Keys in `.env` or the shell, and the Claude Code, Codex and Cursor logins, apply to every data folder.

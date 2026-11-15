@@ -45,7 +45,7 @@ function renderer(t, behavior) {
   const { World } = require('../server/world');
   const world = new World();
   world.set(0, 0, 0, 'minecraft:stone');
-  return { ...shot, browsers, render: () => shot.renderShots('fixture', [shot.resolveShot({ view: 'front' }, world)]) };
+  return { ...shot, browsers, render: () => shot.renderShots('fixture', [shot.resolveShot({ view: 'front' }, world, [])]) };
 }
 
 test('a warm-up that stalls fails like any stage, closes its browser, and lets the next screenshot through', async (t) => {

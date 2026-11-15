@@ -18,6 +18,12 @@
 //   { id, type: 'draw', wasm, pack, snapshot }
 //       draws a snapshot's tile (an ArrayBuffer, transferred), indexed for
 //       the GPU (Mesher.drawSnapshot); answers { id, bytes } with the tile's buffer
+//   { id, type: 'entities', cells, states }
+//       what the entity layer draws entities with (web/entity-draw.mjs): the
+//       [block, sky] light of the current world at each cell ([x, y, z]
+//       each; Mesher.light) and the faces each block state's own models draw
+//       alone (Mesher.lone, nothing culled); answers { id, light, blocks }
+//       (blocks by state)
 // A failure answers { id, error }, with `broken` when the module crashed (a
 // WebAssembly trap): it cannot take another request, and the worker is ended.
 // An address ending in .gz is gzip, read as it streams: the shared viewer's
@@ -73,6 +79,12 @@ async function handle(request) {
     return;
   }
   if (!mesher) throw new Error('No world is loaded');
+  if (request.type === 'entities') {
+    const blocks = {};
+    for (const state of request.states) blocks[state] = mesher.lone(state, 0).models;
+    self.postMessage({ id: request.id, light: mesher.light(request.cells), blocks });
+    return;
+  }
   if (request.type === 'patch') {
     const { tiles, changed } = mesher.patch(new Uint8Array(request.patch));
     self.postMessage({ id: request.id, tiles, changed });

@@ -1,5 +1,6 @@
 import { createLight, updateLight, lightAt, lightRule } from './light.mjs';
 import { Mesher } from './mesher.mjs';
+import { EntityData, frame, geometry, kindLight, loneQuads } from './entity-draw.mjs';
 import { mat4 } from '/vendor/gl-matrix/index.js';
 
 // deepslate's bundle (with its own dependencies inlined) is loaded by the
@@ -152,6 +153,16 @@ const CHUNK_FS = `
     gl_FragColor = vec4(mix(color, fogColor, fog), texColor.a);
   }
 `;
+
+// The chunk shaders for entities (entity-draw.mjs), which draw from the
+// bake's entity atlas: the same lighting and fog, and the overlay a renderer
+// draws with blended in (OverlayTexture: a primed TNT's white flash).
+const ENTITY_VS = CHUNK_VS
+  .replace('attribute vec3 normal;', 'attribute vec3 normal;\n  attribute vec4 overlay;\n  varying highp vec4 vOverlay;')
+  .replace('vNormal = normal;', 'vNormal = normal;\n    vOverlay = overlay;');
+const ENTITY_FS = CHUNK_FS
+  .replace('varying highp float vDist;', 'varying highp float vDist;\n  varying highp vec4 vOverlay;')
+  .replace('vec3 color = texColor.rgb * vTintColor * min(light, vec3(1.15));', 'vec3 color = mix(vOverlay.rgb, texColor.rgb * vTintColor, vOverlay.a) * min(light, vec3(1.15));');
 
 const SKY_VS = `
   attribute vec2 pos;
@@ -536,6 +547,7 @@ export async function createViewer(canvas, floor) {
   const world = new SparseWorld();
   const renderer = new StructureRenderer(gl, world, resources, { chunkSize: CHUNK, useInvisibleBlockBuffer: false });
   if (!replacedVS || !replacedFS) throw new Error('Failed to patch deepslate chunk shaders');
+  const entityProgram = compileProgram(gl, ENTITY_VS, ENTITY_FS);
 
   // ---- light engine ----
   // Minecraft's light of the build in open sky (light.mjs), kept between
@@ -603,8 +615,14 @@ export async function createViewer(canvas, floor) {
   // block entity renderer (`loneWanted`); a world without one loads nothing.
   let lone = null;
   let loneWanted = false;
+  // The entities of the tick drawn (the engine's, setEntities), and the
+  // capture they are drawn from with its atlas, loaded by prepare() once a
+  // world holds one.
+  let entities = [];
+  let entityAssets = null;
   async function prepare() {
-    if (lone || !loneWanted) return;
+    if (entities.length > 0 && !entityAssets) await prepareEntities();
+    if (lone || !(loneWanted || entities.length > 0)) return;
     const fetched = async (url) => {
       const response = await fetch(url);
       if (!response.ok) throw new Error(`Failed to load ${url} (HTTP ${response.status})`);
@@ -618,6 +636,25 @@ export async function createViewer(canvas, floor) {
       fetched(`${viewerUrl}maps/live/textures.json`).then((response) => response.json()),
     ]);
     lone = { mesher: await Mesher.create(wasm, new Uint8Array(pack)), textures: textures.map((texture) => texture.resourcePath) };
+  }
+
+  // The live viewer's entity capture and atlas (server/McbenchEntities.java),
+  // its atlas uploaded as a texture of its own.
+  async function prepareEntities() {
+    const status = await (await fetch('/api/minecraft/status')).json();
+    if (!status.mesher) throw new Error('The live viewer\'s assets are not made');
+    const response = await fetch(`${status.viewerUrl}mcbench-entities.json`);
+    if (!response.ok) throw new Error(`Failed to load the entities' capture (HTTP ${response.status})`);
+    const [json, image] = await Promise.all([response.json(), loadImage(`${status.viewerUrl}mcbench-entities.png`)]);
+    const texture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    entityAssets = { data: new EntityData(json), texture, width: json.atlas.width, height: json.atlas.height, rects: json.atlas.rects, blocks: new Map() };
+    entitiesDirty = true;
   }
 
   const FAILED = { quads: 0 };
@@ -1040,12 +1077,15 @@ export async function createViewer(canvas, floor) {
   const fogRangeLoc = gl.getUniformLocation(renderer.shaderProgram, 'fogRange');
   const logDepthLoc = gl.getUniformLocation(renderer.shaderProgram, 'logDepth');
   const linearDepthLoc = gl.getUniformLocation(renderer.shaderProgram, 'linearDepth');
+  // The fog's range, which the entities' program takes too.
+  let entityFog = [0, 0];
   function syncFog(size) {
     const start = clamp(size * 3, 90, MAX_CAMERA_DISTANCE * 0.6);
     const end = Math.min(start * 1.9, MAX_CAMERA_DISTANCE * 0.95);
     gl.useProgram(renderer.shaderProgram);
     gl.uniform3f(fogColorLoc, FOG_COLOR[0], FOG_COLOR[1], FOG_COLOR[2]);
     gl.uniform2f(fogRangeLoc, start, end);
+    entityFog = [start, end];
   }
   syncFog(32);
 
@@ -1112,6 +1152,7 @@ export async function createViewer(canvas, floor) {
     mat4.rotateY(view, view, yaw);
     mat4.translate(view, view, [-eye[0], -eye[1], -eye[2]]);
     renderer.drawStructure(view);
+    drawEntities(view, eye);
   }
 
   // Marks a changed block's chunk dirty, plus the chunks across the faces,
@@ -1172,6 +1213,8 @@ export async function createViewer(canvas, floor) {
     meshDirty.clear();
     dirtyX = NaN;
     lightStamps.clear();
+    entities = [];
+    entityQuads = { solid: [], blended: [], facing: [] };
     // An empty world's light, with nothing to rebuild.
     light = createLight(states.rule, floor);
     lightTouched.clear();
@@ -1306,7 +1349,10 @@ export async function createViewer(canvas, floor) {
   // Screenshots need a COMPLETE world: rebuild light and mesh every dirty
   // chunk synchronously before any frame is captured.
   function flush() {
-    if (lightPending) rebuildLight();
+    if (lightPending) {
+      rebuildLight();
+      entitiesDirty = true;
+    }
     dirtyX = NaN;
     for (const ck of [...meshDirty]) {
       meshDirty.delete(ck);
@@ -1314,6 +1360,164 @@ export async function createViewer(canvas, floor) {
       if (built.get(ck) === key) continue;
       built.set(ck, key);
       meshChunk(ck.split(',').map(Number), world.chunks.get(ck));
+    }
+    if (entitiesDirty) buildEntities();
+  }
+
+  // ---- entities ----
+  // Each entity's quads (entity-draw.mjs, the live viewer's own) placed in
+  // the world by its frame, lit by see_build's light at the cells it reads
+  // (the brighter of the cell's sky and block light, which see_build holds,
+  // through the kind's own light), into buffers of the chunk format with the
+  // overlay. An orb faces the camera, and is placed as each frame is drawn.
+  let entitiesDirty = false;
+  let entityQuads = { solid: [], blended: [], facing: [] };
+  function setEntities(list) {
+    entities = list;
+    entitiesDirty = true;
+  }
+
+  function buildEntities() {
+    entitiesDirty = false;
+    entityQuads = { solid: [], blended: [], facing: [] };
+    if (entities.length === 0) return;
+    const { data, blocks } = entityAssets;
+    const view = {
+      light: (x, y, z) => {
+        const level = cellLight(x, y, z);
+        return [level, level];
+      },
+      blockQuads: (state) => {
+        if (!blocks.has(state)) blocks.set(state, loneQuads(lone.mesher, lone.textures, state));
+        return blocks.get(state);
+      },
+    };
+    for (const entity of entities) {
+      const quads = geometry(data, entity, view);
+      const facing = Boolean(data.kind(entity.type).icons);
+      const place = { pos: entity.pos, yaw: entity.yaw, pitch: entity.pitch, age: entity.ticks };
+      const m = facing ? null : frame(data, entity, place, null);
+      for (const quad of quads) {
+        if (!quad.texture) continue;
+        const placed = { ...quad, corners: m ? transformCorners(m, quad.corners) : quad.corners, entity, place };
+        if (facing) entityQuads.facing.push(placed);
+        else if (/translucent/.test(quad.layer)) entityQuads.blended.push(placed);
+        else entityQuads.solid.push(placed);
+      }
+    }
+    if (entityQuads.solid.length) solidBuffers = uploadQuads(entityQuads.solid, solidBuffers?.buffers ?? {});
+  }
+
+  function transformCorners(m, c) {
+    const out = new Array(12);
+    for (let k = 0; k < 4; k++) {
+      const x = c[k * 3], y = c[k * 3 + 1], z = c[k * 3 + 2];
+      out[k * 3] = m[0] * x + m[4] * y + m[8] * z + m[12];
+      out[k * 3 + 1] = m[1] * x + m[5] * y + m[9] * z + m[13];
+      out[k * 3 + 2] = m[2] * x + m[6] * y + m[10] * z + m[14];
+    }
+    return out;
+  }
+
+  const entityAttributes = ['vertPos', 'texCoord', 'texLimit', 'vertColor', 'normal', 'overlay'].map((name) => [name, gl.getAttribLocation(entityProgram, name)]);
+  const entityUniforms = Object.fromEntries(['mView', 'mProj', 'logDepth', 'linearDepth', 'sampler', 'pixelSize', 'fogColor', 'fogRange'].map((name) => [name, gl.getUniformLocation(entityProgram, name)]));
+  const ENTITY_SIZES = { vertPos: 3, texCoord: 2, texLimit: 4, vertColor: 3, normal: 3, overlay: 4 };
+  // The solid quads' buffers, uploaded once as they are built; the blended
+  // and facing ones' each frame (their order and turn change with the camera).
+  let solidBuffers = null;
+  const frameBuffers = Object.fromEntries(Object.keys(ENTITY_SIZES).map((name) => [name, null]));
+
+  // Quads as the entity program's vertex arrays, into `buffers` (by
+  // attribute, made where missing): { buffers, count }.
+  function uploadQuads(quads, buffers) {
+    const { width: W, height: H, rects } = entityAssets;
+    const n = quads.length;
+    const arrays = Object.fromEntries(Object.entries(ENTITY_SIZES).map(([name, size]) => [name, new Float32Array(n * 4 * size)]));
+    const { vertPos: pos, texCoord: texture, texLimit: limit, vertColor: color, normal, overlay } = arrays;
+    quads.forEach((quad, q) => {
+      const rect = rects[quad.texture];
+      if (!rect) throw new Error(`The entity atlas has no texture ${quad.texture}`);
+      const c = quad.corners;
+      const ex = c[3] - c[0], ey = c[4] - c[1], ez = c[5] - c[2], fx = c[6] - c[0], fy = c[7] - c[1], fz = c[8] - c[2];
+      let nx = ey * fz - ez * fy, ny = ez * fx - ex * fz, nz = ex * fy - ey * fx;
+      const length = Math.hypot(nx, ny, nz) || 1;
+      const level = lightCurve(Math.max(quad.light[0], quad.light[1]));
+      const box = [rect[0] / W, rect[1] / H, (rect[0] + rect[2]) / W, (rect[1] + rect[3]) / H];
+      for (let k = 0; k < 4; k++) {
+        pos.set([c[k * 3], c[k * 3 + 1], c[k * 3 + 2]], (q * 4 + k) * 3);
+        normal.set([nx / length, ny / length, nz / length], (q * 4 + k) * 3);
+        texture.set([(rect[0] + quad.uv[k * 2] * rect[2]) / W, (rect[1] + quad.uv[k * 2 + 1] * rect[3]) / H], (q * 4 + k) * 2);
+        limit.set(box, (q * 4 + k) * 4);
+        color.set([quad.color[0] * level, quad.color[1] * level, quad.color[2] * level], (q * 4 + k) * 3);
+        overlay.set(quad.overlay, (q * 4 + k) * 4);
+      }
+    });
+    for (const [name, array] of Object.entries(arrays)) {
+      if (!buffers[name]) buffers[name] = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, buffers[name]);
+      gl.bufferData(gl.ARRAY_BUFFER, array, gl.DYNAMIC_DRAW);
+    }
+    return { buffers, count: n };
+  }
+
+  // Draws uploaded quads, in runs of at most 16,384 (16-bit indices).
+  function drawUploaded({ buffers, count }) {
+    if (indices.length < Math.min(count, 16384) * 6) {
+      indices = new Uint16Array(Math.max(Math.min(count, 16384) * 6, indices.length * 2));
+      for (let i = 0; i < indices.length / 6; i++) indices.set([4 * i, 4 * i + 1, 4 * i + 2, 4 * i, 4 * i + 2, 4 * i + 3], i * 6);
+    }
+    if (!entityIndexBuffer) {
+      entityIndexBuffer = gl.createBuffer();
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, entityIndexBuffer);
+      gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices.subarray(0, 16384 * 6), gl.STATIC_DRAW);
+    }
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, entityIndexBuffer);
+    for (const [, location] of entityAttributes) gl.enableVertexAttribArray(location);
+    for (let first = 0; first < count; first += 16384) {
+      for (const [name, location] of entityAttributes) {
+        gl.bindBuffer(gl.ARRAY_BUFFER, buffers[name]);
+        gl.vertexAttribPointer(location, ENTITY_SIZES[name], gl.FLOAT, false, 0, first * 4 * ENTITY_SIZES[name] * 4);
+      }
+      gl.drawElements(gl.TRIANGLES, Math.min(16384, count - first) * 6, gl.UNSIGNED_SHORT, 0);
+    }
+    for (const [, location] of entityAttributes) gl.disableVertexAttribArray(location);
+  }
+  let entityIndexBuffer = null;
+
+  // The entities, after the blocks: solid, then the blended back to front.
+  function drawEntities(view, eye) {
+    const { solid, blended, facing } = entityQuads;
+    if (solid.length + blended.length + facing.length === 0) return;
+    const { data } = entityAssets;
+    // The camera's turn, which an orb faces: the inverse of the view's.
+    const turn = mat4.create();
+    mat4.rotateY(turn, turn, -yaw);
+    mat4.rotateX(turn, turn, -pitch);
+    const faced = facing.map((quad) => ({ ...quad, corners: transformCorners(frame(data, quad.entity, quad.place, Array.from(turn)), quad.corners) }));
+    const centre = (quad) => {
+      const c = quad.corners;
+      const dx = (c[0] + c[3] + c[6] + c[9]) / 4 - eye[0], dy = (c[1] + c[4] + c[7] + c[10]) / 4 - eye[1], dz = (c[2] + c[5] + c[8] + c[11]) / 4 - eye[2];
+      return dx * dx + dy * dy + dz * dz;
+    };
+    const behind = [...blended, ...faced].sort((a, b) => centre(b) - centre(a));
+    gl.useProgram(entityProgram);
+    gl.uniformMatrix4fv(entityUniforms.mView, false, view);
+    gl.uniformMatrix4fv(entityUniforms.mProj, false, renderer.projMatrix);
+    gl.uniform1f(entityUniforms.logDepth, LOG_DEPTH_SCALE);
+    gl.uniform1f(entityUniforms.linearDepth, lens.ortho ? 1 : 0);
+    gl.uniform3f(entityUniforms.fogColor, FOG_COLOR[0], FOG_COLOR[1], FOG_COLOR[2]);
+    gl.uniform2f(entityUniforms.fogRange, entityFog[0], entityFog[1]);
+    gl.uniform1f(entityUniforms.pixelSize, 1 / Math.max(entityAssets.width, entityAssets.height));
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, entityAssets.texture);
+    gl.uniform1i(entityUniforms.sampler, 0);
+    gl.disable(gl.BLEND);
+    if (solid.length) drawUploaded(solidBuffers);
+    if (behind.length) {
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+      drawUploaded(uploadQuads(behind, frameBuffers));
+      gl.disable(gl.BLEND);
     }
   }
 
@@ -1328,6 +1532,8 @@ export async function createViewer(canvas, floor) {
   return {
     reset,
     applyDelta,
+    // The entities of the tick drawn (core/src/entity/mod.rs json).
+    setEntities,
     // Loads what the blocks applied need beyond the page's own resources.
     prepare,
     flush,

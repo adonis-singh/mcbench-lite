@@ -204,6 +204,32 @@ pub unsafe extern "C" fn patch(ptr: *mut u8, len: usize) -> i32 {
 
 /// # Safety
 /// Reads the module's state.
+///
+/// The light an entity is drawn in (web/entity-draw.mjs): the block and sky
+/// light the world holds at each of the cells given (x, y, z as i32, little
+/// endian, three each), written to the output as a byte each, block light in
+/// the low four bits, sky light in the high four.
+#[no_mangle]
+pub unsafe extern "C" fn light(ptr: *mut u8, len: usize) -> i32 {
+    let cells = take(ptr, len);
+    let Some(world) = (*std::ptr::addr_of!(WORLD)).as_ref() else {
+        return fail("No world is loaded".into());
+    };
+    if cells.len() % 12 != 0 {
+        return fail(format!("{} bytes are not cells of three i32", cells.len()));
+    }
+    let out = &mut *std::ptr::addr_of_mut!(OUTPUT);
+    out.clear();
+    for cell in cells.chunks_exact(12) {
+        let at = |i: usize| i32::from_le_bytes(cell[i * 4..i * 4 + 4].try_into().unwrap());
+        let (sky, block) = world.light([at(0), at(1), at(2)]);
+        out.push((block | sky << 4) as u8);
+    }
+    0
+}
+
+/// # Safety
+/// Reads the module's state.
 #[no_mangle]
 pub unsafe extern "C" fn draw(x: i32, z: i32) -> i32 {
     draw_with(x, z, prbm::write)

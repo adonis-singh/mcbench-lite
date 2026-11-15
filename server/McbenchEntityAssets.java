@@ -1,533 +1,44 @@
 import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import java.awt.image.BufferedImage;
-import java.io.IOException;
 import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import javax.imageio.ImageIO;
 
-// The viewer's entity assets, made from Minecraft's client jar (the one
-// BlueMap downloads): one atlas of every texture the entity layer draws
-// (web/entities.js) and its index. Nothing here is committed or served from
-// anywhere but the bake's own folder.
+// The atlas the live viewer's entity layer (web/entities.mjs) and
+// see_build's entities (web/viewer.js) draw entities with, made from
+// Minecraft's client jar (the one BlueMap downloads): every texture named, by
+// its name under textures/ ("minecraft:entity/minecart"), packed in shelves.
+// An animated texture is its first frame (as the capture's sprites are,
+// McbenchEntities.sprite). Nothing here is committed or served from anywhere
+// but the bake's own folder.
 //
-//   McbenchEntityAssets.write(clientJar, atlas.png, index.json)
-//
-// Index (JSON):
-//   atlas      { width, height }
-//   textures   texture path under assets/minecraft/textures (block/stone,
-//              item/redstone, entity/minecart, painting/alban, ...) -> [x, y, w, h]
-//              in the atlas. An animated texture is its first frame.
-//   models     model name (block/oak_stairs) -> { elements }: Minecraft's
-//              model elements with the parents merged, every face's uv
-//              written out (0..16 over its texture) and its texture named.
-//              A model with no elements (chests, beds, banners ...) is the
-//              full cube of its particle texture; chests are drawn from
-//              their entity texture.
-//   blocks     block id -> { variants: { "prop=value,...": { model, x, y } },
-//              multipart: [{ when, apply: { model, x, y } }], tints }
-//              (a variant list is its first variant). tints, for a block
-//              Minecraft's client tints (McbenchClient): { by: [property],
-//              colors: { "prop=value,...": { world: [[r, g, b] by tint
-//              index], single: [r, g, b] } } }, keyed by the properties its
-//              colours change with (every other property changes none):
-//              world the colours of a block standing in the world (a falling
-//              block), single of one drawn with no level (a minecart's).
-//   items      item id -> { sprite } (a texture name; layers are laid over
-//              each other, each tinted by the tint source of its index) or
-//              { model, tints: [[r, g, b] by tint index] } (a block model
-//              drawn small), the tints the item definition's model's tint
-//              sources give its own stack (McbenchClient.itemTints)
-//   entities   entity type -> entity texture
-// A face a tint index tints says so ("tint": its index).
+//   McbenchEntityAssets.atlas(clientJar, textures, atlas.png) ->
+//     { width, height, rects: { texture: [x, y, w, h] } }
 class McbenchEntityAssets {
-  static final String ASSETS = "assets/minecraft/";
   static final int ATLAS_WIDTH = 2048;
-  static final String[] FACES = { "down", "up", "north", "south", "west", "east" };
-  static final String[] WOODS = { "oak", "spruce", "birch", "jungle", "acacia", "dark_oak", "mangrove", "cherry", "pale_oak", "bamboo" };
-  // Textures the entity layer draws that no block or item model names.
-  static final String[] ENTITY_TEXTURES = {
-    "entity/minecart", "entity/armorstand/wood", "entity/projectiles/arrow", "entity/projectiles/spectral_arrow",
-    "entity/projectiles/tipped_arrow", "painting/back",
-  };
 
-  final FileSystem jar;
-  final Map<String, Resolved> resolved = new HashMap<>();
-  final Map<String, JsonObject> outModels = new TreeMap<>();
-  final Map<String, BufferedImage> synthesized = new TreeMap<>();
-  final Map<String, Boolean> needed = new TreeMap<>();
+  record Placed(String name, BufferedImage image, int x, int y) {}
 
-  final McbenchClient minecraft;
-
-  McbenchEntityAssets(FileSystem jar, McbenchClient minecraft) {
-    this.jar = jar;
-    this.minecraft = minecraft;
-  }
-
-  record Resolved(Map<String, String> textures, JsonArray elements, boolean generated) {}
-
-  static String plain(String name) {
-    return name.startsWith("minecraft:") ? name.substring("minecraft:".length()) : name;
-  }
-
-  byte[] read(String path) throws IOException {
-    return Files.readAllBytes(jar.getPath(ASSETS + path));
-  }
-
-  boolean exists(String path) {
-    return Files.exists(jar.getPath(ASSETS + path));
-  }
-
-  JsonObject json(String path) throws IOException {
-    return JsonParser.parseString(new String(read(path), StandardCharsets.UTF_8)).getAsJsonObject();
-  }
-
-  // A model with its parents merged: the child's textures win, and the
-  // nearest model with elements gives them.
-  Resolved resolve(String name) throws IOException {
-    name = plain(name);
-    Resolved known = resolved.get(name);
-    if (known != null) return known;
-    JsonObject model = json("models/" + name + ".json");
-    Map<String, String> textures = new LinkedHashMap<>();
-    JsonArray elements = new JsonArray();
-    boolean generated = false;
-    if (model.has("parent")) {
-      String parent = plain(model.get("parent").getAsString());
-      if (parent.equals("builtin/generated")) generated = true;
-      else if (!parent.startsWith("builtin/")) {
-        Resolved up = resolve(parent);
-        textures.putAll(up.textures);
-        elements = up.elements;
-        generated = up.generated;
-      }
-    }
-    if (model.has("textures")) {
-      for (var entry : model.getAsJsonObject("textures").entrySet()) textures.put(entry.getKey(), entry.getValue().getAsString());
-    }
-    if (model.has("elements")) elements = model.getAsJsonArray("elements");
-    Resolved result = new Resolved(textures, elements, generated);
-    resolved.put(name, result);
-    return result;
-  }
-
-  // A face's texture: a variable of the model ("#side", or "side" as heavy_core
-  // writes it) or a texture path.
-  static String texture(String reference, Map<String, String> textures, String context) {
-    if (!reference.startsWith("#") && textures.containsKey(reference)) reference = "#" + reference;
-    for (int hops = 0; reference.startsWith("#"); hops++) {
-      String next = textures.get(reference.substring(1));
-      if (next == null || hops > 16) throw new IllegalStateException("Unresolved texture " + reference + " in " + context);
-      reference = next;
-    }
-    return plain(reference);
-  }
-
-  String use(String texture) {
-    if (!exists("textures/" + texture + ".png")) throw new IllegalStateException("No texture " + texture);
-    needed.put(texture, true);
-    return texture;
-  }
-
-  static JsonArray numbers(double... values) {
-    JsonArray array = new JsonArray();
-    for (double value : values) array.add(value);
-    return array;
-  }
-
-  static double[] doubles(JsonArray array) {
-    double[] values = new double[array.size()];
-    for (int i = 0; i < values.length; i++) values[i] = array.get(i).getAsDouble();
-    return values;
-  }
-
-  // Minecraft's uv for a face with none given.
-  static double[] defaultUv(String face, double[] f, double[] t) {
-    return switch (face) {
-      case "down" -> new double[] { f[0], 16 - t[2], t[0], 16 - f[2] };
-      case "up" -> new double[] { f[0], f[2], t[0], t[2] };
-      case "north" -> new double[] { 16 - t[0], 16 - t[1], 16 - f[0], 16 - f[1] };
-      case "south" -> new double[] { f[0], 16 - t[1], t[0], 16 - f[1] };
-      case "west" -> new double[] { f[2], 16 - t[1], t[2], 16 - f[1] };
-      case "east" -> new double[] { 16 - t[2], 16 - t[1], 16 - f[2], 16 - f[1] };
-      default -> throw new IllegalStateException(face);
-    };
-  }
-
-  // The model as the index holds it, or null for a model that draws nothing.
-  JsonObject convert(String name, Resolved model) {
-    JsonObject out = new JsonObject();
-    JsonArray elements = new JsonArray();
-    for (JsonElement item : model.elements) {
-      JsonObject element = item.getAsJsonObject();
-      double[] from = doubles(element.getAsJsonArray("from"));
-      double[] to = doubles(element.getAsJsonArray("to"));
-      JsonObject converted = new JsonObject();
-      converted.add("from", numbers(from));
-      converted.add("to", numbers(to));
-      if (element.has("rotation")) {
-        JsonObject rotation = element.getAsJsonObject("rotation");
-        JsonObject copy = new JsonObject();
-        copy.add("origin", rotation.get("origin"));
-        copy.add("axis", rotation.get("axis"));
-        copy.add("angle", rotation.get("angle"));
-        if (rotation.has("rescale")) copy.add("rescale", rotation.get("rescale"));
-        converted.add("rotation", copy);
-      }
-      JsonObject faces = new JsonObject();
-      for (var entry : element.getAsJsonObject("faces").entrySet()) {
-        JsonObject face = entry.getValue().getAsJsonObject();
-        JsonObject copy = new JsonObject();
-        copy.add("uv", face.has("uv") ? face.get("uv") : numbers(defaultUv(entry.getKey(), from, to)));
-        String texture = texture(face.get("texture").getAsString(), model.textures, name);
-        if (!exists("textures/" + texture + ".png")) throw new IllegalStateException("No texture " + texture + " in " + name);
-        copy.addProperty("texture", use(texture));
-        if (face.has("rotation") && face.get("rotation").getAsInt() != 0) copy.add("rotation", face.get("rotation"));
-        if (face.has("tintindex")) copy.addProperty("tint", face.get("tintindex").getAsInt());
-        faces.add(entry.getKey(), copy);
-      }
-      converted.add("faces", faces);
-      elements.add(converted);
-    }
-    out.add("elements", elements);
-    return out;
-  }
-
-  JsonObject cubeOf(String texture) {
-    JsonObject element = new JsonObject();
-    element.add("from", numbers(0, 0, 0));
-    element.add("to", numbers(16, 16, 16));
-    JsonObject faces = new JsonObject();
-    for (String face : FACES) {
-      JsonObject entry = new JsonObject();
-      entry.add("uv", numbers(0, 0, 16, 16));
-      entry.addProperty("texture", use(texture));
-      faces.add(face, entry);
-    }
-    element.add("faces", faces);
-    JsonArray elements = new JsonArray();
-    elements.add(element);
-    JsonObject model = new JsonObject();
-    model.add("elements", elements);
-    return model;
-  }
-
-  // The model name the index uses for `name`: its own, or the particle cube
-  // when it has no elements. Null when it draws nothing.
-  String emit(String name) throws IOException {
-    name = plain(name);
-    if (outModels.containsKey(name)) return name;
-    Resolved model = resolve(name);
-    if (model.elements.size() > 0) {
-      outModels.put(name, convert(name, model));
-      return name;
-    }
-    if (model.generated || !model.textures.containsKey("particle")) return null;
-    String particle = texture("#particle", model.textures, name);
-    if (particle.equals("missingno")) return null; // air's models
-    if (!exists("textures/" + particle + ".png")) throw new IllegalStateException("No texture " + particle + " in " + name);
-    outModels.put(name, cubeOf(particle));
-    return name;
-  }
-
-  // One box of a 64x64 entity texture laid out as Minecraft's cuboids are,
-  // as a model element 16 over the whole texture: u, v the box's offset,
-  // w x h x d its size, at (x, y, z) in block pixels.
-  static JsonObject box(String texture, int size, double u, double v, double w, double h, double d, double x, double y, double z) {
-    double k = 16.0 / size;
-    JsonObject element = new JsonObject();
-    element.add("from", numbers(x, y, z));
-    element.add("to", numbers(x + w, y + h, z + d));
-    JsonObject faces = new JsonObject();
-    double[][] regions = {
-      { u + d + w, v + d, u + d + 2 * w, v },                  // down
-      { u + d, v, u + d + w, v + d },                          // up
-      { u + d, v + d, u + d + w, v + d + h },                  // north
-      { u + 2 * d + w, v + d, u + 2 * d + 2 * w, v + d + h },  // south
-      { u, v + d, u + d, v + d + h },                          // west
-      { u + d + w, v + d, u + 2 * d + w, v + d + h },          // east
-    };
-    for (int i = 0; i < FACES.length; i++) {
-      JsonObject face = new JsonObject();
-      double[] r = regions[i];
-      face.add("uv", numbers(r[0] * k, r[1] * k, r[2] * k, r[3] * k));
-      face.addProperty("texture", texture);
-      faces.add(FACES[i], face);
-    }
-    element.add("faces", faces);
-    return element;
-  }
-
-  // The chest block, which has no model of its own: its lid and body from
-  // the chest entity texture.
-  String chestModel(String id) {
-    String base = id.replaceFirst("^waxed_", "");
-    String name = switch (base) {
-      case "chest" -> "normal";
-      case "trapped_chest" -> "trapped";
-      case "ender_chest" -> "ender";
-      case "copper_chest" -> "copper";
-      case "exposed_copper_chest" -> "copper_exposed";
-      case "weathered_copper_chest" -> "copper_weathered";
-      case "oxidized_copper_chest" -> "copper_oxidized";
-      default -> null;
-    };
-    if (name == null) return null;
-    String texture = use("entity/chest/" + name);
-    String key = "special/chest/" + name;
-    if (!outModels.containsKey(key)) {
-      JsonArray elements = new JsonArray();
-      elements.add(box(texture, 64, 0, 19, 14, 10, 14, 1, 0, 1));
-      elements.add(box(texture, 64, 0, 0, 14, 5, 14, 1, 10, 1));
-      JsonObject model = new JsonObject();
-      model.add("elements", elements);
-      outModels.put(key, model);
-    }
-    return key;
-  }
-
-  static JsonArray rgb(int color) {
-    return numbers(color >> 16 & 0xff, color >> 8 & 0xff, color & 0xff);
-  }
-
-  // The block's tints (see the index), or null when Minecraft's client
-  // tints none of its states or has no such block.
-  JsonObject tints(String id) {
-    List<Integer> states = new ArrayList<>();
-    for (int state = 0; state < minecraft.names.size(); state++) {
-      String name = minecraft.names.get(state);
-      if (name.equals(id) || name.startsWith(id + "[")) states.add(state);
-    }
-    // Item frames have blockstate files and no block.
-    if (states.isEmpty()) return null;
-    if (states.stream().allMatch((state) -> colors(state).equals(UNTINTED))) return null;
-    // The properties some change of which, all else alike, changes a colour.
-    List<Map<String, String>> properties = states.stream().map((state) -> properties(minecraft.names.get(state))).toList();
-    List<String> by = new ArrayList<>();
-    for (String property : properties.get(0).keySet()) {
-      Map<Map<String, String>, Object> seen = new HashMap<>();
-      for (int i = 0; i < states.size(); i++) {
-        var rest = new TreeMap<>(properties.get(i));
-        rest.remove(property);
-        Object before = seen.putIfAbsent(rest, colors(states.get(i)));
-        if (before != null && !before.equals(colors(states.get(i)))) {
-          by.add(property);
-          break;
-        }
-      }
-    }
-    JsonObject colors = new JsonObject();
-    for (int i = 0; i < states.size(); i++) {
-      int state = states.get(i);
-      var key = new StringBuilder();
-      for (String property : by) key.append(key.length() > 0 ? "," : "").append(property).append('=').append(properties.get(i).get(property));
-      JsonObject entry = new JsonObject();
-      JsonArray world = new JsonArray();
-      for (int index = 0; index < minecraft.indices; index++) world.add(rgb(minecraft.world[state * minecraft.indices + index]));
-      entry.add("world", world);
-      entry.add("single", rgb(minecraft.single[state]));
-      JsonElement known = colors.get(key.toString());
-      if (known != null && !known.equals(entry)) throw new IllegalStateException(minecraft.names.get(state) + "'s colours change with more than " + by);
-      colors.add(key.toString(), entry);
-    }
-    JsonObject tints = new JsonObject();
-    JsonArray byArray = new JsonArray();
-    by.forEach(byArray::add);
-    tints.add("by", byArray);
-    tints.add("colors", colors);
-    return tints;
-  }
-
-  static final List<Object> UNTINTED = List.of(List.of(-1), -1);
-
-  // A state's world colours (one white for all white) and single colour,
-  // comparable.
-  List<Object> colors(int state) {
-    List<Integer> world = new ArrayList<>();
-    for (int index = 0; index < minecraft.indices; index++) world.add(minecraft.world[state * minecraft.indices + index] | 0xff000000);
-    if (world.stream().allMatch((color) -> color == -1)) world = List.of(-1);
-    return List.of(world, minecraft.single[state] | 0xff000000);
-  }
-
-  // A state name's properties, sorted.
-  static Map<String, String> properties(String state) {
-    var properties = new TreeMap<String, String>();
-    int open = state.indexOf('[');
-    if (open < 0) return properties;
-    for (String pair : state.substring(open + 1, state.length() - 1).split(",")) {
-      int equals = pair.indexOf('=');
-      properties.put(pair.substring(0, equals), pair.substring(equals + 1));
-    }
-    return properties;
-  }
-
-  static JsonObject placement(JsonObject variant, String model) {
-    JsonObject out = new JsonObject();
-    out.addProperty("model", model);
-    if (variant.has("x") && variant.get("x").getAsInt() != 0) out.add("x", variant.get("x"));
-    if (variant.has("y") && variant.get("y").getAsInt() != 0) out.add("y", variant.get("y"));
-    return out;
-  }
-
-  static JsonObject first(JsonElement variant) {
-    return variant.isJsonArray() ? variant.getAsJsonArray().get(0).getAsJsonObject() : variant.getAsJsonObject();
-  }
-
-  // The model a blockstate entry draws, or null when it draws nothing.
-  String modelOf(String id, JsonObject variant) throws IOException {
-    String chest = chestModel(id);
-    return chest != null ? chest : emit(variant.get("model").getAsString());
-  }
-
-  JsonObject blocks() throws Exception {
-    JsonObject blocks = new JsonObject();
-    List<Path> files = new ArrayList<>();
-    try (var stream = Files.list(jar.getPath(ASSETS + "blockstates"))) {
-      stream.sorted().forEach(files::add);
-    }
-    for (Path file : files) {
-      String id = file.getFileName().toString().replaceFirst("\\.json$", "");
-      JsonObject state = json("blockstates/" + id + ".json");
-      JsonObject block = new JsonObject();
-      if (state.has("variants")) {
-        JsonObject variants = new JsonObject();
-        for (var entry : state.getAsJsonObject("variants").entrySet()) {
-          JsonObject variant = first(entry.getValue());
-          String model = modelOf(id, variant);
-          if (model != null) variants.add(entry.getKey(), placement(variant, model));
-        }
-        block.add("variants", variants);
-      }
-      if (state.has("multipart")) {
-        JsonArray parts = new JsonArray();
-        for (JsonElement item : state.getAsJsonArray("multipart")) {
-          JsonObject part = item.getAsJsonObject();
-          JsonObject apply = first(part.get("apply"));
-          String model = modelOf(id, apply);
-          if (model == null) continue;
-          JsonObject out = new JsonObject();
-          if (part.has("when")) out.add("when", part.get("when"));
-          out.add("apply", placement(apply, model));
-          parts.add(out);
-        }
-        block.add("multipart", parts);
-      }
-      JsonObject tints = tints("minecraft:" + id);
-      if (tints != null) block.add("tints", tints);
-      blocks.add("minecraft:" + id, block);
-    }
-    return blocks;
-  }
-
-  // The node of the first model an item definition (items/<id>.json) shows:
-  // a "model" (its model and tint sources) or a "special" (its base), or
-  // null.
-  static JsonObject leaf(JsonObject node) {
-    String type = plain(node.get("type").getAsString());
-    return switch (type) {
-      case "model", "special" -> node;
-      case "condition" -> leaf(node.getAsJsonObject("on_false"));
-      case "select" -> leaf(node.has("fallback") ? node.getAsJsonObject("fallback") : node.getAsJsonArray("cases").get(0).getAsJsonObject().getAsJsonObject("model"));
-      case "range_dispatch" -> leaf(node.has("fallback") ? node.getAsJsonObject("fallback") : node.getAsJsonArray("entries").get(0).getAsJsonObject().getAsJsonObject("model"));
-      case "composite" -> leaf(node.getAsJsonArray("models").get(0).getAsJsonObject());
-      case "empty" -> null;
-      default -> throw new IllegalStateException("Unknown item model type " + type);
-    };
-  }
-
-  JsonObject items() throws Exception {
-    JsonObject items = new JsonObject();
-    List<Path> files = new ArrayList<>();
-    try (var stream = Files.list(jar.getPath(ASSETS + "items"))) {
-      stream.sorted().forEach(files::add);
-    }
-    for (Path file : files) {
-      String id = file.getFileName().toString().replaceFirst("\\.json$", "");
-      JsonObject node = leaf(json("items/" + id + ".json").getAsJsonObject("model"));
-      if (node == null) continue;
-      String name = plain(node.get(plain(node.get("type").getAsString()).equals("model") ? "model" : "base").getAsString());
-      int[] tints = node.has("tints") ? minecraft.itemTints("minecraft:" + id, node.get("tints").toString()) : new int[0];
-      Resolved model = resolve(name);
-      JsonObject item = new JsonObject();
-      if (model.generated) {
-        List<String> layers = new ArrayList<>();
-        for (int i = 0; model.textures.containsKey("layer" + i); i++) layers.add(texture(model.textures.get("layer" + i), model.textures, name));
-        if (layers.isEmpty()) continue;
-        if (layers.size() == 1 && tints.length == 0) item.addProperty("sprite", use(layers.get(0)));
-        else {
-          String key = "composite/" + id;
-          synthesized.put(key, layered(layers, tints));
-          needed.put(key, true);
-          item.addProperty("sprite", key);
-        }
-      } else {
-        String emitted = emit(name);
-        if (emitted == null) continue;
-        item.addProperty("model", emitted);
-        if (tints.length > 0) {
-          JsonArray colors = new JsonArray();
-          for (int color : tints) colors.add(rgb(color));
-          item.add("tints", colors);
-        }
-      }
-      items.add("minecraft:" + id, item);
-    }
-    return items;
-  }
-
-  // The layers laid over each other, first at the bottom, each multiplied
-  // by the colour of its tint index (a generated item model's layer N has
-  // tint index N), as the client's item shader multiplies them.
-  BufferedImage layered(List<String> layers, int[] tints) throws IOException {
-    BufferedImage out = null;
-    for (int i = 0; i < layers.size(); i++) {
-      BufferedImage image = load(layers.get(i));
-      if (i < tints.length) {
-        int tint = tints[i];
-        for (int y = 0; y < image.getHeight(); y++) for (int x = 0; x < image.getWidth(); x++) {
-          int pixel = image.getRGB(x, y);
-          int r = Math.round((pixel >> 16 & 0xff) * (tint >> 16 & 0xff) / 255f);
-          int g = Math.round((pixel >> 8 & 0xff) * (tint >> 8 & 0xff) / 255f);
-          int b = Math.round((pixel & 0xff) * (tint & 0xff) / 255f);
-          image.setRGB(x, y, pixel & 0xff000000 | r << 16 | g << 8 | b);
-        }
-      }
-      if (out == null) out = new BufferedImage(image.getWidth(), image.getHeight(), BufferedImage.TYPE_INT_ARGB);
-      var graphics = out.createGraphics();
-      graphics.drawImage(image, 0, 0, null);
-      graphics.dispose();
-    }
-    return out;
-  }
-
-  // A texture; an animated one is its first frame.
-  BufferedImage load(String texture) throws IOException {
+  static BufferedImage load(FileSystem jar, String texture) throws Exception {
+    String[] id = texture.split(":", 2);
+    String path = "assets/" + id[0] + "/textures/" + id[1] + ".png";
     BufferedImage image;
-    try (InputStream stream = Files.newInputStream(jar.getPath(ASSETS + "textures/" + texture + ".png"))) {
+    try (InputStream stream = Files.newInputStream(jar.getPath(path))) {
       image = ImageIO.read(stream);
     }
-    String meta = "textures/" + texture + ".png.mcmeta";
-    if (exists(meta) && json(meta).has("animation")) {
-      JsonObject animation = json(meta).getAsJsonObject("animation");
-      int w = animation.has("width") ? animation.get("width").getAsInt() : image.getWidth();
-      int h = animation.has("height") ? animation.get("height").getAsInt() : (animation.has("width") ? image.getHeight() : image.getWidth());
-      image = image.getSubimage(0, 0, w, h);
-    }
+    Path meta = jar.getPath(path + ".mcmeta");
+    if (Files.exists(meta) && JsonParser.parseString(Files.readString(meta)).getAsJsonObject().has("animation")) image = image.getSubimage(0, 0, image.getWidth(), image.getWidth());
     BufferedImage argb = new BufferedImage(image.getWidth(), image.getHeight(), BufferedImage.TYPE_INT_ARGB);
     var graphics = argb.createGraphics();
     graphics.drawImage(image, 0, 0, null);
@@ -535,38 +46,16 @@ class McbenchEntityAssets {
     return argb;
   }
 
-  JsonObject entities() throws IOException {
-    JsonObject entities = new JsonObject();
-    for (String type : new String[] { "minecart", "chest_minecart", "furnace_minecart", "hopper_minecart", "tnt_minecart", "spawner_minecart", "command_block_minecart" }) {
-      entities.addProperty("minecraft:" + type, "entity/minecart");
+  static JsonObject atlas(Path clientJar, Collection<String> textures, Path atlasPath) throws Exception {
+    Map<String, BufferedImage> images = new TreeMap<>();
+    try (FileSystem jar = FileSystems.newFileSystem(clientJar)) {
+      for (String texture : textures) images.put(texture, load(jar, texture));
     }
-    for (String wood : WOODS) {
-      boolean raft = wood.equals("bamboo");
-      entities.addProperty("minecraft:" + wood + (raft ? "_raft" : "_boat"), "entity/boat/" + wood);
-      entities.addProperty("minecraft:" + wood + (raft ? "_chest_raft" : "_chest_boat"), "entity/chest_boat/" + wood);
-    }
-    entities.addProperty("minecraft:armor_stand", "entity/armorstand/wood");
-    entities.addProperty("minecraft:arrow", "entity/projectiles/arrow");
-    entities.addProperty("minecraft:spectral_arrow", "entity/projectiles/spectral_arrow");
-    for (var entry : entities.entrySet()) use(entry.getValue().getAsString());
-    for (String texture : ENTITY_TEXTURES) use(texture);
-    var paintings = Pattern.compile("^" + Pattern.quote(ASSETS + "textures/painting/") + "(.+)\\.png$");
-    try (var stream = Files.list(jar.getPath(ASSETS + "textures/painting"))) {
-      for (Path file : (Iterable<Path>) stream.sorted()::iterator) {
-        Matcher match = paintings.matcher(ASSETS + "textures/painting/" + file.getFileName());
-        if (match.matches()) use("painting/" + match.group(1));
-      }
-    }
-    return entities;
-  }
-
-  record Placed(String name, BufferedImage image, int x, int y) {}
-
-  // Shelf packing, tallest first, ATLAS_WIDTH wide.
-  static Object[] pack(Map<String, BufferedImage> images, JsonObject rects) {
+    // Shelf packing, tallest first.
     List<Map.Entry<String, BufferedImage>> order = new ArrayList<>(images.entrySet());
-    order.sort(Comparator.<Map.Entry<String, BufferedImage>>comparingInt(e -> -e.getValue().getHeight()).thenComparing(Map.Entry::getKey));
+    order.sort(Comparator.<Map.Entry<String, BufferedImage>>comparingInt((entry) -> -entry.getValue().getHeight()).thenComparing(Map.Entry::getKey));
     List<Placed> placed = new ArrayList<>();
+    JsonObject rects = new JsonObject();
     int x = 0, y = 0, shelf = 0;
     for (var entry : order) {
       BufferedImage image = entry.getValue();
@@ -577,49 +66,22 @@ class McbenchEntityAssets {
         shelf = 0;
       }
       placed.add(new Placed(entry.getKey(), image, x, y));
-      rects.add(entry.getKey(), numbers(x, y, image.getWidth(), image.getHeight()));
+      JsonArray rect = new JsonArray();
+      for (int v : new int[] { x, y, image.getWidth(), image.getHeight() }) rect.add(v);
+      rects.add(entry.getKey(), rect);
       x += image.getWidth();
       shelf = Math.max(shelf, image.getHeight());
     }
     int height = y + shelf;
     BufferedImage atlas = new BufferedImage(ATLAS_WIDTH, height, BufferedImage.TYPE_INT_ARGB);
-    for (Placed p : placed) atlas.getGraphics().drawImage(p.image, p.x, p.y, null);
-    return new Object[] { atlas, height };
-  }
-
-  static void write(Path clientJar, McbenchClient minecraft, Path atlasPath, Path indexPath) throws Exception {
-    try (FileSystem jar = FileSystems.newFileSystem(clientJar)) {
-      McbenchEntityAssets assets = new McbenchEntityAssets(jar, minecraft);
-      JsonObject blocks = assets.blocks();
-      JsonObject items = assets.items();
-      JsonObject entities = assets.entities();
-      Map<String, BufferedImage> images = new TreeMap<>();
-      for (String texture : assets.needed.keySet()) {
-        images.put(texture, assets.synthesized.containsKey(texture) ? assets.synthesized.get(texture) : assets.load(texture));
-      }
-      JsonObject rects = new JsonObject();
-      Object[] packed = pack(images, rects);
-      JsonObject atlas = new JsonObject();
-      atlas.addProperty("width", ATLAS_WIDTH);
-      atlas.addProperty("height", (Integer) packed[1]);
-      JsonObject models = new JsonObject();
-      for (var entry : assets.outModels.entrySet()) models.add(entry.getKey(), entry.getValue());
-      JsonObject index = new JsonObject();
-      index.add("atlas", atlas);
-      index.add("textures", rects);
-      index.add("models", models);
-      index.add("blocks", blocks);
-      index.add("items", items);
-      index.add("entities", entities);
-      ImageIO.write((BufferedImage) packed[0], "png", atlasPath.toFile());
-      Files.writeString(indexPath, index.toString());
-    }
-  }
-
-  //   java McbenchEntityAssets client.jar blockTable <Minecraft's libraries> biome atlas.png index.json
-  public static void main(String[] args) throws Exception {
-    write(Path.of(args[0]), McbenchClient.read(Path.of(args[0]), Path.of(args[1]), args[2], args[3]), Path.of(args[4]), Path.of(args[5]));
-    // Minecraft's entry point (McbenchClient) leaves threads behind.
-    System.exit(0);
+    var graphics = atlas.createGraphics();
+    for (Placed p : placed) graphics.drawImage(p.image(), p.x(), p.y(), null);
+    graphics.dispose();
+    ImageIO.write(atlas, "png", atlasPath.toFile());
+    JsonObject out = new JsonObject();
+    out.addProperty("width", ATLAS_WIDTH);
+    out.addProperty("height", height);
+    out.add("rects", rects);
+    return out;
   }
 }

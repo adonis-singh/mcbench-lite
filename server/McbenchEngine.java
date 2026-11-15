@@ -1519,13 +1519,16 @@ public class McbenchEngine {
       value.addProperty("pitch", entity.getXRot());
       value.addProperty("width", entity.getBbWidth());
       value.addProperty("height", entity.getBbHeight());
+      // What its look changes with (core/src/entity/mod.rs json): the ticks
+      // it has lived, and each kind's own.
+      value.addProperty("ticks", entity.tickCount);
       net.minecraft.world.item.ItemStack item = null;
       if (entity instanceof net.minecraft.world.entity.item.ItemEntity drop) item = drop.getItem();
       if (entity instanceof net.minecraft.world.entity.decoration.ItemFrame frame) {
         item = frame.getItem();
         value.addProperty("rotation", frame.getRotation());
+        value.addProperty("invisible", frame.isInvisible());
       }
-      if (entity instanceof net.minecraft.world.entity.decoration.ArmorStand stand) item = stand.getMainHandItem();
       if (item != null && !item.isEmpty()) {
         value.addProperty("item", BuiltInRegistries.ITEM.getKey(item.getItem()).toString());
         value.addProperty("count", item.getCount());
@@ -1537,7 +1540,33 @@ public class McbenchEngine {
         value.addProperty("block", BlockStateParser.serialize(tnt.getBlockState()));
         value.addProperty("fuse", tnt.getFuse());
       }
-      if (entity instanceof net.minecraft.world.entity.vehicle.AbstractMinecart cart) value.addProperty("block", BlockStateParser.serialize(cart.getDisplayBlockState()));
+      if (entity instanceof net.minecraft.world.entity.vehicle.AbstractMinecart cart) {
+        value.addProperty("block", BlockStateParser.serialize(cart.getDisplayBlockState()));
+        value.addProperty("offset", cart.getDisplayOffset());
+        if (cart instanceof net.minecraft.world.entity.vehicle.MinecartTNT lit) value.addProperty("fuse", lit.getFuse());
+      }
+      if (entity instanceof net.minecraft.world.entity.ExperienceOrb orb) value.addProperty("value", orb.getValue());
+      if (entity instanceof net.minecraft.world.entity.animal.coppergolem.CopperGolem golem) value.addProperty("weather", golem.getWeatherState().ordinal());
+      if (entity instanceof net.minecraft.world.entity.decoration.ArmorStand stand) {
+        value.addProperty("small", stand.isSmall());
+        value.addProperty("show_arms", stand.showArms());
+        value.addProperty("no_base_plate", !stand.showBasePlate());
+        value.addProperty("invisible", stand.isInvisible());
+        value.addProperty("marker", stand.isMarker());
+        var pose = new com.google.gson.JsonArray();
+        for (var rotations : new net.minecraft.core.Rotations[] { stand.getHeadPose(), stand.getBodyPose(), stand.getLeftArmPose(), stand.getRightArmPose(), stand.getLeftLegPose(), stand.getRightLegPose() }) {
+          var angles = new com.google.gson.JsonArray();
+          angles.add(rotations.x()); angles.add(rotations.y()); angles.add(rotations.z());
+          pose.add(angles);
+        }
+        value.add("pose", pose);
+        var equipment = new JsonObject();
+        for (var slot : net.minecraft.world.entity.EquipmentSlot.VALUES) {
+          var held = stand.getItemBySlot(slot);
+          if (!held.isEmpty()) equipment.addProperty(slot.getSerializedName(), BuiltInRegistries.ITEM.getKey(held.getItem()).toString());
+        }
+        value.add("equipment", equipment);
+      }
       list.add(value);
     }
     Path partial = target.resolveSibling(target.getFileName() + ".part");

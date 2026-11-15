@@ -163,6 +163,13 @@ export class MesherClient {
   draw(x, z) {
     return this.enqueue({ draw: [x, z] });
   }
+
+  // The light at `cells` of the world (after every load and patch asked
+  // before) and the models of block `states` alone: { light, blocks } (see
+  // mesher-worker.mjs).
+  entities(cells, states) {
+    return this.enqueue({ message: { type: 'entities', cells, states } });
+  }
 }
 
 // Geometry tiles arrive indexed (the worker shares each quad's repeated

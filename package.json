@@ -16,7 +16,6 @@
     "test": "node --test \"test/**/*.test.js\"",
     "test:ui": "MCBENCH_UI_INTEGRATION=1 node --test test/shot-browser.integration.test.js test/viewer-click.integration.test.js",
     "test:minecraft": "MCBENCH_VERIFY_INTEGRATION=1 node --test test/minecraft-verify.integration.test.js",
-    "test:entities": "MCBENCH_ENTITY_INTEGRATION=1 node --test test/entity-assets.integration.test.js",
     "test:settle": "MCBENCH_SETTLE_INTEGRATION=1 node --test test/settle-flow.integration.test.js",
     "bench:3m": "node --expose-gc scripts/benchmark-3m.js",
     "bench:verification": "node scripts/benchmark-verification.js",

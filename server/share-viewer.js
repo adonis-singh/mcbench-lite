@@ -25,8 +25,8 @@ const zlib = require('zlib');
 const WEB = path.join(__dirname, '..', 'web');
 // What the shared viewer uses of the bake's web folder, as it is: BlueMap's
 // page, scripts, styles and languages, and the map (its settings, textures
-// and the live marker files it polls, which stay empty). Its entity atlas
-// and sql.php are not used.
+// and the live marker files it polls, which stay empty). Its entities'
+// capture and atlas and sql.php are not used.
 const BAKED = ['index.html', 'assets', 'lang', 'maps'];
 // The app's modules the share bridge draws with, and the bridge.
 const CODE = ['mesher.mjs', 'mesher-worker.mjs', 'bluemap-tiles.mjs', 'bluemap-view.mjs', 'share/bridge.js'];

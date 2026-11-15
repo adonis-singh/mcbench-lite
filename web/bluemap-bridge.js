@@ -219,8 +219,9 @@
       // A frame of a base with nothing since it carries no patch.
       if (link.key !== data.key || link.state === 'failed') return;
       if (data.patch) link.patches.push(new Uint8Array(data.patch));
+      // The entities go to the layer once the world they stand in is shown
+      // (turn): it reads their light from it.
       entityFrame = data.entities;
-      if (entityLayer) entityLayer.set(entityFrame);
       drive();
       return;
     }
@@ -287,8 +288,8 @@
     blueMapView.patchViewer(app, function () { return uiState.bounds; });
     installFlightModes(app);
     var entities = await import('/entities.mjs');
-    entityLayer = new entities.EntityLayer({ BlueMap: window.BlueMap, app: app, assets: await entities.loadEntityAssets(window.location.href) });
-    if (entityFrame) entityLayer.set(entityFrame);
+    entityLayer = new entities.EntityLayer({ BlueMap: window.BlueMap, app: app, assets: await entities.loadEntityAssets(window.location.href), mesher: made.mesher });
+    if (entityFrame && link.state === 'shown') entityLayer.set(entityFrame);
     overlay = new window.BlueMap.Three.Group();
     app.mapViewer.markers.add(overlay);
     schedulePanel();
@@ -370,6 +371,7 @@
         if (link !== mine) return;
         linkTo('shown', null);
       }
+      if (mine.state === 'shown' && entityLayer && entityFrame) entityLayer.set(entityFrame);
     } catch (error) {
       if (link !== mine) return;
       linkTo('failed', String(error.message || error));

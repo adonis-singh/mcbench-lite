@@ -24,15 +24,24 @@ test('render masks leave growth room and have no height limit', () => {
   assert.notDeepStrictEqual(renderMask({ min: [0, 0, 0], max: [64, 16, 64] }), initial);
 });
 
-// A BlueMap folder whose jar is already in place, and a bake that writes
-// what McbenchBake writes, and what Minecraft's server entry point leaves.
+// A BlueMap folder whose downloads (the BlueMap jar and Mojang's client
+// mappings) are written by a stand-in, counted, and a bake that writes what
+// McbenchBake writes, and what Minecraft's server entry point leaves.
+const DOWNLOADED = ['bluemap-5.22-cli.jar', 'minecraft-client-1.21.10-mappings.txt'];
+
+// Downloads that fail: everything is in place.
+const inPlace = async (url) => { throw new Error(`downloaded again: ${url}`); };
+
 function bakery(t) {
   const root = temporaryRoot(t);
-  const jar = Buffer.from('bluemap');
   const runs = [];
+  const downloads = [];
   const blueMap = new BlueMap({
     root,
-    download: async () => { throw new Error('the jar is in place'); },
+    download: async (url, target, { sha256 }) => {
+      downloads.push({ url, target, sha256 });
+      fs.writeFileSync(target, 'downloaded');
+    },
     run: async (command, args, options) => {
       runs.push({ command, args, cwd: options.cwd });
       if (args.includes('McbenchBake')) {
@@ -48,11 +57,10 @@ function bakery(t) {
       }
     },
   });
-  blueMap.ensureJar = async () => { fs.writeFileSync(blueMap.jar, jar); };
   const table = path.join(root, '..', `${path.basename(root)}-table.tsv`);
   fs.writeFileSync(table, 'default\tminecraft:stone\tminecraft:stone\n');
   t.after(() => fs.rmSync(table, { force: true }));
-  return { root, blueMap, runs, table };
+  return { root, blueMap, runs, downloads, table };
 }
 
 // Paper's libraries, which Minecraft's client runs on.
@@ -70,7 +78,7 @@ function request(blueMap, pathname, headers = {}) {
 }
 
 test('the viewer\'s assets are baked once per content, and older bakes and app files are removed', async (t) => {
-  const { root, blueMap, runs, table } = bakery(t);
+  const { root, blueMap, runs, downloads, table } = bakery(t);
   for (const old of ['aot', 'web', 'config', 'mcbench-renderer-c057c2cbe164.jar', '0123456789abcdef']) fs.mkdirSync(path.join(root, old), { recursive: true });
   fs.mkdirSync(path.join(root, 'data'), { recursive: true });
   const assets = await blueMap.prepare(table, LIBRARIES);
@@ -81,9 +89,13 @@ test('the viewer\'s assets are baked once per content, and older bakes and app f
     pack: `/bluemap/${assets.id}/mcbench-pack.bin`,
     wasm: `/bluemap/mesher-${blueMap.mesherHash}.wasm`,
   });
-  assert.deepStrictEqual(fs.readdirSync(root).sort(), [assets.id, 'bluemap-5.22-cli.jar', 'data'].sort());
-  assert.deepStrictEqual(runs[0].args.slice(-4), ['McbenchBake.java', 'McbenchEntityAssets.java', 'McbenchClient.java', 'McbenchBlockEntities.java'].map((name) => path.join(__dirname, '..', 'server', name)));
-  assert.deepStrictEqual(runs[1].args.slice(-4), ['1.21.10', table, LIBRARIES.join(path.delimiter), 'minecraft:plains']);
+  assert.deepStrictEqual(fs.readdirSync(root).sort(), [assets.id, ...DOWNLOADED, 'data'].sort());
+  // Both downloads, each pinned to its checksum, the mappings Mojang's own.
+  assert.deepStrictEqual(downloads.map((download) => path.basename(download.target)).sort(), DOWNLOADED);
+  assert.ok(downloads.every((download) => /^[0-9a-f]{64}$/.test(download.sha256)));
+  assert.match(downloads.find((download) => download.target === blueMap.mappings).url, /^https:\/\/piston-data\.mojang\.com\/v1\/objects\/[0-9a-f]{40}\/client\.txt$/);
+  assert.deepStrictEqual(runs[0].args.slice(-5), ['McbenchBake.java', 'McbenchEntityAssets.java', 'McbenchClient.java', 'McbenchBlockEntities.java', 'McbenchEntities.java'].map((name) => path.join(__dirname, '..', 'server', name)));
+  assert.deepStrictEqual(runs[1].args.slice(-5), ['1.21.10', table, LIBRARIES.join(path.delimiter), 'minecraft:plains', blueMap.mappings]);
   assert.strictEqual(runs.length, 2);
   const config = path.join(root, assets.id, 'config');
   assert.match(fs.readFileSync(path.join(config, 'webapp.conf'), 'utf8'), /bluemap-bridge\.js/);
@@ -94,14 +106,12 @@ test('the viewer\'s assets are baked once per content, and older bakes and app f
   assert.deepStrictEqual(fs.readdirSync(path.join(root, assets.id)).sort(), ['config', 'render-layers.tsv', 'tints.tsv', 'web']);
   assert.strictEqual(blueMap.baked('tints.tsv'), path.join(root, assets.id, 'tints.tsv'));
 
-  // A second app run finds the bake.
-  const again = new BlueMap({ root, run: async () => { throw new Error('baked twice'); } });
-  again.ensureJar = async () => {};
+  // A second app run finds the bake, and downloads nothing again.
+  const again = new BlueMap({ root, download: inPlace, run: async () => { throw new Error('baked twice'); } });
   assert.deepStrictEqual(await again.prepare(table, LIBRARIES), assets);
   // Another block table is another bake.
   fs.appendFileSync(table, 'minecraft:stone\t0\t15\t0\t1\t63\t0\n');
-  const third = new BlueMap({ root, run: blueMap.run });
-  third.ensureJar = async () => {};
+  const third = new BlueMap({ root, download: inPlace, run: blueMap.run });
   const other = await third.prepare(table, LIBRARIES);
   assert.notStrictEqual(other.id, assets.id);
   assert.strictEqual(fs.existsSync(path.join(root, assets.id)), false);
@@ -112,12 +122,11 @@ test('two processes baking one folder at once bake it once: the second waits and
   const slow = blueMap.run;
   blueMap.run = async (...args) => { await new Promise((resolve) => setTimeout(resolve, 300)); return slow(...args); };
   // Another process's BlueMap on the same folder, its runs counted with this one's.
-  const other = new BlueMap({ root, run: blueMap.run });
-  other.ensureJar = async () => {};
+  const other = new BlueMap({ root, download: blueMap.download, run: blueMap.run });
   const [first, second] = await Promise.all([blueMap.prepare(table, LIBRARIES), other.prepare(table, LIBRARIES)]);
   assert.deepStrictEqual(second, first);
   assert.strictEqual(runs.filter((run) => run.args.includes('McbenchBake')).length, 1);
-  assert.deepStrictEqual(fs.readdirSync(root).sort(), [first.id, 'bluemap-5.22-cli.jar'].sort());
+  assert.deepStrictEqual(fs.readdirSync(root).sort(), [first.id, ...DOWNLOADED].sort());
   assert.strictEqual(fs.existsSync(`${root}.lock`), false, 'the lock is given back');
 });
 
@@ -129,7 +138,7 @@ test('a failed bake leaves nothing behind and is tried again', async (t) => {
   assert.strictEqual(blueMap.assets, null);
   blueMap.run = run;
   const assets = await blueMap.prepare(table, LIBRARIES);
-  assert.deepStrictEqual(fs.readdirSync(root).sort(), [assets.id, 'bluemap-5.22-cli.jar'].sort(), 'the partial bake is gone');
+  assert.deepStrictEqual(fs.readdirSync(root).sort(), [assets.id, ...DOWNLOADED].sort(), 'the partial bake is gone');
 });
 
 test('the web app, pack and mesher are served at addresses that never change meaning', async (t) => {

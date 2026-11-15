@@ -26,7 +26,7 @@ test('queued screenshots cancel without touching another render; active cancella
     return browser;
   });
   const { renderShots, resolveShot } = require('../server/shot');
-  const shots = (world, views) => views.map((view) => resolveShot({ view }, world));
+  const shots = (world, views) => views.map((view) => resolveShot({ view }, world, []));
   const { World } = require('../server/world');
   const bounds = new World();
   bounds.set(0, 0, 0, 'minecraft:stone');

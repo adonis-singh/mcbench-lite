@@ -110,11 +110,11 @@ class Publish {
 async function exportBuild(conversation, size) {
   if (!blueMap.assets) throw new Error('The viewer\'s assets are not baked yet');
   const ticks = currentTicks(conversation.world);
-  const { world } = (await settle(conversation.id, conversation.world, [ticks])).get(ticks);
+  const { world, entities } = (await settle(conversation.id, conversation.world, [ticks])).get(ticks);
   if (world.size() === 0) throw new Error(`Minecraft keeps none of the blocks of this build at tick ${ticks}`);
   const bounds = world.bounds();
   const lift = ([x, y, z]) => [x, y + minecraftLive.yOffset, z];
-  const [preview] = await renderShots(conversation.id, [{ ...resolveShot({ view: 'iso_se', size: 'preview' }, world, { preview: size }), tick: ticks }]);
+  const [preview] = await renderShots(conversation.id, [{ ...resolveShot({ view: 'iso_se', size: 'preview' }, world, entities, { preview: size }), tick: ticks }]);
   return {
     blueprint: worldBlueprint(world, minecraftLive.yOffset),
     mask: renderMask(bounds),

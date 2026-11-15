@@ -64,17 +64,17 @@ function writeFiles(folder, files) {
 // every water level and neighbourhood, which the native mesher is checked
 // against. Then BlueMap's own renderer, started once, drawing blueprints.
 async function bake(blockTable) {
-  await blueMap.ensureJar();
+  await blueMap.ensureDownloads();
   const libraries = (await minecraftLive.ensurePaper()).filter((entry) => entry.startsWith('libraries/')).map((entry) => path.join(minecraftLive.paperDir, entry));
   fs.rmSync(FOLDER, { recursive: true, force: true });
   writeFiles(FOLDER, configFiles(path.join(blueMap.root, 'data')));
   const classes = path.join(FOLDER, 'classes');
   execFileSync(JAVAC, ['-proc:none', '-classpath', blueMap.jar, '-d', classes,
-    ...['McbenchBake.java', 'McbenchEntityAssets.java', 'McbenchClient.java', 'McbenchBlockEntities.java'].map((name) => path.join(ROOT, 'server', name)), path.join(__dirname, 'McbenchBlueMapReference.java')], { stdio: 'inherit' });
+    ...['McbenchBake.java', 'McbenchEntityAssets.java', 'McbenchClient.java', 'McbenchBlockEntities.java', 'McbenchEntities.java'].map((name) => path.join(ROOT, 'server', name)), path.join(__dirname, 'McbenchBlueMapReference.java')], { stdio: 'inherit' });
   const classpath = [blueMap.jar, classes].join(path.delimiter);
   const flowTable = path.join(FOLDER, 'flow-angles.bin');
   const started = Date.now();
-  execFileSync(JAVA, ['-Xmx2G', '-cp', classpath, 'McbenchBake', MC_VERSION, blockTable, libraries.join(path.delimiter), BIOME, flowTable],
+  execFileSync(JAVA, ['-Xmx2G', '-cp', classpath, 'McbenchBake', MC_VERSION, blockTable, libraries.join(path.delimiter), BIOME, blueMap.mappings, flowTable],
     { cwd: FOLDER, stdio: ['ignore', 'inherit', 'inherit'] });
   console.log(`baked in ${Date.now() - started} ms`);
   execFileSync(path.join(RENDERER, 'target', 'release', 'mcbench-mesh'), ['flow', flowTable], { stdio: 'inherit' });
