@@ -67,7 +67,7 @@ The app installs the programs it needs into its tools folder, `~/.mcbench-lite/t
 | Rust and its WebAssembly target | 1.99.1 (`core/rust-toolchain.toml`) | static.rust-lang.org, through rustup | rustup's own checks of its downloads | the first start |
 | Chromium's headless shell | the build playwright-core names, 149.0.7827.55 | cdn.playwright.dev (Chrome for Testing's builds; Playwright's own build on ARM Linux) | none is published: the sha256 of each file as downloaded, the same as Google's Chrome for Testing files where those exist | the first start |
 | Claude Code | 2.1.311 | Anthropic's release bucket on storage.googleapis.com | the release's `manifest.json` | when you ask for it in Connect an AI and have no `claude` |
-| Codex CLI | 0.167.1 | github.com/openai/codex releases | GitHub's sha256 of each release file | when you ask for it in Connect an AI and have no `codex` |
+| Codex CLI | 0.169.0 | github.com/openai/codex releases | GitHub's sha256 of each release file | when you ask for it in Connect an AI and have no `codex` |
 
 Paper's jar, BlueMap's jar and misode/mcmeta's block data go into the data folder, each pinned by sha256 (`server/paper-files.js`, `server/bluemap.js`, `server/assets.js`). Paper's launcher then downloads the Minecraft server from Mojang, and BlueMap's tool the Minecraft client jar; the app does not check those itself. The shell's image is not pinned (above).
 

@@ -5,6 +5,8 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { execFile } = require('node:child_process');
+const { promisify } = require('node:util');
 
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mcbench-codex-cli-test-'));
 process.env.MCBENCH_DATA_DIR = dataDir;
@@ -34,6 +36,12 @@ test('the container configuration pins the model, effort, instructions, disabled
   assert.match(toml, /^model = "gpt-6-astra"\nmodel_reasoning_effort = "high"\napproval_policy = "never"\nsandbox_mode = "danger-full-access"\n/);
   assert.match(toml, /developer_instructions = "Build \\"well\\"\.\\nLine two"\n/);
   assert.match(toml, /\nfeatures\.shell_tool = false\n/);
+  assert.match(toml, /\nfeatures\.code_mode_host = true\n/);
+  // From a config file Codex 0.169.0 warns in the chat about the deprecated
+  // features.multi_agent; agents.enabled = false is what removes subagents.
+  assert.doesNotMatch(toml, /^features\.multi_agent = /m);
+  assert.match(toml, /\nfeatures\.multi_agent_v2 = false\n/);
+  assert.match(toml, /\nagents\.enabled = false\n/);
   assert.match(toml, /\nmcp_servers\.mcbench\.command = "python3"\nmcp_servers\.mcbench\.args = \["\/run\/mcbench\/mcp-bridge\.py", "\/run\/mcbench\/mcp\.sock"\]\n/);
   assert.doesNotMatch(codexCli.configToml({ model: 'm', systemPrompt: 's' }), /model_reasoning_effort/);
 });
@@ -46,9 +54,13 @@ test('the host run ignores user config and rules, passes the same settings as ov
   assert.ok(overrides.includes('model="gpt-6-astra"') && overrides.includes('model_reasoning_effort="low"'));
   assert.ok(overrides.includes('sandbox_mode="read-only"') && overrides.includes('approval_policy="never"'));
   assert.ok(overrides.includes('features.shell_tool=false') && overrides.includes('developer_instructions="S"'));
-  // Codex 0.167.1 turns these on by default, and each gives the model a tool:
-  // subagents (multi_agent_v2) and a code-running host (code_mode_host).
-  for (const feature of ['multi_agent', 'multi_agent_v2', 'code_mode_host']) assert.ok(overrides.includes(`features.${feature}=false`), feature);
+  // Subagents are off (agents.enabled, which holds while multi_agent_v2 is
+  // off), not through the deprecated features.multi_agent; Code Mode's host,
+  // which runs `exec`, the only tool of a code_mode_only model and its one
+  // way to mcbench's tools, is on.
+  assert.ok(overrides.includes('agents.enabled=false') && overrides.includes('features.multi_agent_v2=false'));
+  assert.ok(!overrides.some((override) => override.startsWith('features.multi_agent=')));
+  assert.ok(overrides.includes('features.code_mode_host=true'));
   assert.ok(overrides.includes(`mcp_servers.mcbench.args=[${JSON.stringify(bridge)}, "/tmp/m.sock"]`));
   assert.ok(overrides.includes('mcp_servers.mcbench.default_tools_approval_mode="approve"'));
   assert.deepEqual(args.slice(-3), ['-i', '/tmp/image-1.png', '-']);
@@ -80,6 +92,65 @@ test('Codex turn usage maps onto the OpenAI token accounting the app normalizes'
 
 test('the Codex harness has a launcher for Linux (container) and macOS (host) and refuses other platforms', () => {
   assert.deepEqual(Object.keys(codexCli._internal.LAUNCHERS).sort(), ['darwin', 'linux']);
+});
+
+// The fake Codex runs a code_mode_only turn as Codex 0.167.1 and 0.169.0 do:
+// its `exec` reaches the MCP server only when Code Mode's host is on.
+test('a host turn reaches mcbench\'s tools through Code Mode', async (t) => {
+  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'mcbench-codex-code-mode-'));
+  const previous = process.env.CODEX_HOME;
+  process.env.CODEX_HOME = path.join(scratch, 'login');
+  codexCli.configure({ binary: path.join(__dirname, 'fixtures', 'fake-codex.js') });
+  t.after(() => {
+    codexCli.configure({});
+    if (previous === undefined) delete process.env.CODEX_HOME;
+    else process.env.CODEX_HOME = previous;
+    fs.rmSync(scratch, { recursive: true, force: true });
+  });
+  const calls = [];
+  const tool = (name) => ({ function: { name, description: name, parameters: { type: 'object', properties: {} } } });
+  const runtimeDir = fs.mkdtempSync(path.join(scratch, 'run-'));
+  const launch = await codexCli._internal.LAUNCHERS.darwin({ dir: path.join(scratch, 'chat'), runtimeDir, socket: path.join(runtimeDir, 'mcp.sock'),
+    model: 'gpt-6-luna', effort: 'low', systemPrompt: 'S', resume: false, threadId: null,
+    prompt: { images: [], tools: [tool('build'), tool('see_build')], call: async (name) => { calls.push(name); return [{ type: 'text', text: `${name} done` }]; } } });
+  let stdout;
+  try {
+    ({ stdout } = await promisify(execFile)(launch.command, launch.args, { cwd: launch.cwd, env: launch.env }));
+  } finally {
+    await launch.release();
+  }
+  const items = stdout.trim().split('\n').map((line) => JSON.parse(line)).filter((event) => event.type === 'item.completed').map((event) => event.item);
+  assert.deepEqual(calls, ['build', 'see_build']);
+  assert.deepEqual(items.map((item) => [item.type, item.tool, item.result.content[0].text]), [['mcp_tool_call', 'build', 'build done'], ['mcp_tool_call', 'see_build', 'see_build done']]);
+  for (const item of items) codexCli.checkItem(item);
+});
+
+// The container's run: `codex exec` with the harness's config.toml in its
+// CODEX_HOME (the bridge pointed at a host socket, as /run/mcbench is in the
+// container). The fake warns from a config file as Codex 0.169.0 does, so a
+// setting Codex warns about would show here as an error item.
+test('the container\'s config.toml gives a turn mcbench\'s tools and no warning', async (t) => {
+  const { serveMcp, BRIDGE } = require('../server/mcp');
+  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'mcbench-codex-config-'));
+  t.after(() => fs.rmSync(scratch, { recursive: true, force: true }));
+  const home = path.join(scratch, 'codex-home');
+  const socket = path.join(scratch, 'mcp.sock');
+  codexCli.prepareHome(home);
+  fs.writeFileSync(path.join(home, 'config.toml'), codexCli.configToml({ model: 'gpt-6-luna', effort: 'low', systemPrompt: 'S' })
+    .replace('["/run/mcbench/mcp-bridge.py", "/run/mcbench/mcp.sock"]', JSON.stringify([BRIDGE, socket])));
+  const calls = [];
+  const server = await serveMcp(socket, { tools: [{ function: { name: 'build', description: 'build', parameters: { type: 'object', properties: {} } } }],
+    call: async (name) => { calls.push(name); return [{ type: 'text', text: 'built' }]; } });
+  let stdout;
+  try {
+    ({ stdout } = await promisify(execFile)(path.join(__dirname, 'fixtures', 'fake-codex.js'), ['exec', '--json', '--skip-git-repo-check', '-'],
+      { cwd: scratch, env: { ...process.env, CODEX_HOME: home } }));
+  } finally {
+    await server.shutdown();
+  }
+  const items = stdout.trim().split('\n').map((line) => JSON.parse(line)).filter((event) => event.type === 'item.completed').map((event) => event.item);
+  assert.deepEqual(calls, ['build']);
+  assert.deepEqual(items.map((item) => item.type), ['mcp_tool_call']);
 });
 
 // A stand-in launcher: `codex exec` is a Node script that starts a thread,

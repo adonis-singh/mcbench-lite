@@ -279,7 +279,7 @@ test('a CLI on PATH is the one the app runs; without one, the tools folder\'s', 
   assert.equal(tools.cliProgram('claude'), tools.installed('claude').program);
   fs.writeFileSync(path.join(bin, 'claude'), '#!/bin/sh\n', { mode: 0o755 });
   assert.equal(tools.cliProgram('claude'), 'claude');
-  assert.equal(tools.cliProgram('codex'), path.join(tools.TOOLS_DIR, 'codex-0.167.1', 'bin', 'codex'));
+  assert.equal(tools.cliProgram('codex'), path.join(tools.TOOLS_DIR, 'codex-0.169.0', 'bin', 'codex'));
 });
 
 // The headless shell is checked to start (checkShell). Fakes stand in for

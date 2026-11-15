@@ -11,7 +11,7 @@
     "prepare:minecraft": "node scripts/prepare-minecraft.js",
     "url": "node -e \"require('./server/dotenv').loadDotEnv(); console.log(require('./server/auth').link(process.env.PORT || 3020))\"",
     "dev": "node --watch-path server --watch-path web server/index.js",
-    "codex:login": "npx --yes @openai/codex@0.167.1 login",
+    "codex:login": "npx --yes @openai/codex@0.169.0 login",
     "cursor:login": "node scripts/cursor-login.js",
     "test": "node --test \"test/**/*.test.js\"",
     "test:ui": "MCBENCH_UI_INTEGRATION=1 node --test test/shot-browser.integration.test.js test/viewer-click.integration.test.js",

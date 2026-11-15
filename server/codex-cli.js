@@ -1,8 +1,12 @@
 'use strict';
 
 // Codex CLI (`codex exec`) as a chat harness and as the batch harness's
-// runtime. Codex keeps built-ins that no feature flag removes (apply_patch, MCP
-// resource listing, a clock). On Linux it therefore runs inside a container
+// runtime. The catalogue's models are all `tool_mode: code_mode_only`: the
+// model's one tool is Code Mode's `exec`, JavaScript run in Codex's
+// codex-code-mode-host (a V8 isolate with no file system or network) that
+// calls the mcbench tools as `tools.mcp__mcbench__*`. Beside them `exec`
+// reaches built-ins that no feature flag removes (apply_patch, MCP resource
+// listing, a clock). On Linux Codex therefore runs inside a container
 // with --network none in the sandbox image, with only an empty workspace, its
 // own CODEX_HOME and the ChatGPT login mounted; its only route out is the host
 // egress proxy, which admits the model API hosts, and mcbench tools arrive over
@@ -28,19 +32,32 @@ const { serveMcp, BRIDGE } = require('./mcp');
 const harness = require('./harness');
 
 const NAME = 'codex-cli';
-// The Codex executable and CODEX_HOME; Settings can point them elsewhere.
-const runtime = { binary: null, home: null };
+// The Codex command and CODEX_HOME; Settings can point them elsewhere. The
+// command is run by the name or path the environment gives (settings.js), as
+// a shell would run it, so a version manager's shim on PATH works as it does
+// in a terminal.
+const runtime = { binary: 'codex', home: null };
 function configure({ binary, home }) {
-  runtime.binary = binary || null;
+  runtime.binary = binary || 'codex';
   runtime.home = home ? harness.expandHome(home) : null;
 }
 const codexHome = () => runtime.home || process.env.CODEX_HOME || path.join(os.homedir(), '.codex');
 const SHIM = path.join(__dirname, 'container-shim.py');
 // The ChatGPT-login model API and its token refresh endpoint.
 const ALLOWED_HOSTS = ['chatgpt.com', 'auth.openai.com'];
+// Features that would give the model a tool of Codex's own. Each name is
+// known and not deprecated in Codex 0.167.1 and 0.169.0 (`codex features
+// list`): a name a Codex does not know is ignored with a warning, and a
+// deprecated one is warned about, both as `error` items in the chat.
 const DISABLED_FEATURES = ['shell_tool', 'unified_exec', 'view_image', 'apps', 'browser_use', 'browser_use_external', 'computer_use',
-  'image_generation', 'multi_agent', 'plugins', 'memories', 'goals', 'in_app_browser', 'tool_suggest', 'skill_search', 'remote_plugin',
-  'shell_snapshot', 'skill_mcp_dependency_install', 'workspace_dependencies', 'sleep_tool', 'multi_agent_v2', 'code_mode_host'];
+  'image_generation', 'plugins', 'memories', 'goals', 'in_app_browser', 'tool_suggest', 'skill_search', 'remote_plugin',
+  'shell_snapshot', 'skill_mcp_dependency_install', 'workspace_dependencies', 'sleep_tool', 'multi_agent_v2'];
+// Code Mode's host runs `exec`, the only way a code_mode_only model reaches
+// mcbench's tools: without it `exec` answers "code-mode host is disabled" and
+// the turn has no tools. On by default; named so that stays true. Tested on
+// Codex 0.167.1 and 0.169.0 against a stand-in model provider: the same
+// `exec` script reaches mcbench's MCP server with it and not without it.
+const ENABLED_FEATURES = ['code_mode_host'];
 // The items a turn may report: the model's text, its reasoning, its plan,
 // Codex's warnings, and calls to mcbench's tools. Any other item is a tool
 // mcbench did not give it (a shell command, a file change, a web search, a
@@ -49,11 +66,7 @@ const ALLOWED_ITEMS = new Set(['agent_message', 'reasoning', 'todo_list', 'error
 const IMAGE_EXTENSIONS = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp', 'image/gif': 'gif' };
 const CONTAINER_BRIDGE = { command: 'python3', args: ['/run/mcbench/mcp-bridge.py', '/run/mcbench/mcp.sock'] };
 
-const codexBinary = () => {
-  const binary = runtime.binary || 'codex';
-  return fs.realpathSync(binary.includes('/') ? binary : execFileSync('which', [binary], { encoding: 'utf8' }).trim());
-};
-const version = () => execFileSync(codexBinary(), ['--version'], { encoding: 'utf8', timeout: 5000 }).trim();
+const version = () => execFileSync(runtime.binary, ['--version'], { encoding: 'utf8', env: hostEnv(), timeout: 5000 }).trim();
 const authFile = () => path.join(codexHome(), 'auth.json');
 const storedLogin = () => fs.existsSync(authFile());
 
@@ -91,6 +104,15 @@ function configEntries({ model, effort, systemPrompt, sandbox: sandboxMode, brid
     // No AGENTS.md from the working directory or the repository around it.
     ['project_doc_max_bytes', '0'],
     ...DISABLED_FEATURES.map(feature => [`features.${feature}`, 'false']),
+    ...ENABLED_FEATURES.map(feature => [`features.${feature}`, 'true']),
+    // No subagents. The catalogue's models select a subagent version
+    // (`multi_agent_version`), which offers the collaboration tools
+    // (spawn_agent and its siblings) whatever features.multi_agent says;
+    // agents.enabled = false removes them unless features.multi_agent_v2 is
+    // on, and it stays off above. features.multi_agent itself is deprecated
+    // in 0.169.0, which warns about it from a config file. Tested on 0.167.1
+    // and 0.169.0 against a stand-in model provider, for a v1 and a v2 model.
+    ['agents.enabled', 'false'],
     ['mcp_servers.mcbench.command', toml(bridge.command)],
     ['mcp_servers.mcbench.args', `[${bridge.args.map(toml).join(', ')}]`],
     ['mcp_servers.mcbench.startup_timeout_sec', '120'],
@@ -105,12 +127,49 @@ function configToml({ model, effort, systemPrompt }) {
   return configEntries({ model, effort, systemPrompt, sandbox: 'danger-full-access', bridge: CONTAINER_BRIDGE }).map(([key, value]) => `${key} = ${value}`).join('\n') + '\n';
 }
 
+// The Codex install the host's command runs, for the container to mount at
+// /opt/codex: `folder` on the host and `program`, its executable, in the
+// container. Shims reach Codex in different ways (mise is one program that
+// starts whichever tool it is named as, asdf's shims are shell scripts, npm's
+// `codex` is a Node launcher that starts the native program beside it), so
+// the executable is the one Codex itself names: every Codex start links
+// apply_patch, in a folder under CODEX_HOME/tmp, to its own executable
+// (std::env::current_exe, on Linux the kernel's /proc/self/exe), and a
+// `--version` run with a fresh CODEX_HOME leaves exactly one such link (seen
+// on Codex 0.167.1 and 0.169.0). On Linux Codex makes no link for a
+// CODEX_HOME under the temporary folder (TMPDIR, else /tmp), so the fresh one
+// is in the data folder. The install is the folder above it whose
+// codex-package.json names it as the entrypoint: the layout of Codex's
+// release packages, which the standalone installer, mise, Homebrew's cask,
+// npm's platform packages and the tools folder all unpack.
+async function codexInstall() {
+  fs.mkdirSync(harness.DATA_DIR, { recursive: true });
+  const home = fs.mkdtempSync(path.join(harness.DATA_DIR, 'codex-install-'));
+  try {
+    const { stdout, stderr } = await promisify(execFile)(runtime.binary, ['--version'], { encoding: 'utf8', env: hostEnv(home), timeout: 60_000 });
+    const ran = `\`${runtime.binary} --version\` (${stdout.trim()})`;
+    const links = fs.readdirSync(home, { recursive: true }).filter(name => path.basename(name) === 'apply_patch');
+    if (links.length !== 1) throw new Error(`${ran} left ${links.length} apply_patch links in its CODEX_HOME ${home}, not one naming the Codex executable it started${stderr.trim() ? `; it said: ${stderr.trim()}` : ''}`);
+    const executable = fs.realpathSync(path.join(home, links[0]));
+    for (let folder = path.dirname(executable); folder !== path.dirname(folder); folder = path.dirname(folder)) {
+      const manifest = path.join(folder, 'codex-package.json');
+      if (!fs.existsSync(manifest)) continue;
+      const { entrypoint } = JSON.parse(fs.readFileSync(manifest, 'utf8'));
+      if (path.join(folder, entrypoint) === executable) return { folder, program: path.posix.join('/opt/codex', entrypoint) };
+    }
+    throw new Error(`${ran} started ${executable}, which no codex-package.json in a folder above it names as its entrypoint, so there is no Codex install to mount in the container`);
+  } finally {
+    fs.rmSync(home, { recursive: true, force: true });
+  }
+}
+
 // The harness container: loopback-only networking, host UID, and only the
-// listed mounts. The shim relays 127.0.0.1:3128 to the egress proxy socket.
-function containerArgs({ name, runtimeDir, home, workspace, command }) {
+// listed mounts, the Codex install (codexInstall) read-only among them. The
+// shim relays 127.0.0.1:3128 to the egress proxy socket.
+function containerArgs({ name, runtimeDir, home, workspace, install, command }) {
   return ['run', '--rm', '-i', '--name', name, '--network', 'none', '--cap-drop', 'all', '--security-opt', 'no-new-privileges',
     '--user', `${process.getuid()}:${process.getgid()}`, '--memory', '4g', '--pids-limit', '512', '--cpus', '4',
-    '-v', `${path.dirname(path.dirname(codexBinary()))}:/opt/codex:ro`, '-v', `${home}:/codex-home`, '-v', `${authFile()}:/codex-home/auth.json`,
+    '-v', `${install.folder}:/opt/codex:ro`, '-v', `${home}:/codex-home`, '-v', `${authFile()}:/codex-home/auth.json`,
     '-v', `${workspace}:/workspace`, '-v', `${path.join(runtimeDir, 'sock')}:/run/mcbench`,
     '-e', 'CODEX_HOME=/codex-home', '-e', 'HOME=/codex-home', '-e', 'HTTPS_PROXY=http://127.0.0.1:3128', '-e', 'HTTP_PROXY=http://127.0.0.1:3128',
     '-e', 'ALL_PROXY=http://127.0.0.1:3128', '-e', 'SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt', '-w', '/workspace',
@@ -134,7 +193,7 @@ function hostEnv(home = codexHome()) {
 // browser itself; BROWSER is `true` all the same, so no Codex login can open
 // one on this machine.
 function loginCommand(args) {
-  return { file: codexBinary(), args, env: { ...hostEnv(), BROWSER: 'true' } };
+  return { file: runtime.binary, args, env: { ...hostEnv(), BROWSER: 'true' } };
 }
 
 // A chat's own CODEX_HOME on the host: the login (linked, so token refreshes
@@ -200,7 +259,7 @@ let catalog = { at: 0, models: null };
 let loading = null;
 async function listModels() {
   if (catalog.models && Date.now() - catalog.at <= CATALOG_TTL_MS) return catalog.models;
-  loading ||= promisify(execFile)(codexBinary(), ['debug', 'models'], { env: hostEnv(), maxBuffer: 64 * 1024 * 1024, timeout: 60_000 })
+  loading ||= promisify(execFile)(runtime.binary, ['debug', 'models'], { env: hostEnv(), maxBuffer: 64 * 1024 * 1024, timeout: 60_000 })
     .then(({ stdout }) => {
       catalog = { at: Date.now(), models: modelsFromCache(JSON.parse(stdout)) };
       return catalog.models;
@@ -246,6 +305,7 @@ const LAUNCHERS = {
     prepareHome(home);
     fs.mkdirSync(workspace, { recursive: true });
     fs.writeFileSync(path.join(home, 'config.toml'), configToml({ model, effort, systemPrompt }));
+    const install = await codexInstall();
     await sandbox.ensureImage();
     const images = writeImages(path.join(runtimeDir, 'sock'), prompt.images).map(file => `/run/mcbench/${path.basename(file)}`);
     const proxy = await prepareRuntime({ runtimeDir, logFile: path.join(dir, 'egress.ndjson') });
@@ -253,10 +313,10 @@ const LAUNCHERS = {
       await new Promise(resolve => proxy.close(resolve));
       throw error;
     });
-    const command = ['/opt/codex/bin/codex', 'exec', ...(resume ? ['resume', threadId] : []), '--json', '--skip-git-repo-check', ...images.flatMap(file => ['-i', file]), '-'];
+    const command = [install.program, 'exec', ...(resume ? ['resume', threadId] : []), '--json', '--skip-git-repo-check', ...images.flatMap(file => ['-i', file]), '-'];
     const name = `mcbench-codex-${crypto.randomUUID().slice(0, 12)}`;
     return {
-      command: 'docker', args: containerArgs({ name, runtimeDir, home, workspace, command }), cwd: workspace, env: process.env,
+      command: 'docker', args: containerArgs({ name, runtimeDir, home, workspace, install, command }), cwd: workspace, env: process.env,
       onStop: () => spawn('docker', ['rm', '-f', name], { stdio: 'ignore' }),
       release: async () => { await new Promise(resolve => proxy.close(resolve)); await server.shutdown(); },
     };
@@ -269,7 +329,7 @@ const LAUNCHERS = {
     const images = writeImages(runtimeDir, prompt.images);
     const server = await serveMcp(socket, { tools: prompt.tools, call: prompt.call });
     return {
-      command: codexBinary(), args: hostArgs({ model, effort, systemPrompt, socket, resume, threadId, images }), cwd: workspace, env: hostEnv(home),
+      command: runtime.binary, args: hostArgs({ model, effort, systemPrompt, socket, resume, threadId, images }), cwd: workspace, env: hostEnv(home),
       onStop: () => {}, release: () => server.shutdown(),
     };
   },
@@ -375,7 +435,7 @@ class CodexSession extends harness.RelaySession {
 const { completion, closeSession } = harness.sessionRelay(CodexSession);
 
 module.exports = {
-  completion, closeSession, listModels, modelInfo, forgetModels, storedLogin, account, version, configToml, containerArgs, hostArgs, hostEnv, prepareHome, prepareRuntime,
+  completion, closeSession, listModels, modelInfo, forgetModels, storedLogin, account, version, configToml, codexInstall, containerArgs, hostArgs, hostEnv, prepareHome, prepareRuntime,
   checkItem, usageOf, contextTokensOf, modelsFromCache, configure, codexHome, loginCommand, ALLOWED_HOSTS,
 };
 module.exports._internal = { LAUNCHERS };

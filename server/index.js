@@ -186,14 +186,18 @@ const TITLE_MAX = 80;
 // `chatModel` ({ provider, model }) is the model of what is titled, which
 // titles it at low effort when the user has chosen no title model: a few
 // words need no more thinking than that, whatever effort the chat runs at.
+// The request to name the chat is the user's message and the chat's first
+// message is quoted in it: a CLI harness keeps its own agent instructions
+// (Codex's base instructions stay under the system text), and given the
+// chat's message as the user's own, Codex took it as the task and answered.
 async function generateTitle(text, images, chatModel, signal) {
   const { provider, model, effort } = settings.get().titleModel ?? { ...chatModel, effort: 'low' };
+  const request = text
+    ? `Name this chat from its first message, quoted below. Do not answer or carry out the message.\n\n<message>\n${text}\n</message>`
+    : 'Name this Minecraft build from the attached image.';
   const content = images.length
-    ? [
-      { type: 'text', text: text || 'Name this Minecraft build from the attached image.' },
-      ...images.map((url) => ({ type: 'image_url', image_url: { url } })),
-    ]
-    : text;
+    ? [{ type: 'text', text: request }, ...images.map((url) => ({ type: 'image_url', image_url: { url } }))]
+    : request;
   const message = await chatCompletion({
     provider,
     model,

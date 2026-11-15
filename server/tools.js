@@ -31,7 +31,7 @@ const TEMURIN = 'https://github.com/adoptium/temurin25-binaries/releases/downloa
 const RUSTUP_ARCHIVE = 'https://static.rust-lang.org/rustup/archive/1.29.3';
 const CHROME_FOR_TESTING = 'https://cdn.playwright.dev/builds/cft';
 const PLAYWRIGHT_BUILDS = 'https://cdn.playwright.dev/dbazure/download/playwright/builds/chromium';
-const CODEX = 'https://github.com/openai/codex/releases/download/rust-v0.167.1';
+const CODEX = 'https://github.com/openai/codex/releases/download/rust-v0.169.0';
 const CLAUDE_CODE = 'https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/2.1.311';
 
 // Chromium's headless shell is the build playwright-core names in its
@@ -105,15 +105,15 @@ const PINS = {
   // Codex's release package keeps the program at bin/codex, the layout
   // codex-cli.js mounts into its container on Linux as /opt/codex.
   codex: {
-    title: 'Codex CLI 0.167.1',
-    version: '0.167.1',
+    title: 'Codex CLI 0.169.0',
+    version: '0.169.0',
     mb: 180,
     unpack: 'tar',
     platforms: {
-      'darwin-arm64': { url: `${CODEX}/codex-package-aarch64-apple-darwin.tar.gz`, sha256: '5bcbc5866cbca19f9299f7884e9b39b9ccb5469969c170b1f2d2cd6fc4b1ee72', bin: 'bin/codex' },
-      'darwin-x64': { url: `${CODEX}/codex-package-x86_64-apple-darwin.tar.gz`, sha256: 'ade991ce7fef5b4f4af884c154b9455d493cd0caf13789fc3ff9f842897b55d3', bin: 'bin/codex' },
-      'linux-arm64': { url: `${CODEX}/codex-package-aarch64-unknown-linux-musl.tar.gz`, sha256: 'ef3e1443a7795d596f1601a533d7225a1030488d60c965af1f0610ab95889031', bin: 'bin/codex' },
-      'linux-x64': { url: `${CODEX}/codex-package-x86_64-unknown-linux-musl.tar.gz`, sha256: 'a945df3df83e849dd7b74787e27f8a459c1946b0e3afe3dc8eef8a8d1845fd4f', bin: 'bin/codex' },
+      'darwin-arm64': { url: `${CODEX}/codex-package-aarch64-apple-darwin.tar.gz`, sha256: '8a232260df7a12c5e83e0b4b7659e1c8d9259b41942517bc0068d8ab55c36461', bin: 'bin/codex' },
+      'darwin-x64': { url: `${CODEX}/codex-package-x86_64-apple-darwin.tar.gz`, sha256: '0a3c392235b4712409495ced02bbe0662ce7a038232766d1c1c34af74e905c2f', bin: 'bin/codex' },
+      'linux-arm64': { url: `${CODEX}/codex-package-aarch64-unknown-linux-musl.tar.gz`, sha256: 'c8d0b4ab2a97c595b70b10412d36d0d5464dcef1e1d3246b073d48017cdf5a4f', bin: 'bin/codex' },
+      'linux-x64': { url: `${CODEX}/codex-package-x86_64-unknown-linux-musl.tar.gz`, sha256: '3b8ed091149cc63a59046b9f094bcfa21cdb4dda15ede441ce369bcee4a71ba0', bin: 'bin/codex' },
     },
   },
 };
