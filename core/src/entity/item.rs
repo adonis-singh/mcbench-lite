@@ -60,14 +60,14 @@ pub(super) fn new_item(l: &mut Level, x: f64, y: f64, z: f64, stack: ItemStack, 
     let placeholder = ItemData { stack: ItemStack::empty(), age: 0, pickup_delay: 0, health: 5, despawn_rate: ITEM_DESPAWN_RATE, target: None };
     let mut e = Box::new(Entity::new(l, Kind::Item(placeholder), 0.25f32, 0.25f32, 0.2125f32));
     // bobOffs = nextFloat() * PI * 2, then setYRot(nextFloat() * 360).
-    let _bob = l.shared_random.next_float() * std::f32::consts::PI * 2.0f32;
-    e.y_rot = l.shared_random.next_float() * 360.0f32;
+    let _bob = l.shared_random().next_float() * std::f32::consts::PI * 2.0f32;
+    e.y_rot = l.shared_random().next_float() * 360.0f32;
     set_pos(l, &mut e, x, y, z);
     e.delta = match delta {
         Some(d) => d,
         None => {
-            let dx = l.shared_random.next_double() * 0.2 - 0.1;
-            let dz = l.shared_random.next_double() * 0.2 - 0.1;
+            let dx = l.shared_random().next_double() * 0.2 - 0.1;
+            let dz = l.shared_random().next_double() * 0.2 - 0.1;
             Vec3::new(dx, 0.2, dz)
         }
     };
@@ -81,8 +81,8 @@ pub(super) fn blank_item(l: &mut Level) -> Box<Entity> {
     let placeholder = ItemData { stack: ItemStack::empty(), age: 0, pickup_delay: 0, health: 5, despawn_rate: ITEM_DESPAWN_RATE, target: None };
     let mut e = Box::new(Entity::new(l, Kind::Item(placeholder), 0.25f32, 0.25f32, 0.2125f32));
     // bobOffs = nextFloat() * PI * 2, then setYRot(nextFloat() * 360).
-    let _bob = l.shared_random.next_float() * std::f32::consts::PI * 2.0f32;
-    e.y_rot = l.shared_random.next_float() * 360.0f32;
+    let _bob = l.shared_random().next_float() * std::f32::consts::PI * 2.0f32;
+    e.y_rot = l.shared_random().next_float() * 360.0f32;
     e
 }
 
@@ -498,7 +498,7 @@ pub fn lava_hurt(l: &mut Level, e: &mut Entity, _pos: Pos) {
         return;
     }
     if !fire_immune(l, e) && hurt(l, e, Dmg::Lava, 4.0) && (data(e).health <= 0 || e.tick_count % 10 == 0) {
-        l.shared_random.next_float();
+        l.shared_random().next_float();
     }
 }
 
@@ -604,6 +604,11 @@ pub fn tick(l: &mut Level, e: &mut Entity) {
 fn set_fluid_movement(e: &mut Entity, multiplier: f64) {
     let dm = e.delta;
     e.delta = Vec3::new(dm.x * multiplier, dm.y + (if dm.y < 0.06f32 as f64 { 5.0E-4f32 } else { 0.0f32 }) as f64, dm.z * multiplier);
+}
+
+// ItemEntity.teleport: once moved, the item merges with its neighbours.
+pub fn merge_after_teleport(l: &mut Level, e: &mut Entity) {
+    merge_with_neighbours(l, e);
 }
 
 // ItemEntity.mergeWithNeighbours.

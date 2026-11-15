@@ -367,7 +367,7 @@ fn drop_item_with(l: &mut Level, e: &mut Entity, drop_frame: bool) {
     }
     if held.count > 0 {
         let held = held.clone();
-        if l.shared_random.next_float() < data(e).drop_chance {
+        if l.shared_random().next_float() < data(e).drop_chance {
             spawn_at_location(l, e, held);
         }
     }

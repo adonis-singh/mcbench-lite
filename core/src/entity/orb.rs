@@ -78,10 +78,10 @@ fn new_orb(l: &mut Level, pos: Vec3, value: i32, reason: &'static str, trigger: 
         d.reason = reason;
     }
     set_pos(l, &mut e, pos.x, pos.y, pos.z);
-    e.y_rot = l.shared_random.next_float() * 360.0f32;
-    let x = (l.shared_random.next_double() * 0.2 - 0.1) * 2.0;
-    let y = l.shared_random.next_double() * 0.2 * 2.0;
-    let z = (l.shared_random.next_double() * 0.2 - 0.1) * 2.0;
+    e.y_rot = l.shared_random().next_float() * 360.0f32;
+    let x = (l.shared_random().next_double() * 0.2 - 0.1) * 2.0;
+    let y = l.shared_random().next_double() * 0.2 * 2.0;
+    let z = (l.shared_random().next_double() * 0.2 - 0.1) * 2.0;
     // The direction is Vec3.ZERO: the velocity is not turned, and the
     // position moves by the direction's normal (zero) scaled.
     let size = (e.bb.xsize() + e.bb.ysize() + e.bb.zsize()) / 3.0;
@@ -230,7 +230,7 @@ pub fn hurt(l: &mut Level, e: &mut Entity, dmg: Dmg, amount: f32) -> bool {
 // shared random unless the orb is silent.
 pub fn lava_hurt(l: &mut Level, e: &mut Entity) {
     if hurt(l, e, Dmg::Lava, 4.0f32) && !super::minecart::is_silent(e) {
-        l.shared_random.next_float();
+        l.shared_random().next_float();
     }
 }
 
@@ -287,8 +287,8 @@ pub fn tick(l: &mut Level, e: &mut Entity) {
     }
     let fluid_state = l.fluid_state(e.block_pos);
     if l.fluid_type(fluid_state).is_lava() {
-        let x = (l.shared_random.next_float() - l.shared_random.next_float()) * 0.2f32;
-        let z = (l.shared_random.next_float() - l.shared_random.next_float()) * 0.2f32;
+        let x = (l.shared_random().next_float() - l.shared_random().next_float()) * 0.2f32;
+        let z = (l.shared_random().next_float() - l.shared_random().next_float()) * 0.2f32;
         e.delta = Vec3::new(x as f64, 0.2f32 as f64, z as f64);
     }
     if e.tick_count % 20 == 1 {

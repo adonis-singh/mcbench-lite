@@ -643,8 +643,8 @@ pub fn before_fall_damage(l: &mut Level, e: &mut Entity) {
 // EntityDeathEvent (CraftEventFactory.populateFields reads the voice pitch:
 // two floats).
 fn death_event(l: &mut Level) {
-    l.shared_random.next_float();
-    l.shared_random.next_float();
+    l.shared_random().next_float();
+    l.shared_random().next_float();
 }
 
 // ArmorStand.hurtServer for damage of this type. It never returns true here.
@@ -743,7 +743,7 @@ pub fn lava_hurt(l: &mut Level, e: &mut Entity) {
         return;
     }
     if hurt(l, e, Dmg::Lava, 4.0f32) && !super::minecart::is_silent(e) {
-        l.shared_random.next_float();
+        l.shared_random().next_float();
     }
 }
 

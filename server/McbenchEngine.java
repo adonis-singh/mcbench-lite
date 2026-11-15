@@ -158,6 +158,7 @@ public class McbenchEngine {
       long start = System.nanoTime();
       // An error a request reported (and a VERIFY run never collects) is that request's alone.
       McbenchLevel.serverException = null;
+      level.newRequest();
       if (request[0].equals("INPUT") || request[0].equals("DUMP") || request[0].equals("STATE")) {
         try {
           if (request[0].equals("INPUT")) input(request);
@@ -185,6 +186,7 @@ public class McbenchEngine {
         if (request[4].equals("fresh")) level = liveLevel();
         placeAll(level, Files.readAllLines(Path.of(request[2])), false);
         McbenchLevel.reported();
+        level.netherDraws();
         write(Path.of(request[3]));
         reply.println("MCBENCH_PLACED " + request[1] + " " + (System.nanoTime() - start) / 1_000_000);
       } catch (Exception | StackOverflowError error) {
@@ -196,6 +198,8 @@ public class McbenchEngine {
 
   // An error and its causes on one line, with where the innermost arose.
   static String describe(Throwable error) {
+    // A refusal, where Minecraft reported it (its tick guard) as a cause of the error, says only what is refused.
+    for (Throwable cause = error; cause != null; cause = cause.getCause()) if (cause instanceof McbenchLevel.Refusal) return cause.toString();
     var text = new StringBuilder(String.valueOf(error));
     Throwable root = error;
     for (Throwable cause = error.getCause(); cause != null && cause != root; cause = cause.getCause()) {
@@ -325,6 +329,7 @@ public class McbenchEngine {
         throw error;
       }
       experiment.endOfTick();
+      level.netherDraws();
       if (trace != null) trace(trace, level);
     }
   }
@@ -601,6 +606,7 @@ public class McbenchEngine {
       if (!result.consumesAction()) throw new IllegalArgumentException("No " + type + " input at " + pos + ": " + state);
     } else throw new IllegalArgumentException("No " + type + " input at " + pos + ": " + state);
     McbenchLevel.reported();
+    level.netherDraws();
   }
 
   // The input player, made without a trace on the world.

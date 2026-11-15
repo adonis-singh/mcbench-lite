@@ -414,11 +414,11 @@ pub fn on_above_bubble_column(l: &mut Level, e: &mut Entity, downwards: bool) {
     if data(e).bubble_time == 0 {
         data_mut(e).bubble_time = 60;
     }
-    if !is_under_water(e) && l.shared_random.next_int_bound(100) == 0 {
+    if !is_under_water(e) && l.shared_random().next_int_bound(100) == 0 {
         // The splash sound's pitch and the particle's offsets.
-        l.shared_random.next_float();
-        l.shared_random.next_float();
-        l.shared_random.next_float();
+        l.shared_random().next_float();
+        l.shared_random().next_float();
+        l.shared_random().next_float();
         let event = crate::game_event!(l, "splash");
         l.game_event(event, e.pos, crate::game_event::Context::of_entity(None));
     }

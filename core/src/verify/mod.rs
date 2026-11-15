@@ -90,7 +90,7 @@ pub fn verify(reg: &'static Registry, blocks: &'static Blocks, request_file: &Pa
 fn write_trace(level: &Level, file: &Path) {
     use std::io::Write;
     let mut out = String::new();
-    out.push_str(&format!("time {}\nrandom {}\nentityid {}\nsharedrandom {}\n", level.game_time, level.random.state(), level.entities.counter, level.shared_random.state()));
+    out.push_str(&format!("time {}\nrandom {}\nentityid {}\nsharedrandom {}\n", level.game_time, level.random.state(), level.entities.counter, level.shared_random_state()));
     out.push_str(&crate::entity::state_text(level));
     // The end gateways: age and teleport cooldown, by position (as the Java
     // engine orders them: by BlockPos.asLong).

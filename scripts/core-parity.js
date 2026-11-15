@@ -1087,11 +1087,17 @@ function fuzzCase(blocks, families, seed, ticks, drops, flow, shifted = false) {
     const [x0, z0] = [r.int(Math.max(1, size - width - 1)) + 1, r.int(Math.max(1, size - width - 1)) + 1];
     const y0 = 1;
     const cell = (i, j) => (alongX ? [x0 + i, y0 + j, z0] : [x0, y0 + j, z0 + i]);
+    // Now and then the frame is open above, and sand or gravel over the
+    // portal falls into it, a gap below it: an entity in a nether portal goes
+    // to the Nether. That is drawn from a random of its own, so the cases
+    // are otherwise the ones they were.
+    const sand = random(seed + 0x9e3779b9);
+    const open = sand.next() < 0.4;
     const frame = [];
     for (let i = -1; i <= width; i++) for (let j = -1; j <= height; j++) {
       const border = i === -1 || i === width || j === -1 || j === height;
       const corner = (i === -1 || i === width) && (j === -1 || j === height);
-      if (border && !(corner && r.next() < 0.5) && r.next() < 0.97) frame.push(cell(i, j));
+      if (border && !(corner && r.next() < 0.5) && r.next() < 0.97 && !(open && j === height && !corner)) frame.push(cell(i, j));
     }
     for (const [x, y, z] of frame) { if (vacant(x, y, z) && y >= 1) put(x, y, z, 'minecraft:obsidian'); }
     const lit = cell(r.int(width), 0);
@@ -1102,6 +1108,10 @@ function fuzzCase(blocks, families, seed, ticks, drops, flow, shifted = false) {
         const [x, y, z] = cell(i, j);
         if (vacant(x, y, z)) put(x, y, z, 'minecraft:nether_portal', { axis: alongX ? 'x' : 'z' });
       }
+    }
+    if (open) {
+      const [x, y, z] = cell(sand.int(width), height + 1 + sand.int(3));
+      if ([...Array(y - y0 - height)].every((_, k) => vacant(x, y0 + height + k, z)) && vacant(x, y, z)) put(x, y, z, sand.pick(['minecraft:sand', 'minecraft:gravel', 'minecraft:red_concrete_powder']));
     }
     // The frame loses a block.
     if (r.next() < 0.5) {

@@ -153,7 +153,7 @@ function fixtureCases(placementMode) {
     if (!args || typeof args !== 'object' || Array.isArray(args)) throw new Error(`Fixture ${name} needs an args object`);
     if (fixture.placementMode !== undefined && !PLACEMENT_MODES.includes(fixture.placementMode)) throw new Error(`Fixture ${name} has unknown placementMode ${fixture.placementMode}`);
     return {
-      name, placementMode: fixture.placementMode ?? placementMode,
+      name, placementMode: fixture.placementMode ?? placementMode, nether: Boolean(fixture.nether),
       load() {
         const built = world();
         if (!(built instanceof World)) throw new Error(`Fixture ${name} world() did not return a World`);
@@ -185,11 +185,18 @@ async function main() {
   }
   await minecraftLive.warmEngine();
   const results = [];
-  for (const { name, placementMode, load } of cases) {
-    if (verifier?.placementMode !== placementMode) {
+  // A case that sends an entity to Paper's Nether (a fixture marked nether)
+  // leaves the Nether drawing from the entities' shared random after it
+  // ends (the chunks generated for the arrival, the arrivals ticking), which
+  // a later case on the same server would draw after: such a case runs on a
+  // server of its own.
+  let afterNether = false;
+  for (const { name, placementMode, nether, load } of cases) {
+    if (verifier?.placementMode !== placementMode || nether || afterNether) {
       await verifier?.stop();
       verifier = new MinecraftVerifier({ root: path.join(DATA_DIR, 'ticker-parity', 'paper'), placementMode, seed: seed === null ? null : Number(seed) });
     }
+    afterNether = nether;
     const { world, args: written } = load();
     const args = settled === null ? written : settledArgs(written, Number(settled));
     const request = verifier.request(world, args);

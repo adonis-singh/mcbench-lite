@@ -64,6 +64,81 @@ public class McbenchLevel extends net.minecraft.server.level.ServerLevel {
     if (error != null) throw new IllegalStateException("Minecraft reported an error, which Paper logs and goes on from", error);
   }
 
+  // A request that reaches what the engine does not model, as the Rust
+  // engine refuses it (core/src/level.rs refuse): the reply says
+  // "unported: " and what.
+  static final class Refusal extends RuntimeException {
+    Refusal(String what) { super(what, null, false, false); }
+    @Override public String toString() { return "unported: " + getMessage(); }
+  }
+
+  // NetherPortalBlock.getPortalDestination: the server's Nether, which
+  // Entity.handlePortal takes the entity to (Entity.teleport,
+  // teleportCrossDimension). Paper's verifier server has a Nether (its
+  // server.properties leaves allow-nether on, its test world is an
+  // overworld by getTypeKey, and the allowNether game rule that
+  // MinecraftServer.isAllowedToEnterPortal reads is on); this server holds no
+  // other level, so Minecraft's own code here finds none after
+  // EntityPortalReadyEvent and goes on with no destination. What the build's
+  // level sees of the move happens at that event, as teleportCrossDimension
+  // does it: the passengers are put off (ejectPassengers) and each that is
+  // alive, valid and not removed goes too (its Entity.teleport as a
+  // passenger), the entity's copy is made in the Nether (not this level's),
+  // a leash drops (Leashable.dropLeash), and the entity is removed for
+  // having changed dimension (removeAfterChangingDimensions:
+  // setRemoved(CHANGED_DIMENSION), which drops nothing).
+  static void leaveForNether(Entity entity) throws ReflectiveOperationException {
+    java.util.List<Entity> passengers = entity.getPassengers();
+    entity.ejectPassengers();
+    for (Entity passenger : passengers) if (passenger.isAlive() && passenger.valid && !passenger.isRemoved()) leaveForNether(passenger);
+    if (entity instanceof net.minecraft.world.entity.Leashable leashable) leashable.dropLeash();
+    removeAfterChangingDimensions.invoke(entity);
+    ((McbenchLevel) entity.level()).leftForNether();
+  }
+
+  static final java.lang.reflect.Method removeAfterChangingDimensions;
+  static final Field sharedValue;
+  static {
+    try {
+      removeAfterChangingDimensions = Entity.class.getDeclaredMethod("removeAfterChangingDimensions");
+      removeAfterChangingDimensions.setAccessible(true);
+      sharedValue = Class.forName("ca.spottedleaf.moonrise.common.util.ThreadUnsafeRandom").getDeclaredField("value");
+      sharedValue.setAccessible(true);
+    } catch (ReflectiveOperationException error) { throw new ExceptionInInitializerError(error); }
+  }
+
+  // Where Entity.SHARED_RANDOM stands.
+  static long shared() {
+    try {
+      return sharedValue.getLong(Entity.SHARED_RANDOM);
+    } catch (IllegalAccessException error) { throw new IllegalStateException(error); }
+  }
+
+  // Once an entity of this level has gone to the Nether, Paper's Nether draws
+  // from the shared random and takes entity ids from the same counter: the
+  // chunks it generates for the arrival spawn striders and the zombified
+  // piglins that ride them (NoiseBasedChunkGenerator.spawnOriginalMobs, on the
+  // chunk system's threads, finished whenever they finish), and what arrived
+  // ticks there. What a draw gives then depends on the Nether's terrain, which
+  // a server makes from a random seed. A draw after that is refused, as the
+  // Rust engine refuses it (Level.shared_random): `nether` is where the shared
+  // random stood when an entity left, or when a request on the level began
+  // since (other levels draw from the same random between requests), and
+  // netherDraws refuses once it has moved on.
+  Long nether;
+
+  void leftForNether() {
+    if (nether == null) nether = shared();
+  }
+
+  void newRequest() {
+    if (nether != null) nether = shared();
+  }
+
+  void netherDraws() {
+    if (nether != null && shared() != nether) throw new Refusal("a draw of the entities' shared random (an entity made, a sound, a scatter) after an entity went to the Nether through a nether portal: the Nether's chunk generation and entities draw from it there and take entity ids");
+  }
+
   static org.bukkit.craftbukkit.CraftServer bukkitServer() throws Exception {
     // Permissions (a player's Bukkit entity subscribes to the defaults) are
     // kept by Paper's own permission manager.
@@ -77,6 +152,9 @@ public class McbenchLevel extends net.minecraft.server.level.ServerLevel {
           // Paper reports an error a tick survives (a block entity's, say)
           // with this event, then goes on; a run here stops at it.
           if (args[0] instanceof com.destroystokyo.paper.event.server.ServerExceptionEvent exception && serverException == null) serverException = exception.getException();
+          // NetherPortalBlock.getPortalDestination asks for the server's Nether after this event.
+          if (args[0] instanceof io.papermc.paper.event.entity.EntityPortalReadyEvent ready && ready.getPortalType() == org.bukkit.PortalType.NETHER)
+            leaveForNether(((org.bukkit.craftbukkit.entity.CraftEntity) ready.getEntity()).getHandle());
           yield null;
         }
         case "hashCode" -> System.identityHashCode(proxy);
@@ -801,6 +879,22 @@ public class McbenchLevel extends net.minecraft.server.level.ServerLevel {
     @Override public void onLightUpdate(net.minecraft.world.level.LightLayer layer, net.minecraft.core.SectionPos pos) {}
     @Override public void addEntity(Entity entity) {}
     @Override public void removeEntity(Entity entity) {}
+    // A ticket of `radius` (TicketStorage.addTicketWithRadius: level 33 -
+    // radius, its chunk and the rings within radius - 2 entity ticking, the
+    // next block ticking, the next loaded): Entity.placePortalTicket's
+    // (TicketType.PORTAL, radius 3, for 300 ticks) after an end gateway
+    // moves an entity. Where the level's own tickets already keep each of
+    // those chunks so, it changes nothing while it lasts or when it goes;
+    // otherwise chunks would tick for a while and then stop, which the
+    // engine's chunks (ticket) do not model, and it is refused, as the Rust
+    // engine refuses it (Level::portal_ticket).
+    @Override public void addTicketWithRadius(net.minecraft.server.level.TicketType type, ChunkPos pos, int radius) {
+      for (int dx = -(radius - 1); dx <= radius - 1; dx++) for (int dz = -(radius - 1); dz <= radius - 1; dz++) {
+        long chunk = ChunkPos.asLong(pos.x + dx, pos.z + dz);
+        boolean kept = Math.max(Math.abs(dx), Math.abs(dz)) <= radius - 2 ? level.columns.contains(chunk) : level.ticking.contains(chunk);
+        if (!kept) throw new Refusal("an end gateway's exit at chunk " + pos.x + ", " + pos.z + ", whose portal chunk ticket would make chunks tick for 300 ticks that the level's own tickets do not");
+      }
+    }
   }
 
   // The chunk map, which code reaches for to send packets to the players
@@ -1011,6 +1105,7 @@ public class McbenchLevel extends net.minecraft.server.level.ServerLevel {
     });
     tickBlockEntities();
     reported();
+    netherDraws();
   }
 
   void tickBlock(BlockPos pos, Block block) {

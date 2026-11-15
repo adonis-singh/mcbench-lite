@@ -1,7 +1,7 @@
 // NetherPortalBlock. Its updateShape breaks the portal when its frame is
 // no longer complete; random ticks (zombified piglin spawns) never run, and
-// an entity inside it is in the portal (Entity.setAsInsidePortal), which leads
-// nowhere in a level that is the server's only one.
+// an entity inside it is in the portal (Entity.setAsInsidePortal), which
+// takes it to the Nether (entity::motion::handle_portal).
 
 use super::portal_shape;
 use crate::blocks::{Behaviour, NONE};

@@ -88,7 +88,7 @@ function make(name, spec, samples, extra) {
   const { world, entities } = contact(spec);
   const probes = [];
   spec.rows.forEach((row, r) => [...spec.kinds, ...ORBS].forEach((kind, c) => { for (const dy of row.probes ?? [0]) probes.push([4 * c + 2, 1 + dy, 4 * r + 2]); }));
-  return { name: `contact/${name}`, world, args: { ...request(entities, samples, extra), probes }, placementMode: spec.placementMode };
+  return { name: `contact/${name}`, world, args: { ...request(entities, samples, extra), probes }, placementMode: spec.placementMode, nether: spec.nether };
 }
 
 const ALL = ['item', 'stand', 'boat', 'cart', FALLING];
@@ -211,7 +211,9 @@ const MORE = () => [
     ],
   }, 200),
   // Portals: an entity inside a nether portal, an end portal or an end gateway.
+  // The entities in the nether portal go to the Nether (scripts/portal-fixtures.js).
   make('portals', {
+    nether: true,
     kinds: ['item', 'stand', 'boat', 'cart', FALLING],
     rows: [
       {

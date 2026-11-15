@@ -1745,6 +1745,7 @@ module.exports = [
   { name: 'pot-shelf/containers', world: potShelfWorld, args: potShelfRequest },
   { name: 'pot-shelf/containers-strict', world: potShelfWorld, args: potShelfRequest, placementMode: 'strict' },
   ...require('./contact-fixtures').fixtures(),
+  ...require('./portal-fixtures').fixtures(),
   ...require('./recipe-fixtures').fixtures(),
   ...require('./orb-fixtures').fixtures(),
   ...require('./mob-fixtures').fixtures(),

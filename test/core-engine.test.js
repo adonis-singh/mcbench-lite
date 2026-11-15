@@ -93,6 +93,42 @@ test('a refusal fails the request and spends the world until a fresh placement',
   assert.ok((await started.tick(1)).bytes.length > 0);
 });
 
+// A portal two wide and three high in its obsidian frame, open above, with
+// sand a few blocks over it.
+const PORTAL = [
+  'fill 0 64 0 3 64 0 minecraft:obsidian',
+  'fill 0 65 0 0 67 0 minecraft:obsidian',
+  'fill 3 65 0 3 67 0 minecraft:obsidian',
+  'fill 1 65 0 2 67 0 minecraft:nether_portal[axis=x]',
+  'setblock 1 72 0 minecraft:sand',
+].map((line) => `${line}\n`).join('');
+
+test('a falling block that falls into a nether portal goes to the Nether, and a draw of the shared random after that is refused', async (t) => {
+  const started = await engine(t);
+  await started.place(PORTAL);
+  const types = (result) => result.entities.map((entity) => entity.type);
+  const seen = [];
+  for (let tick = 0; tick < 20; tick++) seen.push(types(await started.tick(1)));
+  assert.deepStrictEqual(seen[1], ['minecraft:falling_block'], 'the sand falls');
+  const gone = seen.findIndex((list, tick) => tick > 1 && !list.length);
+  assert.ok(gone > 1 && seen.slice(gone).every((list) => !list.length), `the sand is gone into the portal and stays gone: ${JSON.stringify(seen)}`);
+  // More sand: the falling block it makes draws its UUID from the shared random.
+  await started.place('setblock 2 72 0 minecraft:sand\n', { fresh: false });
+  await assert.rejects(started.tick(3), /^Error: The engine failed: unported: a draw of the entities' shared random .* after an entity went to the Nether through a nether portal/);
+  await started.place(PORTAL);
+  assert.deepStrictEqual(types(await started.tick(2)), ['minecraft:falling_block'], 'a fresh placement starts over');
+});
+
+test('sand that falls into an end gateway stays in the live world, whose gateways have no exit portal', async (t) => {
+  const started = await engine(t);
+  await started.place('fill 0 64 0 3 64 3 minecraft:stone\nsetblock 1 65 1 minecraft:end_gateway\nsetblock 1 70 1 minecraft:sand\n');
+  let entities = [];
+  for (let tick = 0; tick < 20; tick++) entities = (await started.tick(1)).entities;
+  // The falling block cannot land in the gateway and drops as an item there.
+  assert.deepStrictEqual(entities.map((entity) => entity.type), ['minecraft:item']);
+  assert.ok(Math.abs(entities[0].pos[0] - 1.5) < 0.2 && Math.abs(entities[0].pos[2] - 1.5) < 0.2, JSON.stringify(entities[0].pos));
+});
+
 test('a running world that is refused stops and says so', async (t) => {
   const started = await engine(t);
   await started.place(`${COMMANDS}setblock 4 65 4 minecraft:infested_stone\nsetblock 5 65 4 minecraft:tnt[unstable=false]\nsetblock 5 65 3 minecraft:redstone_block\n`);

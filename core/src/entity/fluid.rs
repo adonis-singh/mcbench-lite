@@ -98,23 +98,23 @@ fn do_water_splash_effect(l: &mut Level, e: &Entity) {
         return;
     }
     // playSound(sound, min, 1.0F + (nextFloat() - nextFloat()) * 0.4F).
-    let first = l.shared_random.next_float();
-    let second = l.shared_random.next_float();
+    let first = l.shared_random().next_float();
+    let second = l.shared_random().next_float();
     let _pitch = 1.0f32 + (first - second) * 0.4f32;
     let width = e.width;
     // for (i = 0; i < 1.0F + width * 20.0F; i++): two offsets and the
     // bubble's downward speed; then two offsets for the splash.
     let mut i = 0;
     while (i as f32) < 1.0f32 + width * 20.0f32 {
-        l.shared_random.next_double();
-        l.shared_random.next_double();
-        l.shared_random.next_double();
+        l.shared_random().next_double();
+        l.shared_random().next_double();
+        l.shared_random().next_double();
         i += 1;
     }
     let mut i = 0;
     while (i as f32) < 1.0f32 + width * 20.0f32 {
-        l.shared_random.next_double();
-        l.shared_random.next_double();
+        l.shared_random().next_double();
+        l.shared_random().next_double();
         i += 1;
     }
     // gameEvent(SPLASH).

@@ -231,6 +231,24 @@ function fuzzCases(count, seed, families, drops) {
         addImports(r, placed, args, actions, last);
         require('./orb-cases').addOrbImports(placed, args, random);
       }
+      // Now and then an end gateway with an exit portal (exact or not, near
+      // or in a chunk the build does not hold) and an item falling into it,
+      // drawn from a random of its own, so the cases are otherwise the ones
+      // they were.
+      const g = random(seed + i + 0x6a7e57);
+      if (!process.argv.includes('--no-imports') && g.next() < 0.3) {
+        const at = [10 + g.int(4), 1, 10 + g.int(4)];
+        if (!placed.some((block) => block.pos.join(',') === at.join(','))) {
+          world.set(at[0], at[1], at[2], 'minecraft:end_gateway');
+          world.finalize();
+          const far = g.next() < 0.1 ? 300 : 0;
+          const exit = [at[0] + g.int(13) - 6 + far, at[1] + g.int(4) + 64, at[2] + g.int(13) - 6];
+          (args.block_entities ||= []).push({ at, data_version: 4556, snbt: `{id:"minecraft:end_gateway",exit_portal:[I;${exit.join(',')}]${g.next() < 0.5 ? ',ExactTeleport:1b' : ''}}` });
+          (args.entities ||= []).push({ at: [at[0] + 0.5, 3.0, at[2] + 0.5], data_version: 4556, snbt: `{id:"minecraft:item",UUID:[I;77,${seed + i},7,7],Pos:[${at[0] + 0.5}d,3.0d,${at[2] + 0.5}d],Motion:[0.0d,0.0d,0.0d],Rotation:[0.0f,0.0f],Item:{id:"minecraft:diamond",count:1},Age:0s,PickupDelay:0s}` });
+          args.item_entities = true;
+          probes.push(at);
+        }
+      }
       const config = { reportEncoding: r.pick(['full', 'rle-v1']), sprint: r.next() < 0.7 };
       // Some with a report budget the experiment may not fit in (the Rust engine refuses those).
       if (r.next() < 0.05) config.budgets = { ...BUDGETS, reportBytes: 2000 + r.int(80000) };

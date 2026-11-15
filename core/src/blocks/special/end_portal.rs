@@ -1,6 +1,6 @@
 // EndPortalBlock and TheEndPortalBlockEntity. An entity inside an end portal
-// is in the portal (Entity.setAsInsidePortal), which leads nowhere in a level
-// that is the server's only one (the End is off).
+// is in the portal (Entity.setAsInsidePortal), which leads nowhere: the
+// verifier's server has no End (bukkit.yml turns allow-end off).
 
 use super::Special;
 use crate::blocks::{Behaviour, BlockEntity, NONE};

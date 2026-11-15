@@ -896,8 +896,8 @@ impl InputPlayer {
     pub fn make(l: &mut Level) -> InputPlayer {
         l.entities.counter += 1;
         let id = l.entities.counter;
-        l.shared_random.next_long();
-        l.shared_random.next_long();
+        l.shared_random().next_long();
+        l.shared_random().next_long();
         InputPlayer { source: crate::game_event::Source::input_player(id), yaw: 0.0 }
     }
 

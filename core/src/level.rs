@@ -161,7 +161,11 @@ pub struct Level {
     // random they share (Entity.SHARED_RANDOM) and the loot random
     // sequences (RandomSequences) of this level.
     pub entities: Entities,
-    pub shared_random: Random,
+    shared_random: Random,
+    // An entity of this level went to the Nether through a nether portal
+    // (entity::change_dimension): what the shared random holds since is not
+    // this level's to know (see shared_random).
+    pub nether: bool,
     pub sequences: RandomSequences,
     // Spigot's currentPrimedTnt: the primed TNT ticks this server tick so far
     // (reset when the block entities have ticked).
@@ -243,6 +247,7 @@ impl Level {
             wire_should_signal: true,
             entities: Entities::new(),
             shared_random: Random::new(seed),
+            nether: false,
             sequences: RandomSequences::new(seed),
             current_primed_tnt: 0,
             reported: None,
@@ -253,6 +258,28 @@ impl Level {
             world_uuid: (seed, seed),
             player: None,
         }
+    }
+
+    // Entity.SHARED_RANDOM, for a draw. Once an entity of the level has gone
+    // to the Nether, Paper's Nether draws from the same random and takes
+    // entity ids from the same counter: the chunks it generates for the
+    // arrival spawn striders and the zombified piglins that ride them
+    // (NoiseBasedChunkGenerator.spawnOriginalMobs, on the chunk system's
+    // threads, finished whenever they finish), and what arrived ticks there.
+    // What a draw gives then (and the id an entity made then gets) depends on
+    // the Nether's terrain, which a server makes from a random seed, so a
+    // seeded verifier run gives different results from one server start to
+    // the next. A draw after that is refused.
+    pub fn shared_random(&mut self) -> &mut Random {
+        if self.nether {
+            refuse("a draw of the entities' shared random (an entity made, a sound, a scatter) after an entity went to the Nether through a nether portal: the Nether's chunk generation and entities draw from it there and take entity ids");
+        }
+        &mut self.shared_random
+    }
+
+    // Where the shared random stands, as the engine trace writes it.
+    pub fn shared_random_state(&self) -> i64 {
+        self.shared_random.state()
     }
 
     // The chunk at x, z, made when first asked for, with its tick queue.
@@ -321,6 +348,26 @@ impl Level {
                     if old != status {
                         entity::chunk_status_change(self, x + dx, z + dz, status);
                     }
+                }
+            }
+        }
+    }
+
+    // ServerChunkCache.addTicketWithRadius(TicketType.PORTAL, chunk, 3)
+    // (Entity.placePortalTicket at `pos`): a ticket at level 30 for 300 ticks,
+    // the chunk and the ring around it entity ticking, the next ring block
+    // ticking, the one after loaded. Where the level's own tickets already
+    // keep each of those chunks so, it changes nothing while it lasts or when
+    // it goes; otherwise chunks would tick for those 300 ticks and then stop,
+    // which this port does not model, and it is refused.
+    pub fn portal_ticket(&mut self, pos: Pos) {
+        let (x, z) = (pos.x() >> 4, pos.z() >> 4);
+        for dx in -2..=2i32 {
+            for dz in -2..=2i32 {
+                let key = chunk_key(x + dx, z + dz);
+                let kept = if dx.abs() <= 1 && dz.abs() <= 1 { self.columns.contains(&key) } else { self.ticking.contains(&key) };
+                if !kept {
+                    refuse(format!("an end gateway's exit at chunk {x}, {z}, whose portal chunk ticket would make chunks tick for 300 ticks that the level's own tickets do not"));
                 }
             }
         }
@@ -874,7 +921,7 @@ impl Level {
         }
         // The entity layer's hidden state.
         writeln!(out, "entityid {}", self.entities.counter).unwrap();
-        writeln!(out, "sharedrandom {}", self.shared_random.state()).unwrap();
+        writeln!(out, "sharedrandom {}", self.shared_random_state()).unwrap();
         for (key, lo, hi) in self.sequences.states() {
             writeln!(out, "sequence {key} {lo} {hi}").unwrap();
         }

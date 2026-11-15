@@ -66,7 +66,7 @@ pub fn new_golem(l: &mut Level, golem: Golem) -> Box<Entity> {
     let data = GolemData { golem, player_created: false, weather: 0, transport_cooldown: 0 };
     let mut e = Box::new(Entity::new(l, Kind::Golem(data), t.width, t.height, t.eye_height));
     if golem == Golem::Copper {
-        let cooldown = 60 + l.shared_random.next_int_bound(40);
+        let cooldown = 60 + l.shared_random().next_int_bound(40);
         data_mut(&mut e).transport_cooldown = cooldown;
     }
     e

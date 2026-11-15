@@ -809,7 +809,7 @@ pub fn tick(l: &mut Level, e: &mut Entity) {
             d.has_fuel = d.fuel > 0;
             if d.has_fuel {
                 // random.nextInt(4) == 0 spawns a smoke particle.
-                l.shared_random.next_int_bound(4);
+                l.shared_random().next_int_bound(4);
             }
         }
         Class::Tnt => {
@@ -830,7 +830,7 @@ fn lava_hurt(l: &mut Level, e: &mut Entity) {
     if vehicle::hurt(l, e, Dmg::Lava, 4.0f32) {
         // serverLevel.playSound(..., 2.0F + random.nextFloat() * 0.4F), unless silent.
         if !is_silent(e) {
-            l.shared_random.next_float();
+            l.shared_random().next_float();
         }
     }
 }
@@ -860,7 +860,7 @@ pub fn destroy(l: &mut Level, e: &mut Entity, dmg: Dmg) {
                 destroy_with_item(l, e);
             } else if data(e).fuse < 0 {
                 prime_fuse(l, e, true);
-                let fuse = l.shared_random.next_int_bound(20) + l.shared_random.next_int_bound(20);
+                let fuse = l.shared_random().next_int_bound(20) + l.shared_random().next_int_bound(20);
                 data_mut(e).fuse = fuse;
             }
         }
@@ -935,7 +935,7 @@ fn tnt_tick(l: &mut Level, e: &mut Entity) {
 pub fn explode(l: &mut Level, e: &mut Entity, radius_modifier: f64) {
     let min = jmin(radius_modifier.sqrt(), 5.0);
     let d = data(e);
-    let radius = (d.explosion_power_base as f64 + d.explosion_speed_factor as f64 * l.shared_random.next_double() * 1.5 * min) as f32;
+    let radius = (d.explosion_power_base as f64 + d.explosion_speed_factor as f64 * l.shared_random().next_double() * 1.5 * min) as f32;
     crate::explosion::explode(l, e, e.pos, radius, false);
     remove(l, e);
 }

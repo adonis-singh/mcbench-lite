@@ -15,11 +15,13 @@ use crate::level::Level;
 use crate::phys::Vec3;
 use crate::registry::State;
 
-// PrimedTnt's fields (its owner is none; it has used no portal).
+// PrimedTnt's fields (its owner is none), with usedPortal (PrimedTnt.teleport
+// sets it).
 pub struct TntData {
     pub fuse: i32,
     pub state: State,
     pub explosion_power: f32,
+    pub used_portal: bool,
 }
 
 // Spigot's max-tnt-per-tick.
@@ -43,9 +45,9 @@ fn data_mut(e: &mut Entity) -> &mut TntData {
 fn new_primed(l: &mut Level, x: f64, y: f64, z: f64) -> Box<Entity> {
     let state = l.reg.default_state(l.reg.block_key("minecraft:tnt"));
     // EntityType.TNT: 0.98 by 0.98, eye height 0.15.
-    let mut e = Box::new(Entity::new(l, Kind::Tnt(TntData { fuse: 80, state, explosion_power: 4.0f32 }), 0.98f32, 0.98f32, 0.15f32));
+    let mut e = Box::new(Entity::new(l, Kind::Tnt(TntData { fuse: 80, state, explosion_power: 4.0f32, used_portal: false }), 0.98f32, 0.98f32, 0.15f32));
     set_pos(l, &mut e, x, y, z);
-    let d = l.shared_random.next_double() * ((std::f64::consts::PI * 2.0) as f32) as f64;
+    let d = l.shared_random().next_double() * ((std::f64::consts::PI * 2.0) as f32) as f64;
     e.delta = Vec3::new(-crate::jmath::sin(d) * 0.02, 0.2f32 as f64, -crate::jmath::cos(d) * 0.02);
     e.xo = x;
     e.yo = y;
@@ -86,7 +88,7 @@ pub fn tick(l: &mut Level, e: &mut Entity) {
     if l.current_primed_tnt > MAX_TNT_TICKS_PER_TICK {
         return;
     }
-    motion::handle_portal(e);
+    motion::handle_portal(l, e);
     // applyGravity: 0.04.
     e.delta = e.delta.add(0.0, -0.04, 0.0);
     motion::move_entity(l, e, e.delta);

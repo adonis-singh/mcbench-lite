@@ -202,7 +202,7 @@ pub fn tick(l: &mut Level, e: &mut Entity) {
     motion::move_entity(l, e, e.delta);
     motion::apply_effects_from_blocks(l, e);
     // Paper's falling-block-height-nerf is disabled; handlePortal.
-    motion::handle_portal(e);
+    motion::handle_portal(l, e);
     if !e.removed {
         let mut block_pos = e.block_pos;
         let concrete = class(l, data(e).state) == "ConcretePowderBlock";
@@ -336,7 +336,7 @@ pub fn cause_fall_damage(l: &mut Level, e: &mut Entity, fall_distance: f64) {
     let scaled = ceil as f32 * data(e).fall_damage_per_distance;
     let f = (mth_floor_float(scaled).min(data(e).fall_damage_max)) as f32;
     let is_anvil = l.reg.in_tag(data(e).state, "minecraft:anvil");
-    if is_anvil && f > 0.0 && l.shared_random.next_float() < 0.05f32 + ceil as f32 * 0.05f32 {
+    if is_anvil && f > 0.0 && l.shared_random().next_float() < 0.05f32 + ceil as f32 * 0.05f32 {
         match anvil_damage(l, data(e).state) {
             Some(damaged) => data_mut(e).state = damaged,
             None => data_mut(e).cancel_drop = true,

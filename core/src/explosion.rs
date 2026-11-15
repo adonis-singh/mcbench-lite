@@ -64,6 +64,10 @@ struct Explosion {
     // not resist it nor explode (MinecartTNT.getBlockExplosionResistance and
     // shouldBlockExplode).
     primed_cart: bool,
+    // The source is a primed TNT that went through a portal: its damage
+    // calculator is PrimedTnt.USED_PORTAL_DAMAGE_CALCULATOR, by which nether
+    // portal blocks neither resist nor explode.
+    used_portal: bool,
     cache: HashMap<(i32, i32, i32), Cached>,
 }
 
@@ -85,7 +89,7 @@ impl Explosion {
                 // The damage calculator: EntityBasedExplosionDamageCalculator over
                 // ExplosionDamageCalculator. Air without fluid has no resistance;
                 // a fluid's is its block's (water and lava: 100).
-                let resistance = if !calculate_resistance || (l.is_air(state) && fluid == Fluid::Empty) {
+                let resistance = if !calculate_resistance || (l.is_air(state) && fluid == Fluid::Empty) || (self.used_portal && is_nether_portal(l, state)) {
                     None
                 } else {
                     let fluid_resistance = match fluid {
@@ -134,7 +138,7 @@ impl Explosion {
                 power -= cached.resistance;
                 if power > 0.0f32 && cached.should_explode.is_none() {
                     // isDestroyable && the source's shouldBlockExplode.
-                    let should = is_destroyable(l, state) && !(self.primed_cart && self.rails_at_or_above(l, state, block_x, block_y, block_z));
+                    let should = is_destroyable(l, state) && !(self.primed_cart && self.rails_at_or_above(l, state, block_x, block_y, block_z)) && !(self.used_portal && is_nether_portal(l, state));
                     self.block(l, block_x, block_y, block_z, true).should_explode = Some(should);
                     if should && (radius_fire || !l.is_air(state)) {
                         let pos = Pos::new(block_x, block_y, block_z);
@@ -287,7 +291,8 @@ pub fn explode(l: &mut Level, source: &Entity, center: Vec3, radius: f32, fire: 
         refuse("an explosion that makes fire");
     }
     let primed_cart = matches!(&source.kind, Kind::Minecart(c) if c.class == entity::minecart::Class::Tnt && c.fuse > -1);
-    let mut explosion = Explosion { center, radius, fire, primed_cart, cache: HashMap::new() };
+    let used_portal = matches!(&source.kind, Kind::Tnt(t) if t.used_portal);
+    let mut explosion = Explosion { center, radius, fire, primed_cart, used_portal, cache: HashMap::new() };
     // Level.gameEvent(source, EXPLODE, center), before the blocks are found.
     let event = crate::game_event!(l, "explode");
     let source_context = crate::game_event::Context::of_entity(Some(crate::game_event::Source::of(l, source)));
@@ -491,4 +496,8 @@ fn add_or_append_stack(l: &Level, collectors: &mut Vec<Collector>, mut stack: It
         }
     }
     collectors.push(Collector { pos, stack });
+}
+
+fn is_nether_portal(l: &Level, state: State) -> bool {
+    l.reg.blocks[l.block(state) as usize].key == "minecraft:nether_portal"
 }

@@ -197,7 +197,7 @@ impl Entity {
     pub fn new(l: &mut Level, kind: Kind, width: f32, height: f32, eye_height: f32) -> Entity {
         l.entities.counter += 1;
         let id = l.entities.counter;
-        let random = &mut l.shared_random;
+        let random = l.shared_random();
         let hi = random.next_long() & -61441i64 | 16384i64;
         let lo = random.next_long() & 4611686018427387903i64 | i64::MIN;
         let mut e = Entity {
@@ -555,8 +555,8 @@ pub fn on_move(l: &mut Level, e: &mut Entity) {
     status_change(l, e, old_visibility, new, false);
 }
 
-// Entity.discard / setRemoved: the entity leaves the lookup. The caller
-// drops it afterwards.
+// Entity.discard / remove(reason): a container's contents drop, then the
+// entity leaves the lookup (set_removed). The caller drops it afterwards.
 pub fn remove(l: &mut Level, e: &mut Entity) {
     // AbstractMinecartContainer.remove: a container's contents drop first.
     match &e.kind {
@@ -565,6 +565,50 @@ pub fn remove(l: &mut Level, e: &mut Entity) {
         Kind::Boat(b) if b.chest => boat::drop_contents(l, e),
         _ => {}
     }
+    set_removed(l, e);
+}
+
+// Entity.teleportCrossDimension, as the level the entity leaves sees it: no
+// passenger rides it (nothing rides here) and no leash holds it; its copy is
+// made in the other level (Entity.getType().create, restoreFrom, with what it
+// holds), and the entity is removed for having changed dimension
+// (removeAfterChangingDimensions: setRemoved(CHANGED_DIMENSION), which drops
+// nothing). The other level is Paper's, whose draws make the shared random
+// this level's no longer (Level.shared_random).
+pub fn change_dimension(l: &mut Level, e: &mut Entity) {
+    set_removed(l, e);
+    l.nether = true;
+}
+
+// Entity.teleport to `to` in this level (EndGatewayBlock.getPortalDestination's
+// TeleportTransition: Relative.DELTA and Relative.ROTATION, so the motion and
+// the rotation are kept), with no event changing it: teleportSameDimension
+// (nothing rides here) and teleportSetPosition (the position, the rotation
+// with the pitch clamped, the old position and rotation, the movement this
+// tick forgotten), then the transition's PLACE_PORTAL_TICKET at the block the
+// entity is now at. ItemEntity.teleport then merges the item with its
+// neighbours, and PrimedTnt.teleport marks the TNT as having used a portal.
+pub fn teleport_same_dimension(l: &mut Level, e: &mut Entity, to: Vec3) {
+    // PositionMoveRotation.calculateAbsolute: the kept rotation and motion
+    // plus the transition's, which are zero (a -0.0 becomes 0.0), the pitch
+    // clamped; setXRot clamps it again after % 360.
+    e.y_rot += 0.0f32;
+    e.x_rot = (((e.x_rot + 0.0f32).clamp(-90.0f32, 90.0f32)) % 360.0f32).clamp(-90.0f32, 90.0f32);
+    e.delta = Vec3::new(e.delta.x + 0.0, e.delta.y + 0.0, e.delta.z + 0.0);
+    motion::set_pos(l, e, to.x, to.y, to.z);
+    e.set_old_pos_and_rot();
+    e.movement_this_tick.clear();
+    l.portal_ticket(Pos::new(phys::floor(e.pos.x), phys::floor(e.pos.y), phys::floor(e.pos.z)));
+    match &mut e.kind {
+        Kind::Item(_) => item::merge_after_teleport(l, e),
+        Kind::Tnt(data) => data.used_portal = true,
+        _ => {}
+    }
+}
+
+// Entity.setRemoved: the entity leaves the lookup (the level callback's
+// onRemove). The caller drops it afterwards.
+pub fn set_removed(l: &mut Level, e: &mut Entity) {
     e.removed = true;
     if let Some(t) = &mut l.entities.ticking {
         if t.id == e.id {
@@ -790,7 +834,7 @@ pub fn tick_non_passenger(l: &mut Level, e: &mut Entity) {
     }
     // postTick: handlePortal for an entity that is alive.
     if is_alive(e) {
-        motion::handle_portal(e);
+        motion::handle_portal(l, e);
     }
     l.entities.ticking = None;
 }
@@ -1001,6 +1045,79 @@ fn boat_lava_hurt(l: &mut Level, e: &mut Entity) {
         return;
     }
     if vehicle::hurt(l, e, damage::Dmg::Lava, 4.0f32) && !minecart::is_silent(e) {
-        l.shared_random.next_float();
+        l.shared_random().next_float();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::level::{Refusal, UPDATE_CLIENTS};
+    use crate::loot::ItemStack;
+
+    thread_local! {
+        static BOOT: (&'static crate::registry::Registry, &'static crate::blocks::Blocks) = crate::boot();
+    }
+
+    // A verifier level with the chunk at the origin ticking, a portal block
+    // of `portal` on obsidian (placed without updates, as a frame would keep
+    // it) and a diamond item in it with the portal cooldown `cooldown`.
+    fn level_with_item_in(portal: &str, cooldown: i32) -> (Level, EntityId) {
+        let (reg, blocks) = BOOT.with(|boot| *boot);
+        let mut l = Level::new(reg, blocks, 0, false);
+        l.ticket(0, 0);
+        let at = Pos::new(1, 64, 1);
+        l.set(at.below(), reg.parse_state("minecraft:obsidian").0, UPDATE_CLIENTS);
+        l.set(at, reg.parse_state(portal).0, UPDATE_CLIENTS);
+        item::spawn_with_default_delay(&mut l, 1.5, 64.2, 1.5, ItemStack::new(reg.item_by_key["minecraft:diamond"], 1));
+        let id = l.entities.counter;
+        l.entities.all.get_mut(&id).expect("the item").portal_cooldown = cooldown;
+        (l, id)
+    }
+
+    // An entity in a nether portal goes to the Nether on its first tick in
+    // it (Entity.handlePortal: a transition time of none, for anything but
+    // a player): it is gone from the level, and a draw of the shared random
+    // after that is refused.
+    #[test]
+    fn an_item_in_a_nether_portal_leaves_and_a_draw_after_is_refused() {
+        let (mut l, id) = level_with_item_in("minecraft:nether_portal[axis=x]", 0);
+        assert!(!l.nether);
+        l.tick();
+        assert!(!l.entities.all.contains_key(&id), "the item is gone");
+        assert_eq!(l.entities.count(), 0);
+        assert!(l.nether);
+        let draw = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            l.shared_random().next_float();
+        }));
+        let refusal = draw.expect_err("the draw is refused");
+        assert!(refusal.downcast_ref::<Refusal>().expect("a refusal").0.contains("went to the Nether"));
+    }
+
+    // An entity on its portal cooldown in a nether portal waits in it: each
+    // tick it is found in the portal puts the cooldown back to the entity's
+    // delay (setAsInsidePortal, getDimensionChangingDelay: an item's is 300;
+    // an item at rest moves, and is found there, only now and then), so the
+    // cooldown never runs out while it stays.
+    #[test]
+    fn an_item_on_its_cooldown_waits_in_a_nether_portal() {
+        let (mut l, id) = level_with_item_in("minecraft:nether_portal[axis=x]", 5);
+        for _ in 0..40 {
+            l.tick();
+            assert!(l.entities.all[&id].portal_cooldown >= 296, "{}", l.entities.all[&id].portal_cooldown);
+        }
+        assert!(!l.nether);
+    }
+
+    // An end portal leads nowhere (the server has no End): the entity is in
+    // the portal, gets the portal cooldown and stays.
+    #[test]
+    fn an_item_in_an_end_portal_stays() {
+        let (mut l, id) = level_with_item_in("minecraft:end_portal", 0);
+        l.tick();
+        let e = &l.entities.all[&id];
+        assert!(!e.removed);
+        assert_eq!(e.portal_cooldown, 300);
+        assert!(!l.nether);
     }
 }

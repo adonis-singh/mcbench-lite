@@ -198,10 +198,15 @@ pub fn set_as_inside_portal(e: &mut Entity, portal: crate::registry::BlockId, po
 // Entity.handlePortal on the server: the portal cooldown runs down; an entity
 // in a portal (PortalProcessor.processPortalTeleportation) that has been in it
 // for the portal's transition time (none, for anything but a player) gets the
-// portal cooldown, and goes where the portal leads, which is nowhere: the level
-// is the only one the server has (every portal's getPortalDestination finds no
-// level to go to, or an end gateway no exit portal).
-pub fn handle_portal(e: &mut Entity) {
+// portal cooldown and goes where the portal leads (getPortalDestination). A
+// nether portal leads to the Nether (NetherPortalBlock: the level is an
+// overworld, and the verifier's Paper server has a Nether: server.properties
+// leaves allow-nether on and the allowNether game rule is on), where the
+// entity goes (Entity.teleport, change_dimension). An end gateway leads to its
+// exit portal in this level (teleport_same_dimension), or with none nowhere;
+// an end portal leads nowhere (the server has no End: bukkit.yml turns
+// allow-end off).
+pub fn handle_portal(l: &mut Level, e: &mut Entity) {
     // processPortalCooldown.
     if e.portal_cooldown > 0 {
         e.portal_cooldown -= 1;
@@ -226,6 +231,16 @@ pub fn handle_portal(e: &mut Entity) {
     };
     if teleports {
         e.portal_cooldown = delay;
+        let entry = process.entry;
+        match l.reg.blocks[process.portal as usize].class.as_str() {
+            "NetherPortalBlock" => super::change_dimension(l, e),
+            "EndGatewayBlock" => {
+                if let Some(to) = crate::blocks::special::end_gateway::portal_position(l, entry) {
+                    super::teleport_same_dimension(l, e, to);
+                }
+            }
+            _ => {}
+        }
     } else if process.time <= 0 {
         // hasExpired.
         e.portal_process = None;
@@ -361,8 +376,8 @@ fn apply_movement_emission(l: &mut Level, e: &mut Entity, emits_sounds: bool, em
             e.next_step = (e.move_dist as i32 + 1) as f32;
             if emits_sounds {
                 // waterSwimSound: the pitch is 1.0F + (nextFloat() - nextFloat()) * 0.4F.
-                l.shared_random.next_float();
-                l.shared_random.next_float();
+                l.shared_random().next_float();
+                l.shared_random().next_float();
             }
             if emits_events {
                 let source = crate::game_event::Source::of(l, e);
@@ -545,8 +560,8 @@ pub fn apply_effects_for_movements(l: &mut Level, e: &mut Entity, movements: &[M
     // isInRain: no rain falls in this world.
     if (was_on_fire && !item::is_on_fire(l, e)) || (was_freezing && e.ticks_frozen <= 0) {
         // playEntityOnFireExtinguishedSound.
-        l.shared_random.next_float();
-        l.shared_random.next_float();
+        l.shared_random().next_float();
+        l.shared_random().next_float();
     }
     let increased = e.remaining_fire_ticks > fire_ticks;
     if !item::is_on_fire(l, e) && !increased {
@@ -910,7 +925,7 @@ pub fn move_towards_closest_space(l: &mut Level, e: &mut Entity, x: f64, y: f64,
             }
         }
     }
-    let f = l.shared_random.next_float() * 0.2f32 + 0.1f32;
+    let f = l.shared_random().next_float() * 0.2f32 + 0.1f32;
     let positive = matches!(direction, Up | South | East);
     let f1 = if positive { 1.0f32 } else { -1.0f32 };
     let vec31 = e.delta.scale(0.75);
