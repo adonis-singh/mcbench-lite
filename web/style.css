@@ -196,9 +196,7 @@ body.dragging .viewer iframe { pointer-events: none; }
   font-family: var(--font-ui);
 }
 .model-provider-rail {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
+  display: grid;
   border-right: 1px solid var(--line);
 }
 .model-provider-rail button {
@@ -1410,7 +1408,6 @@ body.sizing-sidebar .sidebar-edge::after { background: color-mix(in srgb, var(--
   box-shadow: var(--shadow-panel);
 }
 .model-provider-rail {
-  gap: 3px;
   border-color: var(--line);
   background: var(--bedrock);
 }
@@ -2325,9 +2322,13 @@ body.sizing-sidebar .sidebar-edge::after { background: color-mix(in srgb, var(--
   bottom: auto;
   left: auto;
   width: min(360px, calc(100vw - 24px));
-  height: min(400px, calc(100vh - 96px));
-  grid-template-columns: 44px minmax(0, 1fr);
-  /* One row the popover's height: the rail scrolls in it rather than
+  /* 400px, or taller to show every provider in one column (--rail, set as
+     it opens) where the window has room. */
+  height: min(max(400px, var(--rail, 0px)), calc(100vh - 96px));
+  /* The rail's column is as wide as its providers: one column, or two when
+     the popover is too short for them. */
+  grid-template-columns: auto minmax(0, 1fr);
+  /* One row the popover's height, which the rail wraps in rather than
      stretching the row past the popover's edge, where it would be clipped. */
   grid-template-rows: minmax(0, 1fr);
   transform: none;
@@ -2336,16 +2337,27 @@ body.sizing-sidebar .sidebar-edge::after { background: color-mix(in srgb, var(--
   translate: var(--nudge, 0px) 0;
   border-radius: 10px;
 }
-/* The rail holds every provider and harness; it scrolls rather than clips. */
-.model-provider-rail { padding: 6px 6px 0; min-height: 0; overflow-y: auto; scrollbar-width: thin; }
-.model-provider-rail button { flex: none; min-height: 34px; border-radius: 7px; }
-/* Settings, at the foot of the rail below every provider. */
-/* The rail's foot: Settings, in the bottom band the footer shares, the same
-   height as the search row at the top, so one hairline crosses the popover. */
+/* The rail shows every provider and harness whole: one column, or where the
+   popover is too short for them, as many columns (--lines) as it takes,
+   each holding the same number (--per-line), both set as it opens. The
+   columns are set off from each other by the rail's padding, and a divider
+   centres in its row. */
+.model-provider-rail {
+  grid-auto-flow: column;
+  grid-template-columns: repeat(var(--lines), 31px);
+  grid-template-rows: repeat(var(--per-line), auto) 1fr;
+  gap: 3px 6px;
+  min-height: 0;
+  padding: 6px 6px 0;
+}
+.model-provider-rail button { min-height: 34px; border-radius: 7px; }
+.model-provider-rail .rail-divider { align-self: center; }
+/* The rail's last item: Settings, in the bottom band the footer shares, the
+   same height as the search row at the top, so one hairline crosses the
+   popover; it spans every column. */
 .model-provider-rail .rail-setup {
-  position: sticky;
-  bottom: 0;
-  flex: none;
+  grid-column: 1 / -1;
+  grid-row: -2 / -1;
   min-height: 42px;
   margin: auto -6px 0;
   border-top: 1px solid var(--line);
@@ -2402,21 +2414,23 @@ body.sizing-sidebar .sidebar-edge::after { background: color-mix(in srgb, var(--
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto minmax(0, 1fr);
   }
-  /* On a phone the providers are a strip above the list that scrolls
-     sideways, with the set-up button kept at its right end. */
+  /* On a phone the providers are a strip above the list, in as many rows
+     (--lines) as it takes, each holding the same number (--per-line), with
+     the set-up button at the right end spanning them. */
   .model-provider-rail {
-    flex-direction: row;
+    grid-auto-flow: row;
+    grid-template-columns: repeat(var(--per-line), auto) 1fr;
+    grid-template-rows: repeat(var(--lines), auto);
+    gap: 3px;
     padding: 5px 0 5px 6px;
-    overflow-x: auto;
-    overflow-y: hidden;
     border-right: 0;
     border-bottom: 1px solid var(--line);
   }
   .model-provider-rail button { width: 34px; min-height: 32px; }
-  .model-provider-rail .rail-divider { flex: none; width: 1px; height: auto; margin: 6px 3px; }
+  .model-provider-rail .rail-divider { place-self: stretch center; width: 1px; height: auto; margin: 6px 3px; }
   .model-provider-rail .rail-setup {
-    right: 0;
-    bottom: auto;
+    grid-column: -2 / -1;
+    grid-row: 1 / -1;
     margin: -5px 0 -5px auto;
     min-height: 42px;
     border-top: 0;
@@ -3227,7 +3241,18 @@ body.grabbing, body.grabbing * { cursor: grabbing !important; }
   font: 500 12.5px var(--font-ui);
   cursor: pointer;
 }
-.bench-chip-name { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* A chip's text is trimmed to its cap height, so the chip centres it on its
+   capitals, digits and ascenders, where its icons (a remove x, a logo, a
+   chevron) centre too, rather than on a line box that holds more room above
+   them than below. Text that clips clips sideways only, so the descenders
+   the trim leaves outside show. */
+.bench-chip-name,
+.bench-chip-effort > span,
+.find-chip-text,
+.pe-tag-text,
+.selection-label,
+.selection-size { text-box: trim-both cap alphabetic; }
+.bench-chip-name { max-width: 160px; overflow-x: clip; text-overflow: ellipsis; white-space: nowrap; }
 /* The logo turns into the x that removes the model. */
 .bench-chip-icon { display: grid; width: 13px; height: 13px; }
 .bench-chip-icon > * { grid-area: 1 / 1; transition: opacity 110ms ease; }
@@ -3252,7 +3277,7 @@ body.grabbing, body.grabbing * { cursor: grabbing !important; }
 }
 .bench-chip-effort:hover,
 .bench-chip-effort.open { color: var(--bone); background: var(--hover); }
-.bench-chip-effort svg { margin-top: 1px; stroke-width: 2.25; }
+.bench-chip-effort svg { stroke-width: 2.25; }
 .bench-effort-menu {
   top: auto;
   right: auto;
@@ -3388,7 +3413,7 @@ button.bench-status:hover { background: var(--well); color: var(--bone); }
   image-rendering: pixelated;
 }
 .selection-icon.empty { box-shadow: inset 0 0 0 1.5px var(--dim-text); }
-.selection-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--bone); }
+.selection-label { overflow-x: clip; text-overflow: ellipsis; white-space: nowrap; color: var(--bone); }
 .selection-size { color: var(--dim-text); font-variant-numeric: tabular-nums; }
 .selection-chip button {
   display: grid;
@@ -3461,7 +3486,7 @@ button.bench-status:hover { background: var(--well); color: var(--bone); }
   bottom: auto;
   left: 50%;
   translate: calc(-50% + var(--nudge, 0px)) 0;
-  height: clamp(180px, var(--below), 400px);
+  height: clamp(180px, var(--below), max(400px, var(--rail, 0px)));
   transform-origin: top center;
 }
 .bench-need { margin-top: -4px; color: var(--dim-text); font-size: 12px; }
@@ -3633,7 +3658,7 @@ button.bench-status:hover { background: var(--well); color: var(--bone); }
   font: 500 12px var(--font-ui);
 }
 .find-chip .vlogo { flex: none; color: var(--ash); }
-.find-chip-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.find-chip-text { min-width: 0; overflow-x: clip; text-overflow: ellipsis; white-space: nowrap; }
 .find-chip button,
 .find-clear {
   flex: none;

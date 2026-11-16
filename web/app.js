@@ -1364,14 +1364,20 @@ function ModelPicker({
     const right = left + 2 * half;
     const nudge = left < 8 ? 8 - left : right > window.innerWidth - 8 ? window.innerWidth - 8 - right : 0;
     popover.style.setProperty('--nudge', `${nudge}px`);
-    // The rail scrolls when it holds more providers than fit: it centres the
-    // open tab (the popover is the tabs' offset parent, the rail at its edge).
+    // --rail: the popover's height with every provider in one line, which the
+    // stylesheet lets it grow to where the window has room; where it has
+    // not, the rail takes the fewest lines its providers fit in, shared out
+    // evenly (the set-up button, last, is outside them).
     const rail = popover.querySelector('.model-provider-rail');
-    const tab = rail.querySelector('.active');
-    if (tab) {
-      rail.scrollTop = tab.offsetTop - (rail.clientHeight - tab.offsetHeight) / 2;
-      rail.scrollLeft = tab.offsetLeft - (rail.clientWidth - tab.offsetWidth) / 2;
-    }
+    const items = rail.children.length - 1;
+    const layOut = (lines) => {
+      rail.style.setProperty('--lines', lines);
+      rail.style.setProperty('--per-line', Math.ceil(items / lines));
+    };
+    let lines = 1;
+    layOut(lines);
+    popover.style.setProperty('--rail', `${rail.scrollHeight + popover.offsetHeight - popover.clientHeight}px`);
+    while (lines < items && (rail.scrollHeight > rail.clientHeight || rail.scrollWidth > rail.clientWidth)) layOut(++lines);
     // Typing goes to the search at once (the autofocus attribute works only
     // in the page as it loads); with no AI connected there is none.
     searchRef.current?.focus();
@@ -2192,7 +2198,7 @@ function FilterChips({ labels, filters, buttonRef, onToggle, onClear }) {
             ${label.logo && html`<${Logo} name=${label.logo} size="12" />`}
             <span class="find-chip-text">${label.chip}</span>
             <button type="button" aria-label=${`Remove filter ${label.full}`} onClick=${(evt) => remove(evt, group, value)}>
-              <${Icon} name="x" size="11" />
+              <${Icon} name="x" size="12" />
             </button>
           </span>
         `;
@@ -2370,7 +2376,7 @@ function PromptEditor({
           <div class="pe-tags">
             ${(active.tags || []).map((tag) => html`
               <span class="pe-tag" style=${`--tag:${tagColor(tag)}`}>
-                ${tag}
+                <span class="pe-tag-text">${tag}</span>
                 <button type="button" aria-label=${`Remove tag ${tag}`} onClick=${() => onUpdate(activeId, { tags: active.tags.filter((t) => t !== tag) })}>
                   <${Icon} name="x" size="10" />
                 </button>
@@ -2543,7 +2549,7 @@ function SelectionChip({ selection, draft = false, onHover, onRemove }) {
         type="button"
         aria-label=${`Remove ${selection.label}`}
         onClick=${() => onRemove(selection.letter)}
-      ><${Icon} name="x" size="11" /></button>`}
+      ><${Icon} name="x" size="12" /></button>`}
     </span>
   `;
 }
