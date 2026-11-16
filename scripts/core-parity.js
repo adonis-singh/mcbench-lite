@@ -77,7 +77,7 @@ const os = require('os');
 const { execFileSync, spawn } = require('child_process');
 const ROOT = path.join(__dirname, '..');
 const { minecraftLive } = require('../server/minecraft-live');
-const { Engine, engineEnv, jvmEngine, coreBuildArgs, rust, installRust } = require('../server/engine');
+const { Engine, engineEnv, jvmEngine, coreEngine } = require('../server/engine');
 const { importCommands } = require('../server/live-placement');
 const { Y_OFFSET } = require('../server/minecraft-dimension');
 const { World } = require('../server/world');
@@ -1439,28 +1439,21 @@ function secondEngine(classpath, scratch, native) {
 
 // The first engine: the Java engine (on the JVM, or the native program with --native).
 function firstEngine(classpath, scratch, native) {
-  if (option('base', null) !== null) return new Engine({ build: async () => path.resolve(option('base')) });
+  if (option('base', null) !== null) return coreEngine({ program: path.resolve(option('base')) });
   const env = engineEnv(option('first', process.argv.includes('--check') ? 'check' : '0'));
   if (native) return new Engine({ spawnEngine: (binary, args, options) => spawn(binary, args, { ...options, env }) });
   fs.mkdirSync(path.join(scratch, 'classes'));
   return jvmEngine({ classpath, classes: path.join(scratch, 'classes'), env });
 }
 
-// The Rust engine: core/ built, or the binary --rust names (an earlier
-// commit's build, for what it refused).
+// The Rust engine: this checkout's (server/engine.js engineProgram: the
+// released one, or one scripts/build-engine.js built from core/), or the
+// binary --rust names (an earlier commit's build, for what it refused).
 function rustEngine() {
-  if (option('rust', null) !== null) {
-    const binary = path.resolve(option('rust'));
-    return new Engine({ build: async () => binary });
-  }
-  execFileSync(rust().cargo, coreBuildArgs(), { cwd: path.join(ROOT, 'core'), env: rust().env, stdio: 'inherit' });
-  const binary = path.join(ROOT, 'core', 'target', 'release', 'mcbench-core');
-  return new Engine({ build: async () => binary });
+  return coreEngine({ program: option('rust', null) === null ? null : path.resolve(option('rust')) });
 }
 
 async function main() {
-  // rust() answers the toolchain installRust found.
-  await installRust();
   const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'mcbench-core-parity-'));
   const classpath = (await minecraftLive.ensurePaper()).map((file) => path.join(minecraftLive.paperDir, file));
   const native = process.argv.includes('--native');

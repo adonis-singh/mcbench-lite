@@ -49,7 +49,6 @@ const { importCommands } = require('../server/live-placement');
 const { blocksBlueprint } = require('../server/blueprint');
 const { renderMask } = require('../server/bluemap');
 const { Y_OFFSET } = require('../server/minecraft-dimension');
-const { build } = require('./build-wasm');
 const { startNodeEngine } = require('./wasm-node-engine');
 const { communityBuilds, communityBlocks, bakedPack } = require('../test/helpers/community');
 const { compileEngine } = require('../server/engine');
@@ -341,7 +340,7 @@ async function main() {
   for (const [name, blocks] of Object.entries(scenes())) writeWorld(folder, `scene-${name}`, [{ kind: 'blueprint', bytes: blueprintOf(blocks) }], boundsOf(blocks));
 
   const builds = communityBuilds();
-  const engine = await startNodeEngine(await build());
+  const engine = await startNodeEngine();
   for (const [name, scene] of Object.entries(GROWTH)) writeWorld(folder, `growth-${name}`, await growthSteps(engine, scene), scene.area);
   let placed = 0;
   for (const [n, { file }] of builds.entries()) {

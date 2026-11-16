@@ -454,13 +454,11 @@ impl Tables {
     }
 }
 
-const LOOT: &str = include_str!("../minecraft/1.21.10/loot.json");
-
 static TABLES: OnceLock<Tables> = OnceLock::new();
 
 // The loot tables of the registry's blocks, parsed once.
 pub fn tables(reg: &Registry) -> &'static Tables {
-    TABLES.get_or_init(|| Tables::parse(reg, LOOT))
+    TABLES.get_or_init(|| Tables::parse(reg, &crate::tables::get().loot))
 }
 
 // --- Evaluation ---
@@ -833,7 +831,7 @@ mod tests {
     #[test]
     fn drops_against_java() {
         let Ok(path) = std::env::var("LOOT_ORACLE") else { return };
-        let reg = Registry::parse(include_str!("../minecraft/1.21.10/blocks.txt"));
+        let reg = Registry::parse(&crate::tables::get().blocks);
         let text = std::fs::read_to_string(path).unwrap();
         let mut sequences = RandomSequences::new(0);
         let mut skipped = std::collections::HashSet::new();

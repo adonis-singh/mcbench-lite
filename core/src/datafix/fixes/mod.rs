@@ -294,7 +294,7 @@ mod tests {
     // irrelevant change none of the upgraded types (the dump's F lines).
     #[test]
     fn the_registry_is_the_servers_list_of_fixes() {
-        let dump: Vec<(i32, String, bool)> = super::schemas::DUMP
+        let dump: Vec<(i32, String, bool)> = super::schemas::dump()
             .lines()
             .filter_map(|l| l.strip_prefix("F "))
             .map(|l| {

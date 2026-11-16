@@ -22,7 +22,7 @@ const os = require('os');
 const path = require('path');
 const { execFileSync, spawnSync } = require('child_process');
 const { minecraftLive } = require('../server/minecraft-live');
-const { buildCore, graalvmHome } = require('../server/engine');
+const { engineProgram, tablesFolder: engineTables, graalvmHome } = require('../server/engine');
 const { corpusDirs } = require('./corpus');
 
 const ROOT = path.join(__dirname, '..');
@@ -457,7 +457,7 @@ async function main() {
     return;
   }
   const ref = await reference();
-  const binary = await buildCore();
+  const binary = await engineProgram();
   let lines = [];
   if (flag('real')) {
     const types = new Map(ref.run(['--block-entity-types']).map((l) => l.split(' ')));
@@ -470,7 +470,7 @@ async function main() {
   }
   const input = `${lines.join('\n')}\n`;
   const java = ref.run(['--upgrade'], input).map((l) => (l.startsWith('error ') ? `error ${l.slice(6)}` : l));
-  const rust = spawnSync(binary, ['--datafix'], { input, maxBuffer: 1 << 30 }).stdout.toString('utf8').split('\n');
+  const rust = spawnSync(binary, [engineTables(), '--datafix'], { input, maxBuffer: 1 << 30 }).stdout.toString('utf8').split('\n');
   const keep = option('keep');
   if (keep) {
     fs.mkdirSync(keep, { recursive: true });

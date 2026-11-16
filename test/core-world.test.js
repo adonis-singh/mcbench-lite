@@ -3,7 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert');
 const fs = require('fs');
-const { build } = require('../scripts/build-wasm');
+const { engineModule } = require('../scripts/wasm-node-engine');
 
 // The Rust engine as WebAssembly (core/, web/core-world.mjs). Its bytes are
 // checked against the native program by scripts/wasm-parity.js; these are
@@ -16,15 +16,16 @@ const COMMANDS = [
 ].map((line) => `${line}\n`).join('');
 
 let wasm;
+let tables;
 let CoreWorld;
 test.before(async () => {
   ({ CoreWorld } = await import('../web/core-world.mjs'));
-  wasm = await WebAssembly.compile(fs.readFileSync(await build()));
+  ({ module: wasm, tables } = await engineModule());
 });
 
 test('a placement returns the blueprint, a tick the patch and the entities', async () => {
   const { readPatch } = await import('../web/live-patch.mjs');
-  const world = new CoreWorld(wasm);
+  const world = new CoreWorld(wasm, tables);
   const blueprint = world.place(COMMANDS);
   // The palette's size comes first: air, stone, lever, wire, lamp.
   assert.strictEqual(new DataView(blueprint.buffer, blueprint.byteOffset).getInt32(0), 5);
@@ -38,20 +39,20 @@ test('a placement returns the blueprint, a tick the patch and the entities', asy
 });
 
 test('a failure Minecraft reported rejects and the world goes on', () => {
-  const world = new CoreWorld(wasm);
+  const world = new CoreWorld(wasm, tables);
   world.place(COMMANDS);
   assert.throws(() => world.input('toggle', 0, 64, 0, 0), /^Error: The engine failed: java\.lang\.IllegalArgumentException: No toggle input at 0, 64, 0/);
   assert.ok(world.tick(1).bytes.length > 0);
 });
 
 test('a world with no blocks is refused as the Java engine refuses it', () => {
-  const world = new CoreWorld(wasm);
+  const world = new CoreWorld(wasm, tables);
   assert.throws(() => world.place('fill 0 64 0 1 64 1 minecraft:air\n'), /The import places no blocks/);
 });
 
 test('a use input opens a door and a gate the way the player looks, and iron takes none', async () => {
   const { readPatch, readBlueprint } = await import('../web/live-patch.mjs');
-  const world = new CoreWorld(wasm);
+  const world = new CoreWorld(wasm, tables);
   const blueprint = world.place([
     'fill 0 64 0 5 64 5 minecraft:stone\n',
     'setblock 1 65 1 minecraft:oak_door[facing=south,half=lower,hinge=left,open=false,powered=false]\n',
@@ -78,7 +79,7 @@ test('a use input opens a door and a gate the way the player looks, and iron tak
 });
 
 test('a request the engine does not model spends the world until a fresh placement', () => {
-  const world = new CoreWorld(wasm);
+  const world = new CoreWorld(wasm, tables);
   world.place(COMMANDS);
   world.place('setblock 4 65 4 minecraft:infested_stone\nsetblock 5 65 4 minecraft:tnt[unstable=false]\nsetblock 5 65 3 minecraft:redstone_block\n', { fresh: false });
   assert.throws(() => world.tick(80), /^Error: The engine failed: unported: InfestedBlock.spawnAfterBreak/);
@@ -104,7 +105,7 @@ test('ticks that move blocks past the bounds and into a new chunk column patch t
   const { Mesher } = await import('../web/mesher.mjs');
   const { MODULE } = require('../scripts/build-renderer');
   const { blocksBlueprint } = require('../server/blueprint');
-  const world = new CoreWorld(wasm);
+  const world = new CoreWorld(wasm, tables);
   const mask = { minX: -100, maxX: 100, minZ: -100, maxZ: 100 };
   const [patched, fresh] = await Promise.all([Mesher.create(fs.readFileSync(MODULE), pack), Mesher.create(fs.readFileSync(MODULE), pack)]);
   // The blocks the stream says the world holds: "x,y,z" -> state name.
@@ -160,7 +161,7 @@ test('ticks that move blocks past the bounds and into a new chunk column patch t
 });
 
 test('two worlds of one wasm are independent', () => {
-  const [a, b] = [new CoreWorld(wasm), new CoreWorld(wasm)];
+  const [a, b] = [new CoreWorld(wasm, tables), new CoreWorld(wasm, tables)];
   a.place(COMMANDS);
   b.place(COMMANDS);
   a.input('toggle', 1, 65, 1, 0);
@@ -178,7 +179,7 @@ test('an exported world reads back, with the existing region reader, as the blue
   const { readZipEntry } = require('../server/zip-entry');
   const { readBlockStates, readChunks, readNbt } = require('../server/region');
   const { forEachBlueprintBlock } = require('../server/blueprint');
-  const world = new CoreWorld(wasm);
+  const world = new CoreWorld(wasm, tables);
   // Blocks over a chunk border and below zero, a chest (a block entity), water (a fluid tick).
   const blueprint = world.place([COMMANDS, 'fill -20 70 -20 20 70 20 minecraft:stone\n', 'setblock 3 71 3 minecraft:chest[facing=north]\n', 'setblock 5 72 5 minecraft:water\n'].join(''));
   world.input('toggle', 1, 65, 1, 0);
@@ -232,7 +233,7 @@ test('the exported world carries the data pack the engine\'s own dimension needs
 });
 
 test('a creative player walks in the world, and its view comes with each tick', () => {
-  const world = new CoreWorld(wasm);
+  const world = new CoreWorld(wasm, tables);
   world.place('fill 0 63 0 10 63 10 minecraft:stone\n');
   world.tick(2);
   const spawned = world.spawnPlayer(2.5, 64, 2.5, 0, 0, false);
@@ -254,7 +255,7 @@ test('a creative player walks in the world, and its view comes with each tick', 
 });
 
 test('a player stands on the open top of the nearest column, as Minecraft lets a player stand up there, and nowhere in the air', () => {
-  const world = new CoreWorld(wasm);
+  const world = new CoreWorld(wasm, tables);
   world.place([
     'fill 0 63 0 6 63 6 minecraft:stone',
     // A room with a roof: its floor is under cover, its roof open.

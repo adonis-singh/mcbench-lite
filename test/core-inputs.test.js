@@ -4,7 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert');
 const fs = require('fs');
 const path = require('path');
-const { build } = require('../scripts/build-wasm');
+const { engineModule } = require('../scripts/wasm-node-engine');
 const { tablesFolder } = require('../server/minecraft-tables');
 const { MC_VERSION } = require('../server/assets');
 
@@ -12,6 +12,7 @@ const { MC_VERSION } = require('../server/assets');
 // core/src/blocks/mod.rs input_of) for the palettes of its blueprints and
 // patches, and as its input and click requests take it.
 let wasm;
+let tables;
 let CoreWorld;
 let readBlueprint;
 let readPatch;
@@ -19,7 +20,7 @@ let InputBlocks;
 test.before(async () => {
   ({ CoreWorld } = await import('../web/core-world.mjs'));
   ({ readBlueprint, readPatch, InputBlocks } = await import('../web/live-patch.mjs'));
-  wasm = await WebAssembly.compile(fs.readFileSync(await build()));
+  ({ module: wasm, tables } = await engineModule());
 });
 
 const text = ({ id, properties }) => `${id}[${properties.map(([k, v]) => `${k}=${v}`).join(',')}]`;
@@ -65,7 +66,7 @@ const NAMED = [
 ];
 
 test('the engine names the input of each palette entry of a blueprint: a lever toggles, a button presses, the usable blocks but iron take a use', () => {
-  const world = new CoreWorld(wasm);
+  const world = new CoreWorld(wasm, tables);
   const bytes = world.place(row(NAMED.map(([block]) => block)));
   const blueprint = readBlueprint(bytes);
   const inputs = world.inputs();
@@ -76,7 +77,7 @@ test('the engine names the input of each palette entry of a blueprint: a lever t
 });
 
 test('a patch carries the inputs of the palette entries it adds, and a click takes what the block takes', () => {
-  const world = new CoreWorld(wasm);
+  const world = new CoreWorld(wasm, tables);
   const bytes = world.place(row(['lever[face=floor,facing=north,powered=false]', 'redstone_lamp', 'oak_door[facing=south,half=lower]', 'iron_door[facing=south,half=lower]', 'stone_button[face=floor,facing=north,powered=false]']));
   const blueprint = readBlueprint(bytes);
   const index = inputsAt(blueprint, world.inputs());
@@ -102,7 +103,7 @@ test('a patch carries the inputs of the palette entries it adds, and a click tak
 });
 
 test('a click on dust: a dot becomes a cross and a lone cross a dot; a cross all four of whose sides connect passes, and nothing changes', () => {
-  const world = new CoreWorld(wasm);
+  const world = new CoreWorld(wasm, tables);
   world.place('fill -3 64 -3 3 64 3 minecraft:stone\nsetblock 0 65 0 minecraft:redstone_wire[north=none,east=none,south=none,west=none]\n');
   world.tick(1);
   assert.strictEqual(world.click(0, 65, 0, 0), 'use');
@@ -132,7 +133,7 @@ test('the engine takes exactly the input it names, for every block of the table'
   const table = path.join(tablesFolder(MC_VERSION), 'blocks.txt');
   const all = fs.readFileSync(table, 'utf8').split('\n').filter((line) => line.startsWith('block\t')).map((line) => line.split('\t')[1]);
   assert.ok(all.length > 1000);
-  const world = new CoreWorld(wasm);
+  const world = new CoreWorld(wasm, tables);
   const refused = new Set();
   let keys;
   let side;

@@ -14,7 +14,7 @@ const step = (id) => setup.view().steps.find((entry) => entry.id === id);
 test('every step waits until its work starts, and only the shell image is optional', () => {
   const { ready, steps } = setup.view();
   assert.equal(ready, false);
-  assert.deepEqual(steps.map((entry) => entry.id), ['jdk', 'rust', 'minecraft', 'tables', 'blocks', 'viewer', 'engine', 'wasm', 'browser', 'shell']);
+  assert.deepEqual(steps.map((entry) => entry.id), ['jdk', 'minecraft', 'tables', 'blocks', 'viewer', 'engine', 'browser', 'shell']);
   assert.ok(steps.every((entry) => entry.state === 'waiting' && typeof entry.title === 'string' && typeof entry.doing === 'string'));
   assert.deepEqual(steps.filter((entry) => entry.optional).map((entry) => entry.id), ['shell']);
 });
@@ -40,13 +40,13 @@ test('a step runs with its progress, then is done with how long it took; its wor
 });
 
 test('a failed step says why and runs again when it is next needed; a done step stays done', async () => {
-  await assert.rejects(setup.track('rust', async () => { throw Object.assign(new Error('rustup failed'), { stderr: 'error: no network\n' }); }), /rustup failed/);
-  assert.deepEqual([step('rust').state, step('rust').error], ['failed', 'error: no network']);
-  await setup.track('rust', async () => {});
-  assert.equal(step('rust').state, 'done');
-  const { seconds } = step('rust');
-  await assert.rejects(setup.track('rust', async () => { throw new Error('later'); }), /later/);
-  assert.deepEqual([step('rust').state, step('rust').seconds], ['done', seconds]);
+  await assert.rejects(setup.track('engine', async () => { throw Object.assign(new Error('the download failed'), { stderr: 'error: no network\n' }); }), /the download failed/);
+  assert.deepEqual([step('engine').state, step('engine').error], ['failed', 'error: no network']);
+  await setup.track('engine', async () => {});
+  assert.equal(step('engine').state, 'done');
+  const { seconds } = step('engine');
+  await assert.rejects(setup.track('engine', async () => { throw new Error('later'); }), /later/);
+  assert.deepEqual([step('engine').state, step('engine').seconds], ['done', seconds]);
 });
 
 test('a failure about the machine makes a step unavailable, and the optional shell image does not keep the app from ready', async () => {

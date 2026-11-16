@@ -5,19 +5,37 @@ const assert = require('node:assert');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { spawn } = require('node:child_process');
+const { spawn, spawnSync } = require('node:child_process');
 const readline = require('node:readline');
-const { buildCore } = require('../server/engine');
+const { engineProgram, tablesFolder } = require('../server/engine');
+
+// The program reads Minecraft's tables from the folder its first argument
+// names, before anything else: without it, or with a table missing, it
+// stops at once and says what it lacks.
+test('the program needs its tables folder and names a table it cannot read', async (t) => {
+  const binary = await engineProgram();
+  const alone = spawnSync(binary, [], { input: '', encoding: 'utf8' });
+  assert.strictEqual(alone.status, 2);
+  assert.match(alone.stderr, /^usage: mcbench-core <tables folder>/);
+  assert.strictEqual(alone.stdout, '');
+  const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'mcbench-tables-'));
+  t.after(() => fs.rmSync(folder, { recursive: true, force: true }));
+  for (const name of ['blocks.txt', 'loot.json']) fs.copyFileSync(path.join(tablesFolder(), name), path.join(folder, name));
+  const missing = spawnSync(binary, [folder], { input: '', encoding: 'utf8' });
+  assert.strictEqual(missing.status, 2);
+  assert.strictEqual(missing.stdout, '');
+  assert.match(missing.stderr, new RegExp(`^mcbench-core: cannot read Minecraft's table ${path.join(folder, 'datafix.txt').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}: `));
+});
 
 // The native engine's protocol (core/src/main.rs) on requests in the wrong
 // order or malformed: each fails alone, with a reply, and the world goes on.
 test('requests out of order or malformed fail with a reply and refuse nothing', async (t) => {
-  const binary = await buildCore();
+  const binary = await engineProgram();
   const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'mcbench-protocol-'));
   t.after(() => fs.rmSync(folder, { recursive: true, force: true }));
   const file = (name) => path.join(folder, name);
   fs.writeFileSync(file('commands.txt'), 'setblock 0 64 0 minecraft:stone\n');
-  const child = spawn(binary, [], { cwd: folder, stdio: ['pipe', 'pipe', 'inherit'] });
+  const child = spawn(binary, [tablesFolder()], { cwd: folder, stdio: ['pipe', 'pipe', 'inherit'] });
   t.after(() => child.kill());
   const lines = readline.createInterface({ input: child.stdout })[Symbol.asyncIterator]();
   const next = async () => (await lines.next()).value;

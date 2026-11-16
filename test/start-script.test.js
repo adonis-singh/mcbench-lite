@@ -70,7 +70,7 @@ async function nodeDist(bytes) {
 // empty /usr/bin/bwrap and /usr/bin/prlimit under the system root.
 function prerequisites(dir) {
   const bin = path.join(dir, 'bin');
-  for (const name of ['cc', 'python3', 'xcode-select']) stub(bin, name, 'exit 0');
+  for (const name of ['python3', 'xcode-select']) stub(bin, name, 'exit 0');
   const systemRoot = path.join(dir, 'system');
   for (const name of ['bwrap', 'prlimit']) stub(path.join(systemRoot, 'usr', 'bin'), name, 'exit 0');
   return { bin, systemRoot };
@@ -198,12 +198,11 @@ test('an unsupported system or processor is refused with one line', async (t) =>
 
 test('on macOS missing Xcode Command Line Tools are named with the command that installs them', async (t) => {
   const message = await check(t, { system: 'Darwin', machine: 'arm64' });
-  assert.equal(message, 'mcbench-lite needs the Xcode Command Line Tools (they give cc, git and python3). Install them with:\n'
+  assert.equal(message, 'mcbench-lite needs the Xcode Command Line Tools (they give git and python3). Install them with:\n'
     + '  xcode-select --install\nThen run this again.\n');
 });
 
 const LINUX = [
-  { item: 'cc', name: 'a C compiler (cc)', apt: 'build-essential', dnf: 'gcc' },
   { item: 'python3', name: 'python3', apt: 'python3', dnf: 'python3' },
   { item: 'curl', name: 'curl', apt: 'curl', dnf: 'curl' },
   { item: 'xz', name: 'xz', apt: 'xz-utils', dnf: 'xz' },
@@ -231,10 +230,10 @@ test('on Linux everything missing is named at once, for pacman and for no known 
   const all = LINUX.map(({ name }) => name).join(', ');
   assert.equal(await check(t, { system: 'Linux', machine: 'x86_64', commands: ['pacman'] }),
     `mcbench-lite needs these, which are not installed: ${all}.\nInstall them with:\n`
-    + `  ${sudo}pacman -S --needed gcc python curl xz bubblewrap util-linux\nThen run this again.\n`);
+    + `  ${sudo}pacman -S --needed python curl xz bubblewrap util-linux\nThen run this again.\n`);
   assert.equal(await check(t, { system: 'Linux', machine: 'x86_64' }),
     `mcbench-lite needs these, which are not installed: ${all}.\n`
-    + "Install them with your system's package manager (the packages are usually called: gcc python3 curl xz bubblewrap util-linux).\n"
+    + "Install them with your system's package manager (the packages are usually called: python3 curl xz bubblewrap util-linux).\n"
     + 'Then run this again.\n');
 });
 

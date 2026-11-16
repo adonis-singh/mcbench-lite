@@ -44,9 +44,6 @@ const PROFILE = 'engine.iprof.gz';
 // only how much memory the program holds on to once it has worked (about
 // 450 MB more).
 const RUNTIME_DEFAULTS = ['-R:MinHeapSize=536870912'];
-// Where built programs are published (scripts/publish-engine.js): assets of
-// one release of the project's private repository, named by program.
-const RELEASES = { repo: 'adonis-singh/mcbench-lite', tag: 'engines' };
 
 // GraalVM 25 with native-image: MCBENCH_GRAALVM_HOME, or the newest release
 // unpacked under ~/.local/graalvm.
@@ -96,8 +93,8 @@ function nativeImage(graalvm, args, { cwd, log, signal }) {
 }
 
 // Compiles the engine for `classpath` (the server's jars, absolute paths)
-// into `folder`, unless this exact program is already there or published,
-// and returns its path. A native-image build takes minutes and a 12 GB
+// into `folder`, unless this exact program is already there, and returns
+// its path. A native-image build takes minutes and a 12 GB
 // heap; `signal` stops it. It is optimised with the version's recorded
 // profile; `instrument` builds the program that records a profile instead
 // (scripts/engine-metadata.js).
@@ -114,28 +111,10 @@ function engineName({ classpath, minecraftVersion, instrument }) {
   return `mcbench-engine-${instrument ? 'instrumented-' : ''}${digest.digest('hex').slice(0, 12)}`;
 }
 
-// Downloads the program `name` from the project's releases, if it was
-// published there, to `binary`, with the GitHub CLI. False when it was not
-// published or the CLI is not installed.
-async function fetchPublished(name, binary) {
-  const download = fs.mkdtempSync(`${binary}-download-`);
-  try {
-    await execFileAsync('gh', ['release', 'download', RELEASES.tag, '--repo', RELEASES.repo, '--pattern', `${name}.gz`, '--dir', download], { timeout: 600_000 });
-    fs.writeFileSync(`${binary}.part`, zlib.gunzipSync(fs.readFileSync(path.join(download, `${name}.gz`))), { mode: 0o755 });
-    fs.renameSync(`${binary}.part`, binary);
-    return true;
-  } catch (error) {
-    if (error.code === 'ENOENT' || /no assets match|release not found/i.test(error.stderr || '')) return false;
-    throw error;
-  } finally {
-    fs.rmSync(download, { recursive: true, force: true });
-  }
-}
-
 // Entries of a program folder that another build may still be writing: a
-// download, a compile's classes and native-image's output. They are left
-// alone until they are a day old.
-const IN_PROGRESS = /^mcbench-engine-.*(?:-download-|\.part$)|^mcbench-engine-classes-/;
+// compile's classes and native-image's output. They are left alone until
+// they are a day old.
+const IN_PROGRESS = /^mcbench-engine-.*\.part$|^mcbench-engine-classes-/;
 const STALE_MS = 24 * 60 * 60 * 1000;
 
 async function compileNative({ classpath, folder, minecraftVersion, signal, instrument = false }) {
@@ -152,8 +131,6 @@ async function compileNative({ classpath, folder, minecraftVersion, signal, inst
     if (IN_PROGRESS.test(entry) && Date.now() - fs.statSync(file).mtimeMs < STALE_MS) continue;
     fs.rmSync(file, { recursive: true, force: true });
   }
-  // A program published for these exact inputs needs no build here.
-  if (!instrument && await fetchPublished(name, binary)) return binary;
   const classes = fs.mkdtempSync(path.join(folder, 'mcbench-engine-classes-'));
   await compileEngine(path.join(graalvm, 'bin', 'javac'), classpath, classes);
   const profile = path.join(classes, 'engine.iprof');
@@ -226,9 +203,11 @@ function untilAborted(promise, signal) {
 // dead or stopped begins a new run; a run that is no longer `status` never
 // spawns and never changes `status`.
 class Engine {
-  constructor({ build = buildEngine, spawnEngine = spawn } = {}) {
+  // `args` are the program's arguments (the Rust engine's tables folder).
+  constructor({ build = buildEngine, spawnEngine = spawn, args = [] } = {}) {
     this.build = build;
     this.spawnEngine = spawnEngine;
+    this.args = args;
     this.status = { name: 'idle' };
     this.requestId = 0;
   }
@@ -264,7 +243,7 @@ class Engine {
     // The engine's world folder holds the data packs a new world of the
     // live server enables (see McbenchEngine.boot).
     writeDimensionPack(folder);
-    const child = this.spawnEngine(binary, [], { cwd: folder, stdio: ['pipe', 'pipe', 'pipe'] });
+    const child = this.spawnEngine(binary, this.args, { cwd: folder, stdio: ['pipe', 'pipe', 'pipe'] });
     run.child = child;
     run.name = 'starting';
     let buffer = '';
@@ -448,13 +427,98 @@ function engineEnv(mode) {
 // pinned server's classes and checked byte for byte against the Java engine
 // (scripts/core-parity.js). It speaks the Java engine's protocol for
 // placements, ticks and inputs, and refuses ("unported: ...") any request
-// that reaches what it does not model. Built with cargo once per process.
+// that reaches what it does not model. The app runs the program and the
+// WebAssembly module released for its sources (installEngine), which read
+// Minecraft's tables made on this machine at their start; it compiles
+// neither.
 const CORE = path.join(__dirname, '..', 'core');
 
-// The Rust that builds core/, natively and as WebAssembly, is the release
-// core/rust-toolchain.toml names, with its WebAssembly target, installed by
-// the app's own rustup in the tools folder (tools.js), which the first start
-// installs.
+// The files the engine is built from, relative to core/: its sources, its
+// manifest and lock file, the pinned toolchain, cargo's configuration and the
+// profiles of profile-guided optimisation. Minecraft's tables are not among
+// them: the program and the module read them at their start.
+async function sourceFiles() {
+  const files = ['Cargo.toml', 'Cargo.lock', 'rust-toolchain.toml', '.cargo/config.toml'];
+  const walk = async (relative) => {
+    for (const entry of await fs.promises.readdir(path.join(CORE, relative), { withFileTypes: true })) {
+      const name = path.posix.join(relative, entry.name);
+      if (entry.isDirectory()) await walk(name);
+      else files.push(name);
+    }
+  };
+  await walk('src');
+  await walk('pgo');
+  return files.sort();
+}
+
+// The engine's version: the first 16 hex digits of the sha256 of its source
+// files, each as its path, a zero byte, its bytes and a zero byte. Read
+// without blocking: the server's start computes it while it answers.
+async function sourcesHash() {
+  const files = await sourceFiles();
+  const contents = await Promise.all(files.map((name) => fs.promises.readFile(path.join(CORE, name))));
+  const hash = crypto.createHash('sha256');
+  files.forEach((name, index) => hash.update(`${name}\0`).update(contents[index]).update('\0'));
+  return hash.digest('hex').slice(0, 16);
+}
+
+// Where the engine of version `version` is: the program and the module, in
+// the tools folder, where the pinned downloads unpack (tools.js PINS engine
+// and engine-wasm) and scripts/build-engine.js puts what it builds.
+function engineFiles(version, dir = tools.TOOLS_DIR) {
+  return {
+    program: path.join(dir, `engine-${version}`, tools.PINS.engine.platforms[tools.PLATFORM].bin),
+    module: path.join(dir, `engine-wasm-${version}`, tools.PINS['engine-wasm'].platforms[tools.PLATFORM].bin),
+  };
+}
+
+// The engine for this checkout's sources, { program, module }: downloaded
+// once when they are the released engine's (tools.js PINS), or built from
+// them by scripts/build-engine.js. Sources that are neither fail, naming that
+// command.
+let engineInstall = null;
+function installEngine() {
+  engineInstall ||= setup.track('engine', async () => {
+    const version = await sourcesHash();
+    const files = engineFiles(version);
+    if (version !== tools.PINS.engine.version) {
+      if (fs.existsSync(files.program) && fs.existsSync(files.module)) return files;
+      throw new Error(`core/ is not the released engine's sources (this checkout's engine is ${version}, server/engine-release.json pins ${tools.PINS.engine.version}). Build it from its sources with \`node scripts/build-engine.js\`, which puts it in ${path.dirname(files.program)} and ${path.dirname(files.module)}`);
+    }
+    const download = (name) => step(`[engine] downloading ${tools.PINS[name].title} ${version} (${tools.downloadMb(name)} MB) into ${tools.TOOLS_DIR}`, `[engine] ${tools.PINS[name].title} installed`,
+      () => tools.install(name, { onProgress: setup.progress('engine') }));
+    await download('engine');
+    await download('engine-wasm');
+    return files;
+  }).catch((error) => {
+    engineInstall = null;
+    throw error;
+  });
+  return engineInstall;
+}
+
+// The folder of Minecraft's tables the engine reads (minecraft-tables.js,
+// required here as it requires this module), which must be made.
+function tablesFolder() {
+  const { MC_VERSION } = require('./assets');
+  const tables = require('./minecraft-tables');
+  tables.checkTables(MC_VERSION);
+  return tables.tablesFolder(MC_VERSION);
+}
+
+// The native program this checkout runs, installed, once its tables are made.
+async function engineProgram() {
+  const { program } = await installEngine();
+  tablesFolder();
+  return program;
+}
+
+// The Rust that builds core/, natively and as WebAssembly, for a developer
+// (scripts/build-engine.js, the parity scripts that build variants of the
+// engine, scripts/core-pgo.js) and for the releases (scripts/release-engine.js):
+// the release core/rust-toolchain.toml names, with its WebAssembly target,
+// installed by the app's own rustup in the tools folder (tools.js). The
+// app's start installs none of it.
 const RUST_CHANNEL = fs.readFileSync(path.join(CORE, 'rust-toolchain.toml'), 'utf8').match(/^channel = "(.*)"$/m)[1];
 // rustup installs a toolchain only when told to (installRust), never as a
 // side effect of another command.
@@ -463,9 +527,6 @@ const RUSTUP_ENV = { ...process.env, ...tools.RUST_ENV, RUSTUP_AUTO_INSTALL: '0'
 // The pinned toolchain, or null when it is not installed: its cargo, the
 // environment that has cargo compile with the same toolchain's rustc (cargo
 // run by its path would take the first rustc on PATH), and its host target.
-// rustc and cargo each run once here: macOS checks a program the first time
-// it runs, which takes seconds for a rustc just installed, and this runs
-// while Minecraft's tables are made instead of when the engine's build starts.
 async function findRust() {
   const which = async (name) => (await execFileAsync(tools.RUSTUP, ['which', name], { cwd: CORE, env: RUSTUP_ENV })).stdout.trim();
   let cargo;
@@ -486,13 +547,12 @@ async function findRust() {
 let rustInstall = null;
 let rustTools = null;
 function installRust() {
-  rustInstall ||= setup.track('rust', async () => {
+  rustInstall ||= (async () => {
     await step(`[rust] downloading rustup ${tools.PINS['rustup-init'].version} (${tools.downloadMb('rustup-init')} MB) into ${tools.TOOLS_DIR}`, '[rust] rustup installed',
-      () => tools.installRustup({ onProgress: setup.progress('rust') }));
+      () => tools.installRustup());
     rustTools = await findRust() || await withLock(path.join(tools.TOOLS_DIR, 'rust', 'toolchain-install.lock'), async () => {
       const found = await findRust();
       if (found) return found;
-      setup.report('rust', { detail: `Installing Rust ${RUST_CHANNEL} and its WebAssembly target with rustup`, progress: undefined });
       await step(`[rust] installing Rust ${RUST_CHANNEL} and its WebAssembly target with rustup (once, about 550 MB on disk)`, `[rust] Rust ${RUST_CHANNEL} installed`,
         () => execFileAsync(tools.RUSTUP, ['install'], { cwd: CORE, env: RUSTUP_ENV, maxBuffer: 1 << 24 }));
       const installed = await findRust();
@@ -500,54 +560,47 @@ function installRust() {
       return installed;
     });
     return rustTools;
-  }).catch((error) => {
+  })().catch((error) => {
     rustInstall = null;
     throw error;
   });
   return rustInstall;
 }
 
-// The toolchain installRust found. It must have resolved, and the tables of
-// Minecraft the engine compiles in must be made (minecraft-tables.js,
-// required here as it requires this module).
+// The toolchain installRust found. It must have resolved.
 function rust() {
-  require('./minecraft-tables').checkTables(require('./assets').MC_VERSION);
   if (!rustTools) throw new Error('Rust has not been looked up: await installRust() before rust()');
   return rustTools;
 }
 
-// The profile scripts/core-pgo.js records for this machine's target
-// (core/pgo/<target>.profdata). A profile describes the code of one target
-// only, and core/pgo holds one for aarch64-apple-darwin and one for
-// x86_64-unknown-linux-gnu.
-function coreProfile() {
-  return path.join(CORE, 'pgo', `${rust().host}.profdata`);
+// The profile scripts/core-pgo.js records for `target`
+// (core/pgo/<target>.profdata), or null when core/pgo has none. A profile
+// describes the code of one target only, and core/pgo holds one for
+// aarch64-apple-darwin and one for x86_64-unknown-linux-gnu.
+function coreProfile(target = rust().host) {
+  const profile = path.join(CORE, 'pgo', `${target}.profdata`);
+  return fs.existsSync(profile) ? profile : null;
 }
 
-// cargo's arguments for building the engine: on a target core/pgo has a
-// profile for, optimised with it; on any other target (an Intel Mac, ARM
-// Linux), built without one. A profile changes how fast the program is,
-// never what it does. rustc finds the profile from the directory it runs in,
-// which cargo does not keep the same for every run it makes (its probe of the
-// compiler runs elsewhere), so the path is given in full.
-function coreBuildArgs() {
-  const profile = coreProfile();
-  return ['build', '--release', '--quiet', ...(fs.existsSync(profile) ? ['--config', `build.rustflags=['-Cprofile-use=${profile}']`] : [])];
+// cargo's arguments for building the engine's program for `target`: on a
+// target core/pgo has a profile for, optimised with it; on any other target
+// (an Intel Mac, ARM Linux), built without one. A profile changes how fast
+// the program is, never what it does. rustc finds the profile from the
+// directory it runs in, which cargo does not keep the same for every run it
+// makes (its probe of the compiler runs elsewhere), so the path is given in
+// full. `profile` names where that profile is, for a build that sees core/
+// at another path (release-engine.js's container). `--target` is given for
+// a cross build alone: cargo names the crate's functions differently when it
+// is given, and the profiles were recorded without it, so a build for this
+// machine's own target with it matches none of the profile's functions (it
+// ran a fifth slower on adipc).
+function coreBuildArgs({ target = rust().host, profile = coreProfile(target) } = {}) {
+  return ['build', '--release', '--quiet', ...(target === rust().host ? [] : ['--target', target]), ...(profile ? ['--config', `build.rustflags=['-Cprofile-use=${profile}']`] : [])];
 }
 
-let coreBuild = null;
-function buildCore() {
-  coreBuild ||= (async () => {
-    await installRust();
-    const { cargo, env } = rust();
-    await setup.track('engine', () => step('[engine] building the Rust engine (the first time takes a few minutes)', '[engine] Rust engine built',
-      () => execFileAsync(cargo, coreBuildArgs(), { cwd: CORE, env, maxBuffer: 1 << 24 })));
-    return path.join(CORE, 'target', 'release', 'mcbench-core');
-  })().catch((error) => {
-    coreBuild = null;
-    throw error;
-  });
-  return coreBuild;
+// Where cargo puts the program coreBuildArgs builds for `target` in `targetDir`.
+function coreProgram(targetDir, target = rust().host) {
+  return path.join(targetDir, ...(target === rust().host ? [] : [target]), 'release', 'mcbench-core');
 }
 
 // `palette` (server/world.js PaletteStore) as the engine places the blocks
@@ -561,14 +614,14 @@ function buildCore() {
 async function fixedPalette(palette, dataVersion) {
   const { MC_DATA_VERSION } = require('./assets');
   if (dataVersion >= MC_DATA_VERSION) return palette;
-  const binary = await buildCore();
+  const binary = await engineProgram();
   const quote = (text) => JSON.stringify(String(text));
   const lines = palette.entries.slice(1).map(({ id, states }) => {
     const properties = Object.entries(states).map(([key, value]) => `${quote(key)}:${quote(value)}`).join(',');
     return `block_state ${dataVersion} {Name:${quote(id)}${properties ? `,Properties:{${properties}}` : ''}}\n`;
   });
   const answer = await new Promise((resolve, reject) => {
-    const child = spawn(binary, ['--datafix'], { stdio: ['pipe', 'pipe', 'pipe'] });
+    const child = spawn(binary, [tablesFolder(), '--datafix'], { stdio: ['pipe', 'pipe', 'pipe'] });
     const out = [];
     const err = [];
     child.stdout.on('data', (data) => out.push(data));
@@ -589,9 +642,16 @@ async function fixedPalette(palette, dataVersion) {
 
 // The Rust engine: speaks the Java engine's protocol (Engine) and writes the
 // same files. It reads nothing of the server's jars, so warm() needs only
-// `folder`.
-function coreEngine() {
-  return new Engine({ build: buildCore });
+// `folder`. The program is this checkout's (engineProgram), or `program`, a
+// build of the parity and benchmark scripts' own; it is given the tables
+// folder, and run with `env`.
+function coreEngine({ program = null, env = process.env } = {}) {
+  const { MC_VERSION } = require('./assets');
+  return new Engine({
+    build: program ? async () => { tablesFolder(); return program; } : engineProgram,
+    args: [require('./minecraft-tables').tablesFolder(MC_VERSION)],
+    spawnEngine: (binary, args, options) => spawn(binary, args, { ...options, env }),
+  });
 }
 
-module.exports = { Engine, SOURCES, buildCore, fixedPalette, coreBuildArgs, coreProfile, coreEngine, installRust, rust, CORE, buildEngine, compileEngine, compileNative, engineName, engineEnv, jvmEngine, graalvmHome, NATIVE, PROFILE, RELEASES };
+module.exports = { Engine, SOURCES, engineProgram, installEngine, engineFiles, sourcesHash, sourceFiles, tablesFolder, fixedPalette, coreBuildArgs, coreProgram, coreProfile, coreEngine, installRust, rust, CORE, buildEngine, compileEngine, compileNative, engineName, engineEnv, jvmEngine, graalvmHome, NATIVE, PROFILE };

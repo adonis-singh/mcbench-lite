@@ -45,7 +45,7 @@ const crypto = require('crypto');
 const { execFileSync, spawn } = require('child_process');
 const ROOT = path.join(__dirname, '..');
 const { minecraftLive } = require('../server/minecraft-live');
-const { Engine, engineEnv, jvmEngine, coreBuildArgs, rust, installRust } = require('../server/engine');
+const { Engine, engineEnv, jvmEngine, coreEngine } = require('../server/engine');
 const { MinecraftVerifier, placedPalette } = require('../server/minecraft-verify');
 const { importCommands } = require('../server/live-placement');
 const { Y_OFFSET } = require('../server/minecraft-dimension');
@@ -421,16 +421,11 @@ function addImports(base, placed, args, actions, last) {
 
 // --- Running ---
 
-// The Rust engine: core/ built, or the binary --rust names (an earlier
-// commit's build, for what it refused).
+// The Rust engine: this checkout's (server/engine.js engineProgram: the
+// released one, or one scripts/build-engine.js built from core/), or the
+// binary --rust names (an earlier commit's build, for what it refused).
 function rustEngine() {
-  if (option('rust', null) !== null) {
-    const binary = path.resolve(option('rust'));
-    return new Engine({ build: async () => binary });
-  }
-  execFileSync(rust().cargo, coreBuildArgs(), { cwd: path.join(ROOT, 'core'), env: rust().env, stdio: 'inherit' });
-  const binary = path.join(ROOT, 'core', 'target', 'release', 'mcbench-core');
-  return new Engine({ build: async () => binary });
+  return coreEngine({ program: option('rust', null) === null ? null : path.resolve(option('rust')) });
 }
 
 // Runs one request on an engine into a folder: how long it took and the
@@ -518,8 +513,6 @@ function compare(java, rust) {
 }
 
 async function main() {
-  // rust() answers the toolchain installRust found.
-  await installRust();
   const placement = option('placement', 'both');
   if (!['both', ...PLACEMENT_MODES].includes(placement)) throw new Error(`Unknown --placement ${placement}`);
   const modes = placement === 'both' ? PLACEMENT_MODES : [placement];
@@ -549,7 +542,7 @@ async function main() {
     fs.mkdirSync(path.join(scratch, name));
     return jvmEngine({ classpath, classes: path.join(scratch, name), env });
   };
-  const java = option('base', null) !== null ? new Engine({ build: async () => path.resolve(option('base')) }) : javaEngine(javaEnv, 'classes');
+  const java = option('base', null) !== null ? coreEngine({ program: path.resolve(option('base')) }) : javaEngine(javaEnv, 'classes');
   const rust = process.argv.includes('--stock') ? javaEngine(stockEnv, 'classes-stock') : rustEngine();
   const binaries = path.join(scratch, 'binaries');
   await Promise.all([

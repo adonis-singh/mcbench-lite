@@ -1,0 +1,31 @@
+{
+  "version": "ad327be5bdf0dd1a",
+  "tag": "engine-ad327be5bdf0dd1a",
+  "assets": {
+    "darwin-arm64": {
+      "name": "mcbench-core-ad327be5bdf0dd1a-darwin-arm64.gz",
+      "sha256": "8bea0733d2b2ab6d149f1fec1b818d5e6e0e0a2d4e8753affa16a4cd8859efac",
+      "bytes": 1901170
+    },
+    "darwin-x64": {
+      "name": "mcbench-core-ad327be5bdf0dd1a-darwin-x64.gz",
+      "sha256": "e92aed3a39ad45e7da0cb4ff7bf8cc51de639b95f34742cdd06e287b3ed297e5",
+      "bytes": 1951034
+    },
+    "linux-arm64": {
+      "name": "mcbench-core-ad327be5bdf0dd1a-linux-arm64.gz",
+      "sha256": "b53333877d8bf7bd0cd43bbb54fc7a8ac1fa7b0d6cfdb3aa4c440a57284eef8e",
+      "bytes": 1880075
+    },
+    "linux-x64": {
+      "name": "mcbench-core-ad327be5bdf0dd1a-linux-x64.gz",
+      "sha256": "2efc390575af3d9372c2b23e6c8e3b47e869d34778372fc02cb7330d3e039216",
+      "bytes": 1964807
+    },
+    "wasm32": {
+      "name": "mcbench-core-ad327be5bdf0dd1a-wasm32.wasm.gz",
+      "sha256": "63c77d76e973502edd7fc6643610584f15229761e91a5a0214644602d4059e45",
+      "bytes": 623067
+    }
+  }
+}

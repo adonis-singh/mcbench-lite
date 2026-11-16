@@ -58,13 +58,14 @@ Only the parity tools start the Paper reference server, never the app. While it 
 
 ## What the app downloads
 
-The app installs the programs it needs into its tools folder, `~/.mcbench-lite/tools` or the folder `MCBENCH_TOOLS_DIR` names, which only your account can read. Each is pinned in `server/tools.js` to one version and, for macOS and Linux on ARM and Intel, to the sha256 of its download, taken from the publisher's own checksum file where it publishes one and confirmed by downloading. A download whose sha256 differs fails, and nothing of it is kept. A program is unpacked into a folder named after its version, which appears whole, and nothing outside the tools folder is changed: no `PATH`, no shell profile, no `~/.rustup`.
+The app installs the programs it needs into its tools folder, `~/.mcbench-lite/tools` or the folder `MCBENCH_TOOLS_DIR` names, which only your account can read. Each is pinned in `server/tools.js` to one version and, for macOS and Linux on ARM and Intel, to the sha256 of its download, taken from the publisher's own checksum file where it publishes one and confirmed by downloading. A download whose sha256 differs fails, and nothing of it is kept. A program is unpacked into a folder named after its version, which appears whole, and nothing outside the tools folder is changed: no `PATH`, no shell profile, no `~/.rustup`. The engine's program and module are built by the project's own script and published by its owner; nobody signs them: the Mac's linker gives the arm64 program an ad-hoc signature, which Apple silicon requires, and the Intel program has none.
 
 | Program | Version | From | Checksum from | When |
 |---|---|---|---|---|
 | Temurin JDK | 25.0.5+8 | github.com/adoptium/temurin25-binaries | Adoptium's `.sha256.txt` beside each file | the first start, unless `MCBENCH_JAVA` and `MCBENCH_JAVAC` name a JDK |
-| rustup (`rustup-init`) | 1.29.3 | static.rust-lang.org/rustup/archive | rustup's `.sha256` beside each file | the first start |
-| Rust and its WebAssembly target | 1.99.1 (`core/rust-toolchain.toml`) | static.rust-lang.org, through rustup | rustup's own checks of its downloads | the first start |
+| The engine: its program for this platform and its WebAssembly module | the hash of `core/`'s sources (`server/engine-release.json`) | this repository's release `engine-<version>` on github.com | the sha256 `scripts/release-engine.js` recorded when it built them | the first start, and the first start after a pull that changed `core/` |
+| rustup (`rustup-init`) | 1.29.3 | static.rust-lang.org/rustup/archive | rustup's `.sha256` beside each file | only `node scripts/build-engine.js`, for a developer who changed `core/` |
+| Rust and its WebAssembly target | 1.99.1 (`core/rust-toolchain.toml`) | static.rust-lang.org, through rustup | rustup's own checks of its downloads | the same |
 | Chromium's headless shell | the build playwright-core names, 149.0.7827.55 | cdn.playwright.dev (Chrome for Testing's builds; Playwright's own build on ARM Linux) | none is published: the sha256 of each file as downloaded, the same as Google's Chrome for Testing files where those exist | the first start |
 | Claude Code | 2.1.311 | Anthropic's release bucket on storage.googleapis.com | the release's `manifest.json` | when you ask for it in Connect an AI and have no `claude` |
 | Codex CLI | 0.169.0 | github.com/openai/codex releases | GitHub's sha256 of each release file | when you ask for it in Connect an AI and have no `codex` |

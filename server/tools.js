@@ -1,8 +1,10 @@
 'use strict';
 
 // The programs the app downloads for itself instead of asking for them to be
-// installed by hand: a JDK, rustup, Chromium's headless shell, and, when the
-// person asks for one from Connect an AI, the Claude Code or Codex CLI. They
+// installed by hand: a JDK, the Rust engine's program and WebAssembly module,
+// Chromium's headless shell, and, when the person asks for one from Connect
+// an AI, the Claude Code or Codex CLI (and rustup, for a developer who builds
+// the engine from its sources). They
 // are kept in one folder, MCBENCH_TOOLS_DIR or ~/.mcbench-lite/tools, which
 // every checkout and data folder shares, so a scratch data folder downloads
 // nothing again. Each program is pinned to a version and, for each of
@@ -15,7 +17,9 @@ const crypto = require('crypto');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const zlib = require('zlib');
 const { execFile } = require('child_process');
+const { pipeline } = require('stream/promises');
 const { promisify } = require('util');
 
 const setup = require('./setup');
@@ -26,6 +30,8 @@ const { extractZip } = require('./zip-entry');
 const execFileAsync = promisify(execFile);
 const TOOLS_DIR = path.resolve(process.env.MCBENCH_TOOLS_DIR || path.join(os.homedir(), '.mcbench-lite', 'tools'));
 const PLATFORM = `${process.platform}-${process.arch}`;
+// The platforms the app runs on, each pinned below.
+const PLATFORMS = ['darwin-arm64', 'darwin-x64', 'linux-arm64', 'linux-x64'];
 
 const TEMURIN = 'https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25.0.5%2B8';
 const RUSTUP_ARCHIVE = 'https://static.rust-lang.org/rustup/archive/1.29.3';
@@ -33,6 +39,18 @@ const CHROME_FOR_TESTING = 'https://cdn.playwright.dev/builds/cft';
 const PLAYWRIGHT_BUILDS = 'https://cdn.playwright.dev/dbazure/download/playwright/builds/chromium';
 const CODEX = 'https://github.com/openai/codex/releases/download/rust-v0.169.0';
 const CLAUDE_CODE = 'https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/2.1.311';
+
+// The Rust engine (core/), built from its sources for each platform and once
+// as WebAssembly by scripts/release-engine.js, and published as assets of a
+// release of the public repository by scripts/publish-engine.js. Its version
+// is the hash of the engine's sources (engine.js sourcesHash), and
+// engine-release.json, which release-engine.js writes, pins each asset by
+// name, sha256 and size. MCBENCH_ENGINE_RELEASES names another address the
+// releases are under (a local server, for the tests and for timing a first
+// start before a release is published); nothing else reads it.
+const ENGINE_RELEASE = require('./engine-release.json');
+const ENGINE_RELEASES = process.env.MCBENCH_ENGINE_RELEASES || 'https://github.com/adonis-singh/mcbench-lite/releases/download';
+const engineAsset = (asset, bin) => ({ url: `${ENGINE_RELEASES}/${ENGINE_RELEASE.tag}/${asset.name}`, sha256: asset.sha256, bytes: asset.bytes, bin });
 
 // Chromium's headless shell is the build playwright-core names in its
 // browsers.json, from the addresses Playwright's own installer uses: Chrome
@@ -87,6 +105,21 @@ const PINS = {
       'linux-arm64': [`${PLAYWRIGHT_BUILDS}/${HEADLESS_SHELL.revision}/chromium-headless-shell-linux-arm64.zip`, 'chrome-linux/headless_shell'],
       'linux-x64': [`${CHROME_FOR_TESTING}/${HEADLESS_SHELL.browserVersion}/linux64/chrome-headless-shell-linux64.zip`, 'chrome-headless-shell-linux64/chrome-headless-shell'],
     }).map(([platform, [url, bin]]) => [platform, { url, ...CHROMIUM_DOWNLOADS[HEADLESS_SHELL.browserVersion][platform], bin }])),
+  },
+  // The native program, which reads Minecraft's tables from the folder it is
+  // given, and the module the page's live world runs, given the tables by the
+  // page (core-wasm.js). Both unpack from gzip.
+  engine: {
+    title: 'the Minecraft engine',
+    version: ENGINE_RELEASE.version,
+    unpack: 'gzip',
+    platforms: Object.fromEntries(PLATFORMS.map((platform) => [platform, engineAsset(ENGINE_RELEASE.assets[platform], 'mcbench-core')])),
+  },
+  'engine-wasm': {
+    title: "the page's Minecraft engine",
+    version: ENGINE_RELEASE.version,
+    unpack: 'gzip',
+    platforms: Object.fromEntries(PLATFORMS.map((platform) => [platform, engineAsset(ENGINE_RELEASE.assets.wasm32, 'mcbench-core.wasm')])),
   },
   claude: {
     title: 'Claude Code 2.1.311',
@@ -211,6 +244,7 @@ async function install(name, { pins = PINS, dir = TOOLS_DIR, onProgress } = {}) 
       if (pin.unpack === 'file') fs.chmodSync(path.join(staging, platform.bin), 0o755);
       if (pin.unpack === 'tar') await execFileAsync('tar', ['-xzf', archive, '-C', staging], { maxBuffer: 1 << 24 });
       if (pin.unpack === 'zip') await extractZip(archive, staging);
+      if (pin.unpack === 'gzip') await gunzip(archive, path.join(staging, platform.bin));
       fs.renameSync(staging, folder);
     } finally {
       fs.rmSync(archive, { force: true });
@@ -218,6 +252,11 @@ async function install(name, { pins = PINS, dir = TOOLS_DIR, onProgress } = {}) 
     }
   });
   return program;
+}
+
+// Unpacks the gzip file `archive` into `file`, executable.
+async function gunzip(archive, file) {
+  await pipeline(fs.createReadStream(archive), zlib.createGunzip(), fs.createWriteStream(file, { mode: 0o755 }));
 }
 
 // The JDK the app runs Java with: Temurin's `java` and `javac` in the tools
@@ -347,6 +386,6 @@ function onPath(program) {
 }
 
 module.exports = {
-  PINS, PLATFORM, TOOLS_DIR, JAVA, JAVAC, RUST_ENV, RUSTUP, CHROMIUM_DOWNLOADS,
+  PINS, PLATFORM, PLATFORMS, TOOLS_DIR, ENGINE_RELEASE, JAVA, JAVAC, RUST_ENV, RUSTUP, CHROMIUM_DOWNLOADS,
   download, downloadMb, install, installed, installJdk, installRustup, headlessShell, checkShell, onPath, cliProgram, cliInstalled,
 };

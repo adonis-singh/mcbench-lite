@@ -23,7 +23,7 @@ const os = require('os');
 const path = require('path');
 const { execFileSync } = require('child_process');
 const { prepare } = require('./movement-ref');
-const { jvmEngine, rust, installRust } = require('../server/engine');
+const { jvmEngine, engineProgram, tablesFolder } = require('../server/engine');
 const { minecraftLive } = require('../server/minecraft-live');
 const { importCommands } = require('../server/live-placement');
 const { Y_OFFSET } = require('../server/minecraft-dimension');
@@ -703,18 +703,10 @@ function compare(rust, java, show = 3) {
 }
 
 async function main() {
-  // rust() answers the toolchain installRust found.
-  await installRust();
   const dataDir = process.env.MCBENCH_DATA_DIR;
   if (!dataDir) throw new Error('MCBENCH_DATA_DIR is not set (a scratch copy of data/, never the real one)');
   const ref = await prepare(dataDir);
-  const core = path.join(ROOT, 'core');
-  try {
-    execFileSync(rust().cargo, ['build', '--release', '--quiet'], { cwd: core, env: rust().env, stdio: ['ignore', 'pipe', 'pipe'] });
-  } catch (error) {
-    throw new Error(`cargo build failed:\n${error.stderr}`);
-  }
-  const binary = path.join(core, 'target', 'release', 'mcbench-core');
+  const binary = await engineProgram();
   const keep = option('keep', fs.mkdtempSync(path.join(os.tmpdir(), 'mcbench-movement-')));
   fs.mkdirSync(keep, { recursive: true });
 
@@ -748,7 +740,7 @@ async function main() {
     fs.writeFileSync(casesFile, `${cases.join('\n')}\n`);
   }
   const started = Date.now();
-  const rustText = execFileSync(binary, ['--movement', casesFile], { maxBuffer: 1 << 30, encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'] });
+  const rustText = execFileSync(binary, [tablesFolder(), '--movement', casesFile], { maxBuffer: 1 << 30, encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'] });
   fs.writeFileSync(path.join(keep, 'rust.txt'), rustText);
   const rustMs = Date.now() - started;
   const javaText = ref.run(casesFile);

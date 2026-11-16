@@ -2,7 +2,8 @@
 
 // Records the profile the Rust engine is built with (profile-guided
 // optimisation; coreBuildArgs in server/engine.js points rustc at
-// core/pgo/<target>.profdata, for the app and every script that builds it):
+// core/pgo/<target>.profdata, for the releases and every script that builds
+// it):
 // builds core/ instrumented, runs it over the community builds and saved
 // worlds of the data folder (scripts/core-bench.js: placements, ticks and
 // VERIFY requests) and over the fuzzer's worlds (blocks and entities the builds
@@ -22,7 +23,7 @@ const os = require('os');
 const path = require('path');
 const { execFileSync, spawnSync } = require('child_process');
 
-const { coreProfile, rust, installRust } = require('../server/engine');
+const { rust, installRust } = require('../server/engine');
 
 const ROOT = path.join(__dirname, '..');
 const CORE = path.join(ROOT, 'core');
@@ -83,7 +84,7 @@ installRust().then(() => {
     bench('--fuzz', fuzz, '--seed', '200000', '--ticks', '60', '--shift');
     const profiles = fs.readdirSync(raw).filter((name) => name.endsWith('.profraw')).map((name) => path.join(raw, name));
     if (!profiles.length) throw new Error('the instrumented engine recorded no profile');
-    const output = coreProfile();
+    const output = path.join(CORE, 'pgo', `${rust().host}.profdata`);
     fs.mkdirSync(path.dirname(output), { recursive: true });
     run(llvmProfdata(), ['merge', '-o', output, ...profiles]);
     console.log(`${output}: ${fs.statSync(output).size} bytes from ${profiles.length} runs`);

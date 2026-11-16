@@ -16,6 +16,9 @@ const { execFileSync } = require('node:child_process');
 
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'mcbench-tools-'));
 process.env.MCBENCH_TOOLS_DIR = path.join(scratch, 'default-tools');
+// The pins' addresses are GitHub's, whatever address the caller's
+// environment gives the engine's releases (tools.js).
+delete process.env.MCBENCH_ENGINE_RELEASES;
 after(() => fs.rmSync(scratch, { recursive: true, force: true }));
 
 const tools = require('../server/tools');
@@ -105,7 +108,9 @@ test('every program is pinned for the four platforms, by address, sha256 and siz
 // platform's download to the largest, as the terminal rounds them.
 test('README.md states each pinned download\'s size as the pins have it', () => {
   const readme = fs.readFileSync(path.join(__dirname, '..', 'README.md'), 'utf8').split('\n');
-  for (const [name, pin] of Object.entries(tools.PINS)) {
+  // The engine's version is its sources' hash, which changes with every
+  // change to core/: README.md states its sizes without it.
+  for (const [name, pin] of Object.entries(tools.PINS).filter(([name]) => !name.startsWith('engine'))) {
     const mb = Object.values(pin.platforms).map(({ bytes }) => Math.round(bytes / 1e6));
     const size = `${Math.min(...mb)} to ${Math.max(...mb)} MB`;
     assert.ok(readme.some((line) => line.includes(pin.version) && line.includes(size)), `README.md names ${pin.title} with ${size}`);
@@ -218,6 +223,31 @@ test('a .tar.gz is unpacked into the version\'s folder, and the program is found
   const { url } = await serve(t, { '/tool.tar.gz': bytes });
   const program = await tools.install('tool', { pins: pins('tool', { url: `${url}/tool.tar.gz`, sha: sha256(bytes), unpack: 'tar', bin: 'package/bin/tool' }), dir: path.join(scratch, 'tar-tools') });
   assert.equal(execFileSync(program, { encoding: 'utf8' }), 'from tar\n');
+});
+
+test('a .gz is unpacked into the version\'s folder as its pinned program, executable', async (t) => {
+  const bytes = zlib.gzipSync(Buffer.from('#!/bin/sh\necho from gzip\n'));
+  const { url } = await serve(t, { '/engine.gz': bytes });
+  const dir = path.join(scratch, 'gzip-tools');
+  const program = await tools.install('engine', { pins: pins('engine', { url: `${url}/engine.gz`, sha: sha256(bytes), unpack: 'gzip', bin: 'mcbench-core' }), dir });
+  assert.equal(program, path.join(dir, 'engine-1.2.3', 'mcbench-core'));
+  assert.equal(execFileSync(program, { encoding: 'utf8' }), 'from gzip\n');
+  assert.deepEqual(fs.readdirSync(dir).filter((name) => !name.endsWith('.lock')), ['engine-1.2.3']);
+});
+
+// The engine the app downloads is the one released for this checkout's
+// core/: a change to core/ without a new release (scripts/release-engine.js
+// pins it) fails here, as the app's start would.
+test('the engine\'s pins are this checkout\'s engine: its sources\' version, one release, one module for every platform', async () => {
+  const { sourcesHash } = require('../server/engine');
+  const release = tools.ENGINE_RELEASE;
+  assert.equal(release.version, await sourcesHash(), 'core/ changed since the engine was released: build and pin a release (scripts/release-engine.js)');
+  assert.equal(release.tag, `engine-${release.version}`);
+  for (const name of ['engine', 'engine-wasm']) assert.equal(tools.PINS[name].version, release.version);
+  for (const platform of tools.PLATFORMS) {
+    assert.equal(tools.PINS.engine.platforms[platform].url, `https://github.com/adonis-singh/mcbench-lite/releases/download/${release.tag}/mcbench-core-${release.version}-${platform}.gz`);
+    assert.equal(tools.PINS['engine-wasm'].platforms[platform].url, `https://github.com/adonis-singh/mcbench-lite/releases/download/${release.tag}/mcbench-core-${release.version}-wasm32.wasm.gz`);
+  }
 });
 
 test('an install whose download fails its checksum leaves no folder, so the next start downloads again', async (t) => {

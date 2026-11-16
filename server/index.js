@@ -52,7 +52,7 @@ const providerLogin = require('./provider-login');
 const setup = require('./setup');
 const tools = require('./tools');
 const cliInstall = require('./cli-install');
-const { installRust } = require('./engine');
+const { installEngine } = require('./engine');
 
 const PORT = Number(process.env.PORT || 3020);
 // The server listens on loopback (server.listen below): the sandbox holds an
@@ -1389,8 +1389,8 @@ const lifecycle = {
   },
 };
 
-// The first start's steps (setup.js): the JDK, Rust, the viewer's assets,
-// the engines, the page's engine module and the headless browser get ready
+// The first start's steps (setup.js): the JDK, the engine's program and
+// module, the viewer's assets, the engines and the headless browser get ready
 // before the first build opens. A failure is printed once, however many of
 // them it stops (a JDK that cannot be downloaded stops five), and one last
 // line says whether all of them are ready. The server's start runs this
@@ -1404,17 +1404,17 @@ function prepare() {
     told.add(text);
     throw error;
   };
-  // The engines are built from Minecraft's tables, made from the server jar
-  // first (the page's engine module waits for them itself).
+  // The engines read Minecraft's tables, made from the server jar first (the
+  // page's engine module waits for them itself).
   const tables = minecraftLive.minecraftTables();
-  const rust = installRust();
+  const engine = installEngine();
   // Downloads go in the order they are needed: Java, Paper (which fetches the
-  // Minecraft server) and Rust, which the first build waits for, together;
-  // the screenshot browser once they are done, so it does not share the line
-  // with them. A failure among them stops nothing that waits here.
-  const browser = Promise.allSettled([tools.installJdk(), minecraftLive.ensurePaper(), rust]).then(() => tools.headlessShell());
+  // Minecraft server) and the engine, which the first build waits for,
+  // together; the screenshot browser once they are done, so it does not share
+  // the line with them. A failure among them stops nothing that waits here.
+  const browser = Promise.allSettled([tools.installJdk(), minecraftLive.ensurePaper(), engine]).then(() => tools.headlessShell());
   Promise.allSettled([
-    rust.catch(tell('[rust]')),
+    engine.catch(tell('[engine]')),
     minecraftLive.warm(),
     coreWasm.prepare().catch(tell('[core-wasm]')),
     tables.then(() => minecraftVerifier.warm()).catch(tell('[verify]')),

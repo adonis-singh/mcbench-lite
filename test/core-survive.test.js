@@ -7,7 +7,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
 const readline = require('node:readline');
-const { buildCore } = require('../server/engine');
+const { engineProgram, tablesFolder: engineTables } = require('../server/engine');
 const { tablesFolder } = require('../server/minecraft-tables');
 const { MinecraftFacts } = require('../server/minecraft-facts');
 const { blueprintWorld } = require('../server/blueprint');
@@ -31,11 +31,11 @@ test('the engine names the blocks that cannot survive where they are, as Minecra
       names[id] = values.length ? `${key}[${block.properties.map(([name, options], i) => `${name}=${options[values[i]]}`).join(',')}]` : key;
     }
   }
-  const binary = await buildCore();
+  const binary = await engineProgram();
   const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'mcbench-survive-'));
   t.after(() => fs.rmSync(folder, { recursive: true, force: true }));
   const file = (name) => path.join(folder, name);
-  const child = spawn(binary, [], { cwd: folder, stdio: ['pipe', 'pipe', 'inherit'] });
+  const child = spawn(binary, [engineTables()], { cwd: folder, stdio: ['pipe', 'pipe', 'inherit'] });
   t.after(() => child.kill());
   const lines = readline.createInterface({ input: child.stdout })[Symbol.asyncIterator]();
   const next = async () => (await lines.next()).value;

@@ -10,7 +10,10 @@
 // runs.
 //
 //   MCBENCH_DATA_DIR=<scratch copy> node scripts/wasm-parity.js
-//     [--jmath intel|fdlibm]                    Math.sin/cos flavour of both builds (default intel)
+//     [--installed]                             the installed engine, the module and program this checkout
+//                                               runs (server/engine.js installEngine: the released assets, or
+//                                               scripts/build-engine.js's build), instead of builds of its own
+//     [--jmath intel|fdlibm]                    Math.sin/cos flavour of both builds (default intel; not with --installed)
 //     [--match regex] [--limit N] [--ticks N]   community builds (MCBENCH_CORPUS)
 //     [--fuzz N] [--seed S] [--families a,b] [--shift] [--drops] [--flow] [--batch N]  random worlds
 //     [--steps file] [--keep folder]            a kept case's steps.json; where mismatches are kept
@@ -29,7 +32,8 @@
 // import places them and ticked one tick at a time with levers toggled and
 // buttons pressed, or the fuzzer's worlds. The native program is built with
 // the same jmath feature as the module, so the two differ in nothing but
-// the target.
+// the target; with --installed both are the installed engine's, built with
+// the default (Intel's).
 
 const crypto = require('crypto');
 const fs = require('fs');
@@ -38,9 +42,9 @@ const path = require('path');
 const { build: buildWasm } = require('./build-wasm');
 const { FAMILIES, fuzzCase, registry, communityCases, useCases, run, option } = require('./core-parity');
 const { openPage } = require('./wasm-chrome');
-const { startNodeEngine } = require('./wasm-node-engine');
+const { startNodeEngine, engineFile } = require('./wasm-node-engine');
 const { nativeEngine } = require('./wasm-native');
-const { installRust } = require('../server/engine');
+const { installRust, coreEngine } = require('../server/engine');
 
 const ROOT = path.join(__dirname, '..');
 
@@ -90,7 +94,7 @@ async function runSteps(engine, steps, encode) {
 // as the SHA-256 digest of them.
 const PAGE = `
 import { CoreEngine } from '/web/core-engine.mjs';
-const engine = await CoreEngine.start('/core.wasm');
+const engine = await CoreEngine.start('/core/');
 const hex = async (bytes) => [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))].map((b) => b.toString(16).padStart(2, '0')).join('');
 ${runSteps}
 window.runCase = (steps) => runSteps(engine, steps, hex);
@@ -162,12 +166,21 @@ function compare(native, wasm, steps, labels = ['native', 'wasm']) {
 
 let chromeDigest = false;
 
-async function main() {
+// The module file and the native engine compared: the installed engine's
+// (--installed), or builds of core/ with the jmath flavour --jmath names.
+async function engines() {
+  if (process.argv.includes('--installed')) {
+    if (option('jmath', null) !== null) throw new Error('--installed runs the installed engine, built with the default jmath: --jmath does not apply');
+    return { wasmFile: await engineFile(), native: coreEngine() };
+  }
   // nativeEngine's rust() answers the toolchain installRust found.
   await installRust();
   const jmath = option('jmath', 'intel');
-  const wasmFile = await buildWasm({ jmath });
-  const native = nativeEngine(jmath);
+  return { wasmFile: await buildWasm({ jmath }), native: nativeEngine(jmath) };
+}
+
+async function main() {
+  const { wasmFile, native } = await engines();
   const chrome = process.argv.includes('--chrome') ? await openPage(wasmFile, PAGE) : null;
   if (chrome) await chrome.page.waitForFunction(() => window.ready);
   // The engine worker: in Chrome's page, or in a Node worker thread (the same worker code).

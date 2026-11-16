@@ -14,7 +14,8 @@
 //   MCBENCH_DATA_DIR=<scratch copy> node scripts/core-bench.js
 //     [--engines java,rust]        java (the native program, fast paths), stock
 //                                  (the same with MCBENCH_ENGINE_STOCK=1), rust
-//                                  (core/target/release), NAME=PATH (a Rust binary)
+//                                  (this checkout's engine: the released one, or
+//                                  scripts/build-engine.js's), NAME=PATH (a Rust binary)
 //     [--rounds 5] [--warmup 1] [--ticks 1000] [--chunk 100] [--verify-ticks 100]
 //     [--match regex] [--limit N] [--corpus yes|no] [--worlds id,id|all|none]
 //     [--phases place,tick,verify] [--seeded] [--trace] [--nolight] [--graceful] [--json out.json]
@@ -29,7 +30,7 @@ const crypto = require('crypto');
 const { execFileSync, spawn } = require('child_process');
 const ROOT = path.join(__dirname, '..');
 const { minecraftLive } = require('../server/minecraft-live');
-const { Engine, engineEnv, coreBuildArgs, rust, installRust } = require('../server/engine');
+const { Engine, engineEnv, coreEngine } = require('../server/engine');
 const { MinecraftVerifier } = require('../server/minecraft-verify');
 const { importCommands } = require('../server/live-placement');
 const { Y_OFFSET } = require('../server/minecraft-dimension');
@@ -141,21 +142,16 @@ function experiment(blocks, first, ticks) {
 
 // --- Engines ---
 
-function rustBinary(spec) {
-  if (spec !== 'rust') return spec;
-  execFileSync(rust().cargo, coreBuildArgs(), { cwd: path.join(ROOT, 'core'), env: rust().env, stdio: 'inherit' });
-  return path.join(ROOT, 'core', 'target', 'release', 'mcbench-core');
-}
-
 function makeEngine(spec) {
   if (spec === 'java') return new Engine();
   if (spec === 'stock') {
     const env = engineEnv('1');
     return new Engine({ spawnEngine: (binary, args, options) => spawn(binary, args, { ...options, env }) });
   }
-  const [name, file] = spec.includes('=') ? spec.split('=') : [spec, spec];
-  const binary = rustBinary(file);
-  return new Engine({ build: async () => binary });
+  // 'rust' is this checkout's engine (server/engine.js engineProgram), any
+  // other spec a program's path.
+  const file = spec.includes('=') ? spec.split('=')[1] : spec;
+  return coreEngine({ program: file === 'rust' ? null : path.resolve(file) });
 }
 const labelOf = (spec) => (spec.includes('=') ? spec.split('=')[0] : spec);
 
@@ -240,8 +236,6 @@ async function runItem(engine, item, prepared, scratch) {
 }
 
 async function main() {
-  // rust() answers the toolchain installRust found.
-  await installRust();
   const specs = option('engines', 'java,rust').split(',');
   const rounds = Number(option('rounds', 5));
   const warmup = Number(option('warmup', 1));

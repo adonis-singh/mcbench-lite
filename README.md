@@ -31,7 +31,7 @@ A faster way to light the running world was written and not shipped, because the
 
 ## Network use
 
-There is no hosted version and no telemetry. The app contacts the providers you connect, and openrouter.ai for its public list of models. On the first start it downloads its JDK from GitHub (Adoptium's Temurin releases), rustup from static.rust-lang.org and through it Rust from rust-lang.org, Chromium's headless shell from cdn.playwright.dev, Paper and the Minecraft server from Paper and Mojang, BlueMap and misode/mcmeta from GitHub, and the Minecraft client jar and Mojang's mappings of it from Mojang. It contacts Docker Hub, PyPI and Debian when it builds the shell's image. When you ask it to install Claude Code or Codex CLI, it downloads Claude Code from Anthropic's release bucket on storage.googleapis.com, or Codex from GitHub (openai/codex). It contacts GitHub and your Pages site when you share a build. Claude Code is started with its non-essential traffic off. The Cursor SDK ships with its own analytics code, which the app neither uses nor turns off.
+There is no hosted version and no telemetry. The app contacts the providers you connect, and openrouter.ai for its public list of models. On the first start it downloads its JDK from GitHub (Adoptium's Temurin releases), the engine from this repository's releases on GitHub, Chromium's headless shell from cdn.playwright.dev, Paper and the Minecraft server from Paper and Mojang, BlueMap and misode/mcmeta from GitHub, and the Minecraft client jar and Mojang's mappings of it from Mojang. It contacts Docker Hub, PyPI and Debian when it builds the shell's image. When you ask it to install Claude Code or Codex CLI, it downloads Claude Code from Anthropic's release bucket on storage.googleapis.com, or Codex from GitHub (openai/codex). It contacts GitHub and your Pages site when you share a build. After a change to `core/`, the developer command that builds the engine (`node scripts/build-engine.js`, in [CONTRIBUTING.md](CONTRIBUTING.md)) downloads rustup 1.29.3 (11 to 21 MB) from static.rust-lang.org, and through it Rust 1.99.1 from rust-lang.org; the app itself never does. Claude Code is started with its non-essential traffic off. The Cursor SDK ships with its own analytics code, which the app neither uses nor turns off.
 
 ## Setup
 
@@ -51,14 +51,14 @@ The app runs on macOS and Linux, on arm64 or x64 (other platforms are refused). 
 
 | What | Why | How to get it |
 |---|---|---|
-| The Xcode Command Line Tools, on a Mac | `cc`, which the Rust compiler links the engine with, git, and `python3`, which runs the MCP bridge of the Claude Code and Codex CLI harnesses | `xcode-select --install` |
-| `cc`, `python3`, `curl`, `xz` and git, on Linux | `cc` links the engine, `python3` runs the MCP bridge of the Claude Code and Codex CLI harnesses, `curl` and `xz` download and unpack Node.js, git clones the repository | `build-essential python3 curl xz-utils git` on Debian and Ubuntu |
+| The Xcode Command Line Tools, on a Mac | git, and `python3`, which runs the MCP bridge of the Claude Code and Codex CLI harnesses | `xcode-select --install` |
+| `python3`, `curl`, `xz` and git, on Linux | `python3` runs the MCP bridge of the Claude Code and Codex CLI harnesses, `curl` and `xz` download and unpack Node.js, git clones the repository | `python3 curl xz-utils git` on Debian and Ubuntu |
 | bubblewrap at `/usr/bin/bwrap`, `prlimit` from util-linux and unprivileged user namespaces, on Linux | build programs run in that sandbox (`server/build-sandbox.js`); on macOS they run under the built-in `sandbox-exec`. `./start` has bubblewrap make one first, and when it cannot, prints bubblewrap's reason and, if a kernel setting forbids user namespaces (AppArmor's restriction on Ubuntu 24.04 and later, `kernel.unprivileged_userns_clone` on Debian, `user.max_user_namespaces=0`), the command that allows them | `bubblewrap util-linux` on Debian and Ubuntu |
 | The headless Chromium's shared libraries (GLib, NSS, ATK, D-Bus, the X11 client libraries, libgbm, libxkbcommon, ALSA), on a Linux without a desktop | `see_build`'s headless browser loads them. A desktop Linux has them; a server or container install does not. The first start checks that the browser starts, and when it cannot, the setup screen names the missing libraries and the command that installs them; after running it, Try again | Playwright's `install-deps chromium`, run as root with the app's Node.js, on Debian and Ubuntu: the setup screen prints the whole command |
 | Docker | only for the model's bash shell, and for Codex CLI on Linux | [Docker Desktop](https://www.docker.com/products/docker-desktop/) on a Mac, Docker Engine on Linux |
 | gh, signed in, and git | only for Share | `brew install gh` or your package manager, then `gh auth login` |
 
-Node.js, Rust, the JDK and the Chromium shell for `see_build` are the app's own: `./start` and the server download them into `~/.mcbench-lite/tools` (`MCBENCH_TOOLS_DIR` names another folder), whatever versions the system has. The app starts without Docker or gh and says what is missing when it is first needed.
+Node.js, the engine, the JDK and the Chromium shell for `see_build` are the app's own: `./start` and the server download them into `~/.mcbench-lite/tools` (`MCBENCH_TOOLS_DIR` names another folder), whatever versions the system has. The app starts without Docker or gh and says what is missing when it is first needed.
 
 ### From a clone
 
@@ -72,25 +72,24 @@ cd mcbench-lite
 
 ## The first start
 
-The page opens at once; the first start then prepares the rest in the background. The terminal says what it is doing, one line per step, and `[startup] ready` when everything is prepared; the page reads the same steps, with their download progress, from `GET /api/setup`. With an empty tools folder and data folder it took 73 seconds on a recent Mac with a fast connection, most of it reading Minecraft's tables and compiling the engines. Each step needs to happen only once, so later starts are ready in about two seconds.
+The page opens at once; the first start then prepares the rest in the background. The terminal says what it is doing, one line per step, and `[startup] ready` when everything is prepared; the page reads the same steps, with their download progress, from `GET /api/setup`. Nothing is compiled: the engine is downloaded built. Each step needs to happen only once, so later starts are ready in about two seconds.
 
 | Step | Download | Where it goes |
 |---|---|---|
 | Temurin 25.0.5+8, a JDK, which runs Paper, reads Minecraft's tables and makes the viewer's assets | 120 to 141 MB (300 MB on disk) | the tools folder |
-| rustup 1.29.3, then through it Rust 1.99.1 and its WebAssembly target (`core/rust-toolchain.toml`) | 11 to 21 MB, then about 550 MB on disk | `rust/` in the tools folder |
+| The engine (`core/`), built for this platform and as WebAssembly for the page's live world, from the release of this repository named by the hash of `core/`'s sources | about 2 MB and 1 MB (7 MB on disk) | the tools folder |
 | Chromium's headless shell, the build playwright-core names (149.0.7827.55), which takes `see_build`'s screenshots | 98 to 120 MB (190 MB on disk) | the tools folder |
 | Paper 1.21.10, and through it the Minecraft server from Mojang (the libraries come inside the two jars) | about 55 MB, then about 59 MB | `data/minecraft-live/paper` |
-| Minecraft's block, loot and data fixer tables, read from that server jar | none | `core/minecraft/1.21.10` |
+| Minecraft's block, loot and data fixer tables, read from that server jar, which the engine reads when it starts | none | `core/minecraft/1.21.10` |
 | Minecraft's block data from misode/mcmeta | about 4 MB | `data/assets` |
 | BlueMap 5.22's command-line tool, the Minecraft 1.21.10 client jar from Mojang (the viewer's textures and models), and Mojang's mappings of that jar (the names the entity capture finds the client's classes by) | about 7 MB, 31 MB and 12 MB | `data/minecraft-live/bluemap` |
-| The Rust engine, compiled natively and to WebAssembly with those tables | none | `core/target` |
 | The model's shell image, from `python:3.12-slim` and packages from PyPI and Debian, when Docker is running | a few hundred MB | Docker |
 
-The tools folder is `~/.mcbench-lite/tools`, or the folder `MCBENCH_TOOLS_DIR` names. Every checkout and data folder on the machine shares it, so a second checkout downloads none of it again. Each program in it is pinned to a version and to the sha256 and size of its download for macOS and Linux on ARM and Intel, and a download whose bytes differ fails and is not kept. The sizes above run from the smallest of those four downloads to the largest; the terminal and Settings state this machine's. Nothing is installed anywhere else: rustup and Rust live in the tools folder (the app runs them with `RUSTUP_HOME` and `CARGO_HOME` there), and no shell profile, `PATH` or `~/.rustup` is changed. `MCBENCH_JAVA` and `MCBENCH_JAVAC` name another JDK, which the app then uses instead of downloading one.
+The tools folder is `~/.mcbench-lite/tools`, or the folder `MCBENCH_TOOLS_DIR` names. Every checkout and data folder on the machine shares it, so a second checkout downloads none of it again. Each program in it is pinned to a version and to the sha256 and size of its download for macOS and Linux on ARM and Intel, and a download whose bytes differ fails and is not kept. The sizes above run from the smallest of those four downloads to the largest; the terminal and Settings state this machine's. Nothing is installed anywhere else, and no shell profile or `PATH` is changed. `MCBENCH_JAVA` and `MCBENCH_JAVAC` name another JDK, which the app then uses instead of downloading one.
 
 The shell's image is built in the background while the app starts, so the first bash call does not wait for it. Without Docker, or with Docker not running, the app starts all the same; the step says what is missing, and so does the model's bash tool until Docker runs.
 
-The repository does not contain Minecraft code, jars, textures, mappings or data tables. The engine is a reimplementation that is built with Minecraft's tables (every block, state, collision shape, item and loot table, and the data fixer's rules), and the app reads those tables on your machine from the server jar it downloaded, with the project's own Java code, into `core/minecraft/1.21.10/`, which git ignores.
+The repository does not contain Minecraft code, jars, textures, mappings or data tables, and neither does the engine the app downloads. The engine is a reimplementation that reads Minecraft's tables (every block, state, collision shape, item and loot table, and the data fixer's rules) when it starts, and the app makes those tables on your machine from the server jar it downloaded, with the project's own Java code, into `core/minecraft/1.21.10/`, which git ignores. The page's engine gets the block and loot tables from the app's server, which serves them only to the signed-in browser.
 
 The app downloads the Minecraft server (through Paper), the Minecraft client jar and Mojang's mappings of it from Mojang's servers to your machine, and accepts the Minecraft End User Licence Agreement on your behalf: it writes `eula=true` for Paper and sets BlueMap's `accept-download: true`. Read the EULA at https://www.minecraft.net/eula; by running the app you agree to it.
 

@@ -1,9 +1,10 @@
 'use strict';
 
-// The tables of Minecraft the Rust engine compiles in (include_str! of
-// core/minecraft/<version>/), made on this machine from the server jar Paper
-// downloaded, by the project's Java reference code on the app's JDK
-// (tools.js: JAVA, JAVAC). The repository holds none of them (.gitignore):
+// The tables of Minecraft the Rust engine reads at its start (the native
+// program from the folder it is given, the page's WebAssembly module from
+// the server, core-wasm.js), core/minecraft/<version>/, made on this machine
+// from the server jar Paper downloaded, by the project's Java reference code
+// on the app's JDK (tools.js: JAVA, JAVAC). The repository holds none of them (.gitignore):
 //   blocks.txt   the Java engine's dump (McbenchEngine.dump): blocks, states,
 //                properties, tags, collision shapes, items
 //   loot.json    the server jar's block loot tables, by block key
@@ -13,8 +14,7 @@
 // with these functions too, and scripts/prepare-minecraft.js makes all three.
 // blocks.txt and loot.json are what the Java engine's sources dump: they are
 // made again when those sources change (a stamp in core/target holds the
-// hash of the sources they were dumped by; the stamp is not one of the
-// engine's sources, so the same tables dumped again build nothing anew).
+// hash of the sources they were dumped by).
 
 const crypto = require('crypto');
 const fs = require('fs');

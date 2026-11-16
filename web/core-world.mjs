@@ -21,9 +21,13 @@ const INPUTS = [null, 'toggle', 'press', 'use'];
 
 export class CoreWorld {
   // `module` is the compiled WebAssembly.Module of mcbench_core.wasm
-  // (compile it once and share it between worlds).
-  constructor(module) {
+  // (compile it once and share it between worlds), and `tables` Minecraft's
+  // tables it reads, { blocks, loot }: the bytes of blocks.txt and loot.json
+  // (the server serves them beside the module, server/core-wasm.js), given to
+  // each instance before it starts.
+  constructor(module, tables) {
     this.module = module;
+    this.tables = tables;
     this.exports = null;
     this.refused = null;
     this.start();
@@ -35,6 +39,11 @@ export class CoreWorld {
 
   start() {
     this.exports = new WebAssembly.Instance(this.module, {}).exports;
+    const { blocks, loot } = this.tables;
+    const pointer = this.exports.mcb_tables_buffer(blocks.length, loot.length);
+    const memory = new Uint8Array(this.exports.memory.buffer, pointer, blocks.length + loot.length);
+    memory.set(blocks);
+    memory.set(loot, blocks.length);
     this.exports.mcb_init();
     this.refused = null;
   }

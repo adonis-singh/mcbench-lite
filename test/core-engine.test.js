@@ -2,8 +2,9 @@
 
 const test = require('node:test');
 const assert = require('node:assert');
-const { build } = require('../scripts/build-wasm');
-const { startNodeEngine } = require('../scripts/wasm-node-engine');
+const os = require('node:os');
+const path = require('node:path');
+const { startNodeEngine, engineFile } = require('../scripts/wasm-node-engine');
 
 // The engine in its worker (web/core-worker.mjs): requests in order, frames
 // of the running world, and refusals.
@@ -15,7 +16,7 @@ const COMMANDS = [
 ].map((line) => `${line}\n`).join('');
 
 let wasm;
-test.before(async () => { wasm = await build(); });
+test.before(async () => { wasm = await engineFile(); });
 
 async function engine(t) {
   const started = await startNodeEngine(wasm);
@@ -26,6 +27,18 @@ async function engine(t) {
 const nextFrames = (started, count) => new Promise((resolve) => {
   const frames = [];
   started.onframe = (frame) => { frames.push(frame); if (frames.length === count) resolve(frames); };
+});
+
+// Minecraft's tables are read before a worker is made: a tables folder that
+// does not exist fails the start at once, naming the table, and leaves no
+// worker, port or timer behind.
+test('an engine whose tables folder does not exist fails at once, naming the table, and leaves nothing running', async () => {
+  const folder = path.join(os.tmpdir(), 'mcbench-no-tables-here');
+  const before = process.getActiveResourcesInfo();
+  const startedAt = performance.now();
+  await assert.rejects(startNodeEngine(wasm, folder), (error) => error.message.includes(path.join(folder, 'blocks.txt')));
+  assert.ok(performance.now() - startedAt < 1000, 'the failure is immediate');
+  assert.deepStrictEqual(process.getActiveResourcesInfo(), before, 'nothing is left running');
 });
 
 test('a running world ticks on the clock, a frame each, and stops when told', async (t) => {

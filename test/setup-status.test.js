@@ -39,13 +39,13 @@ test('the count is of the steps the app needs; an optional step that cannot be d
   const { setupStatus, heldLine } = await load();
   setup.reset();
   await setup.track('jdk', () => {});
-  await setup.track('rust', () => {});
+  await setup.track('engine', () => {});
   await assert.rejects(setup.track('shell', async () => { throw new Error('Docker is not installed'); }, { unavailable: () => true }));
   const status = setupStatus(setup.view());
-  assert.deepEqual([status.ready, status.done, status.total, status.failed], [false, 2, 9, false]);
+  assert.deepEqual([status.ready, status.done, status.total, status.failed], [false, 2, 7, false]);
   assert.deepEqual(status.rows.map((row) => row.id), setup.STEPS.map((step) => step.id));
   assert.deepEqual(status.rows.at(-1), { id: 'shell', state: 'unavailable', optional: true, label: "Model's shell", value: 'Not available', note: 'Docker is not installed' });
-  assert.equal(heldLine(status), 'Sends when the app is ready. 2 of 9 done.');
+  assert.equal(heldLine(status), 'Sends when the app is ready. 2 of 7 done.');
 
   await assert.rejects(setup.track('browser', async () => { throw new Error('fetch failed'); }));
   const failed = setupStatus(setup.view());

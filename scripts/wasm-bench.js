@@ -166,7 +166,7 @@ window.run = async (loads, ticks, rounds) => {
   for (const load of loads) {
     const commands = await (await fetch('/load/' + load.name + '.txt')).text();
     let t = performance.now();
-    const engine = await CoreEngine.start('/core.wasm');
+    const engine = await CoreEngine.start('/core/');
     const startMs = performance.now() - t;
     const r = (x) => Math.round(x * 10) / 10;
     const result = { name: load.name, commands: commands.split('\\n').length - 1, initMs: r(startMs) };

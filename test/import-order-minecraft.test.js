@@ -4,7 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert');
 const fs = require('fs');
 const path = require('path');
-const { build } = require('../scripts/build-wasm');
+const { engineModule } = require('../scripts/wasm-node-engine');
 const { tablesFolder } = require('../server/minecraft-tables');
 const { MinecraftFacts } = require('../server/minecraft-facts');
 const { blueprintWorld } = require('../server/blueprint');
@@ -18,12 +18,13 @@ const TABLE = path.join(tablesFolder(MC_VERSION), 'blocks.txt');
 const skip = !fs.existsSync(TABLE) && 'needs the engine\'s tables (node scripts/prepare-minecraft.js)';
 
 let wasm;
+let tables;
 let CoreWorld;
 let facts;
 test.before(async () => {
   if (skip) return;
   ({ CoreWorld } = await import('../web/core-world.mjs'));
-  wasm = await WebAssembly.compile(fs.readFileSync(await build()));
+  ({ module: wasm, tables } = await engineModule());
   facts = new MinecraftFacts(fs.readFileSync(TABLE, 'utf8'));
 });
 
@@ -44,7 +45,7 @@ function specs() {
 // blocks whose code the engine refuses (it does not model them), and answers
 // { world, refused }.
 function placeAll(count, lines, after) {
-  const world = new CoreWorld(wasm);
+  const world = new CoreWorld(wasm, tables);
   const refused = new Set();
   for (;;) {
     try {
@@ -137,7 +138,7 @@ test('every state that a full block holds comes back from the import with what h
     world.finalize();
     facts.minecraftFacts = () => ({ lastPass });
     const { commands } = importCommands(world, null, 0);
-    const engine = new CoreWorld(wasm);
+    const engine = new CoreWorld(wasm, tables);
     const placed = blueprintWorld(Buffer.from(engine.place(commands.map((c) => `${c}\n`).join(''))), 0);
     return kept.filter((s) => placed.get(...s.at)?.id !== all[s.i].split('[')[0] || placed.get(...s.support)?.id !== s.holder || placed.get(...s.poke)?.id !== 'minecraft:stone');
   };

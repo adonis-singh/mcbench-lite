@@ -2,8 +2,9 @@
 
 // A page in headless Chrome that runs the WebAssembly engine the way the
 // app will: core-engine.mjs on the page, the engine in a module Web Worker.
-// A small server gives it web/ (at /web/), the module (at /core.wasm, as
-// application/wasm) and the files a script adds. Chrome is the one in
+// A small server gives it web/ (at /web/), the engine at /core/ as the app
+// serves it (server/core-wasm.js: the module at /core/engine.wasm, Minecraft's
+// tables at /core/blocks.txt and /core/loot.json) and the files a script adds. Chrome is the one in
 // /Applications (override with MCBENCH_CHROME).
 
 const fs = require('fs');
@@ -16,7 +17,13 @@ const CHROME = process.env.MCBENCH_CHROME || '/Applications/Google Chrome.app/Co
 // `script` is the page's module script; `files` maps urls to [file, type].
 async function openPage(wasmFile, script, files = {}) {
   const { chromium } = require('playwright-core');
-  const served = { '/core.wasm': [wasmFile, 'application/wasm'], ...files };
+  const tables = require('../server/engine').tablesFolder();
+  const served = {
+    '/core/engine.wasm': [wasmFile, 'application/wasm'],
+    '/core/blocks.txt': [path.join(tables, 'blocks.txt'), 'text/plain'],
+    '/core/loot.json': [path.join(tables, 'loot.json'), 'application/json'],
+    ...files,
+  };
   const server = http.createServer((request, response) => {
     const url = request.url.split('?')[0];
     if (url === '/') return response.writeHead(200, { 'content-type': 'text/html' }).end(`<!doctype html><meta charset=utf-8><script type=module>${script}</script>`);

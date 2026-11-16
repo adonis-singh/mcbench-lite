@@ -1,4 +1,11 @@
-// mcbench-core as a program: the Java engine's protocol (McbenchEngine),
+// mcbench-core as a program:
+//
+//   mcbench-core <tables folder> [--probe | --datafix | --movement <cases file>]
+//
+// The first argument is the folder of Minecraft's tables
+// (core/minecraft/<version>/: blocks.txt, loot.json, datafix.txt), read
+// before anything else (mcbench_core::tables). With no other argument it
+// speaks the Java engine's protocol (McbenchEngine),
 //
 //   PLACE <id> <commands file> <blueprint file> <fresh|continue>
 //   TICK <id> <ticks> <patch file> <entities file> [nolight]
@@ -30,13 +37,18 @@
 // is a refusal.
 
 use mcbench_core::session::Session;
-use mcbench_core::{boot, failure, is_refusal, probe, verify};
+use mcbench_core::{boot, failure, is_refusal, probe, tables, verify};
 use std::io::{BufRead, Write};
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::path::Path;
 use std::time::Instant;
 
 fn main() {
+    let Some(folder) = std::env::args().nth(1).filter(|a| !a.starts_with("--")) else {
+        eprintln!("usage: mcbench-core <tables folder> [--probe | --datafix | --movement <cases file>]");
+        std::process::exit(2);
+    };
+    tables::set(tables::read(Path::new(&folder)));
     // Block code recurses as deep as Minecraft's (512 nested block sets).
     std::thread::Builder::new().stack_size(1 << 30).spawn(serve).unwrap().join().unwrap();
 }

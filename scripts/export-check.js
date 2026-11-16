@@ -47,7 +47,7 @@ const { writeSchematic, buildSchematic } = require('../server/schematic');
 const { settle, stopShotEngines } = require('../server/shot-world');
 const { readNbt, readChunks, readBlockStates } = require('../server/region');
 const { corpusArtifacts } = require('./corpus');
-const { build } = require('./build-wasm');
+const { engineModule } = require('./wasm-node-engine');
 
 const option = (name, fallback) => {
   const at = process.argv.indexOf(`--${name}`);
@@ -198,7 +198,8 @@ async function compareExports(paperRun) {
   // The world save: the live world's engine places every build at once and exports before any tick.
   const { CoreWorld } = await import('../web/core-world.mjs');
   const { worldZip } = await import('../web/world-export.mjs');
-  const engine = new CoreWorld(await WebAssembly.compile(fs.readFileSync(await build())));
+  const { module, tables } = await engineModule();
+  const engine = new CoreWorld(module, tables);
   const all = new World();
   for (const { authored } of placedBuilds) authored.forEach((x, y, z, entry) => all.set(x, y, z, entry.id, entry.states));
   all.finalize();

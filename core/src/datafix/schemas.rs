@@ -15,7 +15,10 @@ use std::cell::RefCell;
 use std::collections::{BTreeMap, HashMap};
 use std::rc::Rc;
 
-pub const DUMP: &str = include_str!("../../minecraft/1.21.10/datafix.txt");
+// The dump's text, given to the process at its start (crate::tables).
+pub fn dump() -> &'static str {
+    &crate::tables::get().datafix
+}
 
 pub struct Schema {
     pub key: i32,
@@ -58,7 +61,7 @@ fn const_type(name: &str) -> TyId {
 fn load() -> Rc<Schemas> {
     let mut nodes: Vec<TplId> = Vec::new();
     let mut by_key = BTreeMap::new();
-    for line in DUMP.lines() {
+    for line in dump().lines() {
         let p: Vec<&str> = line.split(' ').collect();
         match p[0] {
             "T" => {

@@ -2,7 +2,7 @@
 # Starts mcbench-lite: ./start, or ./start --no-open to open no browser.
 #
 # It checks what only you can install (the Xcode Command Line Tools on a
-# Mac; cc, python3, curl, xz, bubblewrap and prlimit on Linux) and, on
+# Mac; python3, curl, xz, bubblewrap and prlimit on Linux) and, on
 # Linux, that bubblewrap can make its sandbox, downloads the app's own
 # Node.js into the tools folder (MCBENCH_TOOLS_DIR, default
 # ~/.mcbench-lite/tools) and checks it against the checksum written here,
@@ -39,8 +39,8 @@ detect_platform() {
 }
 
 # What only the user can install. On macOS the Xcode Command Line Tools give
-# cc, which rustc links with, git and python3. On Linux the server needs cc,
-# python3 (the Claude Code and Codex CLI harnesses' MCP bridge),
+# git and python3. On Linux the server needs python3 (the Claude Code and
+# Codex CLI harnesses' MCP bridge),
 # /usr/bin/bwrap and /usr/bin/prlimit (server/build-sandbox.js), and start
 # needs curl and xz for the Node.js download. Each argument is one more
 # command to require (install.sh requires git). Exits 1, saying what is
@@ -48,7 +48,7 @@ detect_platform() {
 check_prerequisites() {
   if [ "$os" = darwin ]; then
     if ! xcode-select -p > /dev/null 2>&1; then
-      echo "mcbench-lite needs the Xcode Command Line Tools (they give cc, git and python3). Install them with:" >&2
+      echo "mcbench-lite needs the Xcode Command Line Tools (they give git and python3). Install them with:" >&2
       echo "  xcode-select --install" >&2
       echo "Then run this again." >&2
       exit 1
@@ -61,13 +61,12 @@ check_prerequisites() {
   elif command -v pacman > /dev/null; then manager=pacman
   fi
   [ "$EUID" -eq 0 ] || sudo='sudo '
-  for item in cc python3 curl xz /usr/bin/bwrap /usr/bin/prlimit "$@"; do
+  for item in python3 curl xz /usr/bin/bwrap /usr/bin/prlimit "$@"; do
     case "$item" in
       /*) [ -x "$system_root$item" ] && continue ;;
       *) command -v "$item" > /dev/null && continue ;;
     esac
     case "$item" in
-      cc) name='a C compiler (cc)'; package=gcc; [ "$manager" = apt-get ] && package=build-essential ;;
       python3) name=python3; package=python3; [ "$manager" = pacman ] && package=python ;;
       xz) name=xz; package=xz; [ "$manager" = apt-get ] && package=xz-utils ;;
       /usr/bin/bwrap) name='bubblewrap (/usr/bin/bwrap)'; package=bubblewrap ;;

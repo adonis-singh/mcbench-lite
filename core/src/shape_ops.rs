@@ -813,7 +813,7 @@ mod tests {
     // override getBlockSupportShape or a dynamic shape.
     #[test]
     fn sturdiness_against_the_dump() {
-        let reg = Registry::parse(include_str!("../minecraft/1.21.10/blocks.txt"));
+        let reg = Registry::parse(&crate::tables::get().blocks);
         let skip = ["MultifaceBlock", "ChorusFlowerBlock", "WallHangingSignBlock", "ShulkerBoxBlock", "CeilingHangingSignBlock", "MudBlock", "SnowLayerBlock", "FenceGateBlock", "SoulSandBlock", "MangroveLeavesBlock", "TintedParticleLeavesBlock", "UntintedParticleLeavesBlock"];
         let (mut compared, mut bad) = (0, std::collections::BTreeMap::new());
         for state in 0..reg.states.len() as State {
@@ -840,7 +840,7 @@ mod tests {
     // objects, against the dump's table for every pair of its shapes.
     #[test]
     fn merged_face_occludes_against_the_dump() {
-        let reg = Registry::parse(include_str!("../minecraft/1.21.10/blocks.txt"));
+        let reg = Registry::parse(&crate::tables::get().blocks);
         for (at, shape) in reg.shapes.iter().enumerate() {
             assert_eq!(shape.occludes_full(), shape.occludes_full_block, "occludes full block of shape {at}");
         }

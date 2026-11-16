@@ -100,7 +100,7 @@ const PLAYER_NEXT = {
 export class LiveWorld {
   // `host`: what the page provides, so the world runs under tests as well:
   //   json(path, { method, body }) -> parsed JSON (rejects with the server's error)
-  //   startEngine(wasmUrl) -> a CoreEngine
+  //   startEngine(engineAddress) -> a CoreEngine (core-engine.mjs start)
   //   blobUrl(bytes) / revoke(url) -> a URL for a blueprint's bytes
   //   sleep(ms) -> a promise
   //   digest(text) -> a promise of the text's SHA-256, hex

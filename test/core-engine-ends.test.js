@@ -32,30 +32,32 @@ test('a terminated engine fails what is still asked of it and everything asked a
 test('a start whose module does not load ends its worker', async () => {
   const { CoreEngine } = await import('../web/core-engine.mjs');
   const module = { compiled: 'module' };
+  const tables = { blocks: new Uint8Array([1]), loot: new Uint8Array([2]) };
   const worker = fakeWorker();
-  const starting = CoreEngine.load(module, worker);
-  assert.deepEqual(worker.posted, [{ type: 'load', module, id: 1 }]);
+  const starting = CoreEngine.load(module, tables, worker);
+  assert.deepEqual(worker.posted, [{ type: 'load', module, tables, id: 1 }]);
   worker.onmessage({ data: { id: 1, error: 'The engine failed: no memory' } });
   await assert.rejects(starting, /no memory/);
   assert.ok(worker.terminated, 'the worker of a failed start is ended');
   assert.equal(worker.onmessage, null);
   // A start that loads keeps its worker.
   const kept = fakeWorker();
-  const started = CoreEngine.load(module, kept);
+  const started = CoreEngine.load(module, tables, kept);
   kept.onmessage({ data: { id: 1 } });
   assert.equal((await started).dead, null);
   assert.equal(kept.terminated, false);
 });
 
-test('a module that cannot be fetched starts no worker, and the next start fetches it again', async (t) => {
+test('an engine whose module or tables cannot be fetched starts no worker, and the next start fetches them again', async (t) => {
   const { CoreEngine } = await import('../web/core-engine.mjs');
   const fetched = [];
   const previous = globalThis.fetch;
-  globalThis.fetch = async (url) => { fetched.push(url); return { ok: false, status: 503 }; };
+  globalThis.fetch = async (url) => { fetched.push(url); return url.endsWith('loot.json') ? { ok: false, status: 503 } : { ok: true, arrayBuffer: async () => new Uint8Array([0, 0x61, 0x73, 0x6d, 1, 0, 0, 0]).buffer }; };
   t.after(() => { globalThis.fetch = previous; });
-  await assert.rejects(CoreEngine.start('http://app/core/missing.wasm'), /missing.wasm is unavailable \(HTTP 503\)/);
-  await assert.rejects(CoreEngine.start('http://app/core/missing.wasm'), /HTTP 503/);
-  assert.deepEqual(fetched, ['http://app/core/missing.wasm', 'http://app/core/missing.wasm']);
+  await assert.rejects(CoreEngine.start('http://app/core/0123-4567/'), /http:\/\/app\/core\/0123-4567\/loot.json is unavailable \(HTTP 503\)/);
+  await assert.rejects(CoreEngine.start('http://app/core/0123-4567/'), /HTTP 503/);
+  const files = ['engine.wasm', 'blocks.txt', 'loot.json'].map((name) => `http://app/core/0123-4567/${name}`);
+  assert.deepEqual(fetched, [...files, ...files]);
 });
 
 test('a worker that fails ends the engine: what was asked fails, the failure is told, and nothing more comes from it', async () => {

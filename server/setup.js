@@ -24,13 +24,11 @@ const { httpError } = require('./http-guard');
 
 const STEPS = [
   { id: 'jdk', title: 'Java', doing: 'Downloading Java', optional: false },
-  { id: 'rust', title: 'Rust', doing: 'Installing Rust', optional: false },
   { id: 'minecraft', title: 'Minecraft server', doing: 'Downloading the Minecraft server', optional: false },
   { id: 'tables', title: "Minecraft's block tables", doing: "Reading Minecraft's block tables", optional: false },
   { id: 'blocks', title: 'Block data for the page', doing: 'Downloading block data for the page', optional: false },
   { id: 'viewer', title: '3D viewer', doing: 'Preparing the 3D viewer', optional: false },
-  { id: 'engine', title: 'Minecraft engine', doing: 'Compiling the Minecraft engine', optional: false },
-  { id: 'wasm', title: "The page's engine", doing: "Compiling the page's engine", optional: false },
+  { id: 'engine', title: 'Minecraft engine', doing: 'Downloading the Minecraft engine', optional: false },
   { id: 'browser', title: 'Screenshot browser', doing: 'Downloading the screenshot browser', optional: false },
   { id: 'shell', title: "Model's shell", doing: "Building the model's shell image", optional: true },
 ];

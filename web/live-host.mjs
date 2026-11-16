@@ -81,7 +81,7 @@ export function browserHost() {
     async json(path, options) {
       return (await checked(await fetch(path, init(options)))).json();
     },
-    startEngine: (wasm) => CoreEngine.start(wasm),
+    startEngine: (address) => CoreEngine.start(address),
     blobUrl: (bytes) => URL.createObjectURL(new Blob([bytes])),
     revoke: (url) => URL.revokeObjectURL(url),
     sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),

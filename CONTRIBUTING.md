@@ -38,7 +38,8 @@ Follow the README's Setup first.
 |---|---|
 | `npm run dev` | Runs the app and restarts the server when `server/` or `web/` changes |
 | `npm test` | Runs the tests (`node --test`) |
-| `node scripts/prepare-minecraft.js` | Makes Minecraft's tables in `core/minecraft/` without starting the app. Building the engine and running the tests need them |
+| `node scripts/prepare-minecraft.js` | Makes Minecraft's tables in `core/minecraft/` without starting the app. The engine reads them, so running it and the tests need them |
+| `node scripts/build-engine.js` | Builds the engine from your `core/` (the program for this machine and the WebAssembly module) into the tools folder, where the app and the tests run it. The app runs the engine released for its `core/` and downloads it; after you change `core/` it stops at its start until you have run this. The first run installs rustup and the pinned Rust (`core/rust-toolchain.toml`, about 550 MB) into the tools folder |
 
 Some tests are skipped until you give them what they need:
 
@@ -59,7 +60,7 @@ Options the Settings page does not have are environment variables. `.env.example
 |---|---|
 | `server/` | The Node server. `index.js` is the HTTP API; `agent.js` the turn loop and the model's tools; `llm.js` the API providers; `claude-code.js`, `codex-cli.js` and `cursor.js` the harnesses; `store.js` the SQLite store; `sandbox.js` and `build-sandbox.js` the sandboxes; `minecraft-verify.js` runs `test_build`; `share.js` publishes builds |
 | `web/` | The page: Preact and htm with no build step. `app.js` is the interface; the small `.mjs` files beside it hold its state machines and have tests; `live-world.mjs` runs the engine in the browser; `bluemap-bridge.js` feeds the viewer |
-| `core/` | The Rust engine, a reimplementation of Minecraft's block-update code. It builds natively (for `test_build` and screenshots) and to WebAssembly (for the live world in the page) |
+| `core/` | The Rust engine, a reimplementation of Minecraft's block-update code. It is built natively (for `test_build` and screenshots) and to WebAssembly (for the live world in the page), and reads Minecraft's tables when it starts. The app downloads it built, from a release of this repository |
 | `renderer/` | A Rust port of BlueMap's tile mesher, committed as WebAssembly. Rebuild it with `node scripts/build-renderer.js` |
 | `scripts/` | Parity checks, benchmarks and `prepare-minecraft.js` |
 | `sandbox/` | The Docker image of the model's shell |
@@ -74,5 +75,9 @@ A change that must not change a byte (speed work, a refactor) is checked against
 A port changes bytes on purpose, so it is checked against the Java reference engine (`server/McbenchEngine.java`) instead: the same command without `--base`. The reference runs Minecraft's own code and needs GraalVM 25 under `~/.local/graalvm` or named by `MCBENCH_GRAALVM_HOME`. The app never runs the Java engine.
 
 The 82 community builds the README's numbers come from are not in the repository. Some modes of the parity and benchmark scripts run on a corpus of builds that you supply: set `MCBENCH_CORPUS` to a directory in which every `imports/<build>/artifact.json` is one build. A mode that needs it says so and stops.
+
+## Releasing the engine
+
+The app downloads the engine released for its `core/`: `server/engine-release.json` pins each asset of the release `engine-<version>` by name, sha256 and size, the version being the hash of `core/src`, `Cargo.toml`, `Cargo.lock`, `rust-toolchain.toml`, `.cargo/config.toml` and `core/pgo`. A test fails while the pin is not the tree's, so a change to `core/` is merged with its release. With `core/` committed, `node scripts/release-engine.js <asset> --out <folder>` builds each asset: `darwin-arm64` and `darwin-x64` on a Mac, `linux-x64` and `linux-arm64` on x64 Linux with Docker (in Debian 10, so the programs run on glibc 2.28 and later), and `wasm32` anywhere. `node scripts/release-engine.js --pin <folder>` then writes `SHA256SUMS` and `server/engine-release.json`, and `node scripts/publish-engine.js <folder>` creates the release with them. The assets hold none of Minecraft's data. Before the release is published, `MCBENCH_ENGINE_RELEASES=<address>` has the app download the assets from another address under which they sit as `<tag>/<name>` (a local server), and `node scripts/benchmark-first-start.js --assets <folder> --work <empty folder>` times a first start that way.
 
 Report a vulnerability the way `SECURITY.md` says.

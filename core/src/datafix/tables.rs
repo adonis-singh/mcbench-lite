@@ -8,7 +8,7 @@ fn tables() -> &'static HashMap<String, HashMap<String, String>> {
     static TABLES: OnceLock<HashMap<String, HashMap<String, String>>> = OnceLock::new();
     TABLES.get_or_init(|| {
         let mut maps: HashMap<String, HashMap<String, String>> = HashMap::new();
-        for rest in super::schemas::DUMP.lines().filter_map(|l| l.strip_prefix("X ")) {
+        for rest in super::schemas::dump().lines().filter_map(|l| l.strip_prefix("X ")) {
             let mut p = rest.splitn(3, ' ');
             let (name, key, value) = (p.next().unwrap(), p.next().unwrap(), p.next().unwrap());
             maps.entry(name.to_string()).or_default().insert(key.to_string(), value.to_string());
@@ -28,7 +28,7 @@ pub fn choice_point(sorted_keys: &str) -> Option<&'static str> {
     POINTS
         .get_or_init(|| {
             let mut points: HashMap<String, String> = HashMap::new();
-            for l in super::schemas::DUMP.lines().filter_map(|l| l.strip_prefix("P ")) {
+            for l in super::schemas::dump().lines().filter_map(|l| l.strip_prefix("P ")) {
                 let (first, keys) = l.split_once(' ').unwrap();
                 // Schemas that disagree on the first: none is known.
                 let e = points.entry(keys.to_string()).or_insert_with(|| first.to_string());

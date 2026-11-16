@@ -1,36 +1,38 @@
 'use strict';
 
-// Publishes this machine's engine program to the project's releases, where
-// every machine with the same sources, Paper build, GraalVM release and
-// platform downloads it instead of building it (server/engine.js). Builds it
-// first if needed. Run it after an engine change, once per platform.
+// Publishes the engine's release assets that scripts/release-engine.js built
+// and pinned in <folder> as the release engine-<version> of the public
+// repository, from which every app whose core/ is that version downloads
+// them (server/tools.js PINS). It uploads exactly the assets
+// server/engine-release.json pins, each checked against the pin first, and
+// SHA256SUMS, with one `gh release create`; a release of that name that
+// exists already fails it.
 //
-//   node scripts/publish-engine.js
+//   node scripts/publish-engine.js <folder>
 
+const crypto = require('crypto');
 const fs = require('fs');
-const os = require('os');
 const path = require('path');
-const zlib = require('zlib');
 const { execFileSync } = require('child_process');
-const { minecraftLive } = require('../server/minecraft-live');
-const { buildEngine, RELEASES } = require('../server/engine');
 
-async function main() {
-  const classpath = (await minecraftLive.ensurePaper()).map((file) => path.join(minecraftLive.paperDir, file));
-  const binary = await buildEngine({ classpath, folder: minecraftLive.engineFolder, minecraftVersion: minecraftLive.minecraftVersion, signal: new AbortController().signal });
-  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'mcbench-publish-'));
-  const asset = path.join(scratch, `${path.basename(binary)}.gz`);
-  fs.writeFileSync(asset, zlib.gzipSync(fs.readFileSync(binary), { level: 9 }));
-  const gh = (args) => execFileSync('gh', [...args, '--repo', RELEASES.repo], { stdio: ['ignore', 'pipe', 'pipe'] }).toString();
-  try {
-    gh(['release', 'view', RELEASES.tag]);
-  } catch (error) {
-    if (!/release not found/i.test(String(error.stderr))) throw error;
-    gh(['release', 'create', RELEASES.tag, '--title', 'Engine programs', '--notes', 'Native engine programs by name (scripts/publish-engine.js), downloaded by server/engine.js.']);
-  }
-  gh(['release', 'upload', RELEASES.tag, asset, '--clobber']);
-  fs.rmSync(scratch, { recursive: true, force: true });
-  console.log(`Published ${path.basename(asset)} (${(fs.statSync(binary).size / 1e6).toFixed(0)} MB program)`);
+const RELEASE = require('../server/engine-release.json');
+
+const REPOSITORY = 'adonis-singh/mcbench-lite';
+
+function main() {
+  const folder = process.argv[2];
+  if (!folder) throw new Error('usage: node scripts/publish-engine.js <folder>');
+  const files = Object.values(RELEASE.assets).map(({ name, sha256, bytes }) => {
+    const file = path.join(folder, name);
+    const data = fs.readFileSync(file);
+    const got = crypto.createHash('sha256').update(data).digest('hex');
+    if (got !== sha256 || data.length !== bytes) throw new Error(`${file} is not the pinned asset (sha256 ${got}, ${data.length} bytes; pinned ${sha256}, ${bytes} bytes)`);
+    return file;
+  });
+  const sums = path.join(folder, 'SHA256SUMS');
+  execFileSync('gh', ['release', 'create', RELEASE.tag, '--repo', REPOSITORY, '--title', `Engine ${RELEASE.version}`,
+    '--notes', `The Rust engine built from core/ at engine version ${RELEASE.version} (scripts/release-engine.js), for server/tools.js to download. It holds no data of Minecraft's: the engine reads the tables each machine makes.`,
+    ...files, sums], { stdio: 'inherit' });
 }
 
-main().then(() => process.exit(0), (error) => { console.error(error); process.exit(1); });
+main();

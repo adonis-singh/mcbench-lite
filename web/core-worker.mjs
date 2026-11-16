@@ -1,8 +1,9 @@
 // The live world's engine, off the page's main thread: the Rust engine as
 // WebAssembly (core-world.mjs) in a Web Worker. It takes requests one at a
 // time, in order, each answered with { id, ... } or { id, error }:
-//   { id, type: 'load', module }
-//       the first request: the module, compiled once by the page
+//   { id, type: 'load', module, tables }
+//       the first request: the module, compiled once by the page, and
+//       Minecraft's tables it reads ({ blocks, loot }, bytes: CoreWorld)
 //   { id, type: 'place', commands, fresh }
 //       places the commands (text, one per line) on an empty world or on the
 //       world as it is; answers { bytes, inputs } with the blueprint and the
@@ -136,7 +137,7 @@ function run(start = performance.now(), n = 0) {
 
 async function handle(request) {
   if (request.type === 'load') {
-    world = new CoreWorld(request.module);
+    world = new CoreWorld(request.module, request.tables);
     return [{}];
   }
   switch (request.type) {

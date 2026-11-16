@@ -7,17 +7,16 @@ const os = require('os');
 const path = require('path');
 const { pathToFileURL } = require('url');
 
-const { build } = require('../scripts/build-wasm');
 const { LiveViews } = require('../server/live-views');
 const { World } = require('../server/world');
-const { startNodeEngine } = require('../scripts/wasm-node-engine');
+const { startNodeEngine, engineFile } = require('../scripts/wasm-node-engine');
 
 // The page's live world (web/live-world.mjs) against the real views and the
 // real engine in a worker.
 let wasm;
 let LiveWorld;
 test.before(async () => {
-  wasm = await build();
+  wasm = await engineFile();
   ({ LiveWorld } = await import('../web/live-world.mjs'));
 });
 
@@ -261,6 +260,29 @@ test('an edit that reaches what the engine does not model stops the world with t
   await new Promise((resolve) => setTimeout(resolve, 100));
   await live.control('restart');
   await until(() => live.state.status === 'running' && live.ticks >= 1, `the world placed afresh (${live.state.error})`);
+});
+
+// The page's engine fetches its module and tables when a view first needs it
+// (web/core-engine.mjs): a fetch that fails is the world's error at once,
+// and the engine is not asked for again until the view changes or a restart.
+test('an engine whose tables cannot be fetched is the world\'s error at once, and is not tried again on its own', async (t) => {
+  const world = build3([0, 0, 0, 'minecraft:stone']);
+  const h = host(t, server(() => ({ world, layout: null })));
+  let starts = 0;
+  h.startEngine = async (address) => {
+    starts += 1;
+    throw new Error(`${address}blocks.txt is unavailable (HTTP 404)`);
+  };
+  const live = new LiveWorld(h);
+  t.after(() => live.dispose());
+  live.begin();
+  await live.show('chat');
+  await until(() => live.state.status === 'error', 'the failure', 1000);
+  assert.match(live.state.error, /blocks\.txt is unavailable \(HTTP 404\)$/);
+  const tried = starts;
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  assert.strictEqual(starts, tried, 'no start is tried again on its own');
+  assert.ok(tried <= 2, `${tried} starts: the engine and its spare`);
 });
 
 test('a build the engine cannot place shows the reason in its place', async (t) => {

@@ -34,18 +34,39 @@ thread_local! {
     static SESSION: RefCell<Option<Session>> = const { RefCell::new(None) };
     static BUFFERS: RefCell<Buffers> = RefCell::new(Buffers::default());
     static FAILURE: RefCell<Vec<u8>> = const { RefCell::new(Vec::new()) };
+    // The tables' bytes (mcb_tables_buffer) and where loot.json's begin, until mcb_init takes them.
+    static TABLES: RefCell<(Vec<u8>, usize)> = const { RefCell::new((Vec::new(), 0)) };
 }
 
 fn pointer(bytes: &[u8]) -> *const u8 {
     bytes.as_ptr()
 }
 
-// Reads the registries and makes the empty world. Once per instance.
+// A buffer of `blocks_len + loot_len` bytes for Minecraft's tables, which
+// the host writes before mcb_init: blocks.txt's bytes, then loot.json's
+// (crate::tables). Once per instance.
+#[no_mangle]
+pub extern "C" fn mcb_tables_buffer(blocks_len: usize, loot_len: usize) -> *mut u8 {
+    TABLES.with(|tables| {
+        let mut tables = tables.borrow_mut();
+        *tables = (vec![0; blocks_len + loot_len], blocks_len);
+        tables.0.as_mut_ptr()
+    })
+}
+
+// Reads the registries from the tables the host wrote (mcb_tables_buffer)
+// and makes the empty world. Once per instance.
 #[no_mangle]
 pub extern "C" fn mcb_init() {
     std::panic::set_hook(Box::new(|info| {
         FAILURE.with(|failure| *failure.borrow_mut() = crate::failure(info.payload()).into_bytes());
     }));
+    let (mut bytes, blocks_len) = TABLES.with(|tables| std::mem::take(&mut *tables.borrow_mut()));
+    let loot = bytes.split_off(blocks_len);
+    crate::tables::set(crate::tables::Text {
+        blocks: String::from_utf8(bytes).expect("blocks.txt is not UTF-8"),
+        loot: String::from_utf8(loot).expect("loot.json is not UTF-8"),
+    });
     let (reg, blocks) = crate::boot();
     SESSION.with(|session| *session.borrow_mut() = Some(Session::new(reg, blocks)));
 }

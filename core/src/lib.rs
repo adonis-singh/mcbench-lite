@@ -37,6 +37,7 @@ pub mod player;
 mod random;
 mod registry;
 mod shape_ops;
+pub mod tables;
 mod text;
 mod ticks;
 mod world;
@@ -57,11 +58,10 @@ mod wasm;
 use level::Refusal;
 use std::any::Any;
 
-const REGISTRY: &str = include_str!("../minecraft/1.21.10/blocks.txt");
-
-// What Minecraft's registries hold, read once and kept for the process.
+// What Minecraft's registries hold, read once and kept for the process, from
+// the block table the process was given (tables.rs).
 pub fn boot() -> (&'static registry::Registry, &'static blocks::Blocks) {
-    let reg: &'static registry::Registry = Box::leak(Box::new(registry::Registry::parse(REGISTRY)));
+    let reg: &'static registry::Registry = Box::leak(Box::new(registry::Registry::parse(&tables::get().blocks)));
     let blocks: &'static blocks::Blocks = Box::leak(Box::new(blocks::Blocks::new(reg)));
     (reg, blocks)
 }

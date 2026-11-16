@@ -25,7 +25,7 @@ const readline = require('readline');
 const { execFileSync, spawn } = require('child_process');
 const ROOT = path.join(__dirname, '..');
 const { minecraftLive } = require('../server/minecraft-live');
-const { graalvmHome, coreBuildArgs, rust, installRust } = require('../server/engine');
+const { graalvmHome, engineProgram, tablesFolder } = require('../server/engine');
 
 const option = (name, fallback) => {
   const at = process.argv.indexOf(`--${name}`);
@@ -118,8 +118,6 @@ function probe(command, args, lines, cwd) {
 }
 
 async function main() {
-  // rust() answers the toolchain installRust found.
-  await installRust();
   const kinds = option('kind', 'snbt,stack').split(',');
   const seed = Number(option('seed', 1));
   const lines = option('file', null) ? fs.readFileSync(option('file'), 'utf8').split('\n').filter(Boolean) : inputs(kinds, Number(option('fuzz', 200)), seed);
@@ -133,10 +131,10 @@ async function main() {
   const graalvm = graalvmHome();
   execFileSync(path.join(graalvm, 'bin', 'javac'), ['--release', '21', '-proc:none', '-XDignore.symbol.file', '-classpath', classpath.join(path.delimiter), '-d', classes,
     ...['McbenchEngine.java', 'McbenchLevel.java', 'McbenchExperiment.java'].map((name) => path.join(ROOT, 'server', name)), path.join(__dirname, 'McbenchProbe.java')], { stdio: ['ignore', 'ignore', 'inherit'] });
-  execFileSync(rust().cargo, coreBuildArgs(), { cwd: path.join(ROOT, 'core'), env: rust().env, stdio: 'inherit' });
+  const program = await engineProgram();
   const [java, core] = await Promise.all([
     probe(path.join(graalvm, 'bin', 'java'), [...(process.arch === 'arm64' ? ['-XX:+UnlockDiagnosticVMOptions', '-XX:DisableIntrinsic=_dsin,_dcos'] : []), '-cp', [classes, ...classpath].join(path.delimiter), 'McbenchProbe'], lines, path.join(scratch, 'work')),
-    probe(path.join(ROOT, 'core', 'target', 'release', 'mcbench-core'), ['--probe'], lines, scratch),
+    probe(program, [tablesFolder(), '--probe'], lines, scratch),
   ]);
   const totals = { same: 0, refused: 0, javaFailed: 0, mismatched: 0 };
   const reasons = new Map();

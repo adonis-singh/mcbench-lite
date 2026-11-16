@@ -22,7 +22,7 @@ const execFileAsync = promisify(execFile);
 // the page (web/live-world.mjs, the Rust engine as WebAssembly in a worker),
 // one per viewer; this serves it what the page cannot make itself: the
 // viewer's assets, Paper's classpath and block table, the engine's folder,
-// and the tables of Minecraft the engine is built with (minecraft-tables.js).
+// and the tables of Minecraft the engine reads (minecraft-tables.js).
 // The viewer's assets: `viewer.name` is one of
 //   idle       they were not asked for
 //   preparing  they are being made (`done`, its promise)
@@ -190,10 +190,10 @@ class MinecraftLive extends PaperFiles {
       '[minecraft] Paper downloaded', () => super.ensurePaper()));
   }
 
-  // Makes the tables of Minecraft the engine is built with
+  // Makes the tables of Minecraft the engine reads at its start
   // (core/minecraft/<version>/) from the server jar, those that are missing
   // (missingTables: the block and loot tables also when the Java engine's
-  // sources changed since they were dumped): the engine is built after this.
+  // sources changed since they were dumped): the engine starts after this.
   minecraftTables() {
     const missing = missingTables(this.minecraftVersion);
     if (!missing.length) return setup.track('tables', () => {});

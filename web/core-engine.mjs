@@ -3,7 +3,7 @@
 // bytes instead of files, and the running world's frames. Requests are
 // answered in the order they were made.
 //
-//   const engine = await CoreEngine.start('/core/<hash>.wasm');
+//   const engine = await CoreEngine.start('/core/<version>-<tables hash>/');
 //   const { bytes, inputs } = await engine.place(commands);  // the blueprint
 //   engine.onframe = ({ ticks, bytes, entities, inputs }) => ...; // bytes: the patch
 //   await engine.run(true);                                  // 20 ticks a second
@@ -15,19 +15,29 @@
 // true }) goes on. A world that stopped (`onfailed` says why) refuses
 // run(true) and step() until then.
 
-// Each module's compilation, by address. One that failed is let go, so the
-// next start fetches it again.
-const modules = new Map();
-function compiled(url) {
-  if (!modules.has(url)) {
-    const compiling = fetch(url).then(async (response) => {
-      if (!response.ok) throw new Error(`${url} is unavailable (HTTP ${response.status})`);
-      return WebAssembly.compile(await response.arrayBuffer());
-    });
-    compiling.catch(() => modules.delete(url));
-    modules.set(url, compiling);
+// The bytes of a file the server serves for the engine.
+async function fetched(url) {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`${url} is unavailable (HTTP ${response.status})`);
+  return new Uint8Array(await response.arrayBuffer());
+}
+
+// Each engine's module, compiled, and Minecraft's tables it reads, by the
+// address the server serves them at (server/core-wasm.js): engine.wasm,
+// blocks.txt and loot.json under it. One that failed is let go, so the next
+// start fetches it again.
+const engines = new Map();
+function loaded(address) {
+  if (!engines.has(address)) {
+    const loading = Promise.all([
+      fetched(new URL('engine.wasm', address).href).then((bytes) => WebAssembly.compile(bytes)),
+      fetched(new URL('blocks.txt', address).href),
+      fetched(new URL('loot.json', address).href),
+    ]).then(([module, blocks, loot]) => ({ module, tables: { blocks, loot } }));
+    loading.catch(() => engines.delete(address));
+    engines.set(address, loading);
   }
-  return modules.get(url);
+  return engines.get(address);
 }
 
 export class CoreEngine {
@@ -57,20 +67,22 @@ export class CoreEngine {
     };
   }
 
-  // Starts a worker with the module at `wasm` (a URL). The page compiles
-  // each module once and hands it to every worker it starts, so a start is a
-  // worker's and not a compilation's (an engine per view, live-world.mjs).
-  static async start(wasm) {
-    const module = await compiled(new URL(wasm, globalThis.location?.href).href);
-    return CoreEngine.load(module, new Worker(new URL('./core-worker.mjs', import.meta.url), { type: 'module' }));
+  // Starts a worker with the engine at `address` (a URL ending in /). The
+  // page compiles each module and fetches its tables once, and hands them to
+  // every worker it starts, so a start is a worker's and not a compilation's
+  // (an engine per view, live-world.mjs).
+  static async start(address) {
+    const { module, tables } = await loaded(new URL(address, globalThis.location?.href).href);
+    return CoreEngine.load(module, tables, new Worker(new URL('./core-worker.mjs', import.meta.url), { type: 'module' }));
   }
 
-  // Starts a worker with a compiled module. A start that fails ends its
-  // worker: nothing else holds it.
-  static async load(module, worker) {
+  // Starts a worker with a compiled module and its tables ({ blocks, loot },
+  // bytes: CoreWorld). A start that fails ends its worker: nothing else
+  // holds it.
+  static async load(module, tables, worker) {
     const engine = new CoreEngine(worker);
     try {
-      await engine.request({ type: 'load', module });
+      await engine.request({ type: 'load', module, tables });
     } catch (error) {
       engine.terminate(error);
       throw error;

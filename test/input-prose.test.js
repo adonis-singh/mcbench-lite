@@ -4,7 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const path = require('node:path');
-const { build } = require('../scripts/build-wasm');
+const { engineModule } = require('../scripts/wasm-node-engine');
 const { tablesFolder } = require('../server/minecraft-tables');
 const { MinecraftFacts } = require('../server/minecraft-facts');
 const { MC_VERSION } = require('../server/assets');
@@ -49,10 +49,10 @@ function passage(text, from, to) {
 test('the prose that names what takes a use, a toggle and a press names what the engine takes', { skip: !fs.existsSync(TABLE) && 'needs the engine\'s tables (node scripts/prepare-minecraft.js)', timeout: 600000 }, async () => {
   const { CoreWorld } = await import('../web/core-world.mjs');
   const { readBlueprint, InputBlocks } = await import('../web/live-patch.mjs');
-  const wasm = await WebAssembly.compile(fs.readFileSync(await build()));
+  const { module: wasm, tables } = await engineModule();
   const facts = new MinecraftFacts(fs.readFileSync(TABLE, 'utf8'));
   const all = [...facts.blocks.keys()];
-  const world = new CoreWorld(wasm);
+  const world = new CoreWorld(wasm, tables);
   const refused = new Set();
   let keys;
   let side;
