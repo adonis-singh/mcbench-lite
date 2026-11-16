@@ -2735,7 +2735,7 @@ function BenchModelChip({ entry, taken, onEffort, onCopy, onRemove }) {
       <button type="button" class="bench-chip-model" title="Remove" aria-label=${`Remove ${name}`} onClick=${onRemove}>
         <span class="bench-chip-icon">
           <${Logo} name=${vendorIcon(entry.provider, entry.model)} size="13" />
-          <${Icon} name="x" size="12" />
+          <${Icon} name="x" size="11" />
         </span>
         <span class="bench-chip-name" title=${entry.model}>${name}</span>
       </button>

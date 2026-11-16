@@ -3242,19 +3242,34 @@ body.grabbing, body.grabbing * { cursor: grabbing !important; }
   cursor: pointer;
 }
 /* A chip's text is trimmed to its cap height, so the chip centres it on its
-   capitals, digits and ascenders, where its icons (a remove x, a logo, a
-   chevron) centre too, rather than on a line box that holds more room above
-   them than below. Text that clips clips sideways only, so the descenders
-   the trim leaves outside show. */
+   capitals, digits and ascenders rather than on a line box that holds more
+   room above them than below. Text that clips clips sideways only, so the
+   descenders the trim leaves outside show. */
 .bench-chip-name,
 .bench-chip-effort > span,
 .find-chip-text,
 .pe-tag-text,
 .selection-label,
 .selection-size { text-box: trim-both cap alphabetic; }
+/* The marks beside it the size of a letter (a remove x, a chevron) sit on
+   its x-height band, as a letter x would: centred in the chip with the text,
+   they move down from its cap centre to its x-height centre, half the cap
+   height less half the x-height, in the text's own font (the buttons take
+   the chip's). Vendor logos, as tall as the capitals or taller, stay centred
+   with them: on the x-height centre they hang below the baseline. */
+.bench-chip-icon svg,
+.bench-chip-effort svg,
+.find-chip button svg,
+.pe-tag button svg,
+.selection-chip button svg { translate: 0 calc((1cap - 1ex) / 2); }
+.find-chip button,
+.pe-tag button,
+.selection-chip button { font: inherit; }
 .bench-chip-name { max-width: 160px; overflow-x: clip; text-overflow: ellipsis; white-space: nowrap; }
-/* The logo turns into the x that removes the model. */
-.bench-chip-icon { display: grid; width: 13px; height: 13px; }
+/* The logo turns into the x that removes the model: 11 px, so its ink is one
+   x-height tall in the name's font, and its 2.4 stroke draws 1.1 px, the
+   name's stem. */
+.bench-chip-icon { display: grid; justify-items: center; width: 13px; height: 13px; }
 .bench-chip-icon > * { grid-area: 1 / 1; transition: opacity 110ms ease; }
 .bench-chip-icon svg { opacity: 0; color: var(--ash); stroke-width: 2.4; }
 .bench-chip-model:hover .bench-chip-icon .vlogo { opacity: 0; }
