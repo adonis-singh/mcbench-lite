@@ -94,7 +94,7 @@ test('the viewer\'s assets are baked once per content, and older bakes and app f
   assert.deepStrictEqual(downloads.map((download) => path.basename(download.target)).sort(), DOWNLOADED);
   assert.ok(downloads.every((download) => /^[0-9a-f]{64}$/.test(download.sha256)));
   assert.match(downloads.find((download) => download.target === blueMap.mappings).url, /^https:\/\/piston-data\.mojang\.com\/v1\/objects\/[0-9a-f]{40}\/client\.txt$/);
-  assert.deepStrictEqual(runs[0].args.slice(-5), ['McbenchBake.java', 'McbenchEntityAssets.java', 'McbenchClient.java', 'McbenchBlockEntities.java', 'McbenchEntities.java'].map((name) => path.join(__dirname, '..', 'server', name)));
+  assert.deepStrictEqual(runs[0].args.slice(-6), ['McbenchBake.java', 'McbenchEntityAssets.java', 'McbenchClient.java', 'McbenchBlockEntities.java', 'McbenchEntities.java', 'McbenchRenderStates.java'].map((name) => path.join(__dirname, '..', 'server', name)));
   assert.deepStrictEqual(runs[1].args.slice(-5), ['1.21.10', table, LIBRARIES.join(path.delimiter), 'minecraft:plains', blueMap.mappings]);
   assert.strictEqual(runs.length, 2);
   const config = path.join(root, assets.id, 'config');

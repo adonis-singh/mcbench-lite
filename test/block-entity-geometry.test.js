@@ -9,7 +9,7 @@ const { renderMask } = require('../server/bluemap');
 const { bakedPack, bakedFile } = require('./helpers/community');
 
 // The geometry see_build draws a block Minecraft draws through a block
-// entity renderer with (Mesher.lone, web/viewer.js: its block model and the
+// entity renderer with (Mesher.lone, native/draw: its block model and the
 // quads Minecraft's renderer draws, McbenchBlockEntities.java) is the live
 // viewer's: for
 // every such state of the data directory's bake (its render layers name the

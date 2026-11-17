@@ -129,6 +129,10 @@ public class McbenchClient {
   // BuiltInRegistries's registries.
   final List<Object> registries;
   final Method parse, result, jsonParse;
+  // The world's one biome and ColorResolver.getColor, which a level of it
+  // answers BlockAndTintGetter.getBlockTint with (McbenchTerrain).
+  final Object biome;
+  final Method resolveColor;
 
   public static McbenchClient read(Path client, Path table, String libraries, String biomeId) throws Exception {
     return new McbenchClient(client, table, libraries, biomeId);
@@ -338,6 +342,8 @@ public class McbenchClient {
       && field.getGenericType() instanceof ParameterizedType generic && generic.getActualTypeArguments()[0] == biomeType
       && !readInInit.contains(field.getName())).toList());
     Object biome = decode(biomeCodec.get(null), biomeJson, "the biome " + biomeId);
+    this.biome = biome;
+    this.resolveColor = resolve;
 
     // A level of the one biome: getBlockTint answers the resolver with the
     // biome's colour at the position; it is asked nothing else.

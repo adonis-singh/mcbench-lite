@@ -22,7 +22,10 @@ test(
     timeout: 90000,
   },
   async (t) => {
-    const origin = new URL(process.env.MCBENCH_UI_URL || 'http://127.0.0.1:3020').origin;
+    // The app under test is named, never assumed: the default port is the
+    // one a person's own app runs on.
+    if (!process.env.MCBENCH_UI_URL) throw new Error('Set MCBENCH_UI_URL to the address of the running app to test (and MCBENCH_DATA_DIR to its data folder)');
+    const origin = new URL(process.env.MCBENCH_UI_URL).origin;
     const headers = { authorization: `Bearer ${token()}` };
     const status = await (await fetch(`${origin}/api/minecraft/status`, { headers })).json();
     assert.equal(status.viewerError, null);

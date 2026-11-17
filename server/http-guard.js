@@ -8,7 +8,7 @@ const MIB = 1024 * 1024;
 // A JSON body is read whole into memory, so each route takes what it needs:
 // a message with attachments (200 MiB expands to about 267 MiB in base64, plus
 // JSON metadata), the chunk versions a viewer holds, or a small form.
-const BODY_LIMITS = { message: 280 * MIB, world: 128 * MIB, form: 1 * MIB };
+const BODY_LIMITS = { message: 280 * MIB, form: 1 * MIB };
 
 function httpError(statusCode, message) {
   return Object.assign(new Error(message), { statusCode });

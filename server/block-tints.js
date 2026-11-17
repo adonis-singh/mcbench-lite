@@ -9,8 +9,7 @@ const { blockStates } = require('./block-states');
 // block table's order, line for line), each 0xRRGGBB: `world`, by state
 // and tint index (`indices` of them), the colour of its faces of that tint
 // index; `particle` the colour its breaking particles, the texture a
-// block's icon shows (block-icon.js), are multiplied by. see_build's page
-// tints its faces with `world` (`bytes`, read by web/viewer.js).
+// block's icon shows (block-icon.js), are multiplied by.
 class BlockTints {
   // `text`: the tints file; `states`: the block table's BlockStates.
   constructor(text, states) {
@@ -26,13 +25,6 @@ class BlockTints {
       world.split(',').forEach((color, index) => { this.world[id * this.indices + index] = parseInt(color, 16); });
       this.particle[id] = parseInt(particle, 16);
     });
-  }
-
-  // What the page reads: u32 states, u32 tint indices, then by state and
-  // tint index u32 0xRRGGBB.
-  bytes() {
-    this.bytesMade ||= Buffer.concat([Buffer.from(Uint32Array.of(this.world.length / this.indices, this.indices).buffer), Buffer.from(this.world.buffer)]);
-    return this.bytesMade;
   }
 }
 

@@ -1,0 +1,59 @@
+[package]
+name = "mcbench-draw"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+publish = false
+description = "see_build's pictures drawn natively with wgpu over the mesher's quads"
+
+# Standalone: not a member of any workspace.
+[workspace]
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "mcbench-draw"
+path = "src/main.rs"
+
+[dependencies]
+mcbench-renderer = { path = "../../renderer" }
+wgpu = { version = "30.0.2", default-features = false, features = ["std", "wgsl", "parking_lot", "metal", "vulkan", "gles", "dx12"] }
+image = { version = "0.25.10", default-features = false, features = ["png", "jpeg"] }
+jpeg-encoder = "0.7.1"
+fontdue = "0.9.5"
+zip = { version = "9.6.0", default-features = false, features = ["deflate"] }
+bytemuck = { version = "1.25.2", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1.0.154"
+rayon = "1.12.0"
+pollster = "1.0.1"
+
+# The process's memory and freed memory given back (src/memory.rs).
+[target.'cfg(unix)'.dependencies]
+libc = "0.2.191"
+
+# macOS's allocator: mimalloc returns freed memory to the system, which
+# macOS's own malloc keeps charged to the process (src/main.rs).
+[target.'cfg(target_os = "macos")'.dependencies]
+mimalloc = { version = "0.1.52", default-features = false }
+libmimalloc-sys = { version = "0.1.49", default-features = false, features = ["extended"] }
+# Metal's allocated size (src/gpu.rs, Gpu::allocated): the objc2-metal wgpu-hal 30.0.2 uses.
+objc2-metal = { version = "0.3.2", default-features = false, features = ["std", "MTLDevice"] }
+
+# The software floor on Linux: SwiftShader opened directly (src/floor.rs).
+[target.'cfg(target_os = "linux")'.dependencies]
+ash = "0.38"
+
+# WARP's buffers of quads in cached memory (src/warp.rs), and the process's
+# memory (src/memory.rs): the windows crate wgpu-hal 30.0.2 uses.
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.62", default-features = false, features = ["Win32_Graphics_Direct3D12", "Win32_Graphics_Dxgi_Common", "Win32_System_ProcessStatus", "Win32_System_Threading", "Win32_System_Memory"] }
+
+[profile.release]
+opt-level = 3
+debug = false
+strip = true
+
+[profile.test]
+opt-level = 2

@@ -1,0 +1,26 @@
+{
+  "version": "7b3c1fd853233020",
+  "tag": "draw-7b3c1fd853233020",
+  "assets": {
+    "darwin-arm64": {
+      "name": "mcbench-draw-7b3c1fd853233020-darwin-arm64.tar.gz",
+      "sha256": "b5a974498a2383dee23f8a3a6371e715899048c86b370173855f9041dc63a15d",
+      "bytes": 3586546
+    },
+    "darwin-x64": {
+      "name": "mcbench-draw-7b3c1fd853233020-darwin-x64.tar.gz",
+      "sha256": "e07b8205f681774a2bf63cec357d9bcdbd96627dbafe5c94b3da6efab1ce5110",
+      "bytes": 3730393
+    },
+    "linux-arm64": {
+      "name": "mcbench-draw-7b3c1fd853233020-linux-arm64.tar.gz",
+      "sha256": "2537bc91e125da91b9053a47d9627874a7f56bea58177f0f9b3d25570c7eb2be",
+      "bytes": 3690004
+    },
+    "linux-x64": {
+      "name": "mcbench-draw-7b3c1fd853233020-linux-x64.tar.gz",
+      "sha256": "fd1dd9a008ca8dc4815bc478e66607c2bc2674bf86c62374336bcb94cb155d72",
+      "bytes": 5697320
+    }
+  }
+}

@@ -4,7 +4,6 @@ const { test } = require('node:test');
 const assert = require('node:assert');
 
 const { MAX_BLOCKS, World } = require('../server/world');
-const { testBlockStates } = require('./helpers/block-table');
 
 test('clone copies only changed chunks and leaves the base immutable', () => {
   const base = new World();
@@ -50,19 +49,11 @@ test('three million blocks fit exactly and the next block fails fast', () => {
 });
 
 test('a positive-coordinate 1920x1080 canvas fits inside world bounds', () => {
-  // Concrete as a cube with six full faces, written for the test.
-  const states = testBlockStates([{ name: 'minecraft:black_concrete', full: 63, lightBlock: 15 }]);
   const base = new World().finalize();
   const world = base.clone();
   world.fill([0, 0, 0], [1919, 1079, 0], 'minecraft:black_concrete', {});
   assert.strictEqual(world.size(), 1920 * 1080);
   assert.deepStrictEqual(world.bounds(), { min: [0, 0, 0], max: [1919, 1079, 0] });
-  assert.deepStrictEqual(world.renderLod(), { axis: 2, scale: 4 });
-  let renderBlocks = 0;
-  for (const key of world.chunks.keys()) {
-    renderBlocks += world.chunkSnapshot(key, states, world.renderLod()).blocks.length;
-  }
-  assert.strictEqual(renderBlocks, (1920 / 4) * (1080 / 4));
 });
 
 test('a world with writes since its last finalize cannot be cloned, since it would write its clone\'s chunks', () => {

@@ -14,7 +14,7 @@ const step = (id) => setup.view().steps.find((entry) => entry.id === id);
 test('every step waits until its work starts, and only the shell image is optional', () => {
   const { ready, steps } = setup.view();
   assert.equal(ready, false);
-  assert.deepEqual(steps.map((entry) => entry.id), ['jdk', 'minecraft', 'tables', 'blocks', 'viewer', 'engine', 'browser', 'shell']);
+  assert.deepEqual(steps.map((entry) => entry.id), ['jdk', 'minecraft', 'tables', 'blocks', 'viewer', 'engine', 'draw', 'shell']);
   assert.ok(steps.every((entry) => entry.state === 'waiting' && typeof entry.title === 'string' && typeof entry.doing === 'string'));
   assert.deepEqual(steps.filter((entry) => entry.optional).map((entry) => entry.id), ['shell']);
 });
@@ -57,9 +57,9 @@ test('a failure about the machine makes a step unavailable, and the optional she
 });
 
 test('ready waits for every step that is not optional', async () => {
-  for (const { id } of setup.STEPS.filter((entry) => !entry.optional && entry.id !== 'browser')) await setup.track(id, () => {});
+  for (const { id } of setup.STEPS.filter((entry) => !entry.optional && entry.id !== 'draw')) await setup.track(id, () => {});
   assert.equal(setup.view().ready, false);
-  await setup.track('browser', () => {});
+  await setup.track('draw', () => {});
   assert.equal(setup.view().ready, true);
 });
 
@@ -77,7 +77,7 @@ test('retry runs the failed step again, and the step that waited on it; with not
   const os = require('node:os');
   const path = require('node:path');
   const tools = require('../server/tools');
-  const bytes = Buffer.from('the headless shell');
+  const bytes = Buffer.from('the screenshot renderer');
   let serving = false;
   const server = http.createServer((req, res) => (serving ? res.writeHead(200).end(bytes) : res.writeHead(404).end()));
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
@@ -88,19 +88,19 @@ test('retry runs the failed step again, and the step that waited on it; with not
   let finished;
   setup.start(() => {
     runs += 1;
-    finished = setup.track('browser', () => tools.download(`http://127.0.0.1:${server.address().port}/shell`, target,
+    finished = setup.track('draw', () => tools.download(`http://127.0.0.1:${server.address().port}/shell`, target,
       { sha256: crypto.createHash('sha256').update(bytes).digest('hex') }))
       .then(() => setup.track('engine', () => {}))
       .catch(() => {});
   });
   await finished;
-  assert.deepEqual([step('browser').state, step('engine').state], ['failed', 'waiting']);
-  assert.match(step('browser').error, /HTTP 404/);
+  assert.deepEqual([step('draw').state, step('engine').state], ['failed', 'waiting']);
+  assert.match(step('draw').error, /HTTP 404/);
 
   serving = true;
-  assert.equal(setup.retry().steps.find((entry) => entry.id === 'browser').state, 'running');
+  assert.equal(setup.retry().steps.find((entry) => entry.id === 'draw').state, 'running');
   await finished;
-  assert.deepEqual([runs, step('browser').state, step('engine').state], [2, 'done', 'done']);
+  assert.deepEqual([runs, step('draw').state, step('engine').state], [2, 'done', 'done']);
   assert.ok(fs.readFileSync(target).equals(bytes));
   assert.throws(() => setup.retry(), { statusCode: 409, message: 'No setup step failed' });
   assert.throws(() => setup.start(() => {}), /started already/);

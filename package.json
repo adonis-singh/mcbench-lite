@@ -14,7 +14,7 @@
     "codex:login": "npx --yes @openai/codex@0.169.0 login",
     "cursor:login": "node scripts/cursor-login.js",
     "test": "node --test \"test/**/*.test.js\"",
-    "test:ui": "MCBENCH_UI_INTEGRATION=1 node --test test/shot-browser.integration.test.js test/viewer-click.integration.test.js",
+    "test:ui": "MCBENCH_UI_INTEGRATION=1 node --test test/shot-draw.integration.test.js test/viewer-click.integration.test.js",
     "test:minecraft": "MCBENCH_VERIFY_INTEGRATION=1 node --test test/minecraft-verify.integration.test.js",
     "test:settle": "MCBENCH_SETTLE_INTEGRATION=1 node --test test/settle-flow.integration.test.js",
     "bench:3m": "node --expose-gc scripts/benchmark-3m.js",
@@ -28,8 +28,6 @@
     "@cursor/sdk": "^1.3.1",
     "@streamparser/json": "0.0.26",
     "better-sqlite3": "12.11.1",
-    "deepslate": "0.26.0",
-    "gl-matrix": "3.4.3",
     "htm": "3.1.1",
     "openai-oauth": "^2.0.0",
     "playwright-core": "^1.61.1"

@@ -190,8 +190,8 @@ function packTints(pack) {
     blocks.push({ id, first, properties });
   }
   const stateCount = u32();
-  const states = Array.from({ length: stateCount }, (_, i) => pack.readUInt32LE(at + i * 18 + 10));
-  at += stateCount * 18;
+  const states = Array.from({ length: stateCount }, (_, i) => pack.readUInt32LE(at + i * 20 + 10));
+  at += stateCount * 20;
   const faceSets = u32();
   at += faceSets * 6;
   const shapes = u16();
@@ -206,6 +206,10 @@ function packTints(pack) {
     at += masks;
   }
   at += 13;
+  const renderClasses = u32();
+  at += renderClasses * 34;
+  const fluidGroups = u32();
+  at += fluidGroups * 9 + 4; // and the water overlay
   const colors = Array.from({ length: u32() }, (_, i) => [0, 4, 8].reduce((color, offset) => (color << 8) | Math.round(pack.readFloatLE(at + i * 12 + offset) * 255), 0));
   const byName = new Map();
   for (const { id, first, properties } of blocks) {

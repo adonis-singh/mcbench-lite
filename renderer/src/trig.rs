@@ -1,59 +1,79 @@
-// flow-math 1.0.3 TrigMath.acos, the double polynomial BlueMap's liquid flow
-// angle goes through (not libm).
+// Minecraft's own trigonometry (net.minecraft.util.Mth), which
+// LiquidBlockRenderer turns a flowing fluid's texture by.
 
-use std::f64::consts::PI;
-
-pub const RAD_TO_DEG: f64 = 180.0 / PI;
-const HALF_PI: f64 = PI / 2.0;
-const SQ2P1: f64 = 2.414213562373095048802;
-const SQ2M1: f64 = 0.414213562373095048802;
-const P4: f64 = 0.161536412982230228262E2;
-const P3: f64 = 0.26842548195503973794141E3;
-const P2: f64 = 0.11530293515404850115428136E4;
-const P1: f64 = 0.178040631643319697105464587E4;
-const P0: f64 = 0.89678597403663861959987488E3;
-const Q4: f64 = 0.5895697050844462222791E2;
-const Q3: f64 = 0.536265374031215315104235E3;
-const Q2: f64 = 0.16667838148816337184521798E4;
-const Q1: f64 = 0.207933497444540981287275926E4;
-const Q0: f64 = 0.89678597403663861962481162E3;
-
-pub fn acos(value: f64) -> f64 {
-    if value > 1.0 || value < -1.0 {
-        f64::NAN
-    } else {
-        HALF_PI - asin(value)
-    }
-}
-
-fn asin(value: f64) -> f64 {
-    if value > 1.0 {
-        f64::NAN
-    } else if value < 0.0 {
-        -asin(-value)
-    } else {
-        let temp = (1.0 - value * value).sqrt();
-        if value > 0.7 {
-            HALF_PI - msatan(temp / value)
-        } else {
-            msatan(value / temp)
+// Mth.sin and Mth.cos: a table of 65,536 sines of a turn.
+fn sine_table() -> &'static [f32; 65536] {
+    static TABLE: std::sync::OnceLock<Box<[f32; 65536]>> = std::sync::OnceLock::new();
+    TABLE.get_or_init(|| {
+        let mut table = Box::new([0f32; 65536]);
+        for (i, value) in table.iter_mut().enumerate() {
+            *value = (i as f64 * std::f64::consts::PI * 2.0 / 65536.0).sin() as f32;
         }
-    }
+        table
+    })
 }
 
-fn mxatan(arg: f64) -> f64 {
-    let argsq = arg * arg;
-    let mut value = (((P4 * argsq + P3) * argsq + P2) * argsq + P1) * argsq + P0;
-    value /= ((((argsq + Q4) * argsq + Q3) * argsq + Q2) * argsq + Q1) * argsq + Q0;
-    value * arg
+pub fn mth_sin(value: f32) -> f32 {
+    sine_table()[((value * 10430.378) as i32 & 65535) as usize]
 }
 
-fn msatan(arg: f64) -> f64 {
-    if arg < SQ2M1 {
-        return mxatan(arg);
+pub fn mth_cos(value: f32) -> f32 {
+    sine_table()[((value * 10430.378 + 16384.0) as i32 & 65535) as usize]
+}
+
+// Mth.atan2, by its table of arcsines (ASIN_TAB, COS_TAB) and fastInvSqrt.
+pub fn mth_atan2(mut y: f64, mut x: f64) -> f64 {
+    static TABLES: std::sync::OnceLock<([f64; 257], [f64; 257])> = std::sync::OnceLock::new();
+    let (asin_tab, cos_tab) = TABLES.get_or_init(|| {
+        let (mut asin_tab, mut cos_tab) = ([0f64; 257], [0f64; 257]);
+        for i in 0..257 {
+            let asin = (i as f64 / 256.0).asin();
+            cos_tab[i] = asin.cos();
+            asin_tab[i] = asin;
+        }
+        (asin_tab, cos_tab)
+    });
+    let squared = x * x + y * y;
+    if squared.is_nan() {
+        return f64::NAN;
     }
-    if arg > SQ2P1 {
-        return HALF_PI - mxatan(1.0 / arg);
+    let negative_y = y < 0.0;
+    if negative_y {
+        y = -y;
     }
-    HALF_PI / 2.0 + mxatan((arg - 1.0) / (arg + 1.0))
+    let negative_x = x < 0.0;
+    if negative_x {
+        x = -x;
+    }
+    let steep = y > x;
+    if steep {
+        std::mem::swap(&mut x, &mut y);
+    }
+    let inverse = {
+        let half = 0.5 * squared;
+        let bits = 6910469410427058090i64.wrapping_sub((squared.to_bits() as i64) >> 1);
+        let guess = f64::from_bits(bits as u64);
+        guess * (1.5 - half * guess * guess)
+    };
+    x *= inverse;
+    y *= inverse;
+    let frac_bias = f64::from_bits(4805340802404319232u64);
+    let biased = frac_bias + y;
+    let index = biased.to_bits() as i32 as usize;
+    let asin = asin_tab[index];
+    let cos = cos_tab[index];
+    let near = biased - frac_bias;
+    let delta = y * cos - x * near;
+    let correction = (6.0 + delta * delta) * delta * 0.16666666666666666;
+    let mut angle = asin + correction;
+    if steep {
+        angle = 1.5707963267948966 - angle;
+    }
+    if negative_x {
+        angle = std::f64::consts::PI - angle;
+    }
+    if negative_y {
+        angle = -angle;
+    }
+    angle
 }

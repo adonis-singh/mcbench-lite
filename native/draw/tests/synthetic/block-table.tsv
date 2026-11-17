@@ -1,0 +1,22 @@
+minecraft:air	0	0	0
+test:stone	0	0	63
+test:glass	0	0	0
+test:lamp	0	0	63
+test:leaves	0	0	0
+test:slab[type=bottom]	0	0	0
+test:slab[type=top]	0	0	0
+test:torch	0	0	0
+test:sign	0	0	0
+test:water[level=0]	0	0	0
+test:water[level=1]	0	0	0
+test:water[level=2]	0	0	0
+test:water[level=3]	0	0	0
+test:water[level=4]	0	0	0
+test:water[level=5]	0	0	0
+test:water[level=6]	0	0	0
+test:water[level=7]	0	0	0
+test:lava	0	0	0
+test:wet_slab	0	0	0
+pairs
+faceoccludes
+facehides

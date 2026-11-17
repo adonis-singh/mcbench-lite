@@ -29,7 +29,7 @@ const STEPS = [
   { id: 'blocks', title: 'Block data for the page', doing: 'Downloading block data for the page', optional: false },
   { id: 'viewer', title: '3D viewer', doing: 'Preparing the 3D viewer', optional: false },
   { id: 'engine', title: 'Minecraft engine', doing: 'Downloading the Minecraft engine', optional: false },
-  { id: 'browser', title: 'Screenshot browser', doing: 'Downloading the screenshot browser', optional: false },
+  { id: 'draw', title: 'Screenshot renderer', doing: 'Downloading and starting the screenshot renderer', optional: false },
   { id: 'shell', title: "Model's shell", doing: "Building the model's shell image", optional: true },
 ];
 

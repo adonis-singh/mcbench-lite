@@ -31,8 +31,8 @@ import javax.imageio.ImageIO;
 // What Minecraft's client draws of every kind of entity the engine holds,
 // asked of its own entity renderers in the bake's JVM, where McbenchClient
 // has started the client's classes; the live viewer's entity layer
-// (web/entities.mjs) and see_build (web/viewer.js) draw entities from it,
-// through web/entity-draw.mjs.
+// (web/entities.mjs, through web/entity-draw.mjs) and see_build's renderer
+// (native/draw) draw entities from it.
 //
 // Each kind's renderer is made as the client makes it (EntityRenderers's
 // provider, from an EntityRendererProvider.Context), an entity of the kind is

@@ -1,17 +1,21 @@
 'use strict';
 
+const path = require('path');
+const { spawn } = require('child_process');
 const { World } = require('./world');
-const { token } = require('./auth');
-const tools = require('./tools');
+const draw = require('./draw');
+const setup = require('./setup');
+const shotWorlds = require('./shot-world');
 const { minecraftLive } = require('./minecraft-live');
-const { MIN_MC_Y } = require('./minecraft-dimension');
 
-// see_build screenshots: a headless Chromium runs web/shot.html, a deepslate
-// pipeline with custom shaders, ambient occlusion and voxel lighting. A shot
-// is a named view or a camera of the model's own (eye and target), framing
-// the build, a region, or a clip box (only the blocks inside it are drawn),
-// in perspective or orthographic projection; straight orthographic views can
-// carry a block grid labelled with coordinates.
+// see_build screenshots: mcbench-draw (native/draw), a native program kept
+// running beside the server, draws them on the GPU from the engine's world
+// with the mesher's quads (renderer/), see_build's shading, sky and light.
+// A shot is a named view or a camera of the model's own (eye and target),
+// framing the build, a region, or a clip box (only the blocks inside it are
+// drawn), in perspective or orthographic projection; straight orthographic
+// views can carry a block grid labelled with coordinates. The camera is
+// resolved here (resolveShot) and drawn there as resolved.
 
 // yaw: compass position of the eye (0 = south, 90 = east), pitch: degrees
 // below the horizon.
@@ -35,116 +39,204 @@ const SIZES = { large: [2184, 1640], small: [1092, 820] };
 // edges are averaged instead of aliased.
 const SUPERSAMPLE = 2;
 const DEFAULT_FOV = 70;
-// The lowest height a block can have in the world see_build draws (the
-// engine's, at the page's heights: shot-world.js), below which the page
-// lights nothing, as the live viewer's mesher does.
-const FLOOR = MIN_MC_Y - minecraftLive.yOffset;
 const MARGIN = 1.06;
-// As the screenshot page's own JPEGs (web/shot.mjs).
-const MONTAGE_JPEG_QUALITY = 0.9;
+// Every picture is a JPEG of this quality: a large shot as PNG runs to
+// megabytes, and every request carries the latest screenshot batches.
+const JPEG_QUALITY = 90;
 
 const STAGE_TIMEOUT_MS = Number(process.env.MCBENCH_SHOT_STAGE_TIMEOUT_MS || 120_000);
 if (!Number.isFinite(STAGE_TIMEOUT_MS) || STAGE_TIMEOUT_MS <= 0) throw new Error('Invalid screenshot stage timeout');
+// A helper with nothing to do for this long is stopped, so an idle app holds
+// no renderer memory (0.8 GB on the M3, 2.2 GB on an RTX 5090 after a large
+// build); the next call starts it again (0.2 to 0.6 s) and sends its world
+// again (0.6 to 0.8 s for 2 million blocks). Two minutes keeps it through a
+// turn, whose tool calls come seconds to tens of seconds apart, and lets it go
+// soon after the turn ends.
+const IDLE_MS = Number(process.env.MCBENCH_SHOT_IDLE_MS || 120_000);
+if (!Number.isFinite(IDLE_MS) || IDLE_MS <= 0) throw new Error('Invalid screenshot renderer idle time');
+
 // The renderer: `renderer.name` is one of
-//   none     no browser
-//   opening  Chromium is being launched and the page loaded
-//   ready    the page is loaded
-//   closed   closeRenderer ended it: no browser opens again in this process
-// opening and ready are one run: the same object, holding its `browser`
-// (once launched) and `page` (a promise). A run ends once, in leave(): a
-// crash, a page or browser that closed, a job that failed, stalled or was
-// cancelled, and closeRenderer all end it there, and its browser is closed,
-// so no Chromium outlives the run that launched it. A run that ended is
-// `left`, and the renderer no longer.
+//   none      no helper
+//   starting  the helper is being installed, started and given its assets
+//             (hello)
+//   ready     the helper answered hello
+//   closed    closeRenderer ended it: no helper starts again in this process
+// starting and ready are one run: the same object, holding its `child` (once
+// spawned), `ready` (a promise of its hello) and the requests it has not
+// answered (`replies`, by id). A run ends once, in leave(): a helper that
+// exited (a crash, a lost device), a request that stalled, and closeRenderer
+// all end it there, and its process is killed, so no helper outlives the run
+// that started it. A run that ended is `left`, and the renderer no longer.
 let renderer = { name: 'none' };
 let queue = Promise.resolve();
+// Calls queued or under way, and the timer that stops an idle helper.
+let busy = 0;
+let idle = null;
 
-// Headless Chromium on Linux draws WebGL on the CPU (SwiftShader) unless
-// ANGLE is pointed at the GPU; of its GPU backends, Vulkan gives the same
-// pixels from one call to the next (EGL does not). macOS draws with Metal.
-const GPU_ARGS = process.platform === 'linux' ? ['--use-angle=vulkan', '--enable-features=Vulkan', '--ignore-gpu-blocklist'] : [];
-
-async function openPage(run) {
-  const { chromium } = require('playwright-core');
-  run.browser = await chromium.launch({
-    executablePath: await tools.headlessShell(),
-    args: [...GPU_ARGS, '--enable-unsafe-swiftshader'],
+// Queues `work` behind every call before it. Once the queue is empty, the
+// helper is stopped after IDLE_MS unless another call comes first.
+function enqueue(work) {
+  busy += 1;
+  clearTimeout(idle);
+  const job = queue.then(work);
+  queue = job.catch(() => {});
+  queue.then(() => {
+    busy -= 1;
+    if (busy > 0) return;
+    const run = renderer;
+    idle = setTimeout(() => { if (busy === 0 && renderer === run && run.name === 'ready') leave(run); }, IDLE_MS);
+    idle.unref();
   });
-  // A run left while Chromium launched has no use for it.
-  if (run.name === 'left') {
-    run.browser.close().catch(() => {});
-    throw new Error('The screenshot renderer was discarded while it opened');
-  }
-  // The page is the app's own: it holds the app's access token (auth.js).
-  const page = await run.browser.newPage({ viewport: { width: 1024, height: 768 }, extraHTTPHeaders: { authorization: `Bearer ${token()}` } });
-  page.on('crash', () => leave(run));
-  page.on('close', () => leave(run));
-  run.browser.on('disconnected', () => leave(run));
-  const port = Number(process.env.PORT || 3020);
-  await page.goto(`http://127.0.0.1:${port}/shot.html`, { waitUntil: 'load' });
-  if (run.name === 'opening') run.name = 'ready';
-  return page;
+  return job;
+}
+// The adapter the helper said it draws on, logged when it is first told and
+// when a restarted helper tells another.
+let adapterLine = null;
+
+// A failure of the helper itself, after which it is started again and the
+// call tried once more: it exited, or it lost its graphics device (it exits
+// then too, PROTOCOL.md).
+const restartable = (error) => Object.assign(error, { restart: true });
+// A failure the helper reported or caused, which a stage names
+// ("Screenshot <stage>: ..."), as today's page's crashes and page errors were
+// named. Other failures (an install that failed) reach the caller as they are.
+const named = (error) => Object.assign(error, { named: true });
+// The words a model has been given since before the helper for the same
+// situations (server/shot.js and web/shot.mjs on main): a lost graphics
+// device, and a world that is not placed for the conversation.
+const LOST_DEVICE = 'page.evaluate: Error: Screenshot WebGL context lost';
+
+function startRun() {
+  const run = { name: 'starting', child: null, replies: new Map(), ids: 0, exited: null, sent: new Map() };
+  // Started: installed, given its files' paths and spawned. Ready: it
+  // answered hello.
+  run.started = (async () => {
+    const program = await draw.installDraw();
+    const assets = await draw.helperAssets(program);
+    // A run left while the helper was installed has no use for it.
+    if (run.name === 'left') throw new Error('The screenshot renderer was discarded while it opened');
+    // In its own folder: SwiftShader, the software floor, reads a
+    // SwiftShader.ini from the folder it runs in.
+    const child = spawn(program, ['serve'], { cwd: path.dirname(program), stdio: ['pipe', 'pipe', 'pipe'] });
+    run.child = child;
+    run.exited = new Promise((resolve) => child.once('close', (code, signal) => resolve({ code, signal })));
+    run.exited.then(({ code, signal }) => {
+      if (run.name !== 'left') console.error(`[see_build] the renderer exited (${signal ? `signal ${signal}` : `exit status ${code}`})`);
+      leave(run, named(restartable(new Error('renderer crashed'))));
+    });
+    child.once('error', (error) => leave(run, named(new Error(`renderer could not be started: ${error.message}`))));
+    // A helper that exited fails its requests through leave(); a write to it
+    // meanwhile fails here first.
+    child.stdin.on('error', () => {});
+    const reader = new draw.FrameReader((header, payloads) => answer(run, header, payloads));
+    child.stdout.on('data', (chunk) => {
+      try {
+        reader.push(chunk);
+      } catch (error) {
+        leave(run, named(new Error(`renderer sent a frame that cannot be read: ${error.message}`)));
+      }
+    });
+    let line = '';
+    child.stderr.setEncoding('utf8');
+    child.stderr.on('data', (text) => {
+      const lines = (line + text).split('\n');
+      line = lines.pop();
+      for (const entry of lines) if (entry) console.log(`[see_build] ${entry}`);
+    });
+    return assets;
+  })();
+  run.ready = run.started.then(async (assets) => {
+    // What it keeps between calls is bounded by its own default
+    // (PROTOCOL.md memoryLimit), which the server does not change.
+    const { header } = await request(run, { type: 'hello', assets });
+    const { name, backend, deviceType, driver, driverInfo, software } = header.adapter;
+    const told = `[see_build] ${header.version} draws on ${name} (${backend}, ${deviceType}${driver ? `, ${[driver, driverInfo].filter(Boolean).join(' ')}` : ''})${software ? ', software: true: a CPU rasteriser draws the screenshots' : ''}`;
+    if (told !== adapterLine) console.log(told);
+    adapterLine = told;
+    if (run.name === 'starting') run.name = 'ready';
+  });
+  run.ready.catch(() => leave(run));
+  return run;
 }
 
 // The run that renders now: the one open, or a new one.
 function currentRun() {
   if (renderer.name === 'closed') throw new Error('The screenshot renderer was shut down');
-  if (renderer.name === 'none') {
-    const run = { name: 'opening', browser: null, page: null };
-    run.page = openPage(run);
-    run.page.catch(() => leave(run));
-    renderer = run;
-  }
+  if (renderer.name === 'none') renderer = startRun();
   return renderer;
 }
 
-// Ends a run, once, and answers its browser's close. Nothing but
-// closeRenderer waits for that, and it no longer than a stage: a crashed
-// browser's close can hang, and must not block the next queued screenshot.
-function leave(run) {
-  if (run.name === 'left') return run.closing;
+// Ends a run, once: its helper is killed and every request it had not
+// answered fails with `error` (or that the renderer was reset). Answers the
+// helper's exit.
+function leave(run, error = new Error('renderer reset')) {
+  if (run.name === 'left') return run.exited || Promise.resolve();
   run.name = 'left';
+  // A request made of it later fails as the run ended: a helper that
+  // exited between two requests of a call is a crash, which the call
+  // retries on a fresh helper as one that exited during a request.
+  run.ended = error;
   if (renderer === run) renderer = { name: 'none' };
-  run.closing = Promise.resolve(run.browser?.close());
-  run.closing.catch(() => {});
-  return run.closing;
+  for (const { reject } of run.replies.values()) reject(error);
+  run.replies.clear();
+  run.child?.kill('SIGKILL');
+  return run.exited || Promise.resolve();
 }
 
-// evaluate() has no Playwright timeout, and renderer crashes can leave it pending.
-// Race each stage against explicit lifecycle events and an independent Node timer.
-async function stage(label, operation, page, signal, timings) {
+// Sends one request; resolves with its reply ({ header, payloads }) or
+// rejects with its error, the reply's flags on it (deviceLost: the helper
+// restarts; unknownWorld: the world must be sent).
+function request(run, header, payloads = [], onId = () => {}) {
+  if (run.name === 'left') return Promise.reject(run.ended);
+  const id = ++run.ids;
+  onId(id);
+  return new Promise((resolve, reject) => {
+    run.replies.set(id, { resolve, reject });
+    run.child.stdin.write(draw.encodeFrame({ id, ...header }, payloads));
+  });
+}
+
+function answer(run, header, payloads) {
+  const waiting = run.replies.get(header.id);
+  if (!waiting) return leave(run, named(new Error(`renderer answered request ${JSON.stringify(header.id)}, which it was not asked`)));
+  run.replies.delete(header.id);
+  if (header.ok === true) return waiting.resolve({ header, payloads });
+  // A lost device is told as today's page told a lost WebGL context; the
+  // helper's reason goes to the log.
+  if (header.deviceLost) console.error(`[see_build] ${header.error}`);
+  const error = header.deviceLost ? restartable(new Error(LOST_DEVICE)) : named(new Error(String(header.error)));
+  if (header.unknownWorld) error.unknownWorld = true;
+  waiting.reject(error);
+}
+
+// Each step of a call is bounded: a helper that stops answering is killed
+// and the step fails, so the queue behind it moves on. An abort fails the
+// step at once with the signal's reason; the helper's own job is cancelled
+// by the caller (renderShots). A failure names the step.
+async function stage(label, operation, run, signal, timings) {
   const started = process.hrtime.bigint();
-  try {
-    return await runStage(label, operation, page, signal);
-  } finally {
-    if (timings) timings[label] = (timings[label] || 0) + Number(process.hrtime.bigint() - started) / 1e6;
-  }
-}
-
-async function runStage(label, operation, page, signal) {
-  let rejectFailure;
-  const failure = new Promise((_, reject) => { rejectFailure = reject; });
-  const crash = () => rejectFailure(new Error(`Screenshot ${label}: renderer crashed`));
-  const closed = () => rejectFailure(new Error(`Screenshot ${label}: renderer disconnected`));
-  const pageError = error => rejectFailure(new Error(`Screenshot ${label}: ${error.message || error}`));
-  const abort = () => rejectFailure(signal.reason || new Error('Screenshot cancelled'));
-  const browser = page?.context().browser();
-  page?.on('crash', crash);
-  page?.on('close', closed);
-  page?.on('pageerror', pageError);
-  browser?.on('disconnected', closed);
-  signal?.addEventListener('abort', abort, { once: true });
-  const timer = setTimeout(() => rejectFailure(new Error(`Screenshot ${label} stalled for ${STAGE_TIMEOUT_MS / 1000}s; renderer reset, screenshot unavailable`)), STAGE_TIMEOUT_MS);
+  let timer;
+  let abort;
   try {
     signal?.throwIfAborted();
-    return await Promise.race([Promise.resolve().then(operation), failure]);
+    const stalled = new Promise((_, reject) => {
+      timer = setTimeout(() => {
+        reject(new Error(`Screenshot ${label} stalled for ${STAGE_TIMEOUT_MS / 1000}s; renderer reset, screenshot unavailable`));
+        leave(run);
+      }, STAGE_TIMEOUT_MS);
+    });
+    const aborted = new Promise((_, reject) => {
+      abort = () => reject(signal.reason || new Error('Screenshot cancelled'));
+      signal?.addEventListener('abort', abort, { once: true });
+    });
+    return await Promise.race([Promise.resolve().then(operation), stalled, aborted]).catch((error) => {
+      if (error.named) error.message = `Screenshot ${label}: ${error.message}`;
+      throw error;
+    });
   } finally {
     clearTimeout(timer);
-    page?.off?.('crash', crash);
-    page?.off?.('close', closed);
-    page?.off?.('pageerror', pageError);
-    browser?.off?.('disconnected', closed);
     signal?.removeEventListener('abort', abort);
+    if (timings) timings[label] = (timings[label] || 0) + Number(process.hrtime.bigint() - started) / 1e6;
   }
 }
 
@@ -345,79 +437,113 @@ function resolveShot(spec, world, entities, sizes = SIZES) {
     described = { projection, eye: target.map((v, i) => round(v - forward[i] * distance)), target: target.map(round), fov };
   }
   if (clip) described.clip = { from: clip.min, to: clip.max };
-  return { width, height, camera, clip, grid, described };
+  // `world` is what renderShots draws: the settle it was resolved on.
+  return { width, height, camera, clip, grid, described, world };
 }
 
-// Runs `attempt`, and once more after `discard` when the first run fails
-// on a lost WebGL context: a lost context invalidates all cached GPU
-// resources, and the first launch of a newly installed headless shell on
-// macOS loses it right after the viewer starts. A second loss, any other
-// error or an abort fails as it is.
-async function retryLostContext(attempt, discard, signal) {
+// Runs `attempt`, and once more after `discard` when the first run fails on
+// the helper itself (it exited, or lost its graphics device): a fresh helper
+// holds no world, so the second run sends its worlds again. A second such
+// failure, any other error or an abort fails as it is.
+async function retryOnce(attempt, discard, signal) {
   for (let tries = 0; ; tries++) {
     try {
       return await attempt();
     } catch (error) {
-      if (signal?.aborted || tries > 0 || !String(error.message).includes('Screenshot WebGL context lost')) throw error;
+      if (signal?.aborted || tries > 0 || !error.restart) throw error;
       discard();
     }
   }
 }
 
-const groupKey = (shot) => `${shot.tick ?? ''}@${shot.clip ? `${shot.clip.min.join(',')}:${shot.clip.max.join(',')}` : ''}`;
+// What a shot is to the helper: resolveShot's fields it draws.
+const drawn = ({ width, height, camera, clip, grid }) => ({ width, height, camera, clip, grid });
+const add = (timings, name, value) => { timings[name] = (timings[name] || 0) + value; };
+const isJpeg = (buffer) => buffer.length > 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
 
 // Renders resolved shots (resolveShot, each with the `tick` of the engine
-// world it shows) of a conversation's engine world. The shots that share a
-// tick and a clip share one world load; calls are serialized through
-// one warm page and one canvas. Each shot is a JPEG.
+// world it shows) of a conversation's engine world. The shots of one settled
+// world are one request; a world the helper does not keep is sent to it
+// first, once (the engine's blueprint and entities, shot-world.js sceneOf).
+// Calls are serialized through the one helper. Each shot is a JPEG.
+//
+// A world sent names as its `base` the conversation's world sent before it,
+// of the same tick when there is one, so the helper re-meshes only what
+// differs (PROTOCOL.md). The base is dropped (`keepBase` false) when it is an
+// older edition of the build: after an edit nothing draws the old build
+// again (agent.js see_build and share.js draw the conversation's current
+// world). It is kept when it is the same edition at another tick: a
+// see_build of several ticks draws each, and the next one may again. Worlds
+// of other conversations (a bench's members, share.js) are never bases. A
+// base the helper no longer holds is answered `unknownWorld`: the world is
+// then sent whole.
 function renderShots(conversationId, shots, signal, timings = {}) {
   signal?.throwIfAborted();
-  const groups = new Map();
-  shots.forEach((shot, index) => {
-    const key = groupKey(shot);
-    if (!groups.has(key)) groups.set(key, { clip: shot.clip, tick: shot.tick, shots: [] });
-    groups.get(key).shots.push(index);
-  });
-  let activePage, run;
-  const discardPage = () => { if (run) leave(run); };
-  // A fresh page reloads the complete world; it never reuses the lost
-  // page's chunk-version cache.
-  const job = queue.then(() => retryLostContext(capture, () => { discardPage(); activePage = null; }, signal));
+  let run;
+  let active = null;
+  const job = enqueue(() => retryOnce(capture, () => leave(run), signal));
   async function capture() {
     signal?.throwIfAborted();
+    // One world per settle: its shots in one request, in their order.
+    const groups = new Map();
+    shots.forEach((shot, index) => {
+      const scene = shotWorlds.sceneOf(shot.world);
+      if (!groups.has(scene)) groups.set(scene, { name: `${conversationId}/tick ${shot.tick}/${scene.serial}`, tick: shot.tick, scene, shots: [] });
+      groups.get(scene).shots.push(index);
+    });
     run = currentRun();
-    const page = await stage('startup', () => run.page, null, signal, timings);
-    activePage = page;
-    signal?.throwIfAborted();
-    await stage('initialization', () => page.evaluate((floor) => window.__shot.init(floor), FLOOR), page, signal, timings);
+    await stage('startup', () => run.started, run, signal, timings);
+    await stage('initialization', () => run.ready, run, signal, timings);
+    // The worlds this helper was sent of the conversation: by tick, and the last.
+    if (!run.sent.has(conversationId)) run.sent.set(conversationId, { ticks: new Map(), last: null });
+    const sent = run.sent.get(conversationId);
     const buffers = new Array(shots.length);
-    for (const group of groups.values()) {
-      const clip = group.clip && { from: group.clip.min, to: group.clip.max };
-      await stage('world loading', () => page.evaluate(([id, box, tick]) => window.__shot.load(id, box, tick), [conversationId, clip, group.tick]), page, signal, timings);
-      await stage('meshing', () => page.evaluate(() => window.__shot.settle()), page, signal, timings);
-      const frames = group.shots.map((index) => {
-        const { camera, width, height, grid } = shots[index];
-        return { camera, width, height, supersample: SUPERSAMPLE, grid };
-      });
-      // All shots of the group in one call (one task in the page).
-      const dataUrls = await stage('capture', () => page.evaluate((specs) => window.__shot.frames(specs), frames), page, signal, timings);
-      group.shots.forEach((index, i) => {
-        const dataUrl = dataUrls[i];
-        if (typeof dataUrl !== 'string' || !dataUrl.startsWith('data:image/jpeg;base64,')) {
-          throw new Error('Screenshot renderer returned no JPEG image');
+    for (const { name, tick, scene, shots: indices } of groups.values()) {
+      const send = async () => {
+        const base = sent.ticks.get(tick) || sent.last;
+        const world = (edit) => stage('world loading', () => request(run, {
+          type: 'world', world: name, yOffset: minecraftLive.yOffset, ...(edit ? { base: edit.name, keepBase: edit.edition === scene.edition } : {}),
+        }, [scene.blueprint, Buffer.from(JSON.stringify(scene.entities))]), run, signal, timings);
+        const edit = base && base.name !== name ? base : null;
+        let reply;
+        try {
+          reply = await world(edit);
+        } catch (error) {
+          if (!error.unknownWorld) throw error;
+          reply = await world(null);
         }
-        buffers[index] = Buffer.from(dataUrl.slice('data:image/jpeg;base64,'.length), 'base64');
-      });
+        // A base the helper dropped is no one's base again.
+        if (edit && edit.edition !== scene.edition) for (const [at, held] of sent.ticks) if (held.name === edit.name) sent.ticks.delete(at);
+        const { header } = reply;
+        for (const phase of ['read', 'mesh', 'entities', 'upload']) add(timings, `world ${phase}`, header.timings[phase]);
+        // A texture the atlas lacks leaves its quads undrawn: said, not hidden.
+        if (header.missingTextures.length) console.error(`[see_build] ${name}: the block atlas has no ${header.missingTextures.join(', ')}; their faces are not drawn`);
+        sent.ticks.set(tick, { name, edition: scene.edition });
+        sent.last = { name, edition: scene.edition };
+      };
+      const drawShots = () => stage('capture', () => request(run, {
+        type: 'shots', world: name, shots: indices.map((index) => drawn(shots[index])), supersample: SUPERSAMPLE, format: { type: 'jpeg', quality: JPEG_QUALITY },
+      }, [], (id) => { active = { run, id }; }), run, signal, timings).finally(() => { active = null; });
+      let reply;
+      try {
+        reply = await drawShots();
+      } catch (error) {
+        if (!error.unknownWorld) throw error;
+        await send();
+        reply = await drawShots();
+      }
+      if (reply.payloads.length !== indices.length || !reply.payloads.every(isJpeg)) throw new Error('Screenshot renderer returned no JPEG image');
+      for (const shot of reply.header.shots) for (const phase of ['scene', 'draw', 'readback', 'grid', 'encode']) add(timings, `shot ${phase}`, shot.timings[phase]);
+      indices.forEach((index, i) => { buffers[index] = reply.payloads[i]; });
     }
     return buffers;
   }
-  // Keep the chain alive after failures, but reset the page so the next call
-  // starts clean instead of inheriting a wedged renderer.
-  queue = job.catch(discardPage);
   if (!signal) return job;
   return new Promise((resolve, reject) => {
+    // A call cancelled while queued never reaches the helper; one under way
+    // has its job cancelled in the helper, which stays up.
     const abort = () => {
-      if (activePage) leave(run);
+      if (active && active.run.name !== 'left') request(active.run, { type: 'cancel', job: active.id }).catch(() => {});
       reject(signal.reason);
     };
     signal.addEventListener('abort', abort, { once: true });
@@ -442,81 +568,70 @@ function montageCells(count, side) {
 }
 
 // One JPEG of `width` x `height` with each JPEG of `tiles` drawn at its cell
-// (montageCells), drawn on a canvas in the screenshot page.
+// (montageCells), drawn by the helper.
 function composeMontage(tiles, cells, [width, height]) {
   if (tiles.length !== cells.length) throw new Error('A card needs one shot per cell');
   let run;
-  const job = queue.then(async () => {
+  return enqueue(() => retryOnce(async () => {
     run = currentRun();
-    const page = await stage('startup', () => run.page, null);
-    const dataUrl = await stage('montage', () => page.evaluate(async ({ images, boxes, size, quality }) => {
-      const canvas = document.createElement('canvas');
-      [canvas.width, canvas.height] = size;
-      const context = canvas.getContext('2d');
-      for (let i = 0; i < images.length; i += 1) {
-        const image = new Image();
-        image.src = images[i];
-        await image.decode();
-        const { x, y, width: w, height: h } = boxes[i];
-        context.drawImage(image, x, y, w, h);
-      }
-      return canvas.toDataURL('image/jpeg', quality);
-    }, {
-      images: tiles.map((tile) => `data:image/jpeg;base64,${tile.toString('base64')}`),
-      boxes: cells,
-      size: [width, height],
-      quality: MONTAGE_JPEG_QUALITY,
-    }), page);
-    if (typeof dataUrl !== 'string' || !dataUrl.startsWith('data:image/jpeg;base64,')) throw new Error('Screenshot renderer returned no JPEG image');
-    return Buffer.from(dataUrl.slice('data:image/jpeg;base64,'.length), 'base64');
-  });
-  queue = job.catch(() => { if (run) leave(run); });
-  return job;
+    await stage('startup', () => run.started, run);
+    await stage('initialization', () => run.ready, run);
+    const { payloads } = await stage('montage', () => request(run, { type: 'montage', size: [width, height], cells, quality: JPEG_QUALITY }, tiles), run);
+    if (payloads.length !== 1 || !isJpeg(payloads[0])) throw new Error('Screenshot renderer returned no JPEG image');
+    return payloads[0];
+  }, () => leave(run)));
 }
 
-// Starts the renderer and its viewer before the first screenshot needs them
-// (Chromium's launch and the viewer's shaders take seconds). Its stages are
-// bounded as a screenshot's are, and one that fails or stalls ends the run,
-// so the queue behind it moves on.
+// Starts the helper before the first screenshot needs it (its graphics
+// device, assets and pipelines take a moment). Its start is bounded as a
+// screenshot's stages are, and one that fails or stalls ends the run, so the
+// queue behind it moves on. A helper that exits or loses its device while
+// starting is started once more, as a screenshot's would be.
 function warmRenderer() {
   let run;
-  // A context lost while warming ends the run and warms a fresh renderer, as
-  // a screenshot does, so the first see_build does not pay a browser start.
-  const job = queue.then(() => retryLostContext(warm, () => leave(run)));
-  async function warm() {
+  return enqueue(() => retryOnce(async () => {
     run = currentRun();
-    const page = await stage('startup', () => run.page, null);
-    await stage('initialization', () => page.evaluate((floor) => window.__shot.init(floor), FLOOR), page);
-    // The first shot of a large size otherwise sizes the canvas and makes
-    // its buffers itself (60 to 400 ms on the first see_build).
-    const [width, height] = SIZES.large;
-    await stage('warm frame', () => page.evaluate((spec) => window.__shot.warm(spec), {
-      camera: { yaw: 0, pitch: 0, focus: [0, 0, 0], focusDist: 10, fov: DEFAULT_FOV }, width, height, supersample: SUPERSAMPLE, grid: null,
-    }), page);
-  }
-  queue = job.catch(() => { if (run) leave(run); });
-  return job;
+    await stage('startup', () => run.started, run);
+    await stage('initialization', () => run.ready, run);
+  }, () => leave(run)));
 }
 
-// Closes the browser for good: a job queued meanwhile finds no page. The job
-// under way finishes on the run that was open, which then ends. The close is
-// bounded as a stage is, so a Chromium whose close hangs fails this instead
-// of hanging the server's shutdown: that browser is left to Playwright,
-// which kills the browsers it launched when this process exits.
+// The first start's step `draw` (setup.js): the helper installed, the
+// viewer's bake it draws with made, and the helper started, so a helper that
+// cannot draw on this machine (no graphics adapter it may use) fails the step
+// with its own sentence, which see_build then answers too. Retried with the
+// other steps (setup.retry), never on its own.
+function startRenderer() {
+  return setup.track('draw', async () => {
+    await draw.installDraw();
+    await minecraftLive.prepareViewer();
+    await warmRenderer();
+  });
+}
+
+// Ends the helper for good: a job queued meanwhile finds none. The job under
+// way finishes on the run that was open, which then ends: its stdin is
+// closed, and the helper exits once it answered. A helper that does not exit
+// within a stage's time is killed, and this fails saying so.
 async function closeRenderer() {
   const run = renderer;
   renderer = { name: 'closed' };
+  clearTimeout(idle);
   await queue;
-  if (!['opening', 'ready'].includes(run.name)) return;
+  if (!['starting', 'ready'].includes(run.name)) return;
+  if (!run.child) return leave(run);
+  run.child.stdin.end();
   let timer;
-  const stalled = new Promise((_, reject) => {
-    timer = setTimeout(() => reject(new Error(`The screenshot browser did not close within ${STAGE_TIMEOUT_MS / 1000}s`)), STAGE_TIMEOUT_MS);
-  });
+  const stalled = new Promise((resolve) => { timer = setTimeout(resolve, STAGE_TIMEOUT_MS, 'stalled'); });
   try {
-    await Promise.race([leave(run), stalled]);
+    if (await Promise.race([run.exited, stalled]) === 'stalled') {
+      await leave(run);
+      throw new Error(`The screenshot renderer did not close within ${STAGE_TIMEOUT_MS / 1000}s`);
+    }
+    leave(run);
   } finally {
     clearTimeout(timer);
   }
 }
 
-module.exports = { resolveShot, renderShots, montageCells, composeMontage, VIEWS, SIZES, warmRenderer, closeRenderer };
+module.exports = { resolveShot, renderShots, montageCells, composeMontage, VIEWS, SIZES, SUPERSAMPLE, JPEG_QUALITY, warmRenderer, startRenderer, closeRenderer };

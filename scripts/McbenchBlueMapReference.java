@@ -106,7 +106,10 @@ public class McbenchBlueMapReference {
     Minecraft.entities = Entities.read(Path.of("web/mcbench-pack.bin"));
     var vanilla = new ResourcePack(resources.getPackVersion());
     vanilla.loadResources(List.of(Path.of(args[3])));
-    for (String id : Minecraft.entities.blocks) {
+    // Blocks drawn by Minecraft's own blockstates and models (the bake's
+    // vanilla-blocks.txt): those drawn through a block entity renderer, and
+    // those whose files BlueMap's resource extensions replace.
+    for (String id : Files.readAllLines(Path.of("vanilla-blocks.txt"))) {
       Key key = Key.parse(id);
       var blockState = vanilla.getBlockStates().get(key);
       if (blockState == null) {
@@ -180,7 +183,7 @@ public class McbenchBlueMapReference {
     ClassDesc model = ClassDesc.of(Model.class.getName()), direction = ClassDesc.of(Direction.class.getName());
     ClassDesc properties = ClassDesc.of(BlockProperties.class.getName());
     ClassDesc bool = ClassDesc.ofDescriptor("Z");
-    write(folder, ResourceModelRenderer.class, Map.of("createElementFace", 6, "testAo", 2), (method, counts) -> new CodeTransform() {
+    write(folder, ResourceModelRenderer.class, Map.of("createElementFace", 6, "testAo", 2, "render", 4), (method, counts) -> new CodeTransform() {
       int neighbour = -1;
       boolean afterNeighbour, dropOccluding;
       public void accept(CodeBuilder code, CodeElement element) {
@@ -199,6 +202,11 @@ public class McbenchBlueMapReference {
         } else if (element instanceof InvokeInstruction call && call.owner().asSymbol().equals(model) && call.name().equalsString("isAmbientocclusion")) {
           code.aload(0).getfield(self, "block", neighbourhood).invokestatic(minecraft, "ambientOcclusion", MethodTypeDesc.of(bool, model, neighbourhood));
           counts.merge("isAmbientocclusion", 1, Integer::sum);
+        } else if (method.equals("render") && element instanceof InvokeInstruction call && call.owner().asSymbol().equals(properties) && call.name().equalsString("isRandomOffset")) {
+          // Minecraft's offset in place of BlueMap's: the view moved here,
+          // and BlueMap's own move skipped.
+          code.pop().aload(1).aload(3).invokestatic(minecraft, "offset", MethodTypeDesc.of(ClassDesc.ofDescriptor("V"), neighbourhood, ClassDesc.of(TileModelView.class.getName()))).iconst_0();
+          counts.merge("isRandomOffset", 1, Integer::sum);
         } else if (method.equals("testAo") && element instanceof InvokeInstruction call && call.owner().asSymbol().equals(extended) && call.name().equalsString("getProperties")) {
           code.invokestatic(minecraft, "shades", MethodTypeDesc.of(bool, extended));
           dropOccluding = true;
@@ -211,7 +219,7 @@ public class McbenchBlueMapReference {
           code.with(element);
         }
       }
-    }, Map.of("isCulling", 1, "getCullingIdentical", 1, "isAmbientocclusion", 1, "getProperties", 4, "isOccluding", 4));
+    }, Map.of("isCulling", 1, "getCullingIdentical", 1, "isAmbientocclusion", 1, "getProperties", 4, "isOccluding", 4, "isRandomOffset", 1));
     write(folder, LiquidModelRenderer.class, Map.of("createElementFace", 8), (method, counts) -> (code, element) -> {
       ClassDesc self = ClassDesc.of(LiquidModelRenderer.class.getName());
       if (element instanceof InvokeInstruction call && call.owner().asSymbol().equals(self) && call.name().equalsString("isSameLiquid")) {
@@ -226,13 +234,30 @@ public class McbenchBlueMapReference {
       }
     }, Map.of("isSameLiquid", 1, "isCulling", 1));
     ClassDesc state = ClassDesc.of(BlockState.class.getName()), view = ClassDesc.of(TileModelView.class.getName());
+    ClassDesc resourceState = ClassDesc.of(de.bluecolored.bluemap.core.resources.pack.resourcepack.blockstate.BlockState.class.getName());
     write(folder, BlockStateModelRenderer.class, Map.of("renderModel", 4), (method, counts) -> (code, element) -> {
+      if (element instanceof InvokeInstruction call && call.owner().asSymbol().equals(resourceState) && call.name().equalsString("forEach")) {
+        code.invokestatic(minecraft, "variants", MethodTypeDesc.of(ClassDesc.ofDescriptor("V"), resourceState, state, ClassDesc.ofDescriptor("I"), ClassDesc.ofDescriptor("I"), ClassDesc.ofDescriptor("I"), ClassDesc.of(Consumer.class.getName())));
+        counts.merge("forEach", 1, Integer::sum);
+        return;
+      }
       if (element instanceof java.lang.classfile.instruction.ReturnInstruction) {
         code.aload(1).aload(2).aload(3).invokestatic(minecraft, "entity", MethodTypeDesc.of(ClassDesc.ofDescriptor("V"), neighbourhood, state, view));
         counts.merge("return", 1, Integer::sum);
       }
       code.with(element);
-    }, Map.of("return", 2));
+    }, Map.of("return", 2, "forEach", 1));
+    // BlockNeighborhood makes a cache entry as a copy of its main block that
+    // says it is at 0, 0, 0 while reading where the main block is, and an
+    // entry's move to where it says it is is skipped: the entry at 0, 0, 0
+    // read the wrong block. Minecraft reads every block where it is: each
+    // move of an entry is made through a position beside it.
+    write(folder, BlockNeighborhood.class, Map.of("set", 3, "getBlock", 3), (method, counts) -> (code, element) -> {
+      if (element instanceof InvokeInstruction call && call.owner().asSymbol().equals(extended) && call.name().equalsString("set")) {
+        code.invokestatic(minecraft, "move", MethodTypeDesc.of(ClassDesc.ofDescriptor("V"), extended, ClassDesc.ofDescriptor("I"), ClassDesc.ofDescriptor("I"), ClassDesc.ofDescriptor("I")));
+        counts.merge("set", 1, Integer::sum);
+      } else code.with(element);
+    }, Map.of("set", 2));
   }
 
   interface Patch {
@@ -302,6 +327,73 @@ public class McbenchBlueMapReference {
       return table.ids.get(state);
     }
 
+    // The variants Minecraft's section renderer draws of a state at x, y, z
+    // (renderer/src/mesh.rs Draw::model): from the sets its blockstate
+    // applies (those BlueMap's BlockState.forEach visits), chosen with a
+    // random source seeded by the state's seed (Mth.getSeed of its position
+    // moved by the pack's seed step): a set of more than one variant takes
+    // nextInt of its total weight; a multipart blockstate takes nextLong
+    // first and seeds every set's choice with it. java.util.Random is
+    // Minecraft's LegacyRandomSource, call for call.
+    public static void variants(de.bluecolored.bluemap.core.resources.pack.resourcepack.blockstate.BlockState resource, BlockState state, int x, int y, int z, Consumer<de.bluecolored.bluemap.core.resources.pack.resourcepack.blockstate.Variant> consumer) {
+      var sets = new ArrayList<de.bluecolored.bluemap.core.resources.pack.resourcepack.blockstate.VariantSet>();
+      if (resource.getVariants() != null) {
+        var chosen = resource.getVariants().getDefaultVariant();
+        for (var set : resource.getVariants().getVariants()) if (set.getCondition().matches(state)) { chosen = set; break; }
+        if (chosen != null) sets.add(chosen);
+      }
+      boolean multipart = resource.getMultipart() != null;
+      if (multipart) for (var part : resource.getMultipart().getParts()) if (part.getCondition().matches(state)) sets.add(part);
+      int[] random = entities.random(state);
+      var source = new java.util.Random(seed(x + random[4], y + random[0], z + random[5]));
+      long shared = multipart ? source.nextLong() : 0;
+      for (var set : sets) {
+        if (multipart) source.setSeed(shared);
+        var variants = set.getVariants();
+        if (variants.length == 1) {
+          consumer.accept(variants[0]);
+          continue;
+        }
+        int total = 0;
+        for (var variant : variants) total += (int) variant.getWeight();
+        int left = source.nextInt(total);
+        for (var variant : variants) {
+          left -= (int) variant.getWeight();
+          if (left < 0) {
+            consumer.accept(variant);
+            break;
+          }
+        }
+      }
+    }
+
+    // A cache entry moved to x, y, z by way of the position above it, so
+    // that it reads the block there whatever it read before.
+    public static void move(ExtendedBlock block, int x, int y, int z) {
+      block.set(x, y + 1, z);
+      block.set(x, y, z);
+    }
+
+    // Mth.getSeed
+    static long seed(int x, int y, int z) {
+      long seed = (long) (x * 3129871) ^ (long) z * 116129781L ^ (long) y;
+      seed = seed * seed * 42317861L + seed * 11L;
+      return seed >> 16;
+    }
+
+    // Minecraft's offset of the block's model (BlockState.getOffset, the
+    // pack's offset kind and largest offsets), moving the model's faces.
+    public static void offset(BlockNeighborhood block, TileModelView view) {
+      int[] random = entities.random(block.getBlockState());
+      if (random[1] == 0) return;
+      float horizontal = Float.intBitsToFloat(random[2]), vertical = Float.intBitsToFloat(random[3]);
+      long seed = seed(block.getX(), 0, block.getZ());
+      double dx = Math.clamp(((float) (seed & 15L) / 15.0F - 0.5) * 0.5, (double) -horizontal, (double) horizontal);
+      double dz = Math.clamp(((float) (seed >> 8 & 15L) / 15.0F - 0.5) * 0.5, (double) -horizontal, (double) horizontal);
+      double dy = random[1] == 2 ? ((float) (seed >> 4 & 15L) / 15.0F - 1.0) * vertical : 0.0;
+      view.translate((float) dx, (float) dy, (float) dz);
+    }
+
     // The direction (0 down, 1 up, 2 north, 3 south, 4 west, 5 east) from
     // `own` to its neighbour `other`.
     static int direction(ExtendedBlock own, ExtendedBlock other) {
@@ -347,7 +439,7 @@ public class McbenchBlueMapReference {
   // beside it and its emission; whether each ordered pair of cull shapes
   // hides a face, and the skipRendering classes' masks.
   // The block entity quads of the bake's pack (McbenchBake.java's format,
-  // version 5), by state as BlueMap names it: each state's entity variant's
+  // version 7), by state as BlueMap names it: each state's entity variant's
   // mesh and step to its other half.
   static final class Entities {
     record Quad(float[] corners, float[] uv, int texture, float[] color) {}
@@ -358,19 +450,36 @@ public class McbenchBlueMapReference {
     final Map<String, Block> byId = new HashMap<>();
     final Set<String> blocks = new java.util.TreeSet<>();
     int[] selection;
+    // By state, its random class; each class: seed step y, offset kind, the
+    // raw bits of its largest horizontal and vertical offsets, seed step x, z.
+    int[] randomOf;
+    List<int[]> randoms = new ArrayList<>();
     List<int[]> selections = new ArrayList<>(), sets = new ArrayList<>();
     List<Object[]> variants = new ArrayList<>();
     List<List<Quad>> meshes = new ArrayList<>();
 
-    Drawn of(BlockState state) {
+    // The pack's state id of a BlueMap state.
+    int id(BlockState state) {
       Block block = byId.get(state.getId().getFormatted());
-      if (block == null) return null;
+      if (block == null) return -1;
       int index = 0;
       for (Property property : block.properties()) {
         String value = state.getProperties().get(property.name());
         index = index * property.values().size() + property.values().indexOf(value);
       }
-      int chosen = selection[block.first() + index];
+      return block.first() + index;
+    }
+
+    int[] random(BlockState state) {
+      int id = id(state);
+      if (id < 0) throw new IllegalStateException("No state " + state + " in the pack");
+      return randoms.get(randomOf[id]);
+    }
+
+    Drawn of(BlockState state) {
+      int id = id(state);
+      if (id < 0) return null;
+      int chosen = selection[id];
       if (chosen < 0) return null;
       for (int set : selections.get(chosen)) for (int variant : sets.get(set)) {
         Object[] entry = variants.get(variant);
@@ -389,7 +498,7 @@ public class McbenchBlueMapReference {
       var entities = new Entities();
       byte[] magic = new byte[4];
       in.get(magic);
-      if (!new String(magic).equals("MCBP") || in.getInt() != 5) throw new IOException("Not a version 5 baked pack");
+      if (!new String(magic).equals("MCBP") || in.getInt() != 7) throw new IOException("Not a version 7 baked pack");
       java.util.function.Supplier<String> str = () -> { byte[] b = new byte[Short.toUnsignedInt(in.getShort())]; in.get(b); return new String(b, java.nio.charset.StandardCharsets.UTF_8); };
       for (int n = in.getInt(), i = 0; i < n; i++) {
         String id = str.get();
@@ -406,9 +515,11 @@ public class McbenchBlueMapReference {
       }
       int states = in.getInt();
       entities.selection = new int[states];
+      entities.randomOf = new int[states];
       for (int i = 0; i < states; i++) {
         skip(in, 14);
         entities.selection[i] = in.getInt();
+        entities.randomOf[i] = Short.toUnsignedInt(in.getShort());
       }
       skip(in, in.getInt() * 6);
       int shapes = Short.toUnsignedInt(in.getShort());
@@ -421,6 +532,13 @@ public class McbenchBlueMapReference {
         skip(in, Short.toUnsignedInt(in.getShort()));
       }
       skip(in, 13);
+      for (int n = in.getInt(); n > 0; n--) {
+        int dx = in.get(), dy = in.get(), dz = in.get();
+        entities.randoms.add(new int[] { dy, Byte.toUnsignedInt(in.get()), in.getInt(), in.getInt(), dx, dz });
+        skip(in, 4 + 16 + 2); // the fluid facts
+      }
+      skip(in, in.getInt() * 9); // fluid groups
+      in.getInt(); // the water overlay
       var tints = new ArrayList<float[]>();
       for (int n = in.getInt(); n > 0; n--) tints.add(new float[] { in.getFloat(), in.getFloat(), in.getFloat() });
       skip(in, in.getInt() * 48); // matrices
@@ -447,6 +565,7 @@ public class McbenchBlueMapReference {
         entities.sets.add(list);
       }
       for (int n = in.getInt(); n > 0; n--) {
+        in.get();
         int[] list = new int[Short.toUnsignedInt(in.getShort())];
         for (int i = 0; i < list.length; i++) list[i] = in.getInt();
         entities.selections.add(list);

@@ -1,0 +1,57 @@
+diff -ru orig/native/spikes/renderer/Cargo.toml src/native/spikes/renderer/Cargo.toml
+--- a/native/spikes/renderer/Cargo.toml	2026-11-16 19:10:39
++++ b/native/spikes/renderer/Cargo.toml	2026-11-16 19:11:04
+@@ -29,6 +29,7 @@
+ winit = "0.30.13"
+ rayon = "1.12.0"
+ pollster = "1.0.1"
++ash = "0.38"
+ 
+ [target.'cfg(target_arch = "wasm32")'.dependencies]
+ wasm-bindgen = "=0.2.130"
+diff -ru orig/native/spikes/renderer/src/gpu.rs src/native/spikes/renderer/src/gpu.rs
+--- a/native/spikes/renderer/src/gpu.rs	2026-11-16 19:10:39
++++ b/native/spikes/renderer/src/gpu.rs	2026-11-16 19:10:58
+@@ -64,8 +64,17 @@
+ 
+     // Natively: the adapter for the backends WGPU_BACKEND names (all by
+     // default), or the one whose name contains WGPU_ADAPTER_NAME.
++    // MCBENCH_VULKAN_DRIVER=<path of a Vulkan driver library>: a Vulkan
++    // instance on that library alone, opened directly (no Vulkan loader, no
++    // other driver), and its one adapter.
+     #[cfg(not(target_arch = "wasm32"))]
+     pub fn new(surface: Option<&wgpu::Surface<'static>>, instance: Option<wgpu::Instance>) -> Result<Gpu, String> {
++        if let Ok(driver) = std::env::var("MCBENCH_VULKAN_DRIVER") {
++            let instance = unsafe { direct_vulkan(&driver)? };
++            let adapters = pollster::block_on(instance.enumerate_adapters(wgpu::Backends::VULKAN));
++            let adapter = adapters.into_iter().next().ok_or_else(|| format!("{driver} offers no Vulkan device"))?;
++            return pollster::block_on(Gpu::open(instance, adapter));
++        }
+         let instance = instance.unwrap_or_else(Gpu::instance);
+         match std::env::var("WGPU_ADAPTER_NAME") {
+             Ok(name) => {
+@@ -88,6 +97,24 @@
+     pub fn instance_with_display(display: Box<dyn wgpu::wgt::WgpuHasDisplayHandle>) -> wgpu::Instance {
+         wgpu::Instance::new(wgpu::InstanceDescriptor { backends: wgpu::Backends::from_env().unwrap_or(wgpu::Backends::all()), ..wgpu::InstanceDescriptor::new_with_display_handle(display) })
+     }
++}
++
++// A wgpu instance whose Vulkan entry points come from the driver library
++// itself (an ICD exporting vkGetInstanceProcAddr, as SwiftShader's does),
++// with the instance extensions wgpu-hal asks of any Vulkan instance.
++#[cfg(not(target_arch = "wasm32"))]
++unsafe fn direct_vulkan(driver: &str) -> Result<wgpu::Instance, String> {
++    use ash::vk;
++    use wgpu::hal::vulkan::Instance as HalInstance;
++    let entry = unsafe { ash::Entry::load_from(driver) }.map_err(|e| format!("{driver}: {e}"))?;
++    let version = unsafe { entry.try_enumerate_instance_version() }.map_err(|e| format!("{driver}: vkEnumerateInstanceVersion: {e}"))?.unwrap_or(vk::API_VERSION_1_0);
++    let flags = wgpu::InstanceFlags::from_build_config().with_env();
++    let extensions = HalInstance::desired_extensions(&entry, version, flags).map_err(|e| format!("{driver}: {e}"))?;
++    let pointers: Vec<*const std::ffi::c_char> = extensions.iter().map(|e| e.as_ptr()).collect();
++    let app = vk::ApplicationInfo::default().application_name(c"mcbench-draw").engine_name(c"wgpu-hal").api_version(if version < vk::API_VERSION_1_1 { vk::API_VERSION_1_0 } else { vk::API_VERSION_1_3 });
++    let raw = unsafe { entry.create_instance(&vk::InstanceCreateInfo::default().application_info(&app).enabled_extension_names(&pointers), None) }.map_err(|e| format!("{driver}: vkCreateInstance: {e}"))?;
++    let hal = unsafe { HalInstance::from_raw(entry, raw, version, 0, None, extensions, flags, Default::default(), false, None) }.map_err(|e| format!("{driver}: {e}"))?;
++    Ok(unsafe { wgpu::Instance::from_hal::<wgpu::hal::api::Vulkan>(hal) })
+ }
+ 
+ pub struct Mesh {

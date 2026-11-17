@@ -5,7 +5,6 @@
 // (Minecraft's getShadeBrightness, from the block table).
 pub const SHADES: u8 = 1;
 pub const ALWAYS_WATERLOGGED: u8 = 2;
-pub const RANDOM_OFFSET: u8 = 4;
 pub const WATERLOGGED: u8 = 8;
 pub const WATER: u8 = 16;
 pub const AIR: u8 = 32;
@@ -111,6 +110,55 @@ pub struct EntityQuad {
     pub tint: u32,
 }
 
+// What Minecraft's block renderer draws a state by (McbenchRenderStates.java,
+// from Minecraft's own code): its model's seed is Mth.getSeed of its
+// position moved by seed_step, its offset Minecraft's offset function of
+// `offset` (0 none, 1 XZ, 2 XYZ) with these largest offsets; and what
+// LiquidBlockRenderer asks of it: its fluid (group 0 none, else 1 + its
+// index in fluid_groups; amount; falling), the directions its own shape
+// hides its fluid's faces toward (bits), and as a fluid's neighbour north,
+// south, west or east, the greatest height of the fluid's side it hides
+// (-1 none), its fluid flags (below) and its sturdy faces (bits).
+#[derive(Clone, Copy)]
+pub struct Render {
+    pub seed_step: [i8; 3],
+    pub offset: u8,
+    pub max_horizontal: f32,
+    pub max_vertical: f32,
+    pub fluid: u8,
+    pub amount: u8,
+    pub falling: bool,
+    pub self_hidden: u8,
+    pub hides_side: [f32; 4],
+    pub fluid_flags: u8,
+    pub sturdy: u8,
+}
+
+pub const HIDES_BOTTOM_ABOVE: u8 = 1;
+pub const HIDES_TOP_BELOW: u8 = 2;
+pub const SOLID: u8 = 4;
+pub const BLOCKS_MOTION: u8 = 8;
+pub const SOLID_RENDER: u8 = 16;
+pub const ICE: u8 = 32;
+pub const WATER_OVERLAY: u8 = 64;
+pub const EMISSIVE: u8 = 128;
+
+// A fluid as LiquidBlockRenderer draws it: whether lava (FluidTags.LAVA),
+// its still and flowing textures (the map's).
+#[derive(Clone, Copy)]
+pub struct FluidGroup {
+    pub lava: bool,
+    pub still: i32,
+    pub flow: i32,
+}
+
+// The sets a state's blockstate applies, and whether it is a multipart one
+// (each set's variant then drawn under one seed, MultiPartModel.collectParts).
+pub struct Selection {
+    pub multipart: bool,
+    pub sets: Vec<u32>,
+}
+
 pub struct VariantSet {
     pub total_weight: f64,
     pub variants: Vec<(f64, u32)>,
@@ -124,6 +172,11 @@ pub struct Pack {
     // By state, the cull class (culls) its faces and its fluid's are culled
     // by: kept apart from State, which stays 16 bytes.
     pub cull_of: Vec<u16>,
+    // By state, its render class (renders).
+    pub render_of: Vec<u16>,
+    pub renders: Vec<Render>,
+    pub fluid_groups: Vec<FluidGroup>,
+    pub water_overlay: i32,
     // Six face shapes a set (down, up, north, south, west, east), set 0 all
     // empty, and for each ordered pair of the `shapes` face shapes whether
     // light is stopped between two faces of those shapes, by a * shapes + b
@@ -150,7 +203,7 @@ pub struct Pack {
     pub meshes: Vec<Mesh>,
     pub variants: Vec<Variant>,
     pub sets: Vec<VariantSet>,
-    pub selections: Vec<Vec<u32>>,
+    pub selections: Vec<Selection>,
     pub entity_shapes: Vec<([[f32; 3]; 4], [f32; 8])>,
     pub entity_quads: Vec<EntityQuad>,
     // Each a list of entity quads.
@@ -218,8 +271,8 @@ impl<'a> Reader<'a> {
 impl Pack {
     pub fn read(bytes: &[u8]) -> Result<Pack, String> {
         let mut r = Reader { bytes, at: 0 };
-        if r.take(4)? != b"MCBP" || r.u32()? != 5 {
-            return Err("Not a version 5 baked pack".into());
+        if r.take(4)? != b"MCBP" || r.u32()? != 7 {
+            return Err("Not a version 7 baked pack".into());
         }
         let blocks = r.list(|r| {
             let id = r.str()?;
@@ -239,6 +292,7 @@ impl Pack {
             Ok(Block { id, first, properties })
         })?;
         let mut cull_of = Vec::new();
+        let mut render_of = Vec::new();
         let states = r.list(|r| {
             Ok(State {
                 flags: r.u8()?,
@@ -252,7 +306,11 @@ impl Pack {
                     r.u16()?
                 },
                 tint: r.u32()?,
-                selection: r.u32()?,
+                selection: {
+                    let selection = r.u32()?;
+                    render_of.push(r.u16()?);
+                    selection
+                },
             })
         })?;
         let face_sets = r.list(|r| Ok([r.u8()?, r.u8()?, r.u8()?, r.u8()?, r.u8()?, r.u8()?]))?;
@@ -292,6 +350,26 @@ impl Pack {
         let water_selection = r.u32()?;
         let water_tint = r.u32()?;
         let water_blends = r.u8()? != 0;
+        let renders = r.list(|r| {
+            Ok(Render {
+                seed_step: [r.i8()?, r.i8()?, r.i8()?],
+                offset: r.u8()?,
+                max_horizontal: r.f32()?,
+                max_vertical: r.f32()?,
+                fluid: r.u8()?,
+                amount: r.u8()?,
+                falling: r.u8()? != 0,
+                self_hidden: r.u8()?,
+                hides_side: r.f32s::<4>()?,
+                fluid_flags: r.u8()?,
+                sturdy: r.u8()?,
+            })
+        })?;
+        let fluid_groups = r.list(|r| Ok(FluidGroup { lava: r.u8()? != 0, still: r.u32()? as i32, flow: r.u32()? as i32 }))?;
+        let water_overlay = r.u32()? as i32;
+        if render_of.iter().any(|&render| render as usize >= renders.len()) || renders.iter().any(|render| render.fluid as usize > fluid_groups.len()) {
+            return Err("The baked pack's states name render classes or fluid groups it does not have".into());
+        }
         let tints = r.list(|r| r.f32s::<3>())?;
         let matrices = r.list(|r| r.f32s::<12>())?;
         let directions = r.list(|r| {
@@ -345,12 +423,13 @@ impl Pack {
             Ok(VariantSet { total_weight, variants })
         })?;
         let selections = r.list(|r| {
+            let multipart = r.u8()? != 0;
             let count = r.u16()?;
-            let mut list = Vec::new();
+            let mut sets = Vec::new();
             for _ in 0..count {
-                list.push(r.u32()?);
+                sets.push(r.u32()?);
             }
-            Ok(list)
+            Ok(Selection { multipart, sets })
         })?;
         let entity_shapes = r.list(|r| {
             let mut corners = [[0.0; 3]; 4];
@@ -376,6 +455,10 @@ impl Pack {
             by_id,
             states,
             cull_of,
+            render_of,
+            renders,
+            fluid_groups,
+            water_overlay,
             face_sets,
             shapes,
             occludes,
@@ -404,6 +487,10 @@ impl Pack {
         })
     }
 
+    pub fn render(&self, state: u32) -> &Render {
+        &self.renders[self.render_of[state as usize] as usize]
+    }
+
     // BlockState.skipRendering: whether a state of row class `row` hides
     // its face toward a neighbour of column class `column` in `direction`
     // (0 down, 1 up, 2 north, 3 south, 4 west, 5 east).
@@ -425,17 +512,22 @@ impl Pack {
             || self.skips(own.row, other.column, direction)
     }
 
-    // What LiquidBlockRenderer culls the fluid of state `own` by, toward its
-    // neighbour `other` in `direction`: the fluid's block skips rendering
-    // beside it (it holds the same fluid), or its face turned to the fluid
-    // is full and not above it (a fluid's surface with none above lies below
-    // the block's top).
-    #[inline(always)]
-    pub fn hides_fluid(&self, own: u32, other: u32, direction: usize) -> bool {
-        let own = &self.culls[self.cull_of[own as usize] as usize];
-        let other = &self.culls[self.cull_of[other as usize] as usize];
-        self.skips(own.fluid_row, other.column, direction)
-            || (direction != 1 && self.hides[BLOCK_SHAPE * self.cull_shapes + other.shapes[direction ^ 1] as usize])
+    // A state's name as the block table writes it, "id[name=value,...]",
+    // every property in the block's order.
+    pub fn name(&self, state: u32) -> String {
+        let at = self.blocks.partition_point(|block| block.first <= state) - 1;
+        let block = &self.blocks[at];
+        if block.properties.is_empty() {
+            return block.id.clone();
+        }
+        let mut index = (state - block.first) as usize;
+        let mut values = vec![""; block.properties.len()];
+        for (p, property) in block.properties.iter().enumerate().rev() {
+            values[p] = &property.values[index % property.values.len()];
+            index /= property.values.len();
+        }
+        let pairs: Vec<String> = block.properties.iter().zip(values).map(|(property, value)| format!("{}={value}", property.name)).collect();
+        format!("{}[{}]", block.id, pairs.join(","))
     }
 
     // The state of a name as Minecraft writes it, "id[name=value,...]",

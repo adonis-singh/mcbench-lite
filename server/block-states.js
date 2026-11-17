@@ -12,10 +12,9 @@ const fs = require('fs');
 // (skipRendering), the face shapes Block.shouldRenderFace culls by, with
 // whether each pair hides a face, whether its model and its fluid are
 // drawn blended, and whether the client draws it through a block entity
-// renderer; and each block's name, as Minecraft names it.
-// see_build's page lights, culls and draws with these (`bytes`, read by
-// web/viewer.js); the world route hides blocks with them and tells the page
-// each palette entry's state id (`ofPalette`).
+// renderer; and each block's name, as Minecraft names it. The block icons
+// (block-icon.js) and the selection's names (index.js) read them, and
+// scripts/render-parity.js culls with them.
 class BlockStates {
   // `table`: the block table's lines; `layers`: the render layers' lines.
   constructor(table, layers) {
@@ -96,9 +95,6 @@ class BlockStates {
       if (blended[Number(fluid)]) this.draw[id] |= 4;
       if (renderer !== '-') this.draw[id] |= 16;
     });
-    // The fluids' states by name, for the page to draw them.
-    this.fluidNames = Object.fromEntries([...new Set(this.fluid)].filter(Boolean).map((id) => [id, states[id][0]]));
-    this.palettes = new WeakMap();
   }
 
   // Block.shouldRenderFace: whether state `a` hides its face toward state
@@ -127,53 +123,6 @@ class BlockStates {
     if (state === undefined) throw new Error(`Minecraft has no block state ${name}`);
     return state;
   }
-
-  // For each entry of a world's palette (server/world.js PaletteStore, entry
-  // 0 air), its state id and whether its six faces are full (it hides what is
-  // behind each of them, and blocks all light: every such state's light
-  // block is 15), made once for each entry.
-  ofPalette(palette) {
-    let held = this.palettes.get(palette);
-    const size = palette.entries.length;
-    if (!held || held.size < size) {
-      const ids = new Uint16Array(size);
-      const occluding = new Uint8Array(size);
-      const from = held ? held.size : 1;
-      if (held) {
-        ids.set(held.ids);
-        occluding.set(held.occluding);
-      }
-      for (let index = from; index < size; index += 1) {
-        const entry = palette.entries[index];
-        ids[index] = this.idOf(entry.id, entry.states);
-        occluding[index] = this.fullFaces[ids[index]] === 63 ? 1 : 0;
-      }
-      held = { size, ids, occluding };
-      this.palettes.set(palette, held);
-    }
-    return held;
-  }
-
-  // What the page reads (web/viewer.js loadResources), each part starting
-  // on four bytes: u32 states, face shapes, cull shapes, skipRendering row
-  // classes, mask bytes and fluid names' bytes; by state u16 fluid,
-  // skipRendering row and column; by row class u32 start, u16 first and
-  // length; then by state its emission, light block, full faces and draw
-  // bits, its six face shapes and its six cull shapes, the face shapes'
-  // pairs, the cull shapes' pairs, the skipRendering masks, and the fluids'
-  // names (JSON, state id -> name).
-  bytes() {
-    if (this.bytesMade) return this.bytesMade;
-    const names = Buffer.from(JSON.stringify(this.fluidNames));
-    const parts = [
-      Uint32Array.of(this.count, this.shapes, this.cullShapes, this.skipFirst.length, this.skipMasks.length, names.length),
-      this.fluid, this.skipRow, this.skipColumn,
-      this.skipStart, this.skipFirst, this.skipLength,
-      this.emission, this.lightBlock, this.fullFaces, this.draw, this.faces, this.cull, this.occludes, this.hides, this.skipMasks, names,
-    ].map((part) => Buffer.from(part.buffer, part.byteOffset, part.byteLength));
-    this.bytesMade = Buffer.concat(parts.flatMap((part) => [part, Buffer.alloc((4 - (part.length % 4)) % 4)]));
-    return this.bytesMade;
-  }
 }
 
 // "minecraft:oak_stairs[facing=east,half=bottom]" -> { facing: 'east', half: 'bottom' }.
@@ -185,8 +134,8 @@ function properties(name) {
 
 // The block states of the pinned Minecraft, read once from its block table
 // and render layers, which the first start makes (minecraft-live.js
-// blockTable and renderLayers; see_build runs only once setup is ready). A
-// read that failed is tried again when next asked, as those are.
+// blockTable and renderLayers). A read that failed is tried again when next
+// asked, as those are.
 let loaded = null;
 function blockStates() {
   const { minecraftLive } = require('./minecraft-live');

@@ -431,24 +431,16 @@ function engineEnv(mode) {
 // WebAssembly module released for its sources (installEngine), which read
 // Minecraft's tables made on this machine at their start; it compiles
 // neither.
+const { trackedFiles } = require('./source-files');
 const CORE = path.join(__dirname, '..', 'core');
 
 // The files the engine is built from, relative to core/: its sources, its
 // manifest and lock file, the pinned toolchain, cargo's configuration and the
 // profiles of profile-guided optimisation. Minecraft's tables are not among
-// them: the program and the module read them at their start.
+// them: the program and the module read them at their start. In a git
+// checkout these are the files git tracks (source-files.js).
 async function sourceFiles() {
-  const files = ['Cargo.toml', 'Cargo.lock', 'rust-toolchain.toml', '.cargo/config.toml'];
-  const walk = async (relative) => {
-    for (const entry of await fs.promises.readdir(path.join(CORE, relative), { withFileTypes: true })) {
-      const name = path.posix.join(relative, entry.name);
-      if (entry.isDirectory()) await walk(name);
-      else files.push(name);
-    }
-  };
-  await walk('src');
-  await walk('pgo');
-  return files.sort();
+  return trackedFiles(CORE, ['Cargo.toml', 'Cargo.lock', 'rust-toolchain.toml', '.cargo/config.toml', 'src', 'pgo']);
 }
 
 // The engine's version: the first 16 hex digits of the sha256 of its source

@@ -52,7 +52,7 @@ const JAR_MB = 7;
 const CLIENT_MB = 31;
 const MAPPINGS_MB = Math.round(MAPPINGS_BYTES / 1e6);
 const MEMORY = process.env.MCBENCH_BLUEMAP_MEMORY || '2G';
-const BAKE = ['McbenchBake.java', 'McbenchEntityAssets.java', 'McbenchClient.java', 'McbenchBlockEntities.java', 'McbenchEntities.java'].map((name) => path.join(__dirname, name));
+const BAKE = ['McbenchBake.java', 'McbenchEntityAssets.java', 'McbenchClient.java', 'McbenchBlockEntities.java', 'McbenchEntities.java', 'McbenchRenderStates.java'].map((name) => path.join(__dirname, name));
 // What Minecraft's server entry point (McbenchClient bootstraps Minecraft by
 // it) writes in the bake's folder: its settings and its log.
 const MINECRAFT_LEAVES = ['server.properties', 'eula.txt', 'logs'];

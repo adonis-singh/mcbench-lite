@@ -17,8 +17,8 @@ const { execFileSync } = require('node:child_process');
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'mcbench-tools-'));
 process.env.MCBENCH_TOOLS_DIR = path.join(scratch, 'default-tools');
 // The pins' addresses are GitHub's, whatever address the caller's
-// environment gives the engine's releases (tools.js).
-delete process.env.MCBENCH_ENGINE_RELEASES;
+// environment gives the releases (tools.js).
+delete process.env.MCBENCH_RELEASES;
 after(() => fs.rmSync(scratch, { recursive: true, force: true }));
 
 const tools = require('../server/tools');
@@ -88,7 +88,7 @@ function zip(entries) {
   return Buffer.concat([...locals, directory, end]);
 }
 
-test('every program is pinned for the four platforms, by address, sha256 and size, and Chromium is the build playwright-core names', () => {
+test('every program is pinned for the four platforms, by address, sha256 and size, and Chromium, a developer\'s download, is the build playwright-core names', () => {
   for (const [name, pin] of Object.entries(tools.PINS)) {
     assert.deepEqual(Object.keys(pin.platforms).sort(), ['darwin-arm64', 'darwin-x64', 'linux-arm64', 'linux-x64'], name);
     for (const [platform, { url, sha256: hash, bytes, bin }] of Object.entries(pin.platforms)) {
@@ -108,9 +108,10 @@ test('every program is pinned for the four platforms, by address, sha256 and siz
 // platform's download to the largest, as the terminal rounds them.
 test('README.md states each pinned download\'s size as the pins have it', () => {
   const readme = fs.readFileSync(path.join(__dirname, '..', 'README.md'), 'utf8').split('\n');
-  // The engine's version is its sources' hash, which changes with every
-  // change to core/: README.md states its sizes without it.
-  for (const [name, pin] of Object.entries(tools.PINS).filter(([name]) => !name.startsWith('engine'))) {
+  // The engine's and the renderer's versions are their sources' hashes,
+  // which change with every change to them: README.md states their sizes
+  // without them.
+  for (const [name, pin] of Object.entries(tools.PINS).filter(([name]) => !name.startsWith('engine') && name !== 'draw')) {
     const mb = Object.values(pin.platforms).map(({ bytes }) => Math.round(bytes / 1e6));
     const size = `${Math.min(...mb)} to ${Math.max(...mb)} MB`;
     assert.ok(readme.some((line) => line.includes(pin.version) && line.includes(size)), `README.md names ${pin.title} with ${size}`);
@@ -247,6 +248,32 @@ test('the engine\'s pins are this checkout\'s engine: its sources\' version, one
   for (const platform of tools.PLATFORMS) {
     assert.equal(tools.PINS.engine.platforms[platform].url, `https://github.com/adonis-singh/mcbench-lite/releases/download/${release.tag}/mcbench-core-${release.version}-${platform}.gz`);
     assert.equal(tools.PINS['engine-wasm'].platforms[platform].url, `https://github.com/adonis-singh/mcbench-lite/releases/download/${release.tag}/mcbench-core-${release.version}-wasm32.wasm.gz`);
+  }
+});
+
+// The renderer the app downloads is the one released for this checkout's
+// native/draw and renderer/src: a change to them without a new release
+// (scripts/release-draw.js pins it) fails here, as the app's start would.
+test('the renderer\'s pins are this checkout\'s renderer: its sources\' version, one release, a program for every platform', async () => {
+  const { sourcesHash } = require('../server/draw');
+  const release = tools.DRAW_RELEASE;
+  assert.equal(release.version, await sourcesHash(), 'native/draw or renderer/src changed since the renderer was released: build and pin a release (scripts/release-draw.js)');
+  assert.equal(release.tag, `draw-${release.version}`);
+  assert.equal(tools.PINS.draw.version, release.version);
+  for (const platform of tools.PLATFORMS) {
+    assert.equal(tools.PINS.draw.platforms[platform].url, `https://github.com/adonis-singh/mcbench-lite/releases/download/${release.tag}/mcbench-draw-${release.version}-${platform}.tar.gz`);
+  }
+});
+
+// The first start downloads no browser: see_build draws with mcbench-draw,
+// and Chromium is installed only by the tests and scripts that drive the real
+// page (they call tools.headlessShell).
+test('no step of the first start downloads Chromium', () => {
+  const setup = require('../server/setup');
+  assert.deepEqual(setup.STEPS.map((step) => step.id).filter((id) => /browser|chromium/.test(id)), []);
+  const server = path.join(__dirname, '..', 'server');
+  for (const name of fs.readdirSync(server).filter((file) => file.endsWith('.js') && file !== 'tools.js')) {
+    assert.doesNotMatch(fs.readFileSync(path.join(server, name), 'utf8'), /headlessShell|install\('chromium'|playwright/, name);
   }
 });
 

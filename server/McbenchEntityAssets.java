@@ -15,8 +15,8 @@ import java.util.Map;
 import java.util.TreeMap;
 import javax.imageio.ImageIO;
 
-// The atlas the live viewer's entity layer (web/entities.mjs) and
-// see_build's entities (web/viewer.js) draw entities with, made from
+// The atlas the live viewer's entity layer (web/entities.mjs) draws entities
+// with (see_build's renderer reads the textures from the jar itself), made from
 // Minecraft's client jar (the one BlueMap downloads): every texture named, by
 // its name under textures/ ("minecraft:entity/minecart"), packed in shelves.
 // An animated texture is its first frame (as the capture's sprites are,

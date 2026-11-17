@@ -17,6 +17,8 @@ const { execFileSync } = require('child_process');
 const RENDERER = path.join(__dirname, '..', 'renderer');
 const MODULE = path.join(RENDERER, 'mcbench-renderer.wasm');
 const SOURCES_HASH = path.join(RENDERER, 'mcbench-renderer.sources');
+// Where cargo builds: CARGO_TARGET_DIR, as cargo itself reads it.
+const TARGET = process.env.CARGO_TARGET_DIR ? path.resolve(process.env.CARGO_TARGET_DIR) : path.join(RENDERER, 'target');
 
 // Everything cargo builds the module from.
 function sourcesHash() {
@@ -35,7 +37,7 @@ function sourcesHash() {
 
 function build() {
   execFileSync('cargo', ['build', '--release', '--target', 'wasm32-unknown-unknown'], { cwd: RENDERER, stdio: 'inherit' });
-  fs.copyFileSync(path.join(RENDERER, 'target', 'wasm32-unknown-unknown', 'release', 'mcbench_renderer.wasm'), MODULE);
+  fs.copyFileSync(path.join(TARGET, 'wasm32-unknown-unknown', 'release', 'mcbench_renderer.wasm'), MODULE);
   fs.writeFileSync(SOURCES_HASH, `${sourcesHash()}\n`);
 }
 
@@ -44,4 +46,4 @@ if (require.main === module) {
   console.log(`${path.relative(process.cwd(), MODULE)}: ${fs.statSync(MODULE).size} bytes`);
 }
 
-module.exports = { MODULE, SOURCES_HASH, sourcesHash, build };
+module.exports = { MODULE, SOURCES_HASH, TARGET, sourcesHash, build };

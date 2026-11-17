@@ -1,125 +1,107 @@
 'use strict';
 
-// The renderer's states, with the browser faked: a warm-up is bounded like
-// every other stage, and a run that ends for any reason closes its browser.
+// The renderer's states, with mcbench-draw faked (test/helpers/fake-draw.js):
+// a start is bounded like every other stage, a lost device or a crash
+// starts the helper once more, and a run that ends for any reason ends its
+// helper.
 
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { EventEmitter } = require('node:events');
 
-process.env.MCBENCH_SHOT_STAGE_TIMEOUT_MS = '40';
+process.env.MCBENCH_SHOT_STAGE_TIMEOUT_MS = '1000';
+const { drawClient, within, until } = require('./helpers/draw-client');
 
-const jpeg = `data:image/jpeg;base64,${Buffer.from('drawn').toString('base64')}`;
-const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-// How `promise` ended within `ms`: 'resolved', its error, or 'pending'.
-const within = (promise, ms) => Promise.race([promise.then(() => 'resolved', (error) => error), pause(ms).then(() => 'pending')]);
-
-// A fresh shot.js on fake browsers: `behavior()` is asked at each launch
-// ('healthy', 'stalls': the page never answers, 'no page': newPage fails,
-// 'never closes': the browser's close never answers, 'loses context': the
-// warm frame finds the WebGL context lost).
-function renderer(t, behavior) {
-  const playwright = require('playwright-core');
-  const browsers = [];
-  // No headless shell is installed for these: the launch is faked.
-  t.mock.method(require('../server/tools'), 'headlessShell', async () => '/no/headless-shell');
-  t.mock.method(playwright.chromium, 'launch', async () => {
-    const mode = behavior();
-    const browser = new EventEmitter();
-    const page = new EventEmitter();
-    const made = { page, closes: 0 };
-    browsers.push(made);
-    browser.newPage = async () => { if (mode === 'no page') throw new Error('fixture: no page'); return page; };
-    browser.close = () => { made.closes += 1; return mode === 'never closes' ? new Promise(() => {}) : Promise.resolve(); };
-    page.goto = async () => {};
-    page.context = () => ({ browser: () => browser });
-    page.evaluate = (fn, specs) => {
-      if (mode === 'stalls') return new Promise(() => {});
-      if (mode === 'loses context' && fn.toString().includes('__shot.warm')) return Promise.reject(new Error('Screenshot WebGL context lost'));
-      return Promise.resolve(fn.toString().includes('__shot.frames') ? specs.map(() => jpeg) : undefined);
-    };
-    return browser;
-  });
-  delete require.cache[require.resolve('../server/shot')];
-  const shot = require('../server/shot');
-  const { World } = require('../server/world');
-  const world = new World();
-  world.set(0, 0, 0, 'minecraft:stone');
-  return { ...shot, browsers, render: () => shot.renderShots('fixture', [shot.resolveShot({ view: 'front' }, world, [])]) };
-}
-
-test('a warm-up that stalls fails like any stage, closes its browser, and lets the next screenshot through', async (t) => {
-  let mode = 'stalls';
-  const { warmRenderer, render, closeRenderer, browsers } = renderer(t, () => mode);
-  const warming = warmRenderer();
-  const queued = render();
-  while (!browsers.length) await pause(1);
-  mode = 'healthy';
-  const outcome = await within(warming, 2000);
-  assert.match(String(outcome.message), /Screenshot initialization stalled/);
-  assert.equal(browsers[0].closes, 1, 'the stalled browser is closed');
-  assert.equal(await within(queued, 2000), 'resolved');
-  assert.equal(browsers.length, 2, 'on a browser of its own');
-  await closeRenderer();
-  assert.deepEqual(browsers.map((browser) => browser.closes), [1, 1]);
+test('a start that stalls fails like any stage, ends its helper, and lets the next screenshot through', async (t) => {
+  const renderer = drawClient(t, ['stalls', 'healthy']);
+  const warming = renderer.warmRenderer();
+  const queued = renderer.render();
+  const outcome = await within(warming, 5000);
+  assert.match(String(outcome.message), /^Screenshot initialization stalled for 1s; renderer reset, screenshot unavailable$/);
+  assert.equal(await within(queued, 5000), 'resolved');
+  const [stalled, second] = renderer.starts();
+  assert.equal(renderer.starts().length, 2, 'on a helper of its own');
+  assert.equal(renderer.alive(stalled.pid), false, 'the stalled helper was ended');
+  await renderer.closeRenderer();
+  await until(() => !renderer.alive(second.pid), 'the second helper to exit');
 });
 
-test('a warm-up whose context is lost warms once more on a fresh browser', async (t) => {
-  let launches = 0;
-  const { warmRenderer, closeRenderer, browsers } = renderer(t, () => (++launches === 1 ? 'loses context' : 'healthy'));
-  await warmRenderer();
-  assert.equal(browsers.length, 2, 'exactly one more browser');
-  assert.equal(browsers[0].closes, 1, 'the lost browser is closed');
-  assert.equal(browsers[1].closes, 0);
-  await closeRenderer();
-  assert.deepEqual(browsers.map((browser) => browser.closes), [1, 1]);
+test('a start whose device is lost starts once more on a fresh helper', async (t) => {
+  const renderer = drawClient(t, ['loses device at hello', 'healthy']);
+  await renderer.warmRenderer();
+  assert.deepEqual(renderer.starts().map((start) => start.mode), ['loses device at hello', 'healthy'], 'exactly one more helper');
+  assert.equal((await renderer.render()).length, 1);
+  assert.equal(renderer.starts().length, 2);
 });
 
-test('a warm-up whose context is lost twice fails with the lost context', async (t) => {
-  const { warmRenderer, closeRenderer, browsers } = renderer(t, () => 'loses context');
-  await assert.rejects(warmRenderer(), /Screenshot WebGL context lost/);
-  assert.equal(browsers.length, 2, 'no third browser');
-  await closeRenderer();
-  assert.deepEqual(browsers.map((browser) => browser.closes), [1, 1]);
+test('a start whose device is lost twice fails with the lost device', async (t) => {
+  const renderer = drawClient(t, ['loses device at hello']);
+  await assert.rejects(renderer.warmRenderer(), { message: 'page.evaluate: Error: Screenshot WebGL context lost' });
+  assert.equal(renderer.starts().length, 2, 'no third helper');
 });
 
-test('closeRenderer ends although a warm-up never answers', async (t) => {
-  const { warmRenderer, closeRenderer, browsers } = renderer(t, () => 'stalls');
-  const warming = warmRenderer();
+test('closeRenderer ends although a start never answers', async (t) => {
+  const renderer = drawClient(t, ['stalls']);
+  const warming = renderer.warmRenderer();
   warming.catch(() => {});
-  while (!browsers.length) await pause(1);
-  assert.equal(await within(closeRenderer(), 2000), 'resolved');
-  assert.deepEqual(browsers.map((browser) => browser.closes), [1]);
+  await until(() => renderer.starts().length === 1, 'the helper to start');
+  assert.equal(await within(renderer.closeRenderer(), 5000), 'resolved');
+  await until(() => !renderer.alive(renderer.starts()[0].pid), 'the helper to be ended');
 });
 
-test('a page that crashes with no screenshot under way has its browser closed', async (t) => {
-  const { render, closeRenderer, browsers } = renderer(t, () => 'healthy');
-  await render();
-  browsers[0].page.emit('crash');
-  assert.equal(browsers[0].closes, 1, 'the crashed page\'s browser');
-  await render();
-  assert.equal(browsers.length, 2);
-  await closeRenderer();
-  assert.deepEqual(browsers.map((browser) => browser.closes), [1, 1], 'no browser is left open');
+test('a helper that exits with no screenshot under way is started again by the next one', async (t) => {
+  const renderer = drawClient(t, ['healthy']);
+  await renderer.render();
+  const [first] = renderer.starts();
+  process.kill(first.pid, 'SIGKILL');
+  await until(() => !renderer.alive(first.pid), 'the helper to die');
+  const [image] = await renderer.render();
+  assert.match(image.toString(), /start 2 /);
+  assert.equal(renderer.starts().length, 2);
 });
 
-test('a browser whose page cannot be opened is closed', async (t) => {
-  let mode = 'no page';
-  const { render, closeRenderer, browsers } = renderer(t, () => mode);
-  await assert.rejects(render(), /fixture: no page/);
-  assert.equal(browsers[0].closes, 1);
-  mode = 'healthy';
-  await render();
-  await closeRenderer();
-  assert.deepEqual(browsers.map((browser) => browser.closes), [1, 1]);
+test('a helper that finds no graphics adapter fails the call saying so, and the next call starts another', async (t) => {
+  const renderer = drawClient(t, ['no adapter', 'healthy']);
+  await assert.rejects(renderer.render(), { message: 'Screenshot initialization: No graphics adapter: metal: none found' });
+  await until(() => !renderer.alive(renderer.starts()[0].pid), 'the failed helper to be ended');
+  assert.equal((await renderer.render()).length, 1);
+  assert.equal(renderer.starts().length, 2);
 });
 
-test('closeRenderer fails, within a stage\'s time, on a browser whose close never answers', async (t) => {
-  const { render, closeRenderer, browsers } = renderer(t, () => 'never closes');
-  await render();
-  const outcome = await within(closeRenderer(), 2000);
-  assert.match(String(outcome.message), /The screenshot browser did not close within 0\.04s/);
-  assert.equal(browsers[0].closes, 1, 'its close was asked for');
-  await assert.rejects(render(), /The screenshot renderer was shut down/);
-  assert.equal(browsers.length, 1, 'and no browser opens again');
+test('closeRenderer fails, within a stage\'s time, on a helper that does not exit, and kills it', async (t) => {
+  const renderer = drawClient(t, ['never exits']);
+  await renderer.render();
+  const outcome = await within(renderer.closeRenderer(), 5000);
+  assert.match(String(outcome.message), /The screenshot renderer did not close within 1s/);
+  await until(() => !renderer.alive(renderer.starts()[0].pid), 'the helper to be killed');
+  await assert.rejects(renderer.render(), /The screenshot renderer was shut down/);
+  assert.equal(renderer.starts().length, 1, 'and no helper starts again');
+});
+
+// A platform whose build ships no software renderer (linux-arm64), on a
+// machine with no GPU: the helper says so at hello. That is the first
+// start's step `draw` failing with the helper's sentence, and each see_build
+// after it answering the same sentence, with one helper started per call and
+// none in between.
+test('a helper that cannot draw on this machine fails the setup step and see_build with its sentence, and is not started again on its own', async (t) => {
+  const setup = require('../server/setup');
+  setup.reset();
+  t.after(() => setup.reset());
+  t.mock.method(require('../server/minecraft-live').minecraftLive, 'prepareViewer', async () => {});
+  const renderer = drawClient(t, ['no software renderer']);
+  const sentence = /This machine has no graphics adapter, and this build for Linux aarch64 ships no software renderer/;
+  await assert.rejects(renderer.startRenderer(), sentence);
+  const step = setup.view().steps.find((entry) => entry.id === 'draw');
+  assert.equal(step.state, 'failed');
+  assert.match(step.error, sentence);
+  await until(() => !renderer.alive(renderer.starts()[0].pid), 'the helper to be ended');
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  assert.equal(renderer.starts().length, 1, 'no restart on its own');
+  await assert.rejects(renderer.render(), sentence);
+  assert.equal(renderer.starts().length, 2, 'one start for the call, no retry');
+});
+
+test('hello leaves the bound on what the helper keeps between calls to the helper', async (t) => {
+  const renderer = drawClient(t, ['healthy']);
+  await renderer.render();
+  assert.deepEqual(renderer.asked('hello').map((entry) => entry.memoryLimit), [undefined]);
 });

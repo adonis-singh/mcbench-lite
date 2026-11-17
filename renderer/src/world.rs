@@ -29,7 +29,7 @@
 
 use crate::pack::Pack;
 use std::collections::{HashMap, HashSet, VecDeque};
-use std::rc::Rc;
+use std::sync::Arc;
 
 const MARGIN: i32 = 15;
 // Light of level 15 or less reaches 14 blocks sideways (every step costs
@@ -62,7 +62,7 @@ impl Mask {
 enum Level {
     Uniform(i8),
     // The same at every height: by column (z << 4 | x).
-    Columns(Rc<[i8; 256]>),
+    Columns(Arc<[i8; 256]>),
     Cells(Box<[i8; 4096]>),
 }
 
@@ -656,7 +656,7 @@ impl World {
                     for (column, value) in map.iter_mut().enumerate() {
                         *value = new_sky((s[0] << 4) | (column as i32 & 15), s[1] << 4, (s[2] << 4) | (column as i32 >> 4));
                     }
-                    let sky = if map.iter().all(|&value| value == map[0]) { Level::Uniform(map[0]) } else { Level::Columns(Rc::new(map)) };
+                    let sky = if map.iter().all(|&value| value == map[0]) { Level::Uniform(map[0]) } else { Level::Columns(Arc::new(map)) };
                     made.push((grid.len(), s));
                     grid.push(Section { sky, ..Section::open() });
                 }
@@ -1001,7 +1001,7 @@ impl World {
         if values.len() == 1 {
             Level::Uniform(*values.iter().next().unwrap())
         } else {
-            Level::Columns(Rc::new(map))
+            Level::Columns(Arc::new(map))
         }
     }
 
@@ -1416,7 +1416,7 @@ impl<'a> Snapshot<'a> {
         let signed = |bytes: &[u8]| bytes.iter().map(|&value| value as i8).collect::<Vec<i8>>();
         Ok(match kind {
             0 => Level::Uniform(self.take(1)?[0] as i8),
-            1 => Level::Columns(Rc::new(signed(self.take(256)?).try_into().unwrap())),
+            1 => Level::Columns(Arc::new(signed(self.take(256)?).try_into().unwrap())),
             2 => Level::Cells(signed(self.take(4096)?).into_boxed_slice().try_into().unwrap()),
             _ => return Err("The snapshot has an unknown kind of light".into()),
         })
@@ -1462,9 +1462,16 @@ mod tests {
     // The blocks a random world is made of.
     const BUILT: [usize; 8] = [2, 3, 4, 5, 6, 7, 8, 11];
 
+    // (flags, emission, light_block, face set) of each of NAMES.
+    type Table = [(u8, u8, u8, u8); 12];
+
     fn pack() -> Pack {
-        // (flags, emission, light_block, face set)
-        let table: [(u8, u8, u8, u8); 12] = [
+        let shapes = 4;
+        let occludes = (0..shapes * shapes).map(|at| matches!((at / shapes, at % shapes), (1, _) | (_, 1) | (2, 3) | (3, 2))).collect();
+        pack_of(&TABLE, vec![[0; 6], [1; 6], [1, 0, 2, 2, 2, 2], [0, 1, 3, 3, 3, 3]], shapes, occludes)
+    }
+
+    const TABLE: Table = [
             (AIR, 0, 0, 0),
             (AIR, 0, 0, 0),
             (SHADES, 0, 15, 1),
@@ -1478,8 +1485,10 @@ mod tests {
             (0, 0, 0, 0),
             (0, 0, 0, 3),
         ];
-        let shapes = 4;
-        let occludes = (0..shapes * shapes).map(|at| matches!((at / shapes, at % shapes), (1, _) | (_, 1) | (2, 3) | (3, 2))).collect();
+
+    // A pack of NAMES lit by `table`, its face sets, and which ordered pairs
+    // of its `shapes` face shapes close a face.
+    fn pack_of(table: &Table, face_sets: Vec<[u8; 6]>, shapes: usize, occludes: Vec<bool>) -> Pack {
         let mut ids: Vec<u32> = (0..12).collect();
         ids.sort_by_key(|&i| format!("minecraft:{}", NAMES[i as usize]));
         Pack {
@@ -1500,11 +1509,15 @@ mod tests {
                     selection: NONE,
                 })
                 .collect(),
-            face_sets: vec![[0; 6], [1; 6], [1, 0, 2, 2, 2, 2], [0, 1, 3, 3, 3, 3]],
+            face_sets,
             shapes,
             occludes,
             // Light reads no culling: one cull class, nothing hidden.
             cull_of: vec![0; 12],
+            render_of: vec![0; 12],
+            renders: vec![crate::pack::Render { seed_step: [0; 3], offset: 0, max_horizontal: 0.0, max_vertical: 0.0, fluid: 0, amount: 0, falling: false, self_hidden: 0, hides_side: [-1.0; 4], fluid_flags: 0, sturdy: 0 }],
+            fluid_groups: Vec::new(),
+            water_overlay: 0,
             culls: vec![Cull { shapes: [0; 6], row: 0, column: 0, fluid_row: 0 }],
             cull_shapes: 2,
             hides: vec![false; 4],
@@ -1522,6 +1535,9 @@ mod tests {
             variants: Vec::new(),
             sets: Vec::new(),
             selections: Vec::new(),
+            entity_shapes: Vec::new(),
+            entity_quads: Vec::new(),
+            entity_meshes: Vec::new(),
             liquid_up: Vec::new(),
             liquid_side: [0.0; 8],
         }
@@ -2241,5 +2257,369 @@ mod tests {
         assert_eq!(world.light([1, 64, 0]), (0, 0));
         assert_eq!(world.light([0, 64, 0]), (0, 0));
         assert_reference_light(&pack, &world, "slabs");
+    }
+
+    // The light tests of the screenshot page's own light (test/light.test.js
+    // and test/light-mesher.test.js, which went with web/light.mjs), as tests
+    // of the mesher's light, which both views now draw by. Its light against
+    // Paper's own engine is scripts/mesher-parity.js --paper.
+
+    // A world of `model` read whole.
+    fn lit(pack: &Pack, model: &Model) -> World {
+        World::read(pack, &blueprint(model, 0).0, MASK).unwrap()
+    }
+
+    // Was light.test.js "voxel lighting preserves skylight, shadows,
+    // dimming, face shapes and competing emitters": a floor, a roof with
+    // holes, scattered blocks of every kind and two emitters of different
+    // levels, lit as Minecraft's rules light them, every cell; a cell under
+    // the roof is shaded, one under a hole holds the sky, and a cell between
+    // the two emitters takes the brighter.
+    #[test]
+    fn skylight_shadows_dimming_face_shapes_and_competing_emitters_light_as_minecraft_does() {
+        let pack = pack();
+        for seed in 1..=8u64 {
+            let mut random = Random(u64::wrapping_mul(seed + 500, 0x9e3779b97f4a7c15));
+            let mut model = Model::new();
+            let base = if seed % 2 == 0 { -64 } else { 40 };
+            for x in -5..=5 {
+                for z in -5..=5 {
+                    model.insert((x, base, z), 2);
+                    if (x * x + z * z + seed as i32) % 7 != 0 {
+                        model.insert((x, base + 6, z), if random.below(10) < 7 { 2 } else { BUILT[random.below(BUILT.len() as u64) as usize] });
+                    }
+                    if (x * 3 + z + seed as i32) % 4 == 0 {
+                        model.insert((x, base + 3, z), BUILT[random.below(BUILT.len() as u64) as usize]);
+                    }
+                }
+            }
+            // The two emitters (a torch, 14, and glowstone, 15) and the cell
+            // between them on the floor.
+            model.insert((-3, base + 1, 0), 5);
+            model.insert((3, base + 1, 0), 4);
+            model.remove(&(0, base + 1, 0));
+            let world = lit(&pack, &model);
+            assert_reference_light(&pack, &world, &format!("seed {seed}"));
+            let alone = |gone: (i32, i32, i32)| {
+                let mut one = model.clone();
+                one.remove(&gone);
+                lit(&pack, &one).light([0, base + 1, 0]).1
+            };
+            let (_, glow) = world.light([0, base + 1, 0]);
+            assert_eq!(glow, alone((-3, base + 1, 0)).max(alone((3, base + 1, 0))), "seed {seed}: the brighter emitter's light");
+            // Above the roof, open sky; under it, a cell shut off by roof blocks on every side above is darker.
+            assert_eq!(world.light([0, base + 7, 0]).0, 15);
+        }
+    }
+
+    // Was light.test.js "two half faces that cover a face together close it;
+    // light steps into a cell less its light block": a tunnel under stone
+    // open at one end passes no light past a bottom slab beside a top slab,
+    // and does past two bottom slabs; a shaft under glass holds the sky all
+    // the way down, under water it takes 15 less water's light block and one
+    // less each cell; a pocket walled in on every side but below gets light
+    // only from below, none at the world's floor.
+    #[test]
+    fn two_half_faces_close_a_face_and_light_steps_into_a_cell_less_its_light_block() {
+        let pack = pack();
+        let tunnel = |second: usize| {
+            let mut model = Model::new();
+            for x in 0..=6 {
+                for (y, z) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
+                    model.insert((x, 70 + y, z), 2);
+                }
+                for y in -1..=1 {
+                    model.insert((x, 70 + y, 2), 2);
+                    model.insert((x, 70 + y, -2), 2);
+                }
+            }
+            model.insert((7, 70, 0), 2);
+            model.insert((2, 70, 0), 7);
+            model.insert((3, 70, 0), second);
+            for x in 0..=7 {
+                for z in -2..=2 {
+                    model.insert((x, 72, z), 2);
+                }
+            }
+            let world = lit(&pack, &model);
+            assert_reference_light(&pack, &world, "tunnel");
+            (0..5).map(|x| world.light([x, 70, 0]).0).collect::<Vec<_>>()
+        };
+        assert_eq!(tunnel(11), [14, 13, 12, 0, 0]);
+        assert_eq!(tunnel(7), [14, 13, 12, 11, 10]);
+        let shaft = |top: usize| {
+            let mut model = Model::new();
+            for y in 0..=5 {
+                for x in -1..=1 {
+                    for z in -1..=1 {
+                        if x != 0 || z != 0 {
+                            model.insert((x, 80 + y, z), 2);
+                        }
+                    }
+                }
+            }
+            model.insert((0, 85, 0), top);
+            model.insert((0, 79, 0), 2);
+            let world = lit(&pack, &model);
+            assert_reference_light(&pack, &world, "shaft");
+            [85, 84, 83, 82].map(|y| world.light([0, y, 0]).0)
+        };
+        assert_eq!(shaft(3), [15, 15, 15, 15]);
+        assert_eq!(shaft(6), [14, 13, 12, 11]);
+        let pocket = |y: i32| {
+            let mut model = Model::new();
+            for (dx, dy, dz) in [(1, 0, 0), (-1, 0, 0), (0, 0, 1), (0, 0, -1), (0, 1, 0)] {
+                model.insert((dx, y + dy, dz), 2);
+            }
+            let world = lit(&pack, &model);
+            assert_reference_light(&pack, &world, "pocket");
+            world.light([0, y, 0]).0
+        };
+        assert_eq!(pocket(-64), 0);
+        assert_eq!(pocket(-63), 12);
+    }
+
+    // Was light.test.js "empty worlds and extents above the existing light
+    // cap retain direct skylight" (the page gave up lighting a box of more
+    // than 16 million cells): a world of no blocks is open sky, and a world
+    // of two roofed builds 2,000 blocks apart and 300 high, a box of more
+    // than a billion cells, lights each as it lights that build alone.
+    #[test]
+    fn an_empty_world_is_open_sky_and_a_box_past_sixteen_million_cells_is_lit() {
+        let pack = pack();
+        let mut out = Vec::new();
+        put_int(&mut out, 1);
+        put_entry(&mut out, 0);
+        for value in [0, 0, 0, 0, 0, 0] {
+            put_int(&mut out, value);
+        }
+        put_int(&mut out, 0);
+        let empty = World::read(&pack, &out, MASK).unwrap();
+        assert!(empty.columns.is_empty());
+        assert_eq!(empty.light([0, 0, 0]), (15, 0));
+        let roofed = |(x0, y0, z0): (i32, i32, i32), model: &mut Model| {
+            for x in 0..3 {
+                for z in 0..3 {
+                    model.insert((x0 + x, y0, z0 + z), 2);
+                    model.insert((x0 + x, y0 + 40, z0 + z), 2);
+                }
+            }
+            model.insert((x0 + 1, y0 + 1, z0 + 1), 5);
+        };
+        let (a, b) = ((-1000, -50, -1000), (1000, 250, 1000));
+        let mut both = Model::new();
+        roofed(a, &mut both);
+        roofed(b, &mut both);
+        let far = lit(&pack, &both);
+        let ([_, _, _], [sx, sy, sz]) = far.volume();
+        assert!(sx as i64 * sy as i64 * sz as i64 > 16_000_000, "a box of {} cells", sx as i64 * sy as i64 * sz as i64);
+        for corner in [a, b] {
+            let mut alone = Model::new();
+            roofed(corner, &mut alone);
+            let near = lit(&pack, &alone);
+            for x in -16..19 {
+                for y in -16..57 {
+                    for z in -16..19 {
+                        let at = [corner.0 + x, corner.1 + y, corner.2 + z];
+                        assert_eq!(far.light(at), near.light(at), "light at {at:?}");
+                    }
+                }
+            }
+            assert!(far.light([corner.0 + 1, corner.1 + 20, corner.2 + 1]).0 < 15, "the roof shades the cells under it");
+        }
+    }
+
+    // Was light.test.js "the chunks whose light changed: skylight down a
+    // column whose roof went, and direct skylight past the cap": a roof taken
+    // away high over a floor brightens the cells under it, where no block
+    // changed, and the patch reports their tiles; a patch that changes no
+    // light and no block reports none.
+    #[test]
+    fn a_patch_reports_the_tiles_whose_light_changed_where_no_block_did() {
+        let pack = pack();
+        let mut model = Model::new();
+        for x in 0..3 {
+            for z in 0..3 {
+                model.insert((x, 0, z), 2);
+                model.insert((x, 40, z), 2);
+            }
+        }
+        // A block far off along x holds the bounds, so the roof's going does not move them.
+        model.insert((200, 40, 0), 2);
+        let (base, palette) = blueprint(&model, 0);
+        let mut world = World::read(&pack, &base, MASK).unwrap();
+        let before = world.light([1, 20, 1]);
+        assert!(before.0 < 15);
+        let mut next = model.clone();
+        let mut edits = Vec::new();
+        for x in 0..3 {
+            for z in 0..3 {
+                next.remove(&(x, 40, z));
+                edits.push(((x, 40, z), 0));
+            }
+        }
+        let old = World::read(&pack, &blueprint(&model, 0).0, MASK).unwrap();
+        let mut stream = palette.clone();
+        let tiles = world.patch(&pack, &patch_bytes(&next, &mut stream, &edits)).unwrap();
+        assert_eq!(world.light([1, 20, 1]), (15, 0));
+        let fresh = World::read(&pack, &blueprint(&next, 0).0, MASK).unwrap();
+        assert_same(&world, &fresh, "roof gone");
+        let tile = (crate::mesh::cell(1), crate::mesh::cell(1));
+        assert!(tiles.contains(&tile), "{tiles:?}");
+        assert_eq!(tiles, crate::mesh::changed(&old, &fresh));
+        let mut again = stream.clone();
+        let nothing = world.patch(&pack, &patch_bytes(&next, &mut again, &[((1, 20, 1), 0)])).unwrap();
+        assert!(nothing.is_empty(), "{nothing:?}");
+    }
+
+    // Was light.test.js "the light kept between edits equals the whole
+    // world lit from nothing after random edits": over random edit
+    // sequences (blocks put and taken, roofs, emitters, the bounds growing
+    // and shrinking, chunk columns built and emptied), the light a world
+    // keeps across patches is, cell for cell, the light of the same blocks
+    // read and lit afresh, and Minecraft's rules lit every cell from nothing.
+    #[test]
+    fn light_kept_across_patches_equals_a_full_relight_over_random_edits() {
+        let mut applied = 0;
+        for seed in 0..24u64 {
+            let (a, _, _) = run(u64::wrapping_mul(seed + 900, 0x9e3779b97f4a7c15), [20, 40, 24][seed as usize % 3], [15, 50, 90][seed as usize % 3], 25, false);
+            applied += a;
+        }
+        assert!(applied > 400, "{applied} patches");
+    }
+
+    // A table drawn at random: face shapes 0 empty, 1 full, 2 and 3 a bottom
+    // and a top slab's half sides (which close a face together) and more
+    // partial shapes; a full face closes against every face, two empty ones
+    // never, every other ordered pair at random; the light-relevant states
+    // (all but air and cave air) of random emission, light block and faces.
+    fn random_pack(random: &mut Random) -> Pack {
+        let shapes = 4 + random.below(6) as usize;
+        let occludes: Vec<bool> = (0..shapes * shapes)
+            .map(|at| match (at / shapes, at % shapes) {
+                (1, _) | (_, 1) | (2, 3) | (3, 2) => true,
+                (0, 0) => false,
+                _ => random.below(10) < 3,
+            })
+            .collect();
+        let mut face_sets = vec![[0u8; 6], [1; 6], [1, 0, 2, 2, 2, 2], [0, 1, 3, 3, 3, 3]];
+        for _ in 0..random.below(5) {
+            face_sets.push([0; 6].map(|_: u8| random.below(shapes as u64) as u8));
+        }
+        let mut table = TABLE;
+        for entry in table.iter_mut().skip(2) {
+            let faces = random.below(face_sets.len() as u64) as u8;
+            let emission = if random.below(4) == 0 { random.below(16) as u8 } else { 0 };
+            let light_block = [0, 0, 1, 2, 3, 15][random.below(6) as usize];
+            *entry = (entry.0, emission, light_block, faces);
+        }
+        pack_of(&table, face_sets, shapes, occludes)
+    }
+
+    // Was light-mesher.test.js "see_build's light equals the mesher's cell
+    // for cell under random tables, partial face shapes that close a face
+    // among them": the page's light is gone; the mesher's own, under the
+    // same kind of tables, against Minecraft's rules, every cell.
+    #[test]
+    fn light_equals_minecrafts_rules_under_random_tables_with_partial_shapes_that_close_a_face() {
+        let mut cells = 0u64;
+        for seed in 0..24u64 {
+            let mut random = Random(u64::wrapping_mul(seed + 1300, 0x9e3779b97f4a7c15));
+            let pack = random_pack(&mut random);
+            for round in 0..3 {
+                let model = if round == 2 { tall_model(&mut random, 24) } else { random_model(&mut random, [16, 40][round], [30, 70][round]) };
+                let world = lit(&pack, &model);
+                assert_reference_light(&pack, &world, &format!("seed {seed} round {round}"));
+                let (_, [sx, sy, sz]) = world.volume();
+                cells += (sx * sy * sz) as u64;
+            }
+        }
+        assert!(cells > 1_000_000, "{cells} cells");
+    }
+
+    // A blueprint of states of `pack` by position (state 0 is air, entry 0).
+    fn blueprint_of_states(pack: &Pack, blocks: &BTreeMap<(i32, i32, i32), u32>) -> Vec<u8> {
+        let mut palette = vec![pack.air];
+        let mut sections: BTreeMap<(i32, i32, i32), Vec<u16>> = BTreeMap::new();
+        let mut bounds = [i32::MAX, i32::MAX, i32::MAX, i32::MIN, i32::MIN, i32::MIN];
+        for (&(x, y, z), &state) in blocks {
+            let at = palette.iter().position(|&s| s == state).unwrap_or_else(|| {
+                palette.push(state);
+                palette.len() - 1
+            });
+            for (axis, value) in [x, y, z].into_iter().enumerate() {
+                bounds[axis] = bounds[axis].min(value);
+                bounds[axis + 3] = bounds[axis + 3].max(value);
+            }
+            sections.entry((x >> 4, y >> 4, z >> 4)).or_insert_with(|| vec![0; 4096])[((y & 15) << 8 | (z & 15) << 4 | (x & 15)) as usize] = at as u16;
+        }
+        let mut out = Vec::new();
+        put_int(&mut out, palette.len() as i32);
+        for &state in &palette {
+            let name = pack.name(state);
+            let (id, properties) = match name.split_once('[') {
+                Some((id, rest)) => (id.to_string(), rest.trim_end_matches(']').split(',').map(|pair| pair.split_once('=').unwrap()).map(|(k, v)| (k.to_string(), v.to_string())).collect::<Vec<_>>()),
+                None => (name.clone(), Vec::new()),
+            };
+            let utf = |out: &mut Vec<u8>, text: &str| {
+                out.extend_from_slice(&(text.len() as u16).to_be_bytes());
+                out.extend_from_slice(text.as_bytes());
+            };
+            utf(&mut out, &id);
+            put_int(&mut out, properties.len() as i32);
+            for (key, value) in properties {
+                utf(&mut out, &key);
+                utf(&mut out, &value);
+            }
+        }
+        for value in bounds {
+            put_int(&mut out, value);
+        }
+        put_int(&mut out, sections.len() as i32);
+        for ((x, y, z), indices) in sections {
+            for value in [x, y, z] {
+                put_int(&mut out, value);
+            }
+            for value in indices {
+                out.extend_from_slice(&value.to_be_bytes());
+            }
+        }
+        out
+    }
+
+    // Was light-mesher.test.js "see_build's light equals the mesher's cell
+    // for cell under Minecraft's states and face shapes": under the baked
+    // pack's states (Minecraft's emission, light block and face shapes, from
+    // the block table), random worlds of every kind of state, against
+    // Minecraft's rules, every cell. Needs the pack: MCBENCH_MESHER_PACK
+    // names a baked web/mcbench-pack.bin (its absence is said and the test
+    // does nothing, as the page's test skipped without the block table).
+    #[test]
+    fn light_equals_minecrafts_rules_under_minecrafts_states_and_face_shapes() {
+        let Ok(file) = std::env::var("MCBENCH_MESHER_PACK") else {
+            eprintln!("skipped: MCBENCH_MESHER_PACK names no baked pack");
+            return;
+        };
+        let pack = Pack::read(&std::fs::read(file).unwrap()).unwrap();
+        let states = pack.states.len() as u64;
+        let mut cells = 0u64;
+        for seed in 0..12u64 {
+            let mut random = Random(u64::wrapping_mul(seed + 1700, 0x9e3779b97f4a7c15));
+            let mut blocks = BTreeMap::new();
+            let size = [16, 30, 44][seed as usize % 3];
+            for x in 0..size {
+                for z in 0..size {
+                    blocks.insert((x, 60, z), pack.named("minecraft:stone").unwrap());
+                    for _ in 0..random.below(4) {
+                        blocks.insert((x, 61 + random.below(12), z), random.below(states) as u32);
+                    }
+                }
+            }
+            let world = World::read(&pack, &blueprint_of_states(&pack, &blocks), MASK).unwrap();
+            assert_reference_light(&pack, &world, &format!("seed {seed}"));
+            let (_, [sx, sy, sz]) = world.volume();
+            cells += (sx * sy * sz) as u64;
+        }
+        assert!(cells > 500_000, "{cells} cells");
     }
 }

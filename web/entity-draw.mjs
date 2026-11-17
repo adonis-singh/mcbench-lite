@@ -1,10 +1,10 @@
 // What Minecraft's client draws of an entity, from what its own entity
 // renderers drew in the bake (server/McbenchEntities.java, written to
 // mcbench-entities.json): the geometry both views draw entities with. The
-// live viewer (entities.mjs, three.js in BlueMap) and see_build (viewer.js,
-// WebGL beside deepslate) each turn its quads into their own buffers, with
-// their own atlas coordinates and lighting; everything up to the quads is
-// here, and the same.
+// live viewer (entities.mjs, three.js in BlueMap) turns its quads into its
+// buffers, with its own atlas coordinates and lighting; see_build's renderer
+// (native/draw/src/entities.rs) draws the same quads, checked against this
+// module run in Node.
 //
 // An entity is the engine's (core/src/entity/mod.rs json): its type, id,
 // position, yaw and pitch, and the data its look changes with. Its kind's

@@ -27,11 +27,6 @@ test('the tints are read by state id: the world colour of each tint index, and t
   const stone = STATES.idOf('minecraft:stone', {});
   assert.deepEqual([...tints.world.subarray(stone * 2, stone * 2 + 2)], [0xffffff, 0xffffff]);
 
-  // The page's bytes: states, indices, then the colours by state and index.
-  const bytes = tints.bytes();
-  const words = new Uint32Array(bytes.buffer, bytes.byteOffset, bytes.length / 4);
-  assert.deepEqual([...words.subarray(0, 2)], [STATES.count, 2]);
-  assert.deepEqual([...words.subarray(2)], [...tints.world]);
 });
 
 test('tints of other states than the block table\'s are refused', () => {

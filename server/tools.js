@@ -2,9 +2,10 @@
 
 // The programs the app downloads for itself instead of asking for them to be
 // installed by hand: a JDK, the Rust engine's program and WebAssembly module,
-// Chromium's headless shell, and, when the person asks for one from Connect
-// an AI, the Claude Code or Codex CLI (and rustup, for a developer who builds
-// the engine from its sources). They
+// see_build's renderer (mcbench-draw), and, when the person asks for one from
+// Connect an AI, the Claude Code or Codex CLI (and, for a developer, rustup,
+// to build the engine or the renderer from their sources, and Chromium's
+// headless shell, for the tests and scripts that drive the real page). They
 // are kept in one folder, MCBENCH_TOOLS_DIR or ~/.mcbench-lite/tools, which
 // every checkout and data folder shares, so a scratch data folder downloads
 // nothing again. Each program is pinned to a version and, for each of
@@ -40,17 +41,20 @@ const PLAYWRIGHT_BUILDS = 'https://cdn.playwright.dev/dbazure/download/playwrigh
 const CODEX = 'https://github.com/openai/codex/releases/download/rust-v0.169.0';
 const CLAUDE_CODE = 'https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/2.1.311';
 
-// The Rust engine (core/), built from its sources for each platform and once
-// as WebAssembly by scripts/release-engine.js, and published as assets of a
-// release of the public repository by scripts/publish-engine.js. Its version
-// is the hash of the engine's sources (engine.js sourcesHash), and
-// engine-release.json, which release-engine.js writes, pins each asset by
-// name, sha256 and size. MCBENCH_ENGINE_RELEASES names another address the
-// releases are under (a local server, for the tests and for timing a first
-// start before a release is published); nothing else reads it.
+// The Rust engine (core/) and see_build's renderer (native/draw), each built
+// from its sources for each platform (and the engine once as WebAssembly) by
+// scripts/release-engine.js and scripts/release-draw.js, and published as
+// assets of a release of the public repository by scripts/publish-engine.js
+// and scripts/publish-draw.js. Each one's version is the hash of its sources
+// (engine.js and draw.js sourcesHash), and engine-release.json and
+// draw-release.json, which the release scripts write, pin each asset by
+// name, sha256 and size. MCBENCH_RELEASES names another address the releases
+// are under (a local server, for the tests and for timing a first start
+// before a release is published); nothing else reads it.
 const ENGINE_RELEASE = require('./engine-release.json');
-const ENGINE_RELEASES = process.env.MCBENCH_ENGINE_RELEASES || 'https://github.com/adonis-singh/mcbench-lite/releases/download';
-const engineAsset = (asset, bin) => ({ url: `${ENGINE_RELEASES}/${ENGINE_RELEASE.tag}/${asset.name}`, sha256: asset.sha256, bytes: asset.bytes, bin });
+const DRAW_RELEASE = require('./draw-release.json');
+const RELEASES = process.env.MCBENCH_RELEASES || 'https://github.com/adonis-singh/mcbench-lite/releases/download';
+const releaseAsset = (release, asset, bin) => ({ url: `${RELEASES}/${release.tag}/${asset.name}`, sha256: asset.sha256, bytes: asset.bytes, bin });
 
 // Chromium's headless shell is the build playwright-core names in its
 // browsers.json, from the addresses Playwright's own installer uses: Chrome
@@ -113,13 +117,23 @@ const PINS = {
     title: 'the Minecraft engine',
     version: ENGINE_RELEASE.version,
     unpack: 'gzip',
-    platforms: Object.fromEntries(PLATFORMS.map((platform) => [platform, engineAsset(ENGINE_RELEASE.assets[platform], 'mcbench-core')])),
+    platforms: Object.fromEntries(PLATFORMS.map((platform) => [platform, releaseAsset(ENGINE_RELEASE, ENGINE_RELEASE.assets[platform], 'mcbench-core')])),
   },
   'engine-wasm': {
     title: "the page's Minecraft engine",
     version: ENGINE_RELEASE.version,
     unpack: 'gzip',
-    platforms: Object.fromEntries(PLATFORMS.map((platform) => [platform, engineAsset(ENGINE_RELEASE.assets.wasm32, 'mcbench-core.wasm')])),
+    platforms: Object.fromEntries(PLATFORMS.map((platform) => [platform, releaseAsset(ENGINE_RELEASE, ENGINE_RELEASE.assets.wasm32, 'mcbench-core.wasm')])),
+  },
+  // see_build's renderer (draw.js), a program that opens the system's
+  // graphics drivers when it runs, with, on Linux x64, the software Vulkan
+  // driver it draws with on a machine that has no GPU (scripts/release-draw.js
+  // FLOOR). It unpacks from a .tar.gz.
+  draw: {
+    title: 'the screenshot renderer',
+    version: DRAW_RELEASE.version,
+    unpack: 'tar',
+    platforms: Object.fromEntries(PLATFORMS.map((platform) => [platform, releaseAsset(DRAW_RELEASE, DRAW_RELEASE.assets[platform], 'mcbench-draw')])),
   },
   claude: {
     title: 'Claude Code 2.1.311',
@@ -311,17 +325,19 @@ async function installRustup({ onProgress } = {}) {
   });
 }
 
-// see_build's browser: the headless shell playwright-core names, installed
-// by the first start, and checked to start on this machine (checkShell).
-// Resolves with the path of its program.
+// Chromium's headless shell, the build playwright-core names, for the tests
+// and scripts that drive the real page (npm run test:ui, scripts/wasm-chrome.js):
+// a developer's download, installed into the tools folder the first time one
+// of them asks, and checked to start on this machine (checkShell). The app
+// itself runs no browser. Resolves with the path of its program.
 let shell = null;
 function headlessShell() {
-  shell ||= setup.track('browser', async () => {
-    const program = await step(`[see_build] downloading ${PINS.chromium.title} (${downloadMb('chromium')} MB) into ${TOOLS_DIR}`, '[see_build] headless browser installed',
-      () => install('chromium', { onProgress: setup.progress('browser') }));
+  shell ||= (async () => {
+    const program = await step(`[tools] downloading ${PINS.chromium.title} (${downloadMb('chromium')} MB) into ${TOOLS_DIR}`, '[tools] headless browser installed',
+      () => install('chromium'));
     await checkShell(program);
     return program;
-  }).catch((error) => {
+  })().catch((error) => {
     shell = null;
     throw error;
   });
@@ -386,6 +402,6 @@ function onPath(program) {
 }
 
 module.exports = {
-  PINS, PLATFORM, PLATFORMS, TOOLS_DIR, ENGINE_RELEASE, JAVA, JAVAC, RUST_ENV, RUSTUP, CHROMIUM_DOWNLOADS,
+  PINS, PLATFORM, PLATFORMS, TOOLS_DIR, ENGINE_RELEASE, DRAW_RELEASE, JAVA, JAVAC, RUST_ENV, RUSTUP, CHROMIUM_DOWNLOADS,
   download, downloadMb, install, installed, installJdk, installRustup, headlessShell, checkShell, onPath, cliProgram, cliInstalled,
 };

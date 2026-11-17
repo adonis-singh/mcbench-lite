@@ -3,8 +3,8 @@
 // conversation's blocks as the live import does (Minecraft's own block
 // updates: connections, shapes, blocks that cannot stay), runs ticks (falling
 // blocks fall, water and lava spread, scheduled ticks fire), and the
-// blueprint it then writes becomes the World the screenshot page draws, with
-// the states the engine set. A fresh placement of the whole blueprint is what
+// blueprint it then writes is what see_build's helper draws (sceneOf) and
+// becomes the World see_build frames, with the states the engine set. A fresh placement of the whole blueprint is what
 // a settle is, so a world is settled once for each number of ticks asked: the
 // settles of a conversation's world are kept until the world changes. Several
 // numbers of ticks asked at once are one run of the engine to the largest,
@@ -34,7 +34,7 @@ let pool = null;
 // it settled (the same object, at the same revision, or it is settled
 // again), and by ticks the settles running (`pending`) and done (`done`); a
 // tick is in one of the two at most. And `latest`, its latest engine world:
-// what the next settle's palette and unchanged chunks are taken from.
+// what the next settle's palette is taken from.
 // A conversation is kept or it is not: one dropped leaves with all of it,
 // and a settle of it that ends later writes to what was dropped, which
 // nothing here holds.
@@ -46,6 +46,19 @@ const entryOf = (conversationId, world) => kept.get(conversationId)?.worlds.find
 const KEPT_CONVERSATIONS = 16;
 const CHANGE_EXAMPLES = 8;
 const KEPT_CLIPS = 8;
+// What see_build's helper draws of each settled world (sceneOf): the
+// engine's blueprint bytes, the entities at its tick, a number that names it
+// among the worlds this process settled, and its `edition`: which authored
+// world, at which revision, it was settled from (the settles of one edition
+// at different ticks are the same build).
+const scenes = new WeakMap();
+let serials = 0;
+const authored = new WeakMap();
+let authors = 0;
+const editionOf = (world) => {
+  if (!authored.has(world)) authored.set(world, (authors += 1));
+  return `${authored.get(world)}.${world.revision}`;
+};
 
 // A member of the pool: a Rust engine in a folder of its own, started now.
 // One whose engine died is retired by the pool (alive), never restarted.
@@ -74,24 +87,6 @@ function checkTicks(value, label) {
     throw new Error(`${label} is ${value} ticks; the budget of simulated ticks, the same as test_build's, is ${BUDGETS.simulationTicks} (${BUDGET_ENV.simulationTicks})`);
   }
   return value;
-}
-
-// Chunks of `world` whose blocks equal `previous`'s (same palette) become
-// `previous`'s chunk objects, with their versions, so the screenshot page
-// keeps their meshes.
-function adoptUnchanged(world, previous) {
-  if (!previous) return;
-  for (const [key, chunk] of world.chunks) {
-    const before = previous.chunks.get(key);
-    if (!before || before.count !== chunk.count) continue;
-    const a = before.view();
-    const b = chunk.view();
-    let same = true;
-    for (let index = 0; index < a.length && same; index += 1) same = a[index] === b[index];
-    if (!same) continue;
-    world.chunks.set(key, before);
-    world.ownedChunks.delete(key);
-  }
 }
 
 // Where the settled world's block ids differ from the authored world's:
@@ -132,7 +127,7 @@ function idChanges(authored, settled) {
 
 // The blocks of `world` inside `clip` ({min, max}), as a world of the same
 // palette: chunks wholly inside are `world`'s own chunk objects.
-function clipWorld(world, clip, previous) {
+function clipWorld(world, clip) {
   const out = new World({ palette: world.palette });
   for (const [key, chunk] of world.chunks) {
     const origin = World.coordsOf(key).map((c) => c * 16);
@@ -150,7 +145,6 @@ function clipWorld(world, clip, previous) {
       }
     });
   }
-  adoptUnchanged(out, previous);
   return out;
 }
 
@@ -222,15 +216,14 @@ function runSettle(chat, conversationId, world, ticks) {
       const results = {};
       for (const tick of ticks) {
         const previous = chat.latest;
-        const settled = await time('read', async () => {
-          const out = files.has(tick)
-            ? blueprintWorld(fs.readFileSync(files.get(tick)), minecraftLive.yOffset, previous?.world.palette)
-            : new World({ palette: previous?.world.palette });
-          adoptUnchanged(out, previous?.world);
-          return out;
-        });
+        const blueprint = files.has(tick) ? fs.readFileSync(files.get(tick)) : null;
+        const settled = await time('read', async () => (blueprint
+          ? blueprintWorld(blueprint, minecraftLive.yOffset, previous?.world.palette)
+          : new World({ palette: previous?.world.palette })));
+        serials += 1;
+        scenes.set(settled, { serial: serials, edition: editionOf(world), blueprint, entities: entities.get(tick) || [] });
         const changes = await time('compare', async () => idChanges(world, settled));
-        const result = { world: settled, entities: entities.get(tick) || [], changes, unsupported: unsupported.get(tick) || [], timings, ticks: tick, clips: new Map(), previousClips: previous?.clips || new Map() };
+        const result = { world: settled, entities: entities.get(tick) || [], changes, unsupported: unsupported.get(tick) || [], timings, ticks: tick, clips: new Map() };
         chat.latest = result;
         results[tick] = result;
       }
@@ -311,23 +304,21 @@ function shotWorld(conversation, clip, tick) {
   const box = { min: clip.from.map((v, i) => Math.min(v, clip.to[i])), max: clip.from.map((v, i) => Math.max(v, clip.to[i])) };
   const key = `${box.min.join(',')}:${box.max.join(',')}`;
   if (!result.clips.has(key)) {
-    result.clips.set(key, clipWorld(result.world, box, result.previousClips.get(key)));
+    result.clips.set(key, clipWorld(result.world, box));
     // A settle keeps the clips shot most recently, not every box ever asked.
     if (result.clips.size > KEPT_CLIPS) result.clips.delete(result.clips.keys().next().value);
   }
   return result.clips.get(key);
 }
 
-// The entities of `conversation`'s current world after `tick` ticks (its
-// settle ticks when omitted), those inside `clip` ({from, to}) when given:
-// each whose position is in the box; null when that was not settled.
-function shotEntities(conversation, clip, tick) {
-  const result = entryOf(conversation.id, conversation.world)?.done.get(tick ?? currentTicks(conversation.world));
-  if (!result) return null;
-  if (!clip) return result.entities;
-  const min = clip.from.map((v, i) => Math.min(v, clip.to[i]));
-  const max = clip.from.map((v, i) => Math.max(v, clip.to[i]) + 1);
-  return result.entities.filter((entity) => entity.pos.every((v, i) => v >= min[i] && v < max[i]));
+// What see_build's helper is given to draw `world`, a world a settle made:
+// { serial, edition, blueprint (the engine's bytes), entities }.
+function sceneOf(world) {
+  const scene = scenes.get(world);
+  // The words the screenshot page gave a model for a world the server held
+  // no settle of (the world route's 409).
+  if (!scene) throw new Error('page.evaluate: Error: World load failed (HTTP 409)');
+  return scene;
 }
 
-module.exports = { shotOptions, settle, currentTicks, checkTicks, shotWorld, shotEntities, warmShotEngines, stopShotEngines, DEFAULT_SETTLE_TICKS, _internal: { idChanges } };
+module.exports = { shotOptions, settle, currentTicks, checkTicks, shotWorld, sceneOf, warmShotEngines, stopShotEngines, DEFAULT_SETTLE_TICKS, _internal: { idChanges } };

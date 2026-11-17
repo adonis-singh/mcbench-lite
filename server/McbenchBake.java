@@ -77,7 +77,7 @@ import java.util.function.Predicate;
 // transforms, sorting and writing the tile. No BlueMap runs in the app.
 //
 //   java -cp <bluemap cli jar>:<classes> McbenchBake <minecraft version> <block table tsv>
-//     <Minecraft's libraries, a class path> <the world's biome> <Mojang's client mappings> [flow table out]
+//     <Minecraft's libraries, a class path> <the world's biome> <Mojang's client mappings>
 //
 // run in a folder holding BlueMap's configuration (config/, written by
 // server/bluemap.js, whose map "live" holds the render settings). It writes
@@ -93,23 +93,21 @@ import java.util.function.Predicate;
 // render-layers.tsv and tints.tsv here; BlueMap then draws the blocks the
 // client tints in the client's colours (minecraftColors).
 // It draws every model variant with BlueMap's own renderer too and fails
-// unless the baked data rebuilds those faces (see check). With a sixth argument it also writes,
-// for renderer/'s test, the flow angle BlueMap's LiquidModelRenderer gives
-// every own level and four neighbours (see writeFlowTable).
+// unless the baked data rebuilds those faces (see check).
 //
 // Format, little endian; str = u16 byte length + UTF-8; matrices are the 12
 // floats m00..m23 (BlueMap's transforms never read the last row):
-//   "MCBP" u32 version (5)
+//   "MCBP" u32 version (7)
 //   u32 blocks, each: str id, u32 first state, u8 properties, each:
 //       str name, u8 default value, u8 values, each: str value
 //     A block's states follow its first state in mixed radix over its
 //     properties (sorted by name, the last varying fastest).
-//   u32 states, each 18 bytes:
-//       u8 flags: 1 shades, 2 alwaysWaterlogged, 4 randomOffset, 8 waterlogged,
-//                 16 water, 32 air
+//   u32 states, each 20 bytes:
+//       u8 flags: 1 shades, 2 alwaysWaterlogged, 8 waterlogged, 16 water, 32 air
 //       u8 liquid level, u8 light emission, u8 light block, u8 tint blends (0 or 1),
 //       u8 light faces (a face set, below), u16 cull class (below),
-//       u16 block, u32 tint, u32 selection (0xFFFFFFFF: no blockstate resource)
+//       u16 block, u32 tint, u32 selection (0xFFFFFFFF: no blockstate resource),
+//       u16 render class (below)
 //     (shades, emission, light block, light faces and the cull class from
 //     Paper's block table, everything else from BlueMap; "shades": the
 //     state darkens the corners of the faces beside it in ambient
@@ -141,6 +139,20 @@ import java.util.function.Predicate;
 //     the first on, toward each direction
 //   u32 air state, u32 BlockState.WATER selection, u32 BlockState.WATER tint,
 //     u8 BlockState.WATER tint blends
+//   u32 render classes, each: i8 x3 seed step, u8 offset (0 none, 1 XZ,
+//     2 XYZ), f32 max horizontal offset, f32 max vertical offset; u8 fluid
+//     group (0 none), u8 fluid amount, u8 falling, u8 the directions its own
+//     shape hides its fluid's faces toward, f32 x4 the greatest height of a
+//     fluid's side it hides as the fluid's neighbour north, south, west,
+//     east (-1 none), u8 flags (1 hides a fluid's bottom above it, 2 a
+//     fluid's full top below it, 4 solid, 8 blocks motion, 16 solid render,
+//     32 ice, 64 water beside it drawn with the overlay, 128 emissive), u8 the directions
+//     of its sturdy faces: what Minecraft's block renderer draws a state by
+//     at a position (its model's variant and offset) and what
+//     LiquidBlockRenderer asks of it, from Minecraft's own code
+//     (McbenchRenderStates's render-states.tsv)
+//   u32 fluid groups, each: u8 lava, u32 still texture, u32 flowing texture;
+//     u32 the water overlay texture
 //   u32 tints, each: f32 r, g, b (the color BlueMap's calculator gives the
 //     state in the world's biome, as the face color it writes: Minecraft's,
 //     for every block the client tints, see minecraftColors)
@@ -161,8 +173,10 @@ import java.util.function.Predicate;
 //       half (a double chest's, a bed's: the renderer lights both halves
 //       by the brighter), 0, 0, 0 for none
 //   u32 variant sets, each: f64 total weight, u16 variants, each: f64 weight, u32 variant
-//   u32 selections, each: u16 sets, u32 set each (the sets a state's
-//     blockstate applies, in BlockState.forEach order)
+//   u32 selections, each: u8 multipart (the blockstate is a multipart one:
+//     Minecraft draws a variant of each set it applies with one random seed,
+//     MultiPartModel.collectParts), u16 sets, u32 set each (the sets a
+//     state's blockstate applies, in BlockState.forEach order)
 //   u32 entity shapes, each: f32 x12 corners (blocks), f32 x8 uvs
 //   u32 entity quads, each: u32 shape, u32 texture, u32 tint (the colour
 //     Minecraft's renderer tinted it with)
@@ -195,7 +209,11 @@ class McbenchBake {
   final Map<Variant, Integer> variantIds = new IdentityHashMap<>();
   final Map<Variant, BlockRendererType> variantTypes = new IdentityHashMap<>();
 
-  McbenchBake(ResourcePack pack, ResourcePack vanilla, McbenchBlockEntities entities, TextureGallery gallery, Biome biome) throws Exception {
+  // Blocks drawn by `vanilla`'s blockstates and models (bake).
+  final java.util.Set<String> vanillaBlocks;
+
+  McbenchBake(ResourcePack pack, ResourcePack vanilla, java.util.Set<String> vanillaBlocks, McbenchBlockEntities entities, TextureGallery gallery, Biome biome) throws Exception {
+    this.vanillaBlocks = vanillaBlocks;
     this.pack = pack;
     this.vanilla = vanilla;
     this.entities = entities;
@@ -315,13 +333,13 @@ class McbenchBake {
     return tints.intern(new Out().f32(color.r).f32(color.g).f32(color.b));
   }
 
-  // The variant sets BlockState.forEach visits for this state, in order; for
-  // a state Minecraft draws through a block entity renderer (`name` among
-  // the captured), those of Minecraft's own blockstate and a set of the
-  // renderer's quads.
+  // The variant sets BlockState.forEach visits for this state, in order:
+  // Minecraft's own blockstate's for a block of vanillaBlocks; for a state
+  // Minecraft draws through a block entity renderer (`name` among the
+  // captured), then a set of the renderer's quads.
   int selection(BlockState state, String name) throws Exception {
     List<McbenchBlockEntities.Quad> quads = name == null ? null : entities.quads.get(name);
-    ResourcePack source = quads == null ? pack : vanilla;
+    ResourcePack source = vanillaBlocks.contains(state.getId().getFormatted()) ? vanilla : pack;
     var resource = source.getBlockState(state);
     var applied = new ArrayList<VariantSet>();
     if (resource != null) {
@@ -335,7 +353,7 @@ class McbenchBake {
         for (VariantSet part : resource.getMultipart().getParts()) if (part.getCondition().matches(state)) applied.add(part);
       }
     } else if (quads == null) return NONE;
-    var record = new Out().u16(applied.size() + (quads == null ? 0 : 1));
+    var record = new Out().u8(resource != null && resource.getMultipart() != null ? 1 : 0).u16(applied.size() + (quads == null ? 0 : 1));
     for (VariantSet set : applied) record.u32(set(set, state, source));
     if (quads != null) {
       int[] partner = entities.partners.getOrDefault(name, new int[3]);
@@ -625,8 +643,33 @@ class McbenchBake {
     var cullClasses = new Pool();
     var out = new Out();
     out.writeBytes("MCBP".getBytes(StandardCharsets.US_ASCII));
-    out.u32(5);
+    out.u32(7);
     var states = new Out();
+    // Each state's render class (render-states.tsv, McbenchRenderStates), by
+    // name, and the fluid groups' textures.
+    var renderClasses = new Pool();
+    var renderOf = new HashMap<String, Integer>();
+    var fluidGroups = new Out();
+    int groupCount = 0, overlay = NONE;
+    for (String line : Files.readAllLines(Path.of("render-states.tsv"))) {
+      String[] field = line.split("\t");
+      if (field[0].equals("fluidgroup")) {
+        if (Integer.parseInt(field[1]) != ++groupCount) throw new IOException("render-states.tsv's fluid groups are out of order");
+        fluidGroups.u8(Integer.parseInt(field[2])).u32(gallery.get(Key.parse(field[3]))).u32(gallery.get(Key.parse(field[4])));
+        continue;
+      }
+      if (field[0].equals("fluidoverlay")) {
+        overlay = gallery.get(Key.parse(field[1]));
+        continue;
+      }
+      String[] step = field[1].split(","), fluid = field[5].split(","), sides = field[7].split(",");
+      var record = new Out().i8(Integer.parseInt(step[0])).i8(Integer.parseInt(step[1])).i8(Integer.parseInt(step[2])).u8(Integer.parseInt(field[2]))
+        .f32(Float.parseFloat(field[3])).f32(Float.parseFloat(field[4]))
+        .u8(Integer.parseInt(fluid[0])).u8(Integer.parseInt(fluid[1])).u8(Integer.parseInt(fluid[2])).u8(Integer.parseInt(field[6]));
+      for (String side : sides) record.f32(Float.parseFloat(side));
+      renderOf.put(field[0], renderClasses.intern(record.u8(Integer.parseInt(field[8])).u8(Integer.parseInt(field[9]))));
+    }
+    if (overlay == NONE) throw new IOException("render-states.tsv names no water overlay");
     int stateCount = 0, air = NONE, block = 0;
     out.u32(blocks.size());
     for (var entry : blocks.entrySet()) {
@@ -671,10 +714,12 @@ class McbenchBake {
         BlockState state = state(id, properties);
         if (state.isAir() && id.equals("minecraft:air")) air = stateCount;
         BlockProperties props = pack.getBlockProperties(state);
-        int flags = (lightOf.shades() ? 1 : 0) | (props.isAlwaysWaterlogged() ? 2 : 0) | (props.isRandomOffset() ? 4 : 0)
+        int flags = (lightOf.shades() ? 1 : 0) | (props.isAlwaysWaterlogged() ? 2 : 0)
           | (state.isWaterlogged() ? 8 : 0) | (state.isWater() ? 16 : 0) | (state.isAir() ? 32 : 0);
+        Integer render = renderOf.get(name);
+        if (render == null) throw new IOException("No render-states.tsv line for " + name);
         states.u8(flags).u8(state.getLiquidLevel()).u8(lightOf.emission()).u8(lightOf.lightBlock()).u8(blends(state)).u8(faceSet)
-          .u16(cullClass).u16(block).u32(tint(state)).u32(selection(state, name));
+          .u16(cullClass).u16(block).u32(tint(state)).u32(selection(state, name)).u16(render);
         stateCount++;
       }
       block++;
@@ -695,6 +740,9 @@ class McbenchBake {
       for (int i = 1; i < masks.length; i++) out.u8(Integer.parseInt(masks[i]));
     }
     out.u32(air).u32(selection(BlockState.WATER, null)).u32(tint(BlockState.WATER)).u8(blends(BlockState.WATER));
+    renderClasses.writeTo(out);
+    out.u32(groupCount).writeBytes(fluidGroups.toByteArray());
+    out.u32(overlay);
     for (Pool pool : new Pool[] { tints, matrices, tables, elements, meshes, variants, sets, selections, entityShapes, entityQuads, entityMeshes }) pool.writeTo(out);
     liquidUvs(out);
     Path partial = target.resolveSibling(target.getFileName() + ".part");
@@ -709,35 +757,6 @@ class McbenchBake {
     byte[] bits = new byte[(line.length() + 7) / 8];
     for (int at = 0; at < line.length(); at++) if (line.charAt(at) == '1') bits[at >> 3] |= (byte) (1 << (at & 7));
     return bits;
-  }
-
-  // For renderer/'s test: LiquidModelRenderer.getFlowingAngle, called on
-  // BlueMap's own renderer, for water of every level whose four sides
-  // (-x, +x, -z, +z) each hold air (code 0) or water of level code - 1
-  // (1..16). One i16 per case, the own level slowest, then the sides in
-  // that order, each a base-17 digit.
-  void writeFlowTable(Path target) throws Exception {
-    var renderer = new LiquidModelRenderer(pack, gallery, SETTINGS);
-    Field blockField = LiquidModelRenderer.class.getDeclaredField("block");
-    Field stateField = LiquidModelRenderer.class.getDeclaredField("blockState");
-    Method angle = LiquidModelRenderer.class.getDeclaredMethod("getFlowingAngle");
-    for (var accessible : new java.lang.reflect.AccessibleObject[] { blockField, stateField, angle }) accessible.setAccessible(true);
-    BlockState[] water = new BlockState[16];
-    for (int level = 0; level < 16; level++) water[level] = new BlockState(Key.minecraft("water"), new TreeMap<>(Map.of("level", String.valueOf(level))));
-    int[][] sides = { {-1, 0}, {1, 0}, {0, -1}, {0, 1} };
-    var out = new Out();
-    for (int own = 0; own < 16; own++) for (int code = 0; code < 17 * 17 * 17 * 17; code++) {
-      BlockNeighborhood block = probe.at(0, 0, 0, water[own]);
-      for (int side = 0, rest = code; side < 4; side++, rest /= 17) {
-        int neighbour = rest % 17;
-        if (neighbour > 0) probe.states.put(ProbeWorld.key(sides[3 - side][0], 0, sides[3 - side][1]), water[neighbour - 1]);
-      }
-      blockField.set(renderer, block);
-      stateField.set(renderer, water[own]);
-      int result = (int) angle.invoke(renderer);
-      out.u16(result & 0xffff);
-    }
-    Files.write(target, out.toByteArray());
   }
 
   // What Minecraft's overworld is to BlueMap here: the live world's
@@ -845,9 +864,9 @@ class McbenchBake {
   // parents, and the textures the models name), laid out as a resource pack
   // in `folder`: what BlueMap reads Minecraft's own blockstates and models
   // of them from, the rest of the jar read once, as BlueMap loaded it.
-  static Path vanillaFiles(Path clientJar, McbenchBlockEntities entities, Path folder) throws IOException {
+  static Path vanillaFiles(Path clientJar, java.util.Set<String> vanillaBlocks, Path folder) throws IOException {
     var blocks = new java.util.TreeSet<String>();
-    for (String name : entities.quads.keySet()) blocks.add(name.replaceFirst("\\[.*", "").replaceFirst("^minecraft:", ""));
+    for (String id : vanillaBlocks) blocks.add(id.replaceFirst("^minecraft:", ""));
     try (var jar = java.nio.file.FileSystems.newFileSystem(clientJar)) {
       var models = new ArrayDeque<String>();
       var textures = new java.util.TreeSet<String>();
@@ -889,26 +908,65 @@ class McbenchBake {
     return true;
   }
 
-  // Adds to the map's textures, after BlueMap's own, the textures a block
-  // Minecraft draws through a block entity renderer is drawn with that the
-  // map lacks: the textures of its quads (read from the client jar) and of
-  // Minecraft's own models of it (as `vanilla` read them).
-  static void textures(TextureGallery gallery, Path clientJar, ResourcePack vanilla, McbenchBlockEntities entities) throws Exception {
+  // The blocks (ids) whose blockstate, or a model their blockstate names,
+  // BlueMap's resource extensions replace in Minecraft's namespace (in any
+  // of the zip's folders), Minecraft's own files read from the client jar.
+  static java.util.Set<String> replacedByExtensions(Path extensions, Path clientJar) throws IOException {
+    var states = new java.util.TreeSet<String>();
+    var models = new java.util.TreeSet<String>();
+    try (var zip = java.nio.file.FileSystems.newFileSystem(extensions)) {
+      try (var files = Files.walk(zip.getPath("/"))) {
+        for (Path file : (Iterable<Path>) files::iterator) {
+          String path = file.toString();
+          var blockstate = java.util.regex.Pattern.compile("assets/minecraft/blockstates/([a-z0-9_/]+)\\.json$").matcher(path);
+          var model = java.util.regex.Pattern.compile("assets/minecraft/models/([a-z0-9_/]+)\\.json$").matcher(path);
+          if (blockstate.find()) states.add(blockstate.group(1));
+          if (model.find()) models.add(model.group(1));
+        }
+      }
+    }
+    var replaced = new java.util.TreeSet<String>();
+    try (var jar = java.nio.file.FileSystems.newFileSystem(clientJar)) {
+      try (var files = Files.list(jar.getPath("assets/minecraft/blockstates"))) {
+        for (Path file : (Iterable<Path>) files::iterator) {
+          String block = file.getFileName().toString().replaceFirst("\\.json$", "");
+          boolean names = states.contains(block);
+          for (String model : McbenchClient.models(com.google.gson.JsonParser.parseString(Files.readString(file)))) names |= models.contains(model.replaceFirst("^minecraft:", ""));
+          if (names) replaced.add("minecraft:" + block);
+        }
+      }
+    }
+    return replaced;
+  }
+
+  // Adds to the map's textures, after BlueMap's own, the textures the map
+  // lacks of the blocks drawn by Minecraft's own blockstates and models
+  // (vanillaBlocks) and of Minecraft's block entity renderers' quads (read
+  // from the client jar), and the fluids' textures LiquidBlockRenderer draws
+  // (render-states.tsv's fluid groups and overlay).
+  static void textures(TextureGallery gallery, Path clientJar, ResourcePack vanilla, McbenchBlockEntities entities, java.util.Set<String> vanillaBlocks, Path renderStates) throws Exception {
     Field mappings = TextureGallery.class.getDeclaredField("textureMappings");
     mappings.setAccessible(true);
     var known = (Map<?, ?>) mappings.get(gallery);
     var wanted = new java.util.TreeMap<String, Texture>();
+    var fromJar = new java.util.TreeSet<String>();
+    for (var quads : entities.quads.values()) for (var quad : quads) fromJar.add(quad.texture());
+    for (String line : Files.readAllLines(renderStates)) {
+      String[] field = line.split("\t");
+      if (field[0].equals("fluidgroup")) fromJar.addAll(List.of(field[3], field[4]));
+      if (field[0].equals("fluidoverlay")) fromJar.add(field[1]);
+    }
     try (var jar = java.nio.file.FileSystems.newFileSystem(clientJar)) {
-      for (var quads : entities.quads.values()) for (var quad : quads) {
-        Key key = Key.parse(quad.texture());
-        if (known.containsKey(key) || wanted.containsKey(quad.texture())) continue;
+      for (String name : fromJar) {
+        Key key = Key.parse(name);
+        if (known.containsKey(key) || wanted.containsKey(name)) continue;
         try (var stream = Files.newInputStream(jar.getPath("assets/" + key.getNamespace() + "/textures/" + key.getValue() + ".png"))) {
-          wanted.put(quad.texture(), Texture.from(key, javax.imageio.ImageIO.read(stream)));
+          wanted.put(name, Texture.from(key, javax.imageio.ImageIO.read(stream)));
         }
       }
     }
-    for (String name : entities.quads.keySet()) {
-      var resource = vanilla.getBlockState(BlockState.fromString(name));
+    for (String id : vanillaBlocks) {
+      var resource = vanilla.getBlockStates().get(Key.parse(id));
       if (resource == null) continue;
       var sets = new ArrayList<VariantSet>();
       if (resource.getVariants() != null) sets.addAll(List.of(resource.getVariants().getVariants()));
@@ -972,9 +1030,19 @@ class McbenchBake {
       McbenchClient minecraft = client.get();
       var entities = blockEntities[0];
       entities.refused.forEach((type, why) -> System.out.println("MCBENCH_REFUSED " + type + ": " + why));
+      // The blocks drawn by Minecraft's own blockstates and models: those
+      // drawn through a block entity renderer, and those whose blockstate or
+      // a model it names BlueMap's resource extensions replace (its own
+      // cake, bell and fluid models), whose faces Minecraft's renderer does
+      // not draw. Written for McbenchBlueMapReference.
+      var vanillaBlocks = new java.util.TreeSet<String>();
+      for (String name : entities.quads.keySet()) vanillaBlocks.add(name.replaceFirst("\\[.*", ""));
+      vanillaBlocks.addAll(replacedByExtensions(service.getConfig().getCoreConfig().getData().resolve("resourceExtensions.zip"), clientJar));
+      Files.write(Path.of("vanilla-blocks.txt"), vanillaBlocks);
       var vanilla = new ResourcePack(resources.getPackVersion());
-      vanilla.loadResources(List.of(vanillaFiles(clientJar, entities, Path.of("vanilla"))));
-      textures(map.getTextureGallery(), clientJar, vanilla, entities);
+      vanilla.loadResources(List.of(vanillaFiles(clientJar, vanillaBlocks, Path.of("vanilla"))));
+      McbenchRenderStates.write(minecraft, clientJar, Path.of(args[4]), Path.of("render-states.tsv"));
+      textures(map.getTextureGallery(), clientJar, vanilla, entities, vanillaBlocks, Path.of("render-states.tsv"));
       // The map wrote its texture list as it was made; it is written again
       // with the textures added.
       Method saveTextures = BmMap.class.getDeclaredMethod("saveTextureGallery");
@@ -984,7 +1052,7 @@ class McbenchBake {
       minecraft.writeLayers(Path.of("render-layers.tsv"));
       minecraft.writeTints(Path.of("tints.tsv"));
       minecraftColors(resources, Path.of("tints.tsv"));
-      var bake = new McbenchBake(resources, vanilla, entities, map.getTextureGallery(), biome);
+      var bake = new McbenchBake(resources, vanilla, vanillaBlocks, entities, map.getTextureGallery(), biome);
       bake.write(Path.of(args[1]), Path.of("web/mcbench-pack.bin"));
       // The entities' atlas: every texture their quads name and every
       // texture of the map that is a file of the client jar (not BlueMap's
@@ -1000,7 +1068,6 @@ class McbenchBake {
         }
       }
       captured.write(Path.of("web/mcbench-entities.json"), McbenchEntityAssets.atlas(clientJar, atlased, Path.of("web/mcbench-entities.png")));
-      if (args.length > 5) bake.writeFlowTable(Path.of(args[5]));
     }
     if (failure.get() != null) throw failure.get();
   }

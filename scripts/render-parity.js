@@ -1,13 +1,13 @@
 'use strict';
 
 // Checks the browser's mesher (renderer/, as web/mesher.mjs runs it) against
-// BlueMap. For each community build in the corpus MCBENCH_CORPUS names (or those
+// BlueMap, every face but the fluids' (sameApartFromFluids). For each community build in the corpus MCBENCH_CORPUS names (or those
 // --match names), and for fixtures of BlueMap's riskiest cases, it places
 // the build with the engine, draws the blueprint with BlueMap's own renderer
 // (McbenchBlueMapReference.java; where BlueMap asks its block flags, which
 // faces to cull and which blocks shade, it asks Minecraft's answers from the
 // block table, as the mesher does), meshes the same blueprint with the
-// WebAssembly module, and compares every tile byte for byte. It then edits
+// WebAssembly module, and compares every tile byte for byte but its fluids' faces. It then edits
 // each blueprint (a roof, a light, removed blocks), draws the edit with
 // BlueMap afresh, and checks that the tiles the module reports changed,
 // drawn again over the unchanged ones it keeps, are BlueMap's tiles of the
@@ -30,7 +30,7 @@ const readline = require('readline');
 const { execFileSync, spawn } = require('child_process');
 
 const ROOT = path.join(__dirname, '..');
-if (!process.env.MCBENCH_DATA_DIR || path.resolve(process.env.MCBENCH_DATA_DIR) === path.join(ROOT, 'data')) {
+if (require.main === module && (!process.env.MCBENCH_DATA_DIR || path.resolve(process.env.MCBENCH_DATA_DIR) === path.join(ROOT, 'data'))) {
   throw new Error('Set MCBENCH_DATA_DIR to a scratch copy of the data folder');
 }
 
@@ -42,7 +42,7 @@ const { JAVA, JAVAC } = require('../server/tools');
 const { World } = require('../server/world');
 const { BlockStates } = require('../server/block-states');
 const { Y_OFFSET, BIOME } = require('../server/minecraft-dimension');
-const { build, MODULE } = require('./build-renderer');
+const { build, MODULE, TARGET } = require('./build-renderer');
 const { corpusArtifacts } = require('./corpus');
 
 const option = (name, fallback) => {
@@ -60,9 +60,8 @@ function writeFiles(folder, files) {
   }
 }
 
-// The baked pack, made as the app makes it, and BlueMap's flow angle for
-// every water level and neighbourhood, which the native mesher is checked
-// against. Then BlueMap's own renderer, started once, drawing blueprints.
+// The baked pack, made as the app makes it, then BlueMap's own renderer,
+// started once, drawing blueprints.
 async function bake(blockTable) {
   await blueMap.ensureDownloads();
   const libraries = (await minecraftLive.ensurePaper()).filter((entry) => entry.startsWith('libraries/')).map((entry) => path.join(minecraftLive.paperDir, entry));
@@ -70,14 +69,12 @@ async function bake(blockTable) {
   writeFiles(FOLDER, configFiles(path.join(blueMap.root, 'data')));
   const classes = path.join(FOLDER, 'classes');
   execFileSync(JAVAC, ['-proc:none', '-classpath', blueMap.jar, '-d', classes,
-    ...['McbenchBake.java', 'McbenchEntityAssets.java', 'McbenchClient.java', 'McbenchBlockEntities.java', 'McbenchEntities.java'].map((name) => path.join(ROOT, 'server', name)), path.join(__dirname, 'McbenchBlueMapReference.java')], { stdio: 'inherit' });
+    ...['McbenchBake.java', 'McbenchEntityAssets.java', 'McbenchClient.java', 'McbenchBlockEntities.java', 'McbenchEntities.java', 'McbenchRenderStates.java'].map((name) => path.join(ROOT, 'server', name)), path.join(__dirname, 'McbenchBlueMapReference.java')], { stdio: 'inherit' });
   const classpath = [blueMap.jar, classes].join(path.delimiter);
-  const flowTable = path.join(FOLDER, 'flow-angles.bin');
   const started = Date.now();
-  execFileSync(JAVA, ['-Xmx2G', '-cp', classpath, 'McbenchBake', MC_VERSION, blockTable, libraries.join(path.delimiter), BIOME, blueMap.mappings, flowTable],
+  execFileSync(JAVA, ['-Xmx2G', '-cp', classpath, 'McbenchBake', MC_VERSION, blockTable, libraries.join(path.delimiter), BIOME, blueMap.mappings],
     { cwd: FOLDER, stdio: ['ignore', 'inherit', 'inherit'] });
   console.log(`baked in ${Date.now() - started} ms`);
-  execFileSync(path.join(RENDERER, 'target', 'release', 'mcbench-mesh'), ['flow', flowTable], { stdio: 'inherit' });
 
   // BlueMap's renderer with Minecraft's culling and shading in place of its
   // block flags, as the mesher culls and shades (McbenchBlueMapReference.patch).
@@ -102,6 +99,11 @@ async function bake(blockTable) {
     for (const suffix of ['.bin', '-config', '-tiles']) fs.rmSync(path.join(FOLDER, `${name}${suffix}`), { recursive: true, force: true });
     return tiles;
   };
+  // The fluids' textures (render-states.tsv's fluid groups and overlay), by the map's texture index.
+  const textures = JSON.parse(fs.readFileSync(path.join(FOLDER, 'web', 'maps', 'live', 'textures.json'), 'utf8')).map((texture) => texture.resourcePath);
+  const fluidTextures = new Set(fs.readFileSync(path.join(FOLDER, 'render-states.tsv'), 'utf8').split('\n').filter((line) => /^fluid(group|overlay)\t/.test(line))
+    .flatMap((line) => (line.startsWith('fluidgroup') ? line.split('\t').slice(3) : line.split('\t').slice(1))));
+  FLUID_MATERIALS = new Set(textures.map((name, index) => (fluidTextures.has(name) ? index : -1)).filter((index) => index >= 0));
   return { pack: fs.readFileSync(path.join(FOLDER, 'web', 'mcbench-pack.bin')), render, stop: () => java.stdin.end() };
 }
 
@@ -246,7 +248,7 @@ function random(seed) {
 
 // Fixtures written as blueprints directly (worldBlueprint), and those
 // drawn under a render mask of their own rather than renderMask's.
-const DIRECT = new Set(['rotated-elements', 'liquids', 'light', 'materials', 'cache-origin', 'shape-pairs', 'shading']);
+const DIRECT = new Set(['rotated-elements', 'liquids', 'light', 'materials', 'cache-origin', 'shape-pairs', 'shading', 'random-offset']);
 const MASKS = { 'cache-origin': { minX: 0, maxX: 127, minZ: 0, maxZ: 127 } };
 const FIXTURES = {
   'stairs-slabs'(world) {
@@ -627,13 +629,39 @@ const FIXTURES = {
   },
 };
 
+// The tiles' faces of fluid textures are left out of the comparison: the
+// mesher draws fluids as Minecraft's LiquidBlockRenderer draws them
+// (heights, back faces, overlay, flow), BlueMap as its LiquidModelRenderer
+// does, and scripts/mesher-minecraft-parity.js holds them to Minecraft.
+// FLUID_MATERIALS is set from the bake's render-states.tsv.
+let FLUID_MATERIALS = new Set();
+
+// A tile decoded, its faces of fluid materials left out: every other
+// group's bytes of each attribute, in order, and the groups' materials and
+// sizes.
+function withoutFluids(bytes) {
+  const tile = decodePrbm(bytes);
+  const kept = tile.groups.filter((group) => !FLUID_MATERIALS.has(group.material));
+  const attributes = Object.fromEntries(ATTRIBUTES.map((name) => {
+    const { stride, data } = tile.attributes[name];
+    return [name, Buffer.concat(kept.map((group) => data.subarray(group.start * stride, (group.start + group.count) * stride)))];
+  }));
+  return { attributes, groups: kept.map((group) => [group.material, group.count]) };
+}
+
+function sameApartFromFluids(java, wasm) {
+  if (java.equals(wasm)) return true;
+  const a = withoutFluids(java), b = withoutFluids(wasm);
+  return JSON.stringify(a.groups) === JSON.stringify(b.groups) && ATTRIBUTES.every((name) => a.attributes[name].equals(b.attributes[name]));
+}
+
 function compare(expected, actual, blueprint) {
   const keys = [...new Set([...expected.keys(), ...actual.keys()])].sort();
   let same = 0;
   const differences = [];
   for (const key of keys) {
     const java = expected.get(key); const wasm = actual.get(key);
-    if (java && wasm && java.equals(wasm)) { same += 1; continue; }
+    if (java && wasm && sameApartFromFluids(java, wasm)) { same += 1; continue; }
     if (!java || !wasm) differences.push(`    ${key}: only ${java ? 'BlueMap' : 'wasm'} drew it`);
     else if (differences.length < 3) differences.push(describeDifference(key, java, wasm, blueprint));
     else differences.push(`    ${key}: differs`);
@@ -742,7 +770,7 @@ async function main() {
   const wasmMs = results.reduce((sum, result) => sum + (result.wasmMs || 0), 0);
   const redrawn = results.reduce((sum, result) => sum + (result.edit?.redrawn || 0), 0);
   const editTiles = results.reduce((sum, result) => sum + (result.edit?.total || 0), 0);
-  console.log(`\n${exact.length}/${results.length} byte-identical, full and edited (fixtures ${fixtures.filter((r) => exact.includes(r)).length}/${fixtures.length}, builds ${exact.length - fixtures.filter((r) => exact.includes(r)).length}/${results.length - fixtures.length}); BlueMap ${javaMs} ms, wasm ${wasmMs.toFixed(0)} ms in all; edits redrew ${redrawn} of ${editTiles} tiles`);
+  console.log(`\n${exact.length}/${results.length} identical but their fluid faces, full and edited (fixtures ${fixtures.filter((r) => exact.includes(r)).length}/${fixtures.length}, builds ${exact.length - fixtures.filter((r) => exact.includes(r)).length}/${results.length - fixtures.length}); BlueMap ${javaMs} ms, wasm ${wasmMs.toFixed(0)} ms in all; edits redrew ${redrawn} of ${editTiles} tiles`);
   console.log(`wasm ${fs.statSync(MODULE).size} bytes, pack ${bluemap.pack.length} bytes`);
   const report = option('report', null);
   if (report) fs.writeFileSync(report, JSON.stringify(results, null, 2));
@@ -756,4 +784,7 @@ async function main() {
   return !differed && !errored && exact.length + differed > 0;
 }
 
-main().then((passed) => process.exit(passed ? 0 : 1), (error) => { console.error(error); process.exit(1); });
+// scripts/mesher-minecraft-parity.js draws the same fixtures.
+module.exports = { FIXTURES, DIRECT, MASKS, edited };
+
+if (require.main === module) main().then((passed) => process.exit(passed ? 0 : 1), (error) => { console.error(error); process.exit(1); });

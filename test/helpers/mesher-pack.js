@@ -64,7 +64,7 @@ function lightPack(states, shapes, occludes) {
 }
 
 function pack(blocks, states, shapes, occludes) {
-  const out = writer().bytes(Buffer.from('MCBP')).u32(5);
+  const out = writer().bytes(Buffer.from('MCBP')).u32(7);
   out.u32(blocks.length);
   for (const [id, first] of blocks) {
     out.str(id).u32(first);
@@ -78,7 +78,7 @@ function pack(blocks, states, shapes, occludes) {
     const faces = (state.faces || [0, 0, 0, 0, 0, 0]).join(',');
     if (!faceSets.includes(faces)) faceSets.push(faces);
     out.u8(state.flags).u8(0).u8(state.emission).u8(state.lightBlock).u8(0).u8(faceSets.indexOf(faces))
-      .u16(state.cull).u16(state.block).u32(0).u32(state.selection);
+      .u16(state.cull).u16(state.block).u32(0).u32(state.selection).u16(0);
   }
   out.u32(faceSets.length);
   for (const faces of faceSets) for (const shape of faces.split(',')) out.u8(Number(shape));
@@ -95,6 +95,10 @@ function pack(blocks, states, shapes, occludes) {
   out.u16(2).bytes([0b1010]);
   out.u16(2).u16(0).u16(0).u16(1).u16(1).u8(63);
   out.u32(0).u32(NONE).u32(0).u8(0); // air, water selection, tint, blends
+  // One render class: the seed of its own position, no offset, no fluid,
+  // hiding no fluid's side; no fluid groups; the water overlay texture 0.
+  out.u32(1).i8(0).i8(0).i8(0).u8(0).f32(0).f32(0).u8(0).u8(0).u8(0).u8(0).f32(-1).f32(-1).f32(-1).f32(-1).u8(0).u8(0);
+  out.u32(0).u32(0);
   out.u32(2).f32(1).f32(1).f32(1).f32(1).f32(0).f32(0); // tints: white, red
   out.u32(2); // matrices: an element's 1/16 scale, identity
   for (const scale of [1 / 16, 1]) for (const value of [scale, 0, 0, 0, 0, scale, 0, 0, 0, 0, scale, 0]) out.f32(value);
@@ -114,7 +118,7 @@ function pack(blocks, states, shapes, occludes) {
   out.u8(1).u32(1).u8(0).u32(1).u32(0);
   out.u8(3).u32(0).u8(0).u8(0).u8(0);
   out.u32(3).f64(1).u16(1).f64(1).u32(0).f64(1).u16(1).f64(1).u32(1).f64(1).u16(1).f64(1).u32(2); // variant sets
-  out.u32(3).u16(1).u32(0).u16(1).u32(1).u16(2).u32(1).u32(2); // selections
+  out.u32(3).u8(0).u16(1).u32(0).u8(0).u16(1).u32(1).u8(0).u16(2).u32(1).u32(2); // selections
   out.u32(1); // entity shapes: a square in the middle facing north
   for (const value of [0.75, 0.75, 0.5, 0.75, 0.25, 0.5, 0.25, 0.25, 0.5, 0.25, 0.75, 0.5]) out.f32(value);
   for (const value of [0, 0, 0, 1, 1, 1, 1, 0]) out.f32(value);

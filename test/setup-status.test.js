@@ -47,7 +47,7 @@ test('the count is of the steps the app needs; an optional step that cannot be d
   assert.deepEqual(status.rows.at(-1), { id: 'shell', state: 'unavailable', optional: true, label: "Model's shell", value: 'Not available', note: 'Docker is not installed' });
   assert.equal(heldLine(status), 'Sends when the app is ready. 2 of 7 done.');
 
-  await assert.rejects(setup.track('browser', async () => { throw new Error('fetch failed'); }));
+  await assert.rejects(setup.track('draw', async () => { throw new Error('fetch failed'); }));
   const failed = setupStatus(setup.view());
   assert.equal(failed.failed, true);
   assert.equal(heldLine(failed), 'Not sent yet: a step failed. Try it again above.');

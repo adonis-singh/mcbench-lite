@@ -6,6 +6,22 @@ pub const MAX_CAPACITY: usize = 1_000_000;
 // A tile reached BlueMap's face limit: it is saved with the faces so far.
 pub struct Full;
 
+// What drew a face: the block's state and position (world coordinates) and
+// which of its parts, its model (MODEL), its fluid (FLUID) or what its block
+// entity renderer draws (ENTITY). `quad` records the tile's `drawing` for
+// each face it adds; nothing BlueMap writes (prbm.rs) reads it. The native
+// renderer (native/draw) shades by it.
+#[derive(Clone, Copy, Default, PartialEq, Eq, Debug)]
+pub struct Source {
+    pub state: u32,
+    pub at: [i32; 3],
+    pub kind: u8,
+}
+
+pub const MODEL: u8 = 0;
+pub const FLUID: u8 = 1;
+pub const ENTITY: u8 = 2;
+
 #[derive(Default)]
 pub struct Tile {
     pub size: usize,
@@ -18,11 +34,14 @@ pub struct Tile {
     pub material: Vec<i32>,
     // The faces' indices stably sorted by material (`sort`).
     pub order: Vec<u32>,
+    // By face, what drew it; and what the faces `quad` adds next are drawn by.
+    pub source: Vec<Source>,
+    pub drawing: Source,
 }
 
 impl Tile {
     pub const fn new() -> Tile {
-        Tile { size: 0, position: Vec::new(), uv: Vec::new(), ao: Vec::new(), color: Vec::new(), sunlight: Vec::new(), blocklight: Vec::new(), material: Vec::new(), order: Vec::new() }
+        Tile { size: 0, position: Vec::new(), uv: Vec::new(), ao: Vec::new(), color: Vec::new(), sunlight: Vec::new(), blocklight: Vec::new(), material: Vec::new(), order: Vec::new(), source: Vec::new(), drawing: Source { state: 0, at: [0; 3], kind: MODEL } }
     }
 
     // Empties the tile and keeps the memory its arrays grew to.
@@ -36,6 +55,7 @@ impl Tile {
         self.blocklight.clear();
         self.material.clear();
         self.order.clear();
+        self.source.clear();
     }
 
     // ArrayTileModel.add: it throws once the faces would pass the limit.
@@ -60,6 +80,7 @@ impl Tile {
         self.sunlight.extend_from_slice(&[sunlight; 2]);
         self.blocklight.extend_from_slice(&[blocklight; 2]);
         self.material.extend_from_slice(&[material; 2]);
+        self.source.extend_from_slice(&[self.drawing; 2]);
     }
 
     // ArrayTileModel.transform with a 4x4 matrix: each sum left to right,

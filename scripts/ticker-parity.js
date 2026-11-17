@@ -41,7 +41,7 @@ const path = require('path');
 const crypto = require('crypto');
 const os = require('os');
 const ROOT = path.join(__dirname, '..');
-if (!process.env.MCBENCH_DATA_DIR || fs.realpathSync(path.resolve(process.env.MCBENCH_DATA_DIR)) === fs.realpathSync(path.join(ROOT, 'data'))) {
+if (!process.env.MCBENCH_DATA_DIR || (fs.existsSync(path.join(ROOT, 'data')) && fs.realpathSync(path.resolve(process.env.MCBENCH_DATA_DIR)) === fs.realpathSync(path.join(ROOT, 'data')))) {
   throw new Error('Set MCBENCH_DATA_DIR to a scratch copy of the data folder');
 }
 const { minecraftLive } = require('../server/minecraft-live');

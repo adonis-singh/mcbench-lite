@@ -38,9 +38,8 @@ const { RESOLUTIONS } = require('../web/resolution.mjs');
 const { isPageAddress } = require('../web/address.mjs');
 const settings = require('./settings');
 const { blockStates } = require('./block-states');
-const { blockTints } = require('./block-tints');
-const { shotWorld, shotEntities, warmShotEngines, stopShotEngines } = require('./shot-world');
-const { warmRenderer, closeRenderer } = require('./shot');
+const { warmShotEngines, stopShotEngines } = require('./shot-world');
+const { startRenderer, closeRenderer } = require('./shot');
 const { Shares, shareId } = require('./share');
 const shareViewer = require('./share-viewer');
 const { TurnStream, Edit, Reservations } = require('./turn-stream');
@@ -708,9 +707,9 @@ async function handleApi(req, res, url) {
   // { done, total } bytes of the step's download under way (total null when
   // the server did not say); `seconds` is how long a done step took, and
   // `error` why a failed or unavailable one is not done. The steps, in
-  // order: jdk, rust, minecraft (Paper and the Minecraft server), tables,
-  // blocks (the page's block data), viewer, engine (native), wasm, browser,
-  // and shell (the model's shell image, the one optional step: it needs
+  // order: jdk, minecraft (Paper and the Minecraft server), tables, blocks
+  // (the page's block data), viewer, engine (the program and the module),
+  // draw (see_build's renderer), and shell (the model's shell image, the one optional step: it needs
   // Docker, which the app cannot install).
   if (req.method === 'GET' && url.pathname === '/api/setup') {
     return sendJson(res, 200, setup.view());
@@ -817,33 +816,6 @@ async function handleApi(req, res, url) {
       settings.update(body);
       return sendJson(res, 200, { ok: true, ...settings.publicSettings() });
     }
-  }
-
-  if (url.pathname.startsWith('/api/assets/')) {
-    const name = parts[2];
-    if (!Object.hasOwn(ASSETS, name)) return sendJson(res, 404, { error: 'Unknown asset' });
-    const buf = await getAsset(name);
-    res.writeHead(200, {
-      'content-type': name.endsWith('.png') ? 'image/png' : 'application/json',
-      'cache-control': 'private, max-age=86400',
-    });
-    return res.end(buf);
-  }
-
-  // What Minecraft says of every block state (block-states.js), which
-  // see_build's page lights and culls with.
-  if (req.method === 'GET' && url.pathname === '/api/block-states') {
-    const bytes = (await blockStates()).bytes();
-    res.writeHead(200, { 'content-type': 'application/octet-stream', 'cache-control': 'private, no-cache' });
-    return res.end(bytes);
-  }
-
-  // The colours Minecraft tints every block state with (block-tints.js),
-  // which see_build's page tints faces with.
-  if (req.method === 'GET' && url.pathname === '/api/block-tints') {
-    const bytes = (await blockTints()).bytes();
-    res.writeHead(200, { 'content-type': 'application/octet-stream', 'cache-control': 'private, no-cache' });
-    return res.end(bytes);
   }
 
   if (req.method === 'GET' && parts[1] === 'blocks' && parts[3] === 'icon.png' && parts.length === 4) {
@@ -1175,63 +1147,6 @@ async function handleApi(req, res, url) {
       publishConversations();
       return sendJson(res, 200, { ok: true });
     }
-    // Streams see_build's world as NDJSON: the engine's world (shot-world.js),
-    // or the part of it inside a clip box, whose states are Minecraft's own.
-    // The client sends the chunk versions it already holds; only chunks whose
-    // version differs and the keys it must drop are sent. A chunk's version
-    // is its own and what the six chunks across its faces hide of it
-    // (World.shownVersion); chunk versions are process-unique stamps, so
-    // equal (key, version) means equal content across branches.
-    if (req.method === 'POST' && parts[3] === 'world') {
-      const conversation = store.getConversation(id);
-      if (!conversation) return sendJson(res, 404, { error: 'Conversation not found' });
-      const body = await readJsonBody(req, BODY_LIMITS.world);
-      const world = shotWorld(conversation, body.clip, body.tick);
-      if (!world) return sendJson(res, 409, { error: 'No engine world placed for this conversation' });
-      const states = await blockStates();
-      const renderLod = world.renderLod();
-      const known = JSON.stringify(body.renderLod ?? null) === JSON.stringify(renderLod) ? body.known : {};
-      const removed = [];
-      const send = new Set();
-      for (const keyText of Object.keys(known)) {
-        if (!world.chunks.has(Number(keyText))) removed.push(Number(keyText));
-      }
-      for (const key of world.chunks.keys()) {
-        if (known[key] !== world.shownVersion(key, states)) send.add(key);
-      }
-      res.writeHead(200, {
-        'content-type': 'application/x-ndjson',
-        'cache-control': 'no-cache',
-        'x-accel-buffering': 'no',
-      });
-      const writeEvent = async (event) => {
-        if (res.write(`${JSON.stringify(event)}\n`)) return;
-        await new Promise((resolve) => {
-          const done = () => {
-            res.off('drain', done);
-            res.off('close', done);
-            resolve();
-          };
-          res.once('drain', done);
-          res.once('close', done);
-        });
-      };
-      await writeEvent({
-        type: 'meta',
-        revision: world.revision,
-        blockCount: world.size(),
-        bounds: world.bounds(),
-        renderLod,
-        removed,
-        // The entities at the tick (the engine's), which see_build draws.
-        entities: shotEntities(conversation, body.clip, body.tick),
-      });
-      for (const key of send) {
-        await writeEvent({ type: 'chunk', chunk: world.chunkSnapshot(key, states, renderLod) });
-        if (res.destroyed) return;
-      }
-      return res.end();
-    }
     if (req.method === 'POST' && parts[3] === 'dismiss-error') {
       const body = await readJsonBody(req);
       const conversation = store.getConversation(id);
@@ -1317,20 +1232,14 @@ async function handleApi(req, res, url) {
 const modulesDir = path.join(__dirname, '..', 'node_modules');
 const VENDOR = {
   '/vendor/preact-htm.mjs': path.join(modulesDir, 'htm', 'preact', 'standalone.module.js'),
-  '/vendor/deepslate.js': path.join(modulesDir, 'deepslate', 'dist', 'deepslate.umd.cjs'),
 };
-const GL_MATRIX = '/vendor/gl-matrix/';
 
 // Pages and scripts are revalidated on every load and sent again only when
 // they changed. Every address of the page (web/address.mjs) is the page.
 function serveStatic(req, res, pathname) {
   let file;
   if (VENDOR[pathname]) file = VENDOR[pathname];
-  else if (pathname.startsWith(GL_MATRIX)) {
-    const root = path.join(modulesDir, 'gl-matrix', 'esm');
-    file = path.normalize(path.join(root, pathname.slice(GL_MATRIX.length)));
-    if (!file.startsWith(`${root}${path.sep}`)) file = null;
-  } else {
+  else {
     file = path.normalize(path.join(webDir, isPageAddress(pathname) ? 'index.html' : pathname.slice(1)));
     if (!file.startsWith(webDir)) file = null;
   }
@@ -1338,7 +1247,7 @@ function serveStatic(req, res, pathname) {
     res.writeHead(404, { 'content-type': 'text/plain' });
     return res.end('Not found');
   }
-  const type = file.endsWith('.cjs') ? 'text/javascript; charset=utf-8' : MIME[path.extname(file)] || 'application/octet-stream';
+  const type = MIME[path.extname(file)] || 'application/octet-stream';
   return sendFile(req, res, file, { 'content-type': type, 'cache-control': 'no-cache' });
 }
 
@@ -1390,7 +1299,8 @@ const lifecycle = {
 };
 
 // The first start's steps (setup.js): the JDK, the engine's program and
-// module, the viewer's assets, the engines and the headless browser get ready
+// module, the viewer's assets, the engines and see_build's renderer (started)
+// get ready
 // before the first build opens. A failure is printed once, however many of
 // them it stops (a JDK that cannot be downloaded stops five), and one last
 // line says whether all of them are ready. The server's start runs this
@@ -1410,9 +1320,9 @@ function prepare() {
   const engine = installEngine();
   // Downloads go in the order they are needed: Java, Paper (which fetches the
   // Minecraft server) and the engine, which the first build waits for,
-  // together; the screenshot browser once they are done, so it does not share
+  // together; see_build's renderer once they are done, so it does not share
   // the line with them. A failure among them stops nothing that waits here.
-  const browser = Promise.allSettled([tools.installJdk(), minecraftLive.ensurePaper(), engine]).then(() => tools.headlessShell());
+  const renderer = Promise.allSettled([tools.installJdk(), minecraftLive.ensurePaper(), engine]).then(() => startRenderer());
   Promise.allSettled([
     engine.catch(tell('[engine]')),
     minecraftLive.warm(),
@@ -1420,12 +1330,10 @@ function prepare() {
     tables.then(() => minecraftVerifier.warm()).catch(tell('[verify]')),
     // Every build is settled on these engines (shot-world.js).
     tables.then(() => warmShotEngines()).catch(tell('[settle]')),
-    // see_build's page is this server's own: once the browser is installed
-    // and the server listens, the renderer is warmed, after the first start
-    // and after a retry alike. The ready line does not wait for it.
-    browser.then(() => {
-      listening.then(() => warmRenderer()).catch((error) => console.error('[see_build]', error.message));
-    }, tell('[see_build]')),
+    // The renderer installed and started (once the viewer's bake it draws
+    // with is made): it says which graphics adapter it draws on, or why it
+    // cannot draw here, after the first start and after a retry alike.
+    renderer.catch(tell('[see_build]')),
     // The page's block data, every file of it.
     setup.track('blocks', async () => {
       await Promise.all(Object.keys(ASSETS).filter((name) => name !== 'blocks.json').map((name) => getAsset(name)));
@@ -1433,17 +1341,13 @@ function prepare() {
       console.log(`[assets] block registry ready (${Object.keys(registry).length} blocks, MC ${MC_VERSION})`);
     }).catch(tell('[assets]')),
   ]).then((results) => console.log(results.every((result) => result.status === 'fulfilled')
-    ? '[startup] ready: the live world, the 3D viewer, the engines and the headless browser are prepared'
+    ? '[startup] ready: the live world, the 3D viewer, the engines and the screenshot renderer are prepared'
     : '[startup] not everything could be prepared: see the errors above'));
   // The model's shell image, built in the background so the first bash call
   // does not wait for it. Without Docker the app works without bash, and the
   // step says why.
   sandbox.ensureImage().catch((error) => console.log('[sandbox]', error.message));
 }
-
-// Resolves once the server listens (startHttpServer), for prepare's warm-up.
-let listened;
-const listening = new Promise((resolve) => { listened = resolve; });
 
 async function startHttpServer() {
   // Turns the last run of the server stopped in the middle of end as errors.
@@ -1457,7 +1361,6 @@ async function startHttpServer() {
     console.log(`mcbench-lite chat builder on ${auth.link(PORT)}`);
     // Turns read the model catalog fetched now and refreshed on a timer.
     startCatalog();
-    listened();
     // Benches carry on with the rounds they had queued.
     for (const bench of store.listBenches()) advanceBench(bench.id);
   });
@@ -1505,7 +1408,7 @@ function exitOnSignals(proc) {
 
 // A failure outside any request leaves the process in a state nothing
 // checked, so it stops serving: the one shutdown saves the turns under way
-// and ends containers, browsers and CLIs, then the process exits 1. A
+// and ends containers, the screenshot renderer and CLIs, then the process exits 1. A
 // shutdown that hangs is given up on at the deadline.
 const FATAL_SHUTDOWN_MS = 10_000;
 function exitOnFatal(proc) {
