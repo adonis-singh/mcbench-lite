@@ -19,6 +19,34 @@ use rayon::prelude::*;
 
 pub const AO_CURVE: [f32; 4] = [1.0, 0.78, 0.58, 0.42];
 
+// The meshing pool's size: tiles are meshed on at most this many threads
+// (fewer on a machine with fewer processors), whatever rayon's own pool
+// holds. Each meshing thread keeps its tile's scratch and the tile's quads
+// until they are handed over, and the ordered meshing (`tiles_in_order`)
+// meshes at most two tiles a thread ahead of the upload, so the meshing's
+// memory grows with this number and not with the machine's processors.
+// Measured on adipc (32 processors, rayon given all 32) with tests/serve.rs
+// resident_memory_stays_within_the_bound (a checkerboard whose tiles each
+// draw 196,608 faces; its peak bound about 1,170 MiB): when the meshing
+// took every thread rayon had, the peak was 1,390 to 1,560 MiB on the RTX
+// 5090 and 1,191 to 1,365 MiB on SwiftShader, and on the 5090 the small
+// world's scene was let go on every call after the large world; with this
+// pool, 941 to 1,001 MiB and 956 to 1,073 MiB, and the scene is kept.
+pub const MESH_THREADS: usize = 8;
+
+// The meshing pool (MESH_THREADS threads).
+pub fn mesh_pool() -> &'static rayon::ThreadPool {
+    static POOL: std::sync::OnceLock<rayon::ThreadPool> = std::sync::OnceLock::new();
+    POOL.get_or_init(|| {
+        let processors = std::thread::available_parallelism().map_or(1, |n| n.get());
+        rayon::ThreadPoolBuilder::new()
+            .num_threads(MESH_THREADS.min(processors))
+            .thread_name(|i| format!("mcbench-mesh-{i}"))
+            .build()
+            .expect("the meshing pool starts")
+    })
+}
+
 pub fn light_curve(level: f32) -> f32 {
     0.25 + 0.75 * (level / 15.0).powf(1.4)
 }
@@ -203,15 +231,17 @@ impl Draw<'_> {
     // Every tile of the world meshed, in parallel, into quads, in tile order.
     pub fn quads(&self, world: &World) -> Vec<Quad> {
         let tiles = mesh::tiles(world);
-        let per_tile: Vec<Vec<Quad>> = tiles
-            .par_iter()
-            .map_init(Tile::default, |tile, &(x, z)| {
-                mesh::tile(self.pack, world, x, z, tile);
-                let mut out = Vec::with_capacity(tile.size / 2);
-                self.tile_quads(world, tile, x, z, &mut out);
-                out
-            })
-            .collect();
+        let per_tile: Vec<Vec<Quad>> = mesh_pool().install(|| {
+            tiles
+                .par_iter()
+                .map_init(Tile::default, |tile, &(x, z)| {
+                    mesh::tile(self.pack, world, x, z, tile);
+                    let mut out = Vec::with_capacity(tile.size / 2);
+                    self.tile_quads(world, tile, x, z, &mut out);
+                    out
+                })
+                .collect()
+        });
         per_tile.into_iter().flatten().collect()
     }
 
@@ -253,7 +283,7 @@ impl Draw<'_> {
         use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
         use std::sync::{mpsc, Condvar, Mutex};
         let boxes: Vec<Option<[u32; 4]>> = names.iter().map(|name| atlas.boxes.get(name).copied()).collect();
-        let threads = rayon::current_num_threads().min(tiles.len()).max(1);
+        let threads = mesh_pool().current_num_threads().min(tiles.len()).max(1);
         let ahead = 2 * threads;
         let next = AtomicUsize::new(0);
         let stop = AtomicBool::new(false);
@@ -313,7 +343,7 @@ impl Draw<'_> {
     // The given tiles meshed in parallel, in the order given.
     pub fn tiles(&self, world: &World, names: &[String], atlas: &Atlas, tiles: &[(i32, i32)]) -> Vec<TileOut> {
         let boxes: Vec<Option<[u32; 4]>> = names.iter().map(|name| atlas.boxes.get(name).copied()).collect();
-        tiles.par_iter().map_init(Tile::default, |tile, &at| self.tile(world, &boxes, atlas.side, at, tile)).collect()
+        mesh_pool().install(|| tiles.par_iter().map_init(Tile::default, |tile, &at| self.tile(world, &boxes, atlas.side, at, tile)).collect())
     }
 }
 

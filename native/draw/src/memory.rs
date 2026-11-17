@@ -151,10 +151,12 @@ pub fn give_back() {
         libc::malloc_trim(0);
     }
     // mimalloc keeps a heap a thread: each thread's freed memory is given
-    // back by that thread (meshing and JPEG encoding run on rayon's).
+    // back by that thread (meshing runs on the meshing pool's, scene.rs
+    // mesh_pool, and JPEG encoding on rayon's).
     #[cfg(target_os = "macos")]
     {
         // SAFETY: mi_collect only releases free memory of the calling thread's heap.
+        crate::scene::mesh_pool().broadcast(|_| unsafe { libmimalloc_sys::mi_collect(true) });
         rayon::broadcast(|_| unsafe { libmimalloc_sys::mi_collect(true) });
         unsafe { libmimalloc_sys::mi_collect(true) };
     }

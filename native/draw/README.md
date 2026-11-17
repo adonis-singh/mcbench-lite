@@ -113,8 +113,11 @@ caches and gives back by itself), lets go what it keeps before it
 allocates (as a world's buffers are made; before a call's picture targets)
 and after a reply once no request waits; no reply waits for memory. A
 world's quads go to the GPU a buffer (at most 128 MB) at a time as its
-tiles are meshed, every thread meshing and the tiles handed over in order,
-so the CPU never holds a whole large world's quads.
+tiles are meshed, on a meshing pool of 8 threads (fewer on a machine with
+fewer processors; src/scene.rs MESH_THREADS) and the tiles handed over in
+order, so the CPU never holds a whole large world's quads, and the
+meshing's own memory (each thread's tile and at most two tiles a thread
+ahead of the upload) does not grow with the machine's processor count.
 
 The process's memory in MB of `mcbench-draw serve` (`native/draw` at the
 commit that changed this section), each with its peak so far: ready;
@@ -141,7 +144,8 @@ draw-a21d8e98d4b9c15a measured, for the same steps through the server
 the RTX 5090 (peak 3.9 GB), 2,278 to 2,713 MB on SwiftShader (peak 5.4 GB)
 and 2.2 to 2.5 GB on the M3. Where the memory goes for the stone and glass
 checkerboard: its blocks and light 35 to 40 MB; its tiles' quads on the
-CPU while meshed, a tile a thread (about 80 MB a thread at that density)
+CPU while meshed, a tile a thread of the meshing pool's 8 (about 80 MB a
+thread at that density)
 and at most a buffer waiting (128 MB); the quads on the GPU 966 MB (the
 process's own on SwiftShader and the M3, not on the 5090); the picture
 targets 519 MB on SwiftShader and the 5090, 82 MB on the M3; the pictures

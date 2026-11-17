@@ -1,26 +1,26 @@
 {
-  "version": "7b3c1fd853233020",
-  "tag": "draw-7b3c1fd853233020",
+  "version": "b0c594428d532075",
+  "tag": "draw-b0c594428d532075",
   "assets": {
     "darwin-arm64": {
-      "name": "mcbench-draw-7b3c1fd853233020-darwin-arm64.tar.gz",
-      "sha256": "b5a974498a2383dee23f8a3a6371e715899048c86b370173855f9041dc63a15d",
-      "bytes": 3586546
+      "name": "mcbench-draw-b0c594428d532075-darwin-arm64.tar.gz",
+      "sha256": "ace09ded3f49098f2e090cf23b5354e283b03823c27d8f8fa44b049d2b1fc1f2",
+      "bytes": 3597938
     },
     "darwin-x64": {
-      "name": "mcbench-draw-7b3c1fd853233020-darwin-x64.tar.gz",
-      "sha256": "e07b8205f681774a2bf63cec357d9bcdbd96627dbafe5c94b3da6efab1ce5110",
-      "bytes": 3730393
+      "name": "mcbench-draw-b0c594428d532075-darwin-x64.tar.gz",
+      "sha256": "c55aa3a09222572c6b600a1ecbd94f4fd173515df807d6949bb6ef47ce854e29",
+      "bytes": 3744906
     },
     "linux-arm64": {
-      "name": "mcbench-draw-7b3c1fd853233020-linux-arm64.tar.gz",
-      "sha256": "2537bc91e125da91b9053a47d9627874a7f56bea58177f0f9b3d25570c7eb2be",
-      "bytes": 3690004
+      "name": "mcbench-draw-b0c594428d532075-linux-arm64.tar.gz",
+      "sha256": "21cb878481ba3ba0ee0205b3b0a6198f9c80b990c7ccb94f3bf41e52b9c4fc8a",
+      "bytes": 3697746
     },
     "linux-x64": {
-      "name": "mcbench-draw-7b3c1fd853233020-linux-x64.tar.gz",
-      "sha256": "fd1dd9a008ca8dc4815bc478e66607c2bc2674bf86c62374336bcb94cb155d72",
-      "bytes": 5697320
+      "name": "mcbench-draw-b0c594428d532075-linux-x64.tar.gz",
+      "sha256": "e95532397c0addee87e9266a3025ad86030221b67c2f251c65921a47aa1c4a03",
+      "bytes": 5697463
     }
   }
 }
