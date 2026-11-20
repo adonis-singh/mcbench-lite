@@ -1,0 +1,100 @@
+[
+ {
+  "target": [
+   "AXLink",
+   "the lever page"
+  ],
+  "AXError": 0,
+  "log": [
+   {
+    "action": "link activated",
+    "url": "https://minecraft.wiki/w/Lever"
+   }
+  ]
+ },
+ {
+  "target": [
+   "AXImage",
+   null
+  ],
+  "AXError": 0,
+  "log": [
+   {
+    "action": "image activated",
+    "url": "/tmp/s4/lamp.png"
+   },
+   {
+    "action": "opened",
+    "layer": "lightbox"
+   }
+  ]
+ },
+ {
+  "target": [
+   "AXButton",
+   "Worked · 2 steps"
+  ],
+  "AXError": 0,
+  "log": [
+   {
+    "action": "toggled",
+    "key": "1:1:activity",
+    "open": true
+   }
+  ]
+ },
+ {
+  "target": [
+   "AXButton",
+   "Worked · 2 steps"
+  ],
+  "AXError": 0,
+  "log": [
+   {
+    "action": "toggled",
+    "key": "1:1:activity",
+    "open": false
+   }
+  ]
+ },
+ {
+  "target": [
+   "AXGroup",
+   "Castle gate"
+  ],
+  "AXError": 0,
+  "log": [
+   {
+    "action": "opened chat",
+    "chat": "chat-gate",
+    "title": "Castle gate"
+   }
+  ]
+ },
+ {
+  "target": [
+   "AXGroup",
+   "Redstone lamp with a lever"
+  ],
+  "AXError": 0,
+  "log": [
+   {
+    "action": "opened chat",
+    "chat": "chat-lamp",
+    "title": "Redstone lamp with a lever"
+   }
+  ]
+ },
+ {
+  "target": [
+   "AXButton",
+   "New chat"
+  ],
+  "AXError": 0,
+  "log": [
+   {
+    "action": "new chat"
+   }
+  ]
+ }
+]

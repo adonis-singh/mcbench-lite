@@ -1,0 +1,317 @@
+[
+ {
+  "check": "Filter is a button, collapsed",
+  "ok": true,
+  "seen": {
+   "AXRole": "AXButton",
+   "AXSubrole": "AXUnknown",
+   "AXRoleDescription": "button",
+   "AXTitle": "Filter",
+   "AXValue": "<error -25212>",
+   "AXHelp": "Filter",
+   "AXEnabled": true,
+   "AXFocused": false,
+   "AXExpanded": false,
+   "AXPosition": [
+    272,
+    141
+   ],
+   "AXSize": [
+    32,
+    32
+   ]
+  }
+ },
+ {
+  "check": "the menu is there, named Filter",
+  "ok": true,
+  "seen": {
+   "path": "0.0.17",
+   "AXRole": "AXMenu",
+   "AXSubrole": "AXUnknown",
+   "AXRoleDescription": "menu",
+   "AXTitle": "Filter",
+   "AXEnabled": true,
+   "AXFocused": false,
+   "AXPosition": [
+    87,
+    176
+   ],
+   "AXSize": [
+    214,
+    347.5
+   ]
+  }
+ },
+ {
+  "note": "the menu's groups and items",
+  "seen": [
+   {
+    "path": "0.0.17",
+    "AXRole": "AXMenu",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "Filter"
+   },
+   {
+    "path": "0.0.17.0",
+    "AXRole": "AXGroup",
+    "AXSubrole": "AXApplicationGroup",
+    "AXTitle": "Size"
+   },
+   {
+    "path": "0.0.17.0.0",
+    "AXRole": "AXMenuItem",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "Standard",
+    "AXHelp": "Size: Standard",
+    "AXValue": false
+   },
+   {
+    "path": "0.0.17.0.1",
+    "AXRole": "AXMenuItem",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "High (2×)",
+    "AXHelp": "Size: High (2×)",
+    "AXValue": false
+   },
+   {
+    "path": "0.0.17.0.2",
+    "AXRole": "AXMenuItem",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "Very high (5×)",
+    "AXHelp": "Size: Very high (5×)",
+    "AXValue": false
+   },
+   {
+    "path": "0.0.17.0.3",
+    "AXRole": "AXMenuItem",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "Maximum (10×)",
+    "AXHelp": "Size: Maximum (10×)",
+    "AXValue": false
+   },
+   {
+    "path": "0.0.17.1",
+    "AXRole": "AXGroup",
+    "AXSubrole": "AXApplicationGroup",
+    "AXTitle": "Prompt"
+   },
+   {
+    "path": "0.0.17.1.0",
+    "AXRole": "AXMenuItem",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "Wheat field",
+    "AXHelp": "Prompt: Wheat field",
+    "AXValue": false
+   },
+   {
+    "path": "0.0.17.1.1",
+    "AXRole": "AXMenuItem",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "Red barn",
+    "AXHelp": "Prompt: Red barn (deleted from the library)",
+    "AXValue": false
+   },
+   {
+    "path": "0.0.17.2",
+    "AXRole": "AXGroup",
+    "AXSubrole": "AXApplicationGroup",
+    "AXTitle": "Model"
+   },
+   {
+    "path": "0.0.17.2.0",
+    "AXRole": "AXMenuItem",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "claude-opus-5-5",
+    "AXHelp": "Model: claude-opus-5-5 (Anthropic)",
+    "AXValue": false
+   }
+  ]
+ },
+ {
+  "check": "the trigger is expanded",
+  "ok": true,
+  "seen": true
+ },
+ {
+  "check": "focus on the menu's first value",
+  "ok": true,
+  "seen": [
+   "AXMenuItem",
+   "Standard"
+  ]
+ },
+ {
+  "check": "Up from the first wraps to the last",
+  "ok": true,
+  "seen": [
+   "AXMenuItem",
+   "claude-opus-5-5"
+  ]
+ },
+ {
+  "check": "Down wraps back",
+  "ok": true,
+  "seen": [
+   "AXMenuItem",
+   "Standard"
+  ]
+ },
+ {
+  "check": "Escape closes it and focus goes back to the button",
+  "ok": true,
+  "seen": [
+   "AXButton",
+   "Filter"
+  ]
+ },
+ {
+  "check": "the menu is gone",
+  "ok": true,
+  "seen": null
+ },
+ {
+  "check": "Down to Very high (5×)",
+  "ok": true,
+  "seen": [
+   "AXMenuItem",
+   "Very high (5×)"
+  ]
+ },
+ {
+  "note": "a chosen value",
+  "seen": {
+   "AXRole": "AXMenuItem",
+   "AXSubrole": "AXUnknown",
+   "AXTitle": "Very high (5×)",
+   "AXValue": true,
+   "AXSelected": false,
+   "AXHelp": "Size: Very high (5×)"
+  }
+ },
+ {
+  "check": "Space chooses it and the menu stays",
+  "ok": true,
+  "seen": [
+   "AXMenuItem",
+   "Very high (5×)"
+  ]
+ },
+ {
+  "check": "the button says how many are chosen",
+  "ok": true,
+  "seen": [
+   "AXButton",
+   "Filter, 1 chosen"
+  ]
+ },
+ {
+  "check": "the list is narrowed",
+  "ok": true,
+  "seen": [
+   "Wheat farm, Finished, not opened yet, Resolution: Very high (5×)"
+  ]
+ },
+ {
+  "check": "the chips are a group named Filters",
+  "ok": true,
+  "seen": {
+   "path": "0.0.5",
+   "AXRole": "AXGroup",
+   "AXSubrole": "AXApplicationGroup",
+   "AXRoleDescription": "group",
+   "AXTitle": "Filters",
+   "AXEnabled": true,
+   "AXFocused": false,
+   "AXPosition": [
+    91,
+    179
+   ],
+   "AXSize": [
+    213,
+    26
+   ]
+  }
+ },
+ {
+  "check": "a chip is a button named Remove filter <full name>",
+  "ok": true,
+  "seen": [
+   "Filters",
+   "Remove filter Size: Very high (5×)",
+   "Clear all"
+  ]
+ },
+ {
+  "check": "and Clear all",
+  "ok": true,
+  "seen": null
+ },
+ {
+  "check": "Tab from Filter reaches the chip",
+  "ok": true,
+  "seen": [
+   "AXButton",
+   "Remove filter Size: Very high (5×)"
+  ]
+ },
+ {
+  "check": "removing the last chip gives focus to the filter button",
+  "ok": true,
+  "seen": [
+   "AXButton",
+   "Filter"
+  ]
+ },
+ {
+  "check": "no filter: every row",
+  "ok": true,
+  "seen": [
+   "Redstone lamp with a lever, open",
+   "Castle gate",
+   "Wheat farm, Finished, not opened yet, Resolution: Very high (5×)"
+  ]
+ },
+ {
+  "check": "a press outside closes the menu",
+  "ok": true,
+  "seen": null
+ },
+ {
+  "check": "Tab out closes the menu",
+  "ok": true,
+  "seen": [
+   "AXGroup",
+   "Redstone lamp with a lever, open"
+  ]
+ },
+ {
+  "check": "Tab out goes on to the stop after the Filter button (the current row)",
+  "ok": true,
+  "seen": [
+   "AXGroup",
+   "Redstone lamp with a lever, open"
+  ]
+ },
+ {
+  "check": "Shift-Tab back to Filter",
+  "ok": true,
+  "seen": [
+   "AXButton",
+   "Filter"
+  ]
+ },
+ {
+  "check": "Shift-Tab out of the menu goes to the stop before the button",
+  "ok": true,
+  "seen": [
+   "AXTextField",
+   "Search chats"
+  ]
+ },
+ {
+  "check": "and closes the menu",
+  "ok": true,
+  "seen": null
+ }
+]

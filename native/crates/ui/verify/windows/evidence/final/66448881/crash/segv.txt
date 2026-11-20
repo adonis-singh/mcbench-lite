@@ -1,0 +1,8 @@
+kind segv; process gone: True; WerFault seen in 0 of the polls; WerFault now: 0
+stderr and exit: exit=-1073741819 
+--- crash-signals.log
+mcbench-lite 0.1.0 pid 6440: unhandled exception 0xc0000005
+mcbench-lite 0.1.0 pid 1372: abort (SIGABRT)
+mcbench-lite 0.1.0 pid 5296: unhandled exception 0xc0000005
+WER reports since start: 0
+Application log since start: 

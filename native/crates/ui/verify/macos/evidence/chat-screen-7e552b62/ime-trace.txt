@@ -1,0 +1,47 @@
+guestctl: no AXTextArea labelled 'Message'
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/json/__init__.py", line 293, in load
+    return loads(fp.read(),
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/json/__init__.py", line 346, in loads
+    return _default_decoder.decode(s)
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/json/decoder.py", line 337, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/json/decoder.py", line 355, in raw_decode
+    raise JSONDecodeError("Expecting value", s, err.value) from None
+json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+AX committed '日本語' [3, 0]
+AX after k '日本語k' [4, 0]
+AX after x '日本語kx' [5, 0]
+   2 IMETRACE selectedRange -> 0+0
+   1 IMETRACE markedRange -> 9223372036854775807+0
+   8 IMETRACE selectedRange -> 0+0
+   1 IMETRACE setMarkedText "n" selectedRange Some(1..1) replacementRange None
+   3 IMETRACE selectedRange -> 1+0
+   1 IMETRACE markedRange -> 0+1
+   1 IMETRACE selectedRange -> 1+0
+   1 IMETRACE setMarkedText "に" selectedRange Some(1..1) replacementRange None
+   4 IMETRACE selectedRange -> 1+0
+   1 IMETRACE setMarkedText "にh" selectedRange Some(2..2) replacementRange None
+   4 IMETRACE selectedRange -> 2+0
+   1 IMETRACE setMarkedText "にほ" selectedRange Some(2..2) replacementRange None
+   4 IMETRACE selectedRange -> 2+0
+   1 IMETRACE setMarkedText "にほn" selectedRange Some(3..3) replacementRange None
+   4 IMETRACE selectedRange -> 3+0
+   1 IMETRACE setMarkedText "にほんg" selectedRange Some(4..4) replacementRange None
+   4 IMETRACE selectedRange -> 4+0
+   1 IMETRACE setMarkedText "日本語" selectedRange Some(3..3) replacementRange None
+   4 IMETRACE selectedRange -> 3+0
+   1 IMETRACE insertText "日本語" replacementRange None
+   7 IMETRACE selectedRange -> 3+0
+   1 IMETRACE setMarkedText "k" selectedRange Some(1..1) replacementRange None
+   3 IMETRACE selectedRange -> 4+0
+   1 IMETRACE markedRange -> 3+1
+   1 IMETRACE selectedRange -> 4+0
+   1 IMETRACE setMarkedText "k" selectedRange Some(1..1) replacementRange None
+   5 IMETRACE selectedRange -> 4+0
+   1 IMETRACE insertText "k" replacementRange None
+   3 IMETRACE selectedRange -> 4+0
+   1 IMETRACE markedRange -> 9223372036854775807+0
+   1 IMETRACE selectedRange -> 4+0
+   1 IMETRACE insertText "x" replacementRange None

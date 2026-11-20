@@ -1,0 +1,17 @@
+ AXApplication None 'mcbench-ui-dev' 'None' None None None
+0 AXWindow AXStandardWindow 'mcbench-lite — stopped' 'None' None False ['AXRaise']
+0.0 AXGroup AXUnknown None 'None' None False None
+0.0.0 AXGroup AXApplicationAlert 'mcbench-lite stopped on an error' 'None' None False None
+0.0.0.0 AXStaticText AXUnknown None 'The data folder could not be opened: permission denied' None False None
+0.0.0.1 AXButton AXUnknown 'Quit' 'None' None True ['AXPress']
+0.1 AXButton AXCloseButton None 'None' None False ['AXPress']
+0.2 AXButton AXFullScreenButton None 'None' this button also has an action to zoom the window False ['AXPress', 'AXZoomWindow', 'AXShowMenu']
+0.2.0 AXGroup None None 'None' None False None
+0.3 AXButton AXMinimizeButton None 'None' None False ['AXPress']
+0.4 AXStaticText None None 'mcbench-lite — stopped' None False None
+VO-Home	The data folder could not be opened: permission denied 
+VO-Right	Quit button 
+VO-Right	Quit button 
+VO-Right	Quit button 
+Tab	Quit button 
+Tab	Quit button 

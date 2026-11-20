@@ -1,0 +1,183 @@
+# The native app's workspace (docs/native-app.md, section Target architecture).
+# One lock file, native/Cargo.lock, for every crate here. core/ (the engine)
+# and renderer/ (the mesher) stay outside it with their own Cargo.lock: their
+# sources are hashed into the engine's and the mesher's released versions
+# (server/engine.js sourcesHash, scripts/build-renderer.js), so crates here
+# depend on them by path and never change a file there. Ownership and the
+# rules for changing a seam are in native/README.md.
+[workspace]
+resolver = "2"
+members = ["crates/*"]
+# native/draw (the drawing crate, from native-stage2) keeps its own lock and
+# [workspace] while the Node server starts it as a helper, and joins as a path
+# dependency; a path dependency inside this folder would otherwise become a
+# member, and cargo refuses a second workspace root (crates/render/src/lib.rs).
+# native/build-child (the build child's program, mcbench-build-child) is a
+# workspace of its own with its own Cargo.lock: V8 146.9.0's temporal_rs
+# needs the icu_* crates at 2.1 (build-child/Cargo.toml).
+exclude = ["draw", "vendor", "build-child"]
+
+[workspace.package]
+version = "2.0.0"
+edition = "2024"
+license = "MIT"
+rust-version = "1.99.1"
+publish = false
+
+[workspace.dependencies]
+mcbench-agent = { path = "crates/agent" }
+mcbench-build = { path = "crates/build" }
+mcbench-engine = { path = "crates/engine" }
+mcbench-headless = { path = "crates/headless" }
+mcbench-json = { path = "crates/json" }
+mcbench-providers = { path = "crates/providers" }
+mcbench-render = { path = "crates/render" }
+mcbench-sandbox = { path = "crates/sandbox" }
+mcbench-relay = { path = "crates/relay" }
+mcbench-spawn = { path = "crates/spawn" }
+mcbench-setup = { path = "crates/setup" }
+mcbench-store = { path = "crates/store" }
+mcbench-tools = { path = "crates/tools" }
+mcbench-ui = { path = "crates/ui" }
+mcbench-updater = { path = "crates/updater" }
+mcbench-world = { path = "crates/world" }
+# The drawing crate, outside the members with its own [workspace] and
+# Cargo.lock (see exclude above); it resolves through this lock.
+mcbench-draw = { path = "draw" }
+# The engine, outside the workspace (see above).
+mcbench-core = { path = "../core" }
+# The async runtime of the core (README.md, Decisions of stage three). Each
+# crate turns on the tokio features it uses.
+tokio = { version = "1.54", default-features = false }
+tokio-util = { version = "0.7.20", default-features = false }
+async-trait = "0.1.92"
+serde = { version = "1", features = ["derive"] }
+# preserve_order: result JSON a model reads keeps today's key order.
+# float_roundtrip: a number parsed and written back keeps its digits (one
+# stored tool result changes without it).
+serde_json = { version = "1.0.154", features = ["preserve_order", "float_roundtrip"] }
+# The shortest round-trip digits of a double; mcbench-json places the point
+# and the exponent by ECMAScript's Number::toString. serde_json uses it too.
+zmij = "1.0.23"
+# The tool-contract hash (mcbench-agent's contract) and chunk file names (mcbench-world).
+sha2 = "0.11.1"
+# mcbench-world: insertion-ordered maps (JavaScript's Map and Set order),
+# region and zip inflation (pure Rust backend; mcbench-build's golden files too).
+indexmap = "2.14.2"
+# mcbench-tools: the verifier's report names (crypto.randomUUID), from the
+# system's random source; 0.4.3 is already in the lock (tempfile's).
+getrandom = "0.4.3"
+flate2 = { version = "1.1.11", default-features = false, features = ["rust_backend"] }
+# libc: the build sandbox's probes, and kill(2) with SIGTERM for a sign-in's CLI.
+libc = "0.2.191"
+# mcbench-build's tests (the corpus harness).
+regex = "1.13.1"
+# The API providers' HTTP (mcbench-providers; README.md, Decisions of stage
+# three): HTTP/1.1 only, no system proxy, rustls with ring's crypto
+# (crates/providers/src/api/http.rs says why) and Mozilla's roots as Node
+# bundles them. No decoding features: gzip and deflate are decoded as Node's
+# fetch decodes them, with flate2 (crates/providers/src/api/decode.rs).
+reqwest = { version = "0.13.5", default-features = false, features = ["rustls-no-provider"] }
+rustls = { version = "0.23.46", default-features = false, features = ["ring", "std", "tls12"] }
+webpki-roots = "1.0.12"
+# JavaScript's String.prototype.localeCompare (ICU's root collation), which
+# orders model lists whose release dates tie. At 2.4 with the icu_* crates
+# GPUI's text segmentation needs; V8, whose temporal_rs needs them at 2.1, is
+# in native/build-child's own lock.
+icu_collator = "~2.4.0"
+# The JWTs of the ChatGPT sign-in (openai-oauth reads their claims), and
+# see_build's JPEGs as the data URLs the store saves.
+base64 = "0.23.1"
+# see_build's camera: fdlibm's sin, cos, tan, asin and atan2 (musl's port,
+# pure Rust), which V8's Math.tan, asin and atan2 are; 0.2.16 is already in
+# the lock (through wgpu).
+libm = "0.2.16"
+# mcbench-updater: minisign signatures of updates (verification only; the
+# tests sign with `minisign`, pure Rust), the macOS bundle's archive (tar
+# also unpacks Codex's release package), and scratch folders in tests.
+minisign-verify = "0.3.0"
+minisign = "0.10.0"
+tar = { version = "0.4.46", default-features = false }
+tempfile = "3.27.0"
+# mcbench-store (README.md, Decisions of stage three: SQLite). rusqlite's
+# bundled SQLite is C; FTS5 and the JSON functions are on in its build.
+rusqlite = { version = "0.43.0", features = ["bundled"] }
+parking_lot = "0.13.0"
+windows-sys = { version = "0.61.2", features = ["Win32_Storage_FileSystem"] }
+# The bridge polls a connection's tool calls in the order they came
+# (FuturesUnordered), as Node's line handlers register them; reqwest
+# depends on it already.
+futures-util = { version = "0.3.34", default-features = false, features = ["std"] }
+ruzstd = "0.9.1"
+crc32fast = "1.5.5"
+png = "0.18.1"
+# The client jar's sha1 as Mojang's version file pins it (mcbench-setup's release tooling).
+sha1 = "0.11.0"
+# The build child's seccomp filter on Linux (pure Rust, rust-vmm).
+seccompiler = "0.5.0"
+# The bash sandbox's VM on macOS (mcbench-sandbox, src/macos.rs): Apple's
+# Virtualization framework through the objc2 family's bindings (Rust over
+# the system's frameworks; no C to compile).
+objc2 = "0.6.5"
+objc2-foundation = { version = "0.3.2", default-features = false }
+objc2-virtualization = { version = "0.3.2", default-features = false }
+block2 = "0.6.2"
+dispatch2 = "0.3.1"
+
+# The release profile of core/Cargo.toml, which the released engine program
+# is built with (scripts/build-engine.js, scripts/release-engine.js): a path
+# dependency is built with this workspace's profile, not its own, so the
+# in-process engine gets the same code generation only from here
+# (crates/engine/src/lib.rs, Decided: the in-process engine's speed).
+# core/pgo's profiles do not apply to this build: cargo gives mcbench_core
+# another crate hash here than in core/'s own workspace, so the profile's
+# function names match none of its functions. A profile recorded on this
+# workspace's build does apply (the same hash with and without the
+# instrumenting and profile flags); it is given at release-build time as
+# `--config build.rustflags=['-Cprofile-use=<absolute path>']`, as
+# scripts/build-engine.js gives core/'s.
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "unwind"
+debug = false
+
+[workspace.lints.rust]
+missing_docs = "warn"
+
+# GPUI, gpui-kit and five AccessKit crates, vendored untouched from
+# crates.io and patched in later commits (native/vendor/README.md lists each
+# patch).
+[patch.crates-io]
+accesskit_unix = { path = "vendor/accesskit_unix" }
+accesskit_atspi_common = { path = "vendor/accesskit_atspi_common" }
+accesskit_consumer = { path = "vendor/accesskit_consumer" }
+accesskit_macos = { path = "vendor/accesskit_macos" }
+accesskit_windows = { path = "vendor/accesskit_windows" }
+gpui-base = { path = "vendor/gpui-base" }
+gpui-component = { path = "vendor/gpui-component" }
+gpui-component-macros = { path = "vendor/gpui-component-macros" }
+gpui-kit = { path = "vendor/gpui-kit" }
+gpui-kit-assets = { path = "vendor/gpui-kit-assets" }
+gpui-pre = { path = "vendor/gpui-pre" }
+gpui-pre-apple = { path = "vendor/gpui-pre-apple" }
+gpui-pre-collections = { path = "vendor/gpui-pre-collections" }
+gpui-pre-derive-refineable = { path = "vendor/gpui-pre-derive-refineable" }
+gpui-pre-http-client = { path = "vendor/gpui-pre-http-client" }
+gpui-pre-ios = { path = "vendor/gpui-pre-ios" }
+gpui-pre-linux = { path = "vendor/gpui-pre-linux" }
+gpui-pre-macos = { path = "vendor/gpui-pre-macos" }
+gpui-pre-macros = { path = "vendor/gpui-pre-macros" }
+gpui-pre-platform = { path = "vendor/gpui-pre-platform" }
+gpui-pre-refineable = { path = "vendor/gpui-pre-refineable" }
+gpui-pre-reqwest = { path = "vendor/gpui-pre-reqwest" }
+gpui-pre-scheduler = { path = "vendor/gpui-pre-scheduler" }
+gpui-pre-shared-string = { path = "vendor/gpui-pre-shared-string" }
+gpui-pre-sum-tree = { path = "vendor/gpui-pre-sum-tree" }
+gpui-pre-util = { path = "vendor/gpui-pre-util" }
+gpui-pre-web = { path = "vendor/gpui-pre-web" }
+gpui-pre-wgpu = { path = "vendor/gpui-pre-wgpu" }
+gpui-pre-windows = { path = "vendor/gpui-pre-windows" }
+gpui-pre-ztracing = { path = "vendor/gpui-pre-ztracing" }
+gpui-pre-ztracing-macro = { path = "vendor/gpui-pre-ztracing-macro" }

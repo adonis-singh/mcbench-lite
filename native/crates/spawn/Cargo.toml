@@ -1,0 +1,11 @@
+[package]
+name = "mcbench-spawn"
+description = "The one place every child process of the app is made: on Windows it shows no console window"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true

@@ -1,0 +1,22 @@
+[
+ {
+  "check": "the tree holds the laid-out rows only",
+  "ok": true,
+  "detail": "48"
+ },
+ {
+  "check": "Down and Up: focus on the right message at every one of 798 steps",
+  "ok": true,
+  "detail": "[]"
+ },
+ {
+  "check": "the app logged its metrics at quit",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "frames were drawn while scrolling",
+  "ok": true,
+  "detail": "224"
+ }
+]

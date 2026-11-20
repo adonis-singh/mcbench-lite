@@ -1,0 +1,6 @@
+W6 one chat running, composer focused 13 s after start:  18:25:44 up 3 days,  5:29,  4 users,  load average: 3.28, 3.52, 3.99
+mcbench-ui-dev: 44,313 ms CPU in 20,029 ms = 221.24% of one core; working set 61 MB
+W6 one chat running, window inactive:  18:26:11 up 3 days,  5:30,  4 users,  load average: 3.95, 3.66, 4.02
+mcbench-ui-dev: 141 ms CPU in 20,037 ms = 0.70% of one core; working set 61 MB
+nothing running, composer focused:  18:27:03 up 3 days,  5:30,  4 users,  load average: 3.57, 3.64, 4.00
+mcbench-ui-dev: 47 ms CPU in 20,037 ms = 0.23% of one core; working set 59 MB

@@ -1,0 +1,6 @@
+chat screen after title-bar click: Edit name="Message" lct="edit" focus=1 value="" readonly=0 text="" 
+Speaking ['Desktop', 'list']
+Speaking ['Recycle Bin', 'not selected', '1 of 3']
+Speaking ['You, Put a label on the second lamp in English, Arabic, Hebrew, Japanese and Chinese.']
+Input: kb(desktop):NVDA+tab
+Speaking ['Recycle Bin', 'list item', '1 of 3']

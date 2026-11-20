@@ -1,0 +1,16 @@
+Speaking [LangChangeCommand ('en'), 'Show archived', 'button', 'collapsed', CancellableSpeech (still valid)]
+Input: kb(desktop):enter
+Speaking [LangChangeCommand ('en'), 'Hide archived']
+Speaking [LangChangeCommand ('en'), 'expanded']
+Input: kb(desktop):downArrow
+Input: kb(desktop):tab
+Speaking [LangChangeCommand ('en'), 'Archived', 'list', CancellableSpeech (still valid)]
+Speaking [LangChangeCommand ('en'), 'Restore', 'button', 'Restore to the list and open it', CancellableSpeech (still valid)]
+Input: kb(desktop):tab
+Speaking [LangChangeCommand ('en'), 'Delete permanently', 'button', 'Delete permanently: this cannot be undone', CancellableSpeech (still valid)]
+Input: kb(desktop):enter
+Speaking [LangChangeCommand ('en'), 'Delete for good']
+Speaking [LangChangeCommand ('en'), 'Delete permanently']
+Input: kb(desktop):enter
+Speaking [LangChangeCommand ('en'), 'Delete for good']
+Speaking [LangChangeCommand ('en'), 'Delete permanently']

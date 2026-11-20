@@ -1,0 +1,7 @@
+insert-tab: clipboard=[table, 4 rows, group, ]
+insert-right: clipboard=[table with 4 rows, 3 columns, ]
+insert-right: clipboard=[row]
+insert-right: clipboard=[read-only, Block, Column Header, Row 1 of 4 Column 1 of 3 ]
+ctrl-alt-right: clipboard=[read-only, Count, Column Header, Column 2 of 3 ]
+ctrl-alt-down: clipboard=[read-only, 9, Row 2 of 4 ]
+ctrl-alt-left: clipboard=[read-only, stone, Column Header Block , Column 1 of 3 ]

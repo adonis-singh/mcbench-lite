@@ -1,0 +1,773 @@
+[
+ {
+  "key": "tab",
+  "focus": {
+   "nodes": [
+    {
+     "path": "0.0.0",
+     "AXRole": "AXButton",
+     "AXSubrole": "AXUnknown",
+     "AXTitle": "New chat"
+    }
+   ],
+   "app": {
+    "path": "0.0.0",
+    "AXRole": "AXButton",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "New chat"
+   }
+  },
+  "log": [],
+  "shot": "01-tab-tab.png"
+ },
+ {
+  "key": "tab",
+  "focus": {
+   "nodes": [
+    {
+     "path": "0.0.1.0",
+     "AXRole": "AXGroup",
+     "AXSubrole": "AXUnknown",
+     "AXTitle": "Make it brighter"
+    }
+   ],
+   "app": {
+    "path": "0.0.1.0",
+    "AXRole": "AXGroup",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "Make it brighter"
+   }
+  },
+  "log": [],
+  "shot": "02-tab-tab.png"
+ },
+ {
+  "key": "tab",
+  "focus": {
+   "nodes": [
+    {
+     "path": "0.0.2.2",
+     "AXRole": "AXGroup",
+     "AXSubrole": "AXDocumentArticle",
+     "AXTitle": "claude-opus-5-5, Adding a third lamp now. It goes two blocks east of the second one, on the same stone row, with its own lever.\nExtend the stone base by two blocks\nPlace the lamp and the lever\nTest both levers\nThe first two lamps stay as they are, so nothing you built before changes."
+    }
+   ],
+   "app": {
+    "path": "0.0.2.2",
+    "AXRole": "AXGroup",
+    "AXSubrole": "AXDocumentArticle",
+    "AXTitle": "claude-opus-5-5, Adding a third lamp now. It goes two blocks east of the second one, on the same stone row, with its own lever.\nExtend the stone base by two blocks\nPlace the lamp and the lever\nTest both levers\nThe first two lamps stay as they are, so nothing you built before changes."
+   }
+  },
+  "log": [],
+  "shot": "03-tab-tab.png"
+ },
+ {
+  "key": "tab",
+  "focus": {
+   "nodes": [
+    {
+     "path": "0.0.3",
+     "AXRole": "AXTextArea",
+     "AXSubrole": "AXUnknown",
+     "AXTitle": "Message"
+    }
+   ],
+   "app": {
+    "path": "0.0.3",
+    "AXRole": "AXTextArea",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "Message"
+   }
+  },
+  "log": [],
+  "shot": "04-tab-tab.png"
+ },
+ {
+  "key": "tab",
+  "focus": {
+   "nodes": [
+    {
+     "path": "0.0.0",
+     "AXRole": "AXButton",
+     "AXSubrole": "AXUnknown",
+     "AXTitle": "New chat"
+    }
+   ],
+   "app": {
+    "path": "0.0.0",
+    "AXRole": "AXButton",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "New chat"
+   }
+  },
+  "log": [],
+  "shot": "05-tab-tab.png"
+ },
+ {
+  "key": "tab",
+  "focus": {
+   "nodes": [
+    {
+     "path": "0.0.1.0",
+     "AXRole": "AXGroup",
+     "AXSubrole": "AXUnknown",
+     "AXTitle": "Make it brighter"
+    }
+   ],
+   "app": {
+    "path": "0.0.1.0",
+    "AXRole": "AXGroup",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "Make it brighter"
+   }
+  },
+  "log": [],
+  "shot": "06-tab-tab.png"
+ },
+ {
+  "key": "tab",
+  "focus": {
+   "nodes": [
+    {
+     "path": "0.0.2.2",
+     "AXRole": "AXGroup",
+     "AXSubrole": "AXDocumentArticle",
+     "AXTitle": "claude-opus-5-5, Adding a third lamp now. It goes two blocks east of the second one, on the same stone row, with its own lever.\nExtend the stone base by two blocks\nPlace the lamp and the lever\nTest both levers\nThe first two lamps stay as they are, so nothing you built before changes."
+    }
+   ],
+   "app": {
+    "path": "0.0.2.2",
+    "AXRole": "AXGroup",
+    "AXSubrole": "AXDocumentArticle",
+    "AXTitle": "claude-opus-5-5, Adding a third lamp now. It goes two blocks east of the second one, on the same stone row, with its own lever.\nExtend the stone base by two blocks\nPlace the lamp and the lever\nTest both levers\nThe first two lamps stay as they are, so nothing you built before changes."
+   }
+  },
+  "log": [],
+  "shot": "07-tab-tab.png"
+ },
+ {
+  "key": "tab",
+  "focus": {
+   "nodes": [
+    {
+     "path": "0.0.3",
+     "AXRole": "AXTextArea",
+     "AXSubrole": "AXUnknown",
+     "AXTitle": "Message"
+    }
+   ],
+   "app": {
+    "path": "0.0.3",
+    "AXRole": "AXTextArea",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "Message"
+   }
+  },
+  "log": [],
+  "shot": "08-tab-tab.png"
+ },
+ {
+  "key": "tab",
+  "focus": {
+   "nodes": [
+    {
+     "path": "0.0.0",
+     "AXRole": "AXButton",
+     "AXSubrole": "AXUnknown",
+     "AXTitle": "New chat"
+    }
+   ],
+   "app": {
+    "path": "0.0.0",
+    "AXRole": "AXButton",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "New chat"
+   }
+  },
+  "log": [],
+  "shot": "09-tab-tab.png"
+ },
+ {
+  "key": "tab:shift",
+  "focus": {
+   "nodes": [
+    {
+     "path": "0.0.3",
+     "AXRole": "AXTextArea",
+     "AXSubrole": "AXUnknown",
+     "AXTitle": "Message"
+    }
+   ],
+   "app": {
+    "path": "0.0.3",
+    "AXRole": "AXTextArea",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "Message"
+   }
+  },
+  "log": [],
+  "shot": "10-tab-tab_shift.png"
+ },
+ {
+  "key": "tab:shift",
+  "focus": {
+   "nodes": [
+    {
+     "path": "0.0.2.2",
+     "AXRole": "AXGroup",
+     "AXSubrole": "AXDocumentArticle",
+     "AXTitle": "claude-opus-5-5, Adding a third lamp now. It goes two blocks east of the second one, on the same stone row, with its own lever.\nExtend the stone base by two blocks\nPlace the lamp and the lever\nTest both levers\nThe first two lamps stay as they are, so nothing you built before changes."
+    }
+   ],
+   "app": {
+    "path": "0.0.2.2",
+    "AXRole": "AXGroup",
+    "AXSubrole": "AXDocumentArticle",
+    "AXTitle": "claude-opus-5-5, Adding a third lamp now. It goes two blocks east of the second one, on the same stone row, with its own lever.\nExtend the stone base by two blocks\nPlace the lamp and the lever\nTest both levers\nThe first two lamps stay as they are, so nothing you built before changes."
+   }
+  },
+  "log": [],
+  "shot": "11-tab-tab_shift.png"
+ },
+ {
+  "key": "tab:shift",
+  "focus": {
+   "nodes": [
+    {
+     "path": "0.0.1.0",
+     "AXRole": "AXGroup",
+     "AXSubrole": "AXUnknown",
+     "AXTitle": "Make it brighter"
+    }
+   ],
+   "app": {
+    "path": "0.0.1.0",
+    "AXRole": "AXGroup",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "Make it brighter"
+   }
+  },
+  "log": [],
+  "shot": "12-tab-tab_shift.png"
+ },
+ {
+  "key": "tab:shift",
+  "focus": {
+   "nodes": [
+    {
+     "path": "0.0.0",
+     "AXRole": "AXButton",
+     "AXSubrole": "AXUnknown",
+     "AXTitle": "New chat"
+    }
+   ],
+   "app": {
+    "path": "0.0.0",
+    "AXRole": "AXButton",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "New chat"
+   }
+  },
+  "log": [],
+  "shot": "13-tab-tab_shift.png"
+ },
+ {
+  "key": "tab:shift",
+  "focus": {
+   "nodes": [
+    {
+     "path": "0.0.3",
+     "AXRole": "AXTextArea",
+     "AXSubrole": "AXUnknown",
+     "AXTitle": "Message"
+    }
+   ],
+   "app": {
+    "path": "0.0.3",
+    "AXRole": "AXTextArea",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "Message"
+   }
+  },
+  "log": [],
+  "shot": "14-tab-tab_shift.png"
+ },
+ {
+  "key": "tab:shift",
+  "focus": {
+   "nodes": [
+    {
+     "path": "0.0.2.2",
+     "AXRole": "AXGroup",
+     "AXSubrole": "AXDocumentArticle",
+     "AXTitle": "claude-opus-5-5, Adding a third lamp now. It goes two blocks east of the second one, on the same stone row, with its own lever.\nExtend the stone base by two blocks\nPlace the lamp and the lever\nTest both levers\nThe first two lamps stay as they are, so nothing you built before changes."
+    }
+   ],
+   "app": {
+    "path": "0.0.2.2",
+    "AXRole": "AXGroup",
+    "AXSubrole": "AXDocumentArticle",
+    "AXTitle": "claude-opus-5-5, Adding a third lamp now. It goes two blocks east of the second one, on the same stone row, with its own lever.\nExtend the stone base by two blocks\nPlace the lamp and the lever\nTest both levers\nThe first two lamps stay as they are, so nothing you built before changes."
+   }
+  },
+  "log": [],
+  "shot": "15-tab-tab_shift.png"
+ },
+ {
+  "key": "tab:shift",
+  "focus": {
+   "nodes": [
+    {
+     "path": "0.0.1.0",
+     "AXRole": "AXGroup",
+     "AXSubrole": "AXUnknown",
+     "AXTitle": "Make it brighter"
+    }
+   ],
+   "app": {
+    "path": "0.0.1.0",
+    "AXRole": "AXGroup",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "Make it brighter"
+   }
+  },
+  "log": [],
+  "shot": "16-tab-tab_shift.png"
+ },
+ {
+  "key": "tab:shift",
+  "focus": {
+   "nodes": [
+    {
+     "path": "0.0.0",
+     "AXRole": "AXButton",
+     "AXSubrole": "AXUnknown",
+     "AXTitle": "New chat"
+    }
+   ],
+   "app": {
+    "path": "0.0.0",
+    "AXRole": "AXButton",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "New chat"
+   }
+  },
+  "log": [],
+  "shot": "17-tab-tab_shift.png"
+ },
+ {
+  "key": "tab:shift",
+  "focus": {
+   "nodes": [
+    {
+     "path": "0.0.3",
+     "AXRole": "AXTextArea",
+     "AXSubrole": "AXUnknown",
+     "AXTitle": "Message"
+    }
+   ],
+   "app": {
+    "path": "0.0.3",
+    "AXRole": "AXTextArea",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "Message"
+   }
+  },
+  "log": [],
+  "shot": "18-tab-tab_shift.png"
+ },
+ {
+  "key": "tab",
+  "focus": {
+   "nodes": [
+    {
+     "path": "0.0.0",
+     "AXRole": "AXButton",
+     "AXSubrole": "AXUnknown",
+     "AXTitle": "New chat"
+    }
+   ],
+   "app": {
+    "path": "0.0.0",
+    "AXRole": "AXButton",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "New chat"
+   }
+  },
+  "log": [],
+  "shot": "19-to-list-tab.png"
+ },
+ {
+  "key": "tab",
+  "focus": {
+   "nodes": [
+    {
+     "path": "0.0.1.0",
+     "AXRole": "AXGroup",
+     "AXSubrole": "AXUnknown",
+     "AXTitle": "Make it brighter"
+    }
+   ],
+   "app": {
+    "path": "0.0.1.0",
+    "AXRole": "AXGroup",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "Make it brighter"
+   }
+  },
+  "log": [],
+  "shot": "20-to-list-tab.png"
+ },
+ {
+  "key": "down",
+  "focus": {
+   "nodes": [
+    {
+     "path": "0.0.1.1",
+     "AXRole": "AXGroup",
+     "AXSubrole": "AXUnknown",
+     "AXTitle": "Redstone lamp with a lever"
+    }
+   ],
+   "app": {
+    "path": "0.0.1.1",
+    "AXRole": "AXGroup",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "Redstone lamp with a lever"
+   }
+  },
+  "log": [],
+  "shot": "21-list-down.png"
+ },
+ {
+  "key": "up",
+  "focus": {
+   "nodes": [
+    {
+     "path": "0.0.1.0",
+     "AXRole": "AXGroup",
+     "AXSubrole": "AXUnknown",
+     "AXTitle": "Make it brighter"
+    }
+   ],
+   "app": {
+    "path": "0.0.1.0",
+    "AXRole": "AXGroup",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "Make it brighter"
+   }
+  },
+  "log": [],
+  "shot": "22-list-up.png"
+ },
+ {
+  "key": "end",
+  "focus": {
+   "nodes": [
+    {
+     "path": "0.0.1.3",
+     "AXRole": "AXGroup",
+     "AXSubrole": "AXUnknown",
+     "AXTitle": "Wheat farm"
+    }
+   ],
+   "app": {
+    "path": "0.0.1.3",
+    "AXRole": "AXGroup",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "Wheat farm"
+   }
+  },
+  "log": [],
+  "shot": "23-list-end.png"
+ },
+ {
+  "key": "home",
+  "focus": {
+   "nodes": [
+    {
+     "path": "0.0.1.0",
+     "AXRole": "AXGroup",
+     "AXSubrole": "AXUnknown",
+     "AXTitle": "Make it brighter"
+    }
+   ],
+   "app": {
+    "path": "0.0.1.0",
+    "AXRole": "AXGroup",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "Make it brighter"
+   }
+  },
+  "log": [],
+  "shot": "24-list-home.png"
+ },
+ {
+  "key": "return",
+  "focus": {
+   "nodes": [
+    {
+     "path": "0.0.1.0",
+     "AXRole": "AXGroup",
+     "AXSubrole": "AXUnknown",
+     "AXTitle": "Make it brighter"
+    }
+   ],
+   "app": {
+    "path": "0.0.1.0",
+    "AXRole": "AXGroup",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "Make it brighter"
+   }
+  },
+  "log": [
+   {
+    "action": "opened chat",
+    "chat": "chat-new-1",
+    "title": "Make it brighter"
+   }
+  ],
+  "shot": "25-list-return.png"
+ },
+ {
+  "key": "tab",
+  "focus": {
+   "nodes": [
+    {
+     "path": "0.0.2.1",
+     "AXRole": "AXGroup",
+     "AXSubrole": "AXDocumentArticle",
+     "AXTitle": "claude-opus-5-5, Adding a third lamp now. It goes two blocks east of the second one, on the same stone row, with its own lever.\nExtend the stone base by two blocks\nPlace the lamp and the lever\nTest both levers\nThe first two lamps stay as they are, so nothing you built before changes."
+    }
+   ],
+   "app": {
+    "path": "0.0.2.1",
+    "AXRole": "AXGroup",
+    "AXSubrole": "AXDocumentArticle",
+    "AXTitle": "claude-opus-5-5, Adding a third lamp now. It goes two blocks east of the second one, on the same stone row, with its own lever.\nExtend the stone base by two blocks\nPlace the lamp and the lever\nTest both levers\nThe first two lamps stay as they are, so nothing you built before changes."
+   }
+  },
+  "log": [],
+  "shot": "26-transcript-tab.png"
+ },
+ {
+  "key": "up",
+  "focus": {
+   "nodes": [
+    {
+     "path": "0.0.2.0",
+     "AXRole": "AXGroup",
+     "AXSubrole": "AXDocumentArticle",
+     "AXTitle": "You, Make it brighter"
+    }
+   ],
+   "app": {
+    "path": "0.0.2.0",
+    "AXRole": "AXGroup",
+    "AXSubrole": "AXDocumentArticle",
+    "AXTitle": "You, Make it brighter"
+   }
+  },
+  "log": [],
+  "shot": "27-transcript-up.png"
+ },
+ {
+  "key": "up",
+  "focus": {
+   "nodes": [
+    {
+     "path": "0.0.2.0",
+     "AXRole": "AXGroup",
+     "AXSubrole": "AXDocumentArticle",
+     "AXTitle": "You, Make it brighter"
+    }
+   ],
+   "app": {
+    "path": "0.0.2.0",
+    "AXRole": "AXGroup",
+    "AXSubrole": "AXDocumentArticle",
+    "AXTitle": "You, Make it brighter"
+   }
+  },
+  "log": [],
+  "shot": "28-transcript-up.png"
+ },
+ {
+  "key": "down",
+  "focus": {
+   "nodes": [
+    {
+     "path": "0.0.2.1",
+     "AXRole": "AXGroup",
+     "AXSubrole": "AXDocumentArticle",
+     "AXTitle": "claude-opus-5-5, Adding a third lamp now. It goes two blocks east of the second one, on the same stone row, with its own lever.\nExtend the stone base by two blocks\nPlace the lamp and the lever\nTest both levers\nThe first two lamps stay as they are, so nothing you built before changes."
+    }
+   ],
+   "app": {
+    "path": "0.0.2.1",
+    "AXRole": "AXGroup",
+    "AXSubrole": "AXDocumentArticle",
+    "AXTitle": "claude-opus-5-5, Adding a third lamp now. It goes two blocks east of the second one, on the same stone row, with its own lever.\nExtend the stone base by two blocks\nPlace the lamp and the lever\nTest both levers\nThe first two lamps stay as they are, so nothing you built before changes."
+   }
+  },
+  "log": [],
+  "shot": "29-transcript-down.png"
+ },
+ {
+  "key": "home",
+  "focus": {
+   "nodes": [
+    {
+     "path": "0.0.2.0",
+     "AXRole": "AXGroup",
+     "AXSubrole": "AXDocumentArticle",
+     "AXTitle": "You, Make it brighter"
+    }
+   ],
+   "app": {
+    "path": "0.0.2.0",
+    "AXRole": "AXGroup",
+    "AXSubrole": "AXDocumentArticle",
+    "AXTitle": "You, Make it brighter"
+   }
+  },
+  "log": [],
+  "shot": "30-transcript-home.png"
+ },
+ {
+  "key": "end",
+  "focus": {
+   "nodes": [
+    {
+     "path": "0.0.2.1",
+     "AXRole": "AXGroup",
+     "AXSubrole": "AXDocumentArticle",
+     "AXTitle": "claude-opus-5-5, Adding a third lamp now. It goes two blocks east of the second one, on the same stone row, with its own lever.\nExtend the stone base by two blocks\nPlace the lamp and the lever\nTest both levers\nThe first two lamps stay as they are, so nothing you built before changes."
+    }
+   ],
+   "app": {
+    "path": "0.0.2.1",
+    "AXRole": "AXGroup",
+    "AXSubrole": "AXDocumentArticle",
+    "AXTitle": "claude-opus-5-5, Adding a third lamp now. It goes two blocks east of the second one, on the same stone row, with its own lever.\nExtend the stone base by two blocks\nPlace the lamp and the lever\nTest both levers\nThe first two lamps stay as they are, so nothing you built before changes."
+   }
+  },
+  "log": [],
+  "shot": "31-transcript-end.png"
+ },
+ {
+  "key": "pageup",
+  "focus": {
+   "nodes": [
+    {
+     "path": "0.0.2.0",
+     "AXRole": "AXGroup",
+     "AXSubrole": "AXDocumentArticle",
+     "AXTitle": "You, Make it brighter"
+    }
+   ],
+   "app": {
+    "path": "0.0.2.0",
+    "AXRole": "AXGroup",
+    "AXSubrole": "AXDocumentArticle",
+    "AXTitle": "You, Make it brighter"
+   }
+  },
+  "log": [],
+  "shot": "32-transcript-pageup.png"
+ },
+ {
+  "key": "pagedown",
+  "focus": {
+   "nodes": [
+    {
+     "path": "0.0.2.1",
+     "AXRole": "AXGroup",
+     "AXSubrole": "AXDocumentArticle",
+     "AXTitle": "claude-opus-5-5, Adding a third lamp now. It goes two blocks east of the second one, on the same stone row, with its own lever.\nExtend the stone base by two blocks\nPlace the lamp and the lever\nTest both levers\nThe first two lamps stay as they are, so nothing you built before changes."
+    }
+   ],
+   "app": {
+    "path": "0.0.2.1",
+    "AXRole": "AXGroup",
+    "AXSubrole": "AXDocumentArticle",
+    "AXTitle": "claude-opus-5-5, Adding a third lamp now. It goes two blocks east of the second one, on the same stone row, with its own lever.\nExtend the stone base by two blocks\nPlace the lamp and the lever\nTest both levers\nThe first two lamps stay as they are, so nothing you built before changes."
+   }
+  },
+  "log": [],
+  "shot": "33-transcript-pagedown.png"
+ },
+ {
+  "key": "return",
+  "focus": {
+   "nodes": [
+    {
+     "path": "0.0.2.1",
+     "AXRole": "AXGroup",
+     "AXSubrole": "AXDocumentArticle",
+     "AXTitle": "claude-opus-5-5, Adding a third lamp now. It goes two blocks east of the second one, on the same stone row, with its own lever.\nExtend the stone base by two blocks\nPlace the lamp and the lever\nTest both levers\nThe first two lamps stay as they are, so nothing you built before changes."
+    }
+   ],
+   "app": {
+    "path": "0.0.2.1",
+    "AXRole": "AXGroup",
+    "AXSubrole": "AXDocumentArticle",
+    "AXTitle": "claude-opus-5-5, Adding a third lamp now. It goes two blocks east of the second one, on the same stone row, with its own lever.\nExtend the stone base by two blocks\nPlace the lamp and the lever\nTest both levers\nThe first two lamps stay as they are, so nothing you built before changes."
+   }
+  },
+  "log": [],
+  "shot": "34-transcript-return.png"
+ },
+ {
+  "key": "a:cmd",
+  "focus": {
+   "nodes": [
+    {
+     "path": "0.0.2.1",
+     "AXRole": "AXGroup",
+     "AXSubrole": "AXDocumentArticle",
+     "AXTitle": "claude-opus-5-5, Adding a third lamp now. It goes two blocks east of the second one, on the same stone row, with its own lever.\nExtend the stone base by two blocks\nPlace the lamp and the lever\nTest both levers\nThe first two lamps stay as they are, so nothing you built before changes."
+    }
+   ],
+   "app": {
+    "path": "0.0.2.1",
+    "AXRole": "AXGroup",
+    "AXSubrole": "AXDocumentArticle",
+    "AXTitle": "claude-opus-5-5, Adding a third lamp now. It goes two blocks east of the second one, on the same stone row, with its own lever.\nExtend the stone base by two blocks\nPlace the lamp and the lever\nTest both levers\nThe first two lamps stay as they are, so nothing you built before changes."
+   }
+  },
+  "log": [
+   {
+    "action": "selected all"
+   }
+  ],
+  "shot": "35-transcript-a_cmd.png"
+ },
+ {
+  "key": "c:cmd",
+  "focus": {
+   "nodes": [
+    {
+     "path": "0.0.2.1",
+     "AXRole": "AXGroup",
+     "AXSubrole": "AXDocumentArticle",
+     "AXTitle": "claude-opus-5-5, Adding a third lamp now. It goes two blocks east of the second one, on the same stone row, with its own lever.\nExtend the stone base by two blocks\nPlace the lamp and the lever\nTest both levers\nThe first two lamps stay as they are, so nothing you built before changes."
+    }
+   ],
+   "app": {
+    "path": "0.0.2.1",
+    "AXRole": "AXGroup",
+    "AXSubrole": "AXDocumentArticle",
+    "AXTitle": "claude-opus-5-5, Adding a third lamp now. It goes two blocks east of the second one, on the same stone row, with its own lever.\nExtend the stone base by two blocks\nPlace the lamp and the lever\nTest both levers\nThe first two lamps stay as they are, so nothing you built before changes."
+   }
+  },
+  "log": [
+   {
+    "action": "copied",
+    "text": "Make it brighter\nAdding a third lamp now. It goes two blocks east of the second one, on the same stone row, with its own lever.\nExtend the stone base by two blocks\nPlace the lamp and the lever\nTest both levers\nThe first two lamps stay as they are, so nothing you built before changes."
+   }
+  ],
+  "shot": "36-transcript-c_cmd.png"
+ }
+]

@@ -1,0 +1,16 @@
+Home	System Settings is launched in the background 
+Down	claude-opus-5-5 article 
+Down (the 779-character message)	System Settings has new window 
+(2.5 s)	System Settings has new window 
+(6 s later)	message, A lamp on a lever The lamp is built and wired. It lights when the lever is on and goes dark when it is off; the old torch is gone. The block that does the work is a redstone_lamp, and the wiki page on lamps has the details. What was placed A stone base, three by three The lamp on top powered from below with a lever on its west side A sign that says Pull me The program fn build(world: &mut World) {     world.fill((0, 0, 0), (2, 0, 2), "stone");     world.set((1, 1, 1), "redstone_lamp");     world.set((0, 1, 1), "lever[face=floor,facing=west]"); } Blocks used Block Count Light stone 9 0 redstone_lamp 1 15 lever 1 0 A lamp only needs power from one side: the lever powers the block it sits on, and that block powers the lamp. That is all. Pull the lever to test it. You are currently on a article, inside of a group. To interact with items in this group, press Control-Option-Shift-Down Arrow. To exit this group, press Control-Option-Shift-Up Arrow. 
+(10 s later)	message, A lamp on a lever The lamp is built and wired. It lights when the lever is on and goes dark when it is off; the old torch is gone. The block that does the work is a redstone_lamp, and the wiki page on lamps has the details. What was placed A stone base, three by three The lamp on top powered from below with a lever on its west side A sign that says Pull me The program fn build(world: &mut World) {     world.fill((0, 0, 0), (2, 0, 2), "stone");     world.set((1, 1, 1), "redstone_lamp");     world.set((0, 1, 1), "lever[face=floor,facing=west]"); } Blocks used Block Count Light stone 9 0 redstone_lamp 1 15 lever 1 0 A lamp only needs power from one side: the lever powers the block it sits on, and that block powers the lamp. That is all. Pull the lever to test it. You are currently on a article, inside of a group. To interact with items in this group, press Control-Option-Shift-Down Arrow. To exit this group, press Control-Option-Shift-Up Arrow. 
+focus: [('claude-opus-5-5', '0.0.2.0')]
+== into the message: VO-Shift-Down, then VO-Right, then sentence navigation inside a paragraph
+VO-Shift-Down	In claude-opus-5-5 article 18 items heading level 1 A lamp on a lever 
+VO-Right	The lamp is built and wired. It lights when the lever is on and goes dark when it is off; the old torch is gone. The block that does the work is a  
+VO-Right	redstone_lamp, and  
+VO-Right	link the wiki page on lamps 
+VO-Shift-Down (into the text)	In link the wiki page on lamps content is empty 
+VO-Cmd-PageDown? (next sentence: VO-Cmd-Shift-Page Down)	 
+VO-Right (next word)	 has the details. 
+VO-Right (next word)	heading level 2 What was placed 

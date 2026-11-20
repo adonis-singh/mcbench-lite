@@ -1,0 +1,59 @@
+# The build child's program, mcbench-build-child, in a workspace of its own
+# with its own Cargo.lock (native/README.md, Decisions of stage three: the
+# build child's program). V8 (the v8 crate at 146.9.0, Node 26's V8) needs
+# temporal_rs 0.1.2, which compiles only against the icu_* crates at 2.1,
+# while the main workspace's window toolkit needs icu 2.3: cargo cannot hold
+# two 2.x versions of one crate in one lock, so the two graphs keep separate
+# locks, as core/ and renderer/ do. The child names what it shares with the
+# app by path: mcbench-build (the heap cap, the Linux seccomp filter), whose
+# library holds no V8. native/check.sh checks it with --locked.
+[package]
+name = "mcbench-build-child"
+description = "The V8 child of one build call: today's build-child.js and the files it loads, unchanged, in an embedded V8"
+version = "2.0.0"
+edition = "2024"
+license = "MIT"
+rust-version = "1.99.1"
+publish = false
+
+[workspace]
+
+[dependencies]
+mcbench-build = { path = "../crates/build" }
+# The build child's JavaScript engine (docs/native-app.md, JavaScript for
+# build programs): V8 14.6.202.24 and the ICU 77 data it is built against.
+# Both exact: a V8 upgrade is looked at with the Math-bits and corpus tests.
+# Cargo.lock holds icu_calendar, icu_locale, icu_locale_core, icu_locale_data,
+# icu_provider and icu_collections at 2.1.1: temporal_rs 0.1.2 (under v8's
+# temporal_capi) does not compile against later icu. `cargo update` or a new
+# lock file undoes it; redo with `cargo update -p <each> --precise 2.1.1`.
+v8 = "=146.9.0"
+deno_core_icudata = "=0.77.0"
+libc = "0.2.191"
+
+[dev-dependencies]
+# tests/protocol.rs reads tests/frames/cases.json.
+serde_json = "1.0.154"
+
+[lints.rust]
+missing_docs = "warn"
+
+# The child's hot path is Rust in every profile: Node's vm global
+# interceptors (src/child/contextify.rs) and the v8 crate's bindings under
+# them run on every global lookup of a program, so a debug build ran
+# adv-math-bits 5 times slower (3.2 s against 0.65 s on the Mac) and pushed
+# heavy programs toward the 5 s limit. The prebuilt V8 itself is always
+# optimised.
+[profile.dev.package.mcbench-build-child]
+opt-level = 3
+
+[profile.dev.package.v8]
+opt-level = 3
+
+# The main workspace's release profile (native/Cargo.toml).
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "unwind"
+debug = false

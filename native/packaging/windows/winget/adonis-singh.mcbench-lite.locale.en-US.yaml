@@ -1,0 +1,19 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.1.28.0.schema.json
+# Template: winget.sh fills in @VERSION@.
+PackageIdentifier: adonis-singh.mcbench-lite
+PackageVersion: @VERSION@
+PackageLocale: en-US
+Publisher: adonis-singh
+PublisherUrl: https://github.com/adonis-singh
+PackageName: mcbench-lite
+PackageUrl: https://adonis-singh.github.io/mcbench-lite/
+License: MIT
+LicenseUrl: https://github.com/adonis-singh/mcbench-lite/blob/main/LICENSE
+ShortDescription: An app in which AI models build in Minecraft 1.21.10.
+ReleaseNotesUrl: https://github.com/adonis-singh/mcbench-lite/releases/tag/v@VERSION@
+Tags:
+- minecraft
+- ai
+- benchmark
+ManifestType: defaultLocale
+ManifestVersion: 1.28.0

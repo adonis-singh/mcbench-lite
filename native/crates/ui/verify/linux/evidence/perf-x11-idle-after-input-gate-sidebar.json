@@ -1,0 +1,31 @@
+{
+ "scenario": "idle-after-input",
+ "backend": "x11",
+ "first_frame_ms": 585.675,
+ "window_s": 20.0,
+ "frames_in_window": 0,
+ "cpu_percent": 3.55,
+ "key_to_paint_ms": null,
+ "frame_work_ms": {
+  "count": 32,
+  "mean": 6.923,
+  "p50": 4.533,
+  "p99": 49.546,
+  "worst": 49.546
+ },
+ "frame_interval_ms_in_window": {
+  "count": 0,
+  "mean": null,
+  "p50": null,
+  "p99": null,
+  "worst": null
+ },
+ "accessibility": true,
+ "scroll_to_paint_ms": null,
+ "rss_kb_at_end": 352280,
+ "load": [
+  "4.83",
+  "5.39",
+  "6.37"
+ ]
+}

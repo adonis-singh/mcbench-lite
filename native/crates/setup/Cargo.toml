@@ -1,0 +1,53 @@
+[package]
+name = "mcbench-setup"
+description = "First start: shipped Minecraft data, the texture fetch and bake, download pins, the data folder"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[features]
+# On in every release build: the shipped Minecraft data, the bundle named by
+# MCBENCH_DATA_BUNDLE and checked against native/minecraft-data.lock,
+# embedded in the binary (Data::shipped). Off, the crate builds without the
+# bundle and every function that needs the data takes a Data its caller
+# made (tests make one from a folder on disk).
+shipped-data = []
+
+[dependencies]
+mcbench-spawn.workspace = true
+mcbench-world.workspace = true
+mcbench-render.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+flate2.workspace = true
+ruzstd.workspace = true
+crc32fast.workspace = true
+png.workspace = true
+base64.workspace = true
+sha1.workspace = true
+reqwest = { workspace = true, features = ["http2"] }
+rustls.workspace = true
+webpki-roots.workspace = true
+tokio = { workspace = true, features = ["rt", "rt-multi-thread", "fs", "io-util", "sync", "time", "macros", "process"] }
+tokio-util.workspace = true
+
+[target.'cfg(unix)'.dependencies]
+libc.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { workspace = true, features = ["Win32_Foundation", "Win32_System_Threading"] }
+
+[build-dependencies]
+sha2.workspace = true
+
+[dev-dependencies]
+# The mesher (renderer/, outside this workspace): its pack reader, for the
+# pack tints test.
+mcbench-renderer = { path = "../../../renderer" }
+tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros", "net", "io-util"] }
+
+[lints]
+workspace = true

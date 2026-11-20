@@ -1,0 +1,25 @@
+start: Button name="Delete permanently" lct="button" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=1 offscreen=0 ct
+key[0] enter: Button name="Delete for good" lct="button" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=1 offscreen=
+key[1] enter: Window name="Redstone lamp with a lever · mcbench-lite" lct="region" id="" class="Zed::Window" fw="Access
+exit=0 
+Speaking [LangChangeCommand ('en'), 'Hide archived', 'button', 'expanded', CancellableSpeech (still valid)]
+Speaking [LangChangeCommand ('en'), 'Archived', 'list', CancellableSpeech (still valid)]
+Speaking [LangChangeCommand ('en'), 'Delete permanently', 'button', 'Delete permanently: this cannot be undone', CancellableSpeech (still valid)]
+Input: kb(desktop):enter
+Speaking [LangChangeCommand ('en'), 'Delete for good']
+Input: kb(desktop):enter
+Speaking [LangChangeCommand ('en'), 'Redstone lamp with a lever · mcbench-lite', 'window', CancellableSpeech (still valid)]
+{"action":"archived","open":true}
+{"action":"delete armed","id":"chat-windmill"}
+{"action":"delete","id":"chat-windmill"}
+QMP Enter twice, 1.0 s apart, NVDA running:
+Speaking [LangChangeCommand ('en'), 'Hide archived', 'button', 'expanded', CancellableSpeech (still valid)]
+Speaking [LangChangeCommand ('en'), 'Archived', 'list', CancellableSpeech (still valid)]
+Speaking [LangChangeCommand ('en'), 'Delete permanently', 'button', 'Delete permanently: this cannot be undone', CancellableSpeech (still valid)]
+Input: kb(desktop):enter
+Speaking [LangChangeCommand ('en'), 'Delete for good']
+Input: kb(desktop):enter
+Speaking [LangChangeCommand ('en'), 'Redstone lamp with a lever · mcbench-lite', 'window', CancellableSpeech (still valid)]
+{"action":"archived","open":true}
+{"action":"delete armed","id":"chat-windmill"}
+{"action":"delete","id":"chat-windmill"}

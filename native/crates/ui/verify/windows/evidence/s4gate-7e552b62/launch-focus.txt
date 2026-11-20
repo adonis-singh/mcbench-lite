@@ -1,0 +1,5 @@
+before activation, composer focus=0
+after title click: Edit name="Message" lct="edit" id="" [foreground "mcbench-lite — Redstone lamp with a lever"]
+after title click: exit=0 
+after one Tab: Button name="New chat" lct="button" id="" [foreground "mcbench-lite — Redstone lamp with a lever"]
+after one Tab: exit=0 

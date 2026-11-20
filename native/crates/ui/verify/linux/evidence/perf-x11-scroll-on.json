@@ -1,0 +1,29 @@
+{
+ "scenario": "scroll",
+ "backend": "x11",
+ "first_frame_ms": 435.122,
+ "window_s": 6.06,
+ "frames_in_window": 189,
+ "cpu_percent": 59.6,
+ "key_to_paint_ms": null,
+ "frame_work_ms": {
+  "count": 199,
+  "mean": 1.144,
+  "p50": 0.953,
+  "p99": 2.715,
+  "worst": 15.156
+ },
+ "frame_interval_ms_in_window": {
+  "count": 188,
+  "mean": 32.08,
+  "p50": 32.016999999999825,
+  "p99": 33.69100000000071,
+  "worst": 46.47400000000016
+ },
+ "accessibility": true,
+ "load": [
+  "10.42",
+  "11.23",
+  "15.60"
+ ]
+}

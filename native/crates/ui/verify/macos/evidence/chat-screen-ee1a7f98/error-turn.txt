@@ -1,0 +1,50 @@
+{"action":"AXPress","AXError":0,"path":"0.0.1.2","t":"1794886757.476"}
+1 The provider refused the request: rate limited (a fixture error) 
+2 The provider refused the request: rate limited (a fixture error) 
+3 The provider refused the request: rate limited (a fixture error) 
+4 The provider refused the request: rate limited (a fixture error) 
+5 The provider refused the request: rate limited (a fixture error) 
+6 The provider refused the request: rate limited (a fixture error) 
+7 The provider refused the request: rate limited (a fixture error) 
+8 You are currently on a text area. 
+9 You are currently on a text area. 
+10 You are currently on a text area. 
+11 You are currently on a text area. 
+12 You are currently on a text area. 
+13 You are currently on a text area. 
+14 You are currently on a text area. 
+15 You are currently on a text area. 
+16 You are currently on a text area. 
+{"registered":{"AXAnnouncementRequested":0,"AXCreated":0,"AXElementBusyChanged":0,"AXExpandedChanged":0,"AXFocusedUIElementChanged":0,"AXFocusedWindowChanged":0,"AXInvalidStatusChanged":0,"AXLayoutChanged":0,"AXLiveRegionChanged":0,"AXLiveRegionCreated":0,"AXLoadComplete":0,"AXMainWindowChanged":0,"
+{"info":{"AXAnnouncementKey":"Done: a nine by nine field with one water block in the centre.","AXPriorityKey":50},"label":"mcbench-lite — Wheat farm","note":"AXAnnouncementRequested","path":"0","role":"AXWindow","t":"1794886761.726"}
+{"info":{"AXAnnouncementKey":"The provider refused the request: rate limited (a fixture error)","AXPriorityKey":90},"label":"mcbench-lite — Wheat farm","note":"AXAnnouncementRequested","path":"0","role":"AXWindow","t":"1794886761.728"}
+0.0.2 AXGroup AXLandmarkRegion Conversation None None
+0.0.2.0 AXGroup AXDocumentArticle You message, A small wheat farm with water in the middle. None
+0.0.2.0.0 AXStaticText AXUnknown None None None
+0.0.2.1 AXGroup AXDocumentArticle claude-opus-5-5 message, Done: a nine by nine field with one water block in the centre. None
+0.0.2.1.0 AXStaticText AXUnknown None None None
+0.0.2.2 AXGroup AXDocumentArticle You message, Add a fence None
+0.0.2.2.0 AXStaticText AXUnknown None None None
+0.0.2.3 AXGroup AXDocumentArticle Error error, The provider refused the request: rate limited (a fixture error) None
+0.0.2.3.0 AXStaticText AXUnknown None None None
+0.0.2.3.1 AXButton AXUnknown Dismiss error None ['AXPress']
+{"action":"sent","text":"Add a door"}
+{"action":"opened chat","chat":"chat-farm","title":"Wheat farm"}
+{"action":"sent","text":"Add a fence"}
+Tab	You are currently on a text area. 
+Tab	Wheat farm group (3 of 3) 
+Tab (message)	claude-opus-5-5 article 
+Tab	Message edit text 
+focus: ['Message']
+Space (dismiss?)	You are currently on a text area. 
+1
+{"action":"opened chat","chat":"chat-farm","title":"Wheat farm"}
+{"action":"sent","text":"Add a fence"}
+focus after dismiss: ['Message']
+End	Error article 
+(3.5 s)	error, The provider refused the request: rate limited (a fixture error) You are currently on a article, inside of a group. To interact with items in this group, press Control-Option-Shift-Down Arrow. To exit this group, press Control-Option-Shift-Up Arrow. 
+Tab	Dismiss error button 
+Space	New chat button Chats list Conversation group Message edit text Insertion at end of text.   Send dimmed button 2 more items group 
+dismiss buttons left: 0
+{"action":"dismissed error","text":"The provider refused the request: rate limited (a fixture error)"}
+focus after dismiss: []

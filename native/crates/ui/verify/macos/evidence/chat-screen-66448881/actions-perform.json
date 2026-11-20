@@ -1,0 +1,68 @@
+[
+ {
+  "target": [
+   "AXButton",
+   "Worked · 2 steps"
+  ],
+  "result": "not in tree"
+ },
+ {
+  "target": [
+   "AXButton",
+   "Worked · 2 steps"
+  ],
+  "result": "not in tree"
+ },
+ {
+  "target": [
+   "AXLink",
+   "the lever page"
+  ],
+  "AXError": 0,
+  "log": [
+   {
+    "action": "link activated",
+    "url": "https://minecraft.wiki/w/Lever"
+   }
+  ]
+ },
+ {
+  "target": [
+   "AXImage",
+   null
+  ],
+  "AXError": 0,
+  "log": [
+   {
+    "action": "image activated",
+    "url": "<TMPDIR>"
+   }
+  ]
+ },
+ {
+  "target": [
+   "AXStaticText",
+   "Castle gate"
+  ],
+  "result": "not in tree"
+ },
+ {
+  "target": [
+   "AXStaticText",
+   "Redstone lamp with a lever"
+  ],
+  "result": "not in tree"
+ },
+ {
+  "target": [
+   "AXButton",
+   "New chat"
+  ],
+  "AXError": 0,
+  "log": [
+   {
+    "action": "new chat"
+   }
+  ]
+ }
+]

@@ -13,18 +13,51 @@ pub fn direct_vulkan(driver: &Path) -> Result<wgpu::Instance, String> {
     let name = driver.display();
     // SAFETY: the library is the shipped Vulkan driver, loaded once; ash
     // keeps it loaded for as long as the entry (moved into the instance).
-    let entry = unsafe { ash::Entry::load_from(driver) }.map_err(|e| format!("No graphics adapter: {name}: {e}"))?;
+    let entry = unsafe { ash::Entry::load_from(driver) }
+        .map_err(|e| format!("No graphics adapter: {name}: {e}"))?;
     // SAFETY: a call through the entry points just loaded.
-    let version = unsafe { entry.try_enumerate_instance_version() }.map_err(|e| format!("No graphics adapter: {name}: vkEnumerateInstanceVersion: {e}"))?.unwrap_or(vk::API_VERSION_1_0);
+    let version = unsafe { entry.try_enumerate_instance_version() }
+        .map_err(|e| format!("No graphics adapter: {name}: vkEnumerateInstanceVersion: {e}"))?
+        .unwrap_or(vk::API_VERSION_1_0);
     let flags = wgpu::InstanceFlags::from_build_config().with_env();
-    let extensions = HalInstance::desired_extensions(&entry, version, flags).map_err(|e| format!("No graphics adapter: {name}: {e}"))?;
+    let extensions = HalInstance::desired_extensions(&entry, version, flags)
+        .map_err(|e| format!("No graphics adapter: {name}: {e}"))?;
     let pointers: Vec<*const std::ffi::c_char> = extensions.iter().map(|e| e.as_ptr()).collect();
-    let app = vk::ApplicationInfo::default().application_name(c"mcbench-draw").engine_name(c"wgpu-hal").api_version(if version < vk::API_VERSION_1_1 { vk::API_VERSION_1_0 } else { vk::API_VERSION_1_3 });
+    let app = vk::ApplicationInfo::default()
+        .application_name(c"mcbench-draw")
+        .engine_name(c"wgpu-hal")
+        .api_version(if version < vk::API_VERSION_1_1 {
+            vk::API_VERSION_1_0
+        } else {
+            vk::API_VERSION_1_3
+        });
     // SAFETY: the create info and the extension names outlive the call.
-    let raw = unsafe { entry.create_instance(&vk::InstanceCreateInfo::default().application_info(&app).enabled_extension_names(&pointers), None) }.map_err(|e| format!("No graphics adapter: {name}: vkCreateInstance: {e}"))?;
+    let raw = unsafe {
+        entry.create_instance(
+            &vk::InstanceCreateInfo::default()
+                .application_info(&app)
+                .enabled_extension_names(&pointers),
+            None,
+        )
+    }
+    .map_err(|e| format!("No graphics adapter: {name}: vkCreateInstance: {e}"))?;
     // SAFETY: `raw` was made on `entry` with `extensions` enabled, at
     // `version`; wgpu-hal owns it from here and destroys it.
-    let hal = unsafe { HalInstance::from_raw(entry, raw, version, 0, None, extensions, flags, Default::default(), false, None) }.map_err(|e| format!("No graphics adapter: {name}: {e}"))?;
+    let hal = unsafe {
+        HalInstance::from_raw(
+            entry,
+            raw,
+            version,
+            0,
+            None,
+            extensions,
+            flags,
+            Default::default(),
+            false,
+            None,
+        )
+    }
+    .map_err(|e| format!("No graphics adapter: {name}: {e}"))?;
     // SAFETY: a Vulkan hal instance for wgpu's Vulkan backend.
     Ok(unsafe { wgpu::Instance::from_hal::<wgpu::hal::api::Vulkan>(hal) })
 }

@@ -1,0 +1,12 @@
+[
+ {
+  "check": "the app wrote its metrics",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "keys were timed",
+  "ok": true,
+  "detail": "{\"count\": 20, \"mean\": 21.777, \"p50\": 25.877, \"p99\": 35.662, \"worst\": 35.662}"
+ }
+]

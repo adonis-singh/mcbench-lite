@@ -1,0 +1,16 @@
+/// The synthetic rows of `scratchpad/payload/synthetic.jsonl`: payloads in
+/// the key orders today's writers produce (`payload/synthetic.js` names the
+/// code line of each). No chat text.
+pub const SYNTHETIC: [(&str, &str); 11] = [
+    ("user chat prompt with prompts", r#"{"role":"user","content":"x","prompts":[{"id":"p1","title":"Castle"}],"createdAt":"2026-11-17T00:00:00.000Z"}"#),
+    ("user chat prompt with parts", r#"{"role":"user","content":[{"type":"text","text":"x"},{"type":"attachment","attachment":{"name":"a.png","type":"image/png","size":10,"url":"/api/attachments/c/1-a.png","path":"/work/attachments/1-a.png"}},{"type":"selection","selection":{"letter":"A","label":"Stone, top","min":[0,0,0],"max":[1,1,1],"blocks":8,"block":"minecraft:stone"}}],"createdAt":"2026-11-17T00:00:00.000Z"}"#),
+    ("user bench prompt (new order)", r#"{"role":"user","round":"r1","prompts":[{"id":"p1","title":"Castle"}],"content":"x","createdAt":"2026-11-17T00:00:00.000Z"}"#),
+    ("user bench prompt (new order, no prompts)", r#"{"role":"user","round":"r1","content":"x","createdAt":"2026-11-17T00:00:00.000Z"}"#),
+    ("user migrated v14 chat prompt", r#"{"role":"user","content":"x","createdAt":"2026-11-17T00:00:00.000Z","prompts":[{"id":"p1","title":"Castle"}]}"#),
+    ("user migrated v14 bench prompt", r#"{"role":"user","content":"x","round":"r1","createdAt":"2026-11-17T00:00:00.000Z","prompts":[{"id":"p1","title":"Castle"}]}"#),
+    ("tool unanswered", r#"{"role":"tool","tool_call_id":"c1","content":"{\"ok\":false,\"cancelled\":true,\"error\":\"Cancelled by user\"}","createdAt":"2026-11-17T00:00:00.000Z"}"#),
+    ("assistant stopped with reply", r#"{"role":"assistant","content":"(stopped by user)","stopped":true,"reply":"partial","telemetry":{"provider":"openrouter","model":"m","effort":null,"startedAt":"2026-11-17T00:00:00.000Z","wallMs":12,"firstDeltaMs":null,"contextBytes":100,"messageCount":3,"usage":null,"failed":true,"cancelled":true},"createdAt":"2026-11-17T00:00:00.000Z"}"#),
+    ("assistant harness with notices", r#"{"role":"assistant","content":"x","reasoning":"r","finish_reason":"tool_calls","telemetry":{"provider":"openrouter","model":"m","effort":null,"startedAt":"2026-11-17T00:00:00.000Z","wallMs":12,"firstDeltaMs":null,"contextBytes":100,"messageCount":3,"usage":null,"contextTokens":null},"notices":[{"level":"warning","text":"n"}],"plan":[{"text":"t","status":"pending"}],"rateLimit":{"status":"allowed","resetsAt":1},"tool_calls":[{"id":"c1","type":"function","function":{"name":"build","arguments":"{}"}}],"createdAt":"2026-11-17T00:00:00.000Z"}"#),
+    ("error title failure", r#"{"role":"error","content":"Title generation failed: x","createdAt":"2026-11-17T00:00:00.000Z"}"#),
+    ("error dismissed", r#"{"role":"error","content":"x","telemetry":{"provider":"openrouter","model":"m","effort":null,"startedAt":"2026-11-17T00:00:00.000Z","wallMs":12,"firstDeltaMs":null,"contextBytes":100,"messageCount":3,"usage":null,"failed":true,"cancelled":false},"createdAt":"2026-11-17T00:00:00.000Z","dismissed":true}"#),
+];

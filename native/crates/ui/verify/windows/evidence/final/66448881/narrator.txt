@@ -1,0 +1,22 @@
+none: clipboard=[mcbench-lite - Redstone lamp with a lever region, Conversation region, claude-opus-5-5, A lamp on a lever The lamp is built and wired. It lights when the lever is on and goes dark when it is off; the old torch is gone. The block that does the work is a redstone_lamp, and the wiki page on 
+tab: clipboard=[paragraph, The lamp is built and wired. It lights when the lever is on and goes dark when it is off; the old torch is gone. The block that does the work is a redstone_lamp, and the wiki page on lamps has the details. group, link, the wiki page on lamps, ]
+tab: clipboard=[code, rust, 5 lines group, Copy code, button, ]
+tab: clipboard=[Message, edit, ]
+up: clipboard=[Copied last phrase to clipboard]
+right: clipboard=[Copied last phrase to clipboard]
+right: clipboard=[Copied last phrase to clipboard]
+left: clipboard=[Copied last phrase to clipboard]
+insert-right: clipboard=[Send, button, disabled, ]
+insert-right: clipboard=[Program Manager, pane, ]
+insert-left: clipboard=[mcbench-lite - Redstone lamp with a lever region, Send, button, disabled, ]
+--- second walk
+none: clipboard=[mcbench-lite - Redstone lamp with a lever region, Conversation region, claude-opus-5-5, A lamp on a lever The lamp is built and wired. It lights when the lever is on and goes dark when it is off; the old torch is gone. The block that does the work is a redstone_lamp, and the wiki page on 
+up: clipboard=[claude-opus-5-5, work, article, 2 of 9, ]
+down: clipboard=[claude-opus-5-5, A lamp on a lever The lamp is built and wired. It lights when the lever is on and goes dark when it is off; the old torch is gone. The block that does the work is a redstone_lamp, and the wiki page on lamps has the details. What was placed A stone base, three by three The
+right: clipboard=[heading level 1, A lamp on a lever, group, ]
+right: clipboard=[paragraph, The lamp is built and wired. It lights when the lever is on and goes dark when it is off; the old torch is gone. The block that does the work is a redstone_lamp, and the wiki page on lamps has the details., group, ]
+left: clipboard=[heading level 1, A lamp on a lever, group, ]
+insert-right: clipboard=[A lamp on a lever, heading level 1, at level 1, ]
+insert-right: clipboard=[paragraph, The lamp is built and wired. It lights when the lever is on and goes dark when it is off; the old torch is gone. The block that does the work is a redstone_lamp, and the wiki page on lamps has the details. group]
+insert-right: clipboard=[link, the wiki page on lamps, ]
+insert-right: clipboard=[heading level 2, What was placed group, What was placed, heading level 2, at level 2, ]

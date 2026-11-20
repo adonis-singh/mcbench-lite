@@ -1,0 +1,7 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.version.1.28.0.schema.json
+# Template: winget.sh fills in @VERSION@. Not submitted; the owner opens the pull request.
+PackageIdentifier: adonis-singh.mcbench-lite
+PackageVersion: @VERSION@
+DefaultLocale: en-US
+ManifestType: version
+ManifestVersion: 1.28.0

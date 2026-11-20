@@ -1,0 +1,62 @@
+{
+  "importOrder": 2,
+  "lifted": {
+    "MCBENCH_VERIFY_MAX_OPERATIONS": "2147483647",
+    "MCBENCH_VERIFY_MAX_SIMULATION_TICKS": "2147483647",
+    "MCBENCH_VERIFY_MAX_WALL_MS": "2147483647",
+    "MCBENCH_VERIFY_MAX_COLUMNS": "2147483647",
+    "MCBENCH_VERIFY_MAX_REQUEST_BYTES": "2147483647",
+    "MCBENCH_VERIFY_MAX_REPORT_BYTES": "9007199254740991"
+  },
+  "budgetEnv": {
+    "operations": "MCBENCH_VERIFY_MAX_OPERATIONS",
+    "simulationTicks": "MCBENCH_VERIFY_MAX_SIMULATION_TICKS",
+    "wallMs": "MCBENCH_VERIFY_MAX_WALL_MS",
+    "columns": "MCBENCH_VERIFY_MAX_COLUMNS",
+    "tests": "MCBENCH_VERIFY_MAX_TESTS",
+    "requestBytes": "MCBENCH_VERIFY_MAX_REQUEST_BYTES",
+    "reportBytes": "MCBENCH_VERIFY_MAX_REPORT_BYTES"
+  },
+  "tools": [
+    {
+      "name": "test_build",
+      "vision": false,
+      "by": [
+        "placement"
+      ]
+    },
+    {
+      "name": "build",
+      "vision": false,
+      "by": []
+    },
+    {
+      "name": "see_build",
+      "vision": true,
+      "by": []
+    },
+    {
+      "name": "bash",
+      "vision": false,
+      "by": [
+        "network"
+      ]
+    },
+    {
+      "name": "view_image",
+      "vision": true,
+      "by": []
+    }
+  ],
+  "chatTools": [
+    "prompt_library"
+  ],
+  "resolutions": [
+    1,
+    2,
+    5,
+    10
+  ],
+  "standardResolution": 1,
+  "resolutionError": "3 is not a resolution (1, 2, 5, 10)"
+}

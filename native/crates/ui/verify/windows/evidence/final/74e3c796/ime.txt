@@ -1,0 +1,2 @@
+preedit: value="にほんご"
+committed: value="日本語"

@@ -1,0 +1,26 @@
+Speaking [LangChangeCommand ('en'), 'Redstone lamp with a lever · mcbench-lite', 'window', CancellableSpeech (still valid)]
+Speaking [LangChangeCommand ('en'), 'Message', 'edit', CancellableSpeech (still valid), 'blank']
+Speaking [LangChangeCommand ('en'), 'Desktop', 'list', CancellableSpeech (still valid)]
+Speaking [LangChangeCommand ('en'), 'Recycle Bin', 'not selected', '1 of 3', CancellableSpeech (still valid)]
+Speaking [LangChangeCommand ('en'), 'Arabic, right to left: مصباح رقم اثنين يعمل بالرافعة']
+Speaking [LangChangeCommand ('en'), 'Redstone lamp with a lever · mcbench-lite', 'window', CancellableSpeech (still valid)]
+Speaking [LangChangeCommand ('en'), 'Message', 'edit', CancellableSpeech (still valid), 'blank']
+Input: kb(desktop):h
+Speaking [LangChangeCommand ('en'), 'English (not supported)', CharacterModeCommand(True), 'h', EndUtteranceCommand(), CharacterModeCommand(False)]
+Input: kb(desktop):e
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en'), 'e', EndUtteranceCommand(), CharacterModeCommand(False)]
+Input: kb(desktop):l
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en'), 'l', EndUtteranceCommand(), CharacterModeCommand(False)]
+Input: kb(desktop):l
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en'), 'l', EndUtteranceCommand(), CharacterModeCommand(False)]
+Input: kb(desktop):o
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en'), 'o', EndUtteranceCommand(), CharacterModeCommand(False)]
+Input: kb(desktop):enter
+Speaking [LangChangeCommand ('en'), 'A turn is already running for this conversation']
+Input: kb(desktop):shift+tab
+Speaking [LangChangeCommand ('en'), 'Conversation', 'grouping', CancellableSpeech (still valid)]
+Speaking [LangChangeCommand ('en'), 'claude-opus-5-5, Yes: the base is still three by three, nine stone blocks, and nothing else moved.', 'grouping', '9 of 9', CancellableSpeech (still valid)]
+Input: kb(desktop):tab
+Speaking [LangChangeCommand ('en'), 'Message', 'edit', CancellableSpeech (still valid), 'hello']
+Input: kb(desktop):enter
+Speaking [LangChangeCommand ('en'), 'A turn is already running for this conversation']

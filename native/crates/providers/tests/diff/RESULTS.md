@@ -1,0 +1,5 @@
+# The CLI harnesses' differential, boxed: last results
+
+`run.sh` with `MCBENCH_DIFF_SANDBOXED=1` runs Codex boxed on both sides; the Node side is today's `server/codex-cli.js` container (`mcbench-codex-<id>`, from `localhost/mcbench-sandbox:<hash>`, both fixed in `server/`), so that mode no longer runs on the owner's machines: `run.sh` and `node-driver.js` refuse it unless `MCBENCH_I_OWN_THIS_DOCKER=1` is set (a CI machine). The unboxed differential (no Docker) runs as before.
+
+The last boxed run, as the harness agent's commit `4441be57` (2026-11-17, adipc) records it: the 29 Codex cases boxed on both sides, today's Docker container against the Rust box (`mcbench_sandbox::proxy::codex_command`), gave identical turns. Beside it, `tests/unix/box_tests.rs` ran a turn with the fake Codex in the real Rust box: a tool call over the bridge, chatgpt.com and auth.openai.com reached through the proxy, example.com and direct connections refused, 502 threads under `TasksMax=512`. That run's own tables are in the harness agent's report, not in this checkout.

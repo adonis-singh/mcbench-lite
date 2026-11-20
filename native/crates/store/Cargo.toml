@@ -1,0 +1,35 @@
+[package]
+name = "mcbench-store"
+description = "The SQLite store with today's schema, storage budgets, settings, attachments, the prompt library"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+mcbench-world.workspace = true
+mcbench-json.workspace = true
+rusqlite.workspace = true
+sha2.workspace = true
+base64.workspace = true
+regex.workspace = true
+getrandom.workspace = true
+parking_lot.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+[target.'cfg(unix)'.dependencies]
+libc.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+windows-sys.workspace = true
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+base64.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true

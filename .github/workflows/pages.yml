@@ -1,0 +1,60 @@
+# A proposal, not a workflow: nothing runs this file. Copying it to
+# .github/workflows/pages.yml in the public repository, which is the owner's
+# step (native/ci/README.md), would deploy the download page to GitHub Pages
+# (https://adonis-singh.github.io/mcbench-lite/) when a release is
+# published, or when started by hand with a tag. What it deploys is the
+# site artifact of the release workflow's run for that tag: native/site/
+# with the sources link filled in and the dnf repository's metadata, made
+# by native/packaging/release.sh. Pages must first be set to deploy from
+# GitHub Actions (Settings, Pages, Source).
+name: pages
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: The release's tag, v<MAJOR.MINOR.PATCH>
+        required: true
+permissions:
+  contents: read
+concurrency:
+  group: pages
+  cancel-in-progress: false
+jobs:
+  site:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - id: run
+        name: The release workflow's successful run for the tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name || inputs.tag }}
+        run: |
+          id=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow release.yml --branch "$TAG" --status success --limit 1 --json databaseId --jq '.[0].databaseId // empty')
+          [ -n "$id" ] || { echo "The release workflow has no successful run for $TAG."; exit 1; }
+          echo "id=$id" >> "$GITHUB_OUTPUT"
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: site
+          path: ${{ runner.temp }}/site
+          run-id: ${{ steps.run.outputs.id }}
+          github-token: ${{ github.token }}
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: ${{ runner.temp }}/site
+  deploy:
+    needs: site
+    runs-on: ubuntu-24.04
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

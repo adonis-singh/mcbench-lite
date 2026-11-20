@@ -1,0 +1,47 @@
+[
+ {
+  "check": "the panicking process ends",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "its crash log is written",
+  "ok": true,
+  "detail": "['<scratch>/check_fatal-wayland-draw/dev/logs/crash-1794994762-771935.log']"
+ },
+ {
+  "check": "a new process shows the error screen",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "the alert says the heading and the panic's message",
+  "ok": true,
+  "detail": "mcbench-lite stopped on an error: a panic on purpose while drawing (--crash draw)"
+ },
+ {
+  "check": "Restart is its button",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "Restart has focus",
+  "ok": true,
+  "detail": "button 'Restart'"
+ },
+ {
+  "check": "in the ended window's size",
+  "ok": true,
+  "detail": "(-1, -1) against (-1, -1)"
+ },
+ {
+  "check": "Restart starts the app again",
+  "ok": true,
+  "detail": "[773006]"
+ },
+ {
+  "check": "and the error screen's process ends",
+  "ok": true,
+  "detail": ""
+ }
+]

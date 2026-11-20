@@ -17,7 +17,11 @@ fn value_of(text: &str) -> Value {
     match text {
         "true" => json!(true),
         "false" => json!(false),
-        _ => text.parse::<i64>().map(|n| json!(n)).or_else(|_| text.parse::<f64>().map(|n| json!(n))).unwrap_or_else(|_| json!(text)),
+        _ => text
+            .parse::<i64>()
+            .map(|n| json!(n))
+            .or_else(|_| text.parse::<f64>().map(|n| json!(n)))
+            .unwrap_or_else(|_| json!(text)),
     }
 }
 
@@ -28,9 +32,19 @@ fn entities_for(capture: &Value) -> Vec<Value> {
     let mut out = Vec::new();
     let mut id = 11i64;
     for (kind_name, kind) in capture["kinds"].as_object().unwrap() {
-        let by: Vec<&str> = kind["by"].as_array().map(|a| a.iter().filter_map(Value::as_str).collect()).unwrap_or_default();
-        let keys: Vec<&String> = kind["variants"].as_object().map(|v| v.keys().collect()).unwrap_or_default();
-        let picks: BTreeSet<usize> = if keys.is_empty() { [0].into() } else { [0, keys.len() / 2, keys.len() - 1].into() };
+        let by: Vec<&str> = kind["by"]
+            .as_array()
+            .map(|a| a.iter().filter_map(Value::as_str).collect())
+            .unwrap_or_default();
+        let keys: Vec<&String> = kind["variants"]
+            .as_object()
+            .map(|v| v.keys().collect())
+            .unwrap_or_default();
+        let picks: BTreeSet<usize> = if keys.is_empty() {
+            [0].into()
+        } else {
+            [0, keys.len() / 2, keys.len() - 1].into()
+        };
         for pick in picks {
             id += 7;
             let mut e = json!({
@@ -60,11 +74,24 @@ fn entities_for(capture: &Value) -> Vec<Value> {
                     e["offset"] = json!(6 + id % 4);
                 }
                 if base.keys().any(|k| k.contains('.')) {
-                    e["pose"] = json!([[-12.5, 30.0, 0.0], [0.0, 5.0, 0.0], [-10.0, 0.0, -10.0], [-15.0, 0.0, 10.0], [-1.0, 0.0, -1.0], [1.0, 0.0, 1.0]]);
+                    e["pose"] = json!([
+                        [-12.5, 30.0, 0.0],
+                        [0.0, 5.0, 0.0],
+                        [-10.0, 0.0, -10.0],
+                        [-15.0, 0.0, 10.0],
+                        [-1.0, 0.0, -1.0],
+                        [1.0, 0.0, 1.0]
+                    ]);
                 }
             }
             if e.get("block").is_none() {
-                e["block"] = json!(["minecraft:sand", "minecraft:chest[facing=east]", "minecraft:tnt"][(id % 3) as usize]);
+                e["block"] = json!(
+                    [
+                        "minecraft:sand",
+                        "minecraft:chest[facing=east]",
+                        "minecraft:tnt"
+                    ][(id % 3) as usize]
+                );
             }
             if e.get("item").is_none() {
                 e["item"] = json!(items[(id as usize * 7) % items.len()]);
@@ -76,7 +103,10 @@ fn entities_for(capture: &Value) -> Vec<Value> {
                         equipment.insert(slot.clone(), json!(item));
                     }
                 }
-                equipment.insert("mainhand".into(), json!(items[(id as usize * 3) % items.len()]));
+                equipment.insert(
+                    "mainhand".into(),
+                    json!(items[(id as usize * 3) % items.len()]),
+                );
                 e["equipment"] = Value::Object(equipment);
             }
             out.push(e);
@@ -91,11 +121,17 @@ struct TestView<'a> {
 }
 
 fn light(x: i32, y: i32, z: i32) -> [i32; 2] {
-    [(x * 7 + y * 13 + z * 5).rem_euclid(16), (x * 3 + y * 5 + z * 11).rem_euclid(16)]
+    [
+        (x * 7 + y * 13 + z * 5).rem_euclid(16),
+        (x * 3 + y * 5 + z * 11).rem_euclid(16),
+    ]
 }
 
 impl View for TestView<'_> {
     fn light(&self, [x, y, z]: [i32; 3]) -> [i32; 2] {
+        light(x, y, z)
+    }
+    fn levels(&self, [x, y, z]: [i32; 3]) -> [i32; 2] {
         light(x, y, z)
     }
     fn block_quads(&self, state: &str) -> Result<Vec<BlockQuad>, String> {
@@ -109,18 +145,30 @@ fn close(a: f64, b: f64) -> bool {
 
 #[test]
 fn every_entity_kind_draws_the_quads_the_page_draws() {
-    let Some(data) = common::data("every_entity_kind_draws_the_quads_the_page_draws") else { return };
+    let Some(data) = common::data("every_entity_kind_draws_the_quads_the_page_draws") else {
+        return;
+    };
     let paths = Paths::of_data(&data).unwrap();
     let pack = Pack::read(&read(&paths.pack).unwrap()).unwrap();
     let names = material_names(&read(&paths.textures).unwrap()).unwrap();
     let json: Value = serde_json::from_slice(&read(&paths.entities).unwrap()).unwrap();
     let list = entities_for(&json);
     let capture = Capture::new(json.clone()).unwrap();
-    let view = TestView { pack: &pack, names: &names };
+    let view = TestView {
+        pack: &pack,
+        names: &names,
+    };
     // The block quads the page's blockQuads would answer (the same mesher).
-    let mut states: BTreeSet<String> = list.iter().filter_map(|e| e["block"].as_str().map(str::to_string)).collect();
+    let mut states: BTreeSet<String> = list
+        .iter()
+        .filter_map(|e| e["block"].as_str().map(str::to_string))
+        .collect();
     for kind in json["kinds"].as_object().unwrap().values() {
-        for variant in kind["variants"].as_object().map(|v| v.values().collect::<Vec<_>>()).unwrap_or_default() {
+        for variant in kind["variants"]
+            .as_object()
+            .map(|v| v.values().collect::<Vec<_>>())
+            .unwrap_or_default()
+        {
             for draw in variant["draws"].as_array().unwrap() {
                 if let Some(b) = draw["block"].as_str().filter(|b| *b != "entity") {
                     states.insert(b.to_string());
@@ -137,7 +185,11 @@ fn every_entity_kind_draws_the_quads_the_page_draws() {
         .collect();
     let dir = std::env::temp_dir().join(format!("mcbench-draw-entities-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
-    std::fs::write(dir.join("entities.json"), serde_json::to_vec(&list).unwrap()).unwrap();
+    std::fs::write(
+        dir.join("entities.json"),
+        serde_json::to_vec(&list).unwrap(),
+    )
+    .unwrap();
     std::fs::write(dir.join("lone.json"), serde_json::to_vec(&lone).unwrap()).unwrap();
     let module = common::crate_dir().join("../../web/entity-draw.mjs");
     let output = std::process::Command::new("node")
@@ -149,15 +201,25 @@ fn every_entity_kind_draws_the_quads_the_page_draws() {
         .output()
         .expect("Node runs the page's module");
     std::fs::remove_dir_all(&dir).unwrap();
-    assert!(output.status.success(), "node: {}", String::from_utf8_lossy(&output.stderr));
+    assert!(
+        output.status.success(),
+        "node: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
     let page: Vec<Value> = serde_json::from_slice(&output.stdout).unwrap();
-    let turn = mcbench_draw::entities::multiply(&mcbench_draw::camera::rotate_y(-0.7), &mcbench_draw::camera::rotate_x(-0.4));
+    let turn = mcbench_draw::entities::multiply(
+        &mcbench_draw::camera::rotate_y(-0.7),
+        &mcbench_draw::camera::rotate_x(-0.4),
+    );
     let mut kinds_checked = BTreeMap::new();
     for (entity, expected) in list.iter().zip(&page) {
         let ty = entity["type"].as_str().unwrap();
         let ours = entities::geometry(&capture, entity, &view);
         if let Some(error) = expected.get("error") {
-            panic!("the page's module fails on {ty} ({error}); ours: {:?}", ours.err());
+            panic!(
+                "the page's module fails on {ty} ({error}); ours: {:?}",
+                ours.err()
+            );
         }
         let ours = ours.unwrap_or_else(|e| panic!("{ty}: {e}"));
         let theirs = expected["quads"].as_array().unwrap();
@@ -165,19 +227,50 @@ fn every_entity_kind_draws_the_quads_the_page_draws() {
         assert!(!ours.is_empty(), "{ty} draws no quads");
         for (i, (q, t)) in ours.iter().zip(theirs).enumerate() {
             let corners: Vec<f64> = q.corners.iter().flatten().copied().collect();
-            let numbers = |v: &Value| v.as_array().unwrap().iter().map(|n| n.as_f64().unwrap()).collect::<Vec<f64>>();
-            for (field, a, b) in [("corners", corners, numbers(&t["corners"])), ("uv", q.uv.to_vec(), numbers(&t["uv"])), ("color", q.color.to_vec(), numbers(&t["color"])), ("overlay", q.overlay.to_vec(), numbers(&t["overlay"])), ("light", q.light.to_vec(), numbers(&t["light"]))] {
+            let numbers = |v: &Value| {
+                v.as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|n| n.as_f64().unwrap())
+                    .collect::<Vec<f64>>()
+            };
+            for (field, a, b) in [
+                ("corners", corners, numbers(&t["corners"])),
+                ("uv", q.uv.to_vec(), numbers(&t["uv"])),
+                ("color", q.color.to_vec(), numbers(&t["color"])),
+                ("overlay", q.overlay.to_vec(), numbers(&t["overlay"])),
+                ("light", q.light.to_vec(), numbers(&t["light"])),
+            ] {
                 assert_eq!(a.len(), b.len(), "{ty} quad {i} {field}");
-                assert!(a.iter().zip(&b).all(|(x, y)| close(*x, *y)), "{ty} quad {i} {field}: {a:?} vs {b:?}");
+                assert!(
+                    a.iter().zip(&b).all(|(x, y)| close(*x, *y)),
+                    "{ty} quad {i} {field}: {a:?} vs {b:?}"
+                );
             }
-            assert_eq!(q.texture, t["texture"].as_str().unwrap_or(""), "{ty} quad {i} texture");
-            assert_eq!(q.layer, t["layer"].as_str().unwrap_or(""), "{ty} quad {i} layer");
+            assert_eq!(
+                q.texture,
+                t["texture"].as_str().unwrap_or(""),
+                "{ty} quad {i} texture"
+            );
+            assert_eq!(
+                q.layer,
+                t["layer"].as_str().unwrap_or(""),
+                "{ty} quad {i} layer"
+            );
         }
         let place = entities::Place::of(entity).unwrap();
         for (name, camera) in [("frame", None), ("facing", Some(&turn))] {
             let m = entities::frame(&capture, entity, &place, camera).unwrap();
-            let e: Vec<f64> = expected[name].as_array().unwrap().iter().map(|n| n.as_f64().unwrap()).collect();
-            assert!(m.iter().zip(&e).all(|(a, b)| close(*a, *b)), "{ty} {name}: {m:?} vs {e:?}");
+            let e: Vec<f64> = expected[name]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|n| n.as_f64().unwrap())
+                .collect();
+            assert!(
+                m.iter().zip(&e).all(|(a, b)| close(*a, *b)),
+                "{ty} {name}: {m:?} vs {e:?}"
+            );
         }
         *kinds_checked.entry(ty.to_string()).or_insert(0) += ours.len();
     }

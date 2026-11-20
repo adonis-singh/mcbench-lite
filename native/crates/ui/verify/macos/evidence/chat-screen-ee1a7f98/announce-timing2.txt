@@ -1,0 +1,23 @@
+sent at 1794886730.953752
+1 1794886731.0676448 Add a door 
+2 1794886731.624089 Add a door 
+3 1794886732.114132 Add a door 
+4 1794886732.61042 Add a door 
+5 1794886733.095839 Add a door 
+6 1794886733.629538 Add a door 
+7 1794886734.12554 Add a door 
+8 1794886734.611855 Add a door 
+9 1794886735.161004 Add a door 
+10 1794886735.700224 Add a door 
+11 1794886736.2464159 Adding a third lamp now. It goes two blocks east of the second one, on the same stone row, with its own lever. Extend th
+12 1794886736.762954 Adding a third lamp now. It goes two blocks east of the second one, on the same stone row, with its own lever. Extend th
+13 1794886737.2292109 Adding a third lamp now. It goes two blocks east of the second one, on the same stone row, with its own lever. Extend th
+14 1794886737.731631 Adding a third lamp now. It goes two blocks east of the second one, on the same stone row, with its own lever. Extend th
+15 1794886738.211374 Adding a third lamp now. It goes two blocks east of the second one, on the same stone row, with its own lever. Extend th
+16 1794886738.74862 Adding a third lamp now. It goes two blocks east of the second one, on the same stone row, with its own lever. Extend th
+17 1794886739.255434 Adding a third lamp now. It goes two blocks east of the second one, on the same stone row, with its own lever. Extend th
+18 1794886739.764301 Adding a third lamp now. It goes two blocks east of the second one, on the same stone row, with its own lever. Extend th
+19 1794886740.281348 Adding a third lamp now. It goes two blocks east of the second one, on the same stone row, with its own lever. Extend th
+20 1794886740.820085 Adding a third lamp now. It goes two blocks east of the second one, on the same stone row, with its own lever. Extend th
+"t":"1794886727.491"
+"t":"1794886735.907"

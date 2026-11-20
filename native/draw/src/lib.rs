@@ -12,6 +12,7 @@ pub mod entities;
 #[cfg(target_os = "linux")]
 pub mod floor;
 pub mod gpu;
+pub mod live;
 pub mod memory;
 pub mod picture;
 pub mod scene;
@@ -24,7 +25,11 @@ pub mod warp;
 // Milliseconds from a fixed start.
 pub fn now_ms() -> f64 {
     static START: std::sync::OnceLock<std::time::Instant> = std::sync::OnceLock::new();
-    START.get_or_init(std::time::Instant::now).elapsed().as_secs_f64() * 1e3
+    START
+        .get_or_init(std::time::Instant::now)
+        .elapsed()
+        .as_secs_f64()
+        * 1e3
 }
 
 pub fn round2(ms: f64) -> f64 {

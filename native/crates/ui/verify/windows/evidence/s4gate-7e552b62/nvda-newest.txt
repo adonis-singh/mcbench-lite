@@ -1,0 +1,10 @@
+Speaking ['mcbench-lite — Redstone lamp with a lever', 'window']
+Speaking ['Chats', 'list']
+Speaking ['Castle gate', '2 of 3']
+Speaking ['Conversation', 'grouping']
+Input: kb(desktop):end
+Speaking ['claude-opus-5-5', 'grouping', 'message, Adding a third lamp now. It goes two blocks east of the second one, on the same stone row, with its own lever.\nExtend the stone base by two blocks\nPlace the lamp and t
+Input: kb(desktop):upArrow
+Speaking ['claude-opus-5-5', 'grouping', 'work', '17 of 18']
+Input: kb(desktop):upArrow
+Speaking ['You', 'grouping', 'message, Turn Three', '16 of 18']

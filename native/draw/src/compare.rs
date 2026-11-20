@@ -44,11 +44,22 @@ pub struct Image {
 
 impl Image {
     pub fn from_rgb(rgb: &[u8], w: u32, h: u32) -> Image {
-        Image { w: w as usize, h: h as usize, rgb: rgb.as_chunks::<3>().0.iter().map(|p| [p[0] as f32, p[1] as f32, p[2] as f32]).collect() }
+        Image {
+            w: w as usize,
+            h: h as usize,
+            rgb: rgb
+                .as_chunks::<3>()
+                .0
+                .iter()
+                .map(|p| [p[0] as f32, p[1] as f32, p[2] as f32])
+                .collect(),
+        }
     }
 
     pub fn decode(bytes: &[u8]) -> Result<Image, String> {
-        let im = image::load_from_memory(bytes).map_err(|e| e.to_string())?.to_rgb8();
+        let im = image::load_from_memory(bytes)
+            .map_err(|e| e.to_string())?
+            .to_rgb8();
         Ok(Image::from_rgb(im.as_raw(), im.width(), im.height()))
     }
 
@@ -61,30 +72,50 @@ impl Image {
             return Ok(Image::from_rgb(im.as_raw(), im.width(), im.height()));
         }
         let im = im.to_rgba8();
-        let rgb: Vec<u8> = im.pixels().flat_map(|p| [p.0[0].min(p.0[3]), p.0[1].min(p.0[3]), p.0[2].min(p.0[3])]).collect();
+        let rgb: Vec<u8> = im
+            .pixels()
+            .flat_map(|p| [p.0[0].min(p.0[3]), p.0[1].min(p.0[3]), p.0[2].min(p.0[3])])
+            .collect();
         Ok(Image::from_rgb(&rgb, im.width(), im.height()))
     }
 }
 
 fn luma(im: &Image) -> Vec<f32> {
-    im.rgb.iter().map(|p| 0.299 * p[0] + 0.587 * p[1] + 0.114 * p[2]).collect()
+    im.rgb
+        .iter()
+        .map(|p| 0.299 * p[0] + 0.587 * p[1] + 0.114 * p[2])
+        .collect()
 }
 
 // Separable Gaussian blur (sigma 1.5, 11 taps), edges clamped.
 fn blur(v: &[f32], w: usize, h: usize) -> Vec<f32> {
-    let k: Vec<f32> = (-5..=5).map(|i: i32| (-(i * i) as f32 / (2.0 * 1.5 * 1.5)).exp()).collect();
+    let k: Vec<f32> = (-5..=5)
+        .map(|i: i32| (-(i * i) as f32 / (2.0 * 1.5 * 1.5)).exp())
+        .collect();
     let sum: f32 = k.iter().sum();
     let k: Vec<f32> = k.iter().map(|x| x / sum).collect();
     let mut tmp = vec![0.0; v.len()];
     for y in 0..h {
         for x in 0..w {
-            tmp[y * w + x] = k.iter().enumerate().map(|(i, kk)| kk * v[y * w + (x as i32 + i as i32 - 5).clamp(0, w as i32 - 1) as usize]).sum();
+            tmp[y * w + x] = k
+                .iter()
+                .enumerate()
+                .map(|(i, kk)| {
+                    kk * v[y * w + (x as i32 + i as i32 - 5).clamp(0, w as i32 - 1) as usize]
+                })
+                .sum();
         }
     }
     let mut out = vec![0.0; v.len()];
     for y in 0..h {
         for x in 0..w {
-            out[y * w + x] = k.iter().enumerate().map(|(i, kk)| kk * tmp[(y as i32 + i as i32 - 5).clamp(0, h as i32 - 1) as usize * w + x]).sum();
+            out[y * w + x] = k
+                .iter()
+                .enumerate()
+                .map(|(i, kk)| {
+                    kk * tmp[(y as i32 + i as i32 - 5).clamp(0, h as i32 - 1) as usize * w + x]
+                })
+                .sum();
         }
     }
     out
@@ -98,12 +129,21 @@ fn ssim_map(a: &Image, b: &Image) -> Vec<f32> {
     let my = blur(&y, w, h);
     let xx = blur(&x.iter().map(|v| v * v).collect::<Vec<_>>(), w, h);
     let yy = blur(&y.iter().map(|v| v * v).collect::<Vec<_>>(), w, h);
-    let xy = blur(&x.iter().zip(&y).map(|(a, b)| a * b).collect::<Vec<_>>(), w, h);
+    let xy = blur(
+        &x.iter().zip(&y).map(|(a, b)| a * b).collect::<Vec<_>>(),
+        w,
+        h,
+    );
     let (c1, c2) = ((0.01f32 * 255.0).powi(2), (0.03f32 * 255.0).powi(2));
     (0..w * h)
         .map(|i| {
-            let (sx, sy, sxy) = (xx[i] - mx[i] * mx[i], yy[i] - my[i] * my[i], xy[i] - mx[i] * my[i]);
-            ((2.0 * mx[i] * my[i] + c1) * (2.0 * sxy + c2)) / ((mx[i] * mx[i] + my[i] * my[i] + c1) * (sx + sy + c2))
+            let (sx, sy, sxy) = (
+                xx[i] - mx[i] * mx[i],
+                yy[i] - my[i] * my[i],
+                xy[i] - mx[i] * my[i],
+            );
+            ((2.0 * mx[i] * my[i] + c1) * (2.0 * sxy + c2))
+                / ((mx[i] * mx[i] + my[i] * my[i] + c1) * (sx + sy + c2))
         })
         .collect()
 }
@@ -124,12 +164,18 @@ pub struct Stats {
 impl Stats {
     // Within the same-quads thresholds.
     pub fn same(&self) -> bool {
-        self.mean_abs <= SAME_MEAN && self.p99 <= SAME_P99 && self.over_16 <= SAME_OVER_16 && self.ssim >= SAME_SSIM
+        self.mean_abs <= SAME_MEAN
+            && self.p99 <= SAME_P99
+            && self.over_16 <= SAME_OVER_16
+            && self.ssim >= SAME_SSIM
     }
 
     // Within the across-backends thresholds for decoded JPEGs.
     pub fn across_backends_jpeg(&self) -> bool {
-        self.mean_abs <= JPEG_MEAN && self.p99 <= JPEG_P99 && self.over_16 <= JPEG_OVER_16 && self.ssim >= JPEG_SSIM
+        self.mean_abs <= JPEG_MEAN
+            && self.p99 <= JPEG_P99
+            && self.over_16 <= JPEG_OVER_16
+            && self.ssim >= JPEG_SSIM
     }
 
     // Within the across-backends thresholds.
@@ -142,7 +188,10 @@ impl Stats {
 // `pick` keeps (all for None).
 pub fn colour(a: &Image, b: &Image, pick: Option<&[bool]>) -> Result<Stats, String> {
     if (a.w, a.h) != (b.w, b.h) {
-        return Err(format!("Pictures of different sizes: {}x{} and {}x{}", a.w, a.h, b.w, b.h));
+        return Err(format!(
+            "Pictures of different sizes: {}x{} and {}x{}",
+            a.w, a.h, b.w, b.h
+        ));
     }
     let ssim = ssim_map(a, b);
     let mut maxes = Vec::with_capacity(a.rgb.len());
@@ -159,7 +208,12 @@ pub fn colour(a: &Image, b: &Image, pick: Option<&[bool]>) -> Result<Stats, Stri
     let n = maxes.len().max(1);
     maxes.sort_by(|x, y| x.total_cmp(y));
     let frac = |t: f32| maxes.iter().filter(|&&m| m > t).count() as f64 / n as f64;
-    let pct = |p: f64| maxes.get(((maxes.len() as f64 - 1.0) * p) as usize).copied().unwrap_or(0.0);
+    let pct = |p: f64| {
+        maxes
+            .get(((maxes.len() as f64 - 1.0) * p) as usize)
+            .copied()
+            .unwrap_or(0.0)
+    };
     Ok(Stats {
         pixels: maxes.len(),
         mean_abs: sum / n as f64,
@@ -189,7 +243,14 @@ pub fn interior(s: &[[f32; 4]], w: usize, h: usize) -> Vec<bool> {
     for y in 1..h.saturating_sub(1) {
         for x in 1..w.saturating_sub(1) {
             let c = s[y * w + x];
-            out[y * w + x] = (-1i32..=1).all(|dy| (-1i32..=1).all(|dx| same_surface(c, s[(y as i32 + dy) as usize * w + (x as i32 + dx) as usize])));
+            out[y * w + x] = (-1i32..=1).all(|dy| {
+                (-1i32..=1).all(|dx| {
+                    same_surface(
+                        c,
+                        s[(y as i32 + dy) as usize * w + (x as i32 + dx) as usize],
+                    )
+                })
+            });
         }
     }
     out
@@ -207,7 +268,10 @@ pub struct Coverage {
 
 pub fn coverage(a: &[[f32; 4]], b: &[[f32; 4]], w: usize, h: usize) -> Coverage {
     let (ia, ib) = (interior(a, w, h), interior(b, w, h));
-    let mut c = Coverage { pixels: w * h, ..Default::default() };
+    let mut c = Coverage {
+        pixels: w * h,
+        ..Default::default()
+    };
     let (mut differ, mut differ_inner) = (0usize, 0usize);
     for i in 0..w * h {
         let d = !same_surface(a[i], b[i]);
@@ -292,14 +356,22 @@ pub fn geometry(a: &[Quad], a_names: &[String], b: &[Quad], b_names: &[String]) 
         let (p, c) = canon(q, b_names);
         by_place.entry(p).or_default().push(c);
     }
-    let mut g = Geometry { a: a.len(), b: b.len(), ..Default::default() };
+    let mut g = Geometry {
+        a: a.len(),
+        b: b.len(),
+        ..Default::default()
+    };
     for q in a {
         let (p, c) = canon(q, a_names);
         let Some(list) = by_place.get_mut(&p) else {
             g.only_a += 1;
             continue;
         };
-        let pick = list.iter().position(|d| *d == c).or_else(|| list.iter().position(|d| d.texture == c.texture)).unwrap_or(0);
+        let pick = list
+            .iter()
+            .position(|d| *d == c)
+            .or_else(|| list.iter().position(|d| d.texture == c.texture))
+            .unwrap_or(0);
         let d = list.swap_remove(pick);
         if list.is_empty() {
             by_place.remove(&p);

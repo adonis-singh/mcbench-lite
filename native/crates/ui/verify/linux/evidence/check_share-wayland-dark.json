@@ -1,0 +1,62 @@
+[
+ {
+  "check": "Return on Share opens the panel with focus on Publish",
+  "ok": true,
+  "detail": "Publish"
+ },
+ {
+  "check": "the three steps in order, then shared",
+  "ok": true,
+  "detail": "['loading', 'none', 'exporting', 'publishing', 'waiting', 'shared']"
+ },
+ {
+  "check": "the link holds the page's address",
+  "ok": true,
+  "detail": "'https://mcbench-builds.github.io/gallery/b/02ef65544054/'"
+ },
+ {
+  "check": "Copy link reads Copied",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "the clipboard holds the address",
+  "ok": true,
+  "detail": "'https://mcbench-builds.github.io/gallery/b/02ef65544054/'"
+ },
+ {
+  "check": "Post on X opens the X post",
+  "ok": true,
+  "detail": "[{'action': 'link activated', 'url': 'https://x.com/intent/post?url=https%3A%2F%2Fmcbench-builds.github.io%2Fgallery%2Fb%2F02ef65544054%2F'}]"
+ },
+ {
+  "check": "Escape closes the panel",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "focus back on Share",
+  "ok": true,
+  "detail": "Share"
+ },
+ {
+  "check": "a press on Share opens it",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "a press outside closes it",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "Remove asks first",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "removed: the offer again",
+  "ok": true,
+  "detail": ""
+ }
+]

@@ -1,0 +1,31 @@
+# The AUR package mcbench-lite-bin, written by native/packaging/linux/aur.sh
+# for one release from native/packaging/linux/PKGBUILD.in; edit the template.
+pkgname=mcbench-lite-bin
+pkgver=@VERSION@
+pkgrel=1
+pkgdesc='AI models build in Minecraft'
+arch=(@ARCHES@)
+url='https://adonis-singh.github.io/mcbench-lite/'
+license=('MIT')
+depends=(@DEPENDS@)
+optdepends=('fontconfig: the system fonts beside the ones the app embeds')
+provides=('mcbench-lite')
+conflicts=('mcbench-lite')
+options=('!strip' '!debug')
+@SOURCES@
+package() {
+  cd mcbench-lite
+  install -d -m 755 "$pkgdir/usr/lib/mcbench-lite" "$pkgdir/usr/bin"
+  install -m 755 mcbench-lite mcbench-build-child mcbench-sandbox-agent "$pkgdir/usr/lib/mcbench-lite/"
+  install -m 644 version "$pkgdir/usr/lib/mcbench-lite/"
+  # The software Vulkan driver and its licences, in the x86_64 archive only.
+  if [ "$CARCH" = x86_64 ]; then
+    install -m 644 libvk_swiftshader.so "$pkgdir/usr/lib/mcbench-lite/"
+    install -d -m 755 "$pkgdir/usr/lib/mcbench-lite/licenses/swiftshader"
+    install -m 644 licenses/swiftshader/* "$pkgdir/usr/lib/mcbench-lite/licenses/swiftshader/"
+  fi
+  echo aur > "$pkgdir/usr/lib/mcbench-lite/install-source"
+  ln -s ../lib/mcbench-lite/mcbench-lite "$pkgdir/usr/bin/mcbench-lite"
+  cp -r --no-preserve=ownership share "$pkgdir/usr/"
+  mv "$pkgdir/usr/share/licenses/mcbench-lite" "$pkgdir/usr/share/licenses/$pkgname"
+}

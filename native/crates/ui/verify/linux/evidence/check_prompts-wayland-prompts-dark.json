@@ -1,0 +1,177 @@
+[
+ {
+  "check": "/ opens the palette",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "favourites first, then the recent ones",
+  "ok": true,
+  "detail": "['Castle with a moat, favorite', 'Wheat field', 'Two towers', 'Lamp like this one, 1 files', 'Rope bridge', 'Untitled prompt']"
+ },
+ {
+  "check": "Return inserts the highlighted prompt and closes",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "the prompt's text is in the message",
+  "ok": true,
+  "detail": "'A small wheat farm with water in the middle.'"
+ },
+ {
+  "check": "its use is recorded",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "the prompts button is there",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "the button opens the palette with its search",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "its search narrows the list",
+  "ok": true,
+  "detail": "['Two towers', 'Rope bridge']"
+ },
+ {
+  "check": "Escape closes only the palette",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "entering the box says its name",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "a send with the box empty waits and says so",
+  "ok": true,
+  "detail": "'A castle with four corner towers and a  moat.'"
+ },
+ {
+  "check": "a fill-in is filled by typing",
+  "ok": true,
+  "detail": "'A castle with four corner towers and a wide moat.'"
+ },
+ {
+  "check": "the box is in the one text input",
+  "ok": true,
+  "detail": "entry 'Message'"
+ },
+ {
+  "check": "Tab comes back into the box and says its name",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "the sidebar lists the library",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "the library's place opens",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "the editor shows its title",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "the sidebar's row follows the edit",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "a tag is added, lower case",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "Improve with AI is offered",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "the improved text replaces the body",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "the AI menu's items say what each does",
+  "ok": true,
+  "detail": "['Improve the text Rewrites what is in the editor', 'Write from a note Opens a box for a short description']"
+ },
+ {
+  "check": "Write with AI opens the note box",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "Escape closes the note box",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "the tag field suggests the other prompts' tags",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "a prompt dragged two rows down lands there",
+  "ok": true,
+  "detail": "'Castle with a moat' in ['Wheat field', 'Two towers again', 'Castle with a moat', 'Lamp like this one', 'Rope bridge', 'Untitled prompt']"
+ },
+ {
+  "check": "each row has its star",
+  "ok": true,
+  "detail": "5"
+ },
+ {
+  "check": "a star makes a favourite",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "delete asks first",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "the prompt is deleted",
+  "ok": true,
+  "detail": "6 to 5"
+ },
+ {
+  "check": "New prompt opens an empty prompt",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "Alt+Down moves the focused prompt one row down",
+  "ok": true,
+  "detail": "'Wheat field' focused list item 'Wheat field' in ['Wheat field', 'Two towers again', 'Castle with a moat', 'Lamp like this one', 'Rope bridge'] gives ['Two towers again', 'Wheat field', 'Castle with a moat', 'Lamp like this one', 'Rope bridge']"
+ },
+ {
+  "check": "the search bar offers the tag filter",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "the tag menu lists the tags in order",
+  "ok": true,
+  "detail": "['castle', 'farm', 'light', 'redstone', 'stone', 'terrain']"
+ },
+ {
+  "check": "a chosen tag narrows the list",
+  "ok": true,
+  "detail": "['Two towers again', 'Castle with a moat']"
+ }
+]

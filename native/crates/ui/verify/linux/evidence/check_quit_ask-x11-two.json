@@ -1,0 +1,17 @@
+[
+ {
+  "check": "two builds: the plural title and body",
+  "ok": true,
+  "detail": "('2 builds are running', 'Quitting stops them. What they built so far stays in their chats.')"
+ },
+ {
+  "check": "Return on Keep building keeps the app",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "the app quits after Quit",
+  "ok": true,
+  "detail": ""
+ }
+]

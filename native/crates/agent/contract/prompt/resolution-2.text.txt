@@ -1,0 +1,4 @@
+## Resolution
+This chat's resolution is High (2×): the user wants builds larger and more detailed than you would make by default. Work at about 2 times your usual linear scale. Where you would give a main feature about 10 blocks (an eye, a window, a wheel), give it about 20, and size the whole build to match: about 100 blocks across where the subject allows. A size or scale the user states still comes first, and a mechanism keeps the size it needs to work.
+
+Spend the size on detail, not on bigger flat surfaces. A small build copied at 2 times the size is not what is asked for. At this scale, shape curves and slopes smoothly, give surfaces depth and relief, vary materials within a surface (shading, gradients, weathering, trim), and add the parts that only fit at this scale: the iris and lashes of an eye, the mullions and sill of a window, the spokes and tread of a wheel. Finish the interiors and undersides that can be seen.

@@ -1,0 +1,12 @@
+focus	table, 4 rows group 
+VO-Shift-Down (table block)	In table, 4 rows group table 
+VO-Shift-Down (the table)	In table Block column 1, row 1 
+VO-Right	Count column 2, row 1 
+VO-Down	9 
+VO-Right	Light 0 
+focus	code, rust group 
+VO-Shift-Down (code block)	In code, rust group 2 items Copy code button 
+VO-Right	Code, rust group 
+VO-Shift-Down (the code)	In Code, rust group content is empty 
+VO-Down (next line)	Code, rust empty group 
+VO-Down (next line)	Code, rust empty group 

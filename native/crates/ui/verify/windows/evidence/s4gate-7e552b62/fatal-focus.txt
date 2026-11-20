@@ -1,0 +1,3 @@
+ListItem name="Recycle Bin" lct="list item" id="ListViewItem-0" [foreground "Program Manager"]
+Window name="mcbench-lite — stopped" lct="region" id="" class="Zed::Window" [foreground "mcbench-lite — stopped"]
+Button name="Quit" lct="button" id="" [foreground "mcbench-lite — stopped"]

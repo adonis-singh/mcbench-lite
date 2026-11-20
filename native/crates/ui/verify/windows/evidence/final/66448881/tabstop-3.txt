@@ -1,0 +1,10 @@
+== fresh, load: 2.80, 3.05, 4.20
+start: Edit name="Message" lct="edit" focus=1 value="" readonly=0 text="" 
+key[0] shift+tab: Group name="claude-opus-5-5, Yes: the base is still three by three, nine stone blocks, and nothing else moved." lct="article" focus=1 set=9/9 
+key[1] tab: Edit name="Message" lct="edit" focus=1 value="" readonly=0 text="" 
+== after 3 turns
+start: Edit name="Message" lct="edit" focus=1 value="" readonly=0 text="" 
+key[0] shift+tab: Group name="claude-opus-5-5, Adding a third lamp now. It goes two blocks east of the second one, on the same stone row, with its own lever.\nExtend the 
+key[1] shift+tab: ListItem name="Redstone lamp with a lever" lct="list item" focus=1 set=1/3 description="open" 
+key[2] tab: Group name="claude-opus-5-5, Adding a third lamp now. It goes two blocks east of the second one, on the same stone row, with its own lever.\nExtend the stone 
+key[3] tab: Edit name="Message" lct="edit" focus=1 value="" readonly=0 text="" 

@@ -1,0 +1,3 @@
+{"action":"sent","text":"Second turn"}
+{"action":"sent","text":"Third turn"}
+{"action":"stop","chat":"chat-lamp"}

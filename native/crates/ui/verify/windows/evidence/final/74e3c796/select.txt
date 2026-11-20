@@ -1,0 +1,2 @@
+double-click: clipboard=[sign]
+ctrl-a ctrl-c: clipboard=[Build a redstone lamp that turns on with a lever, and explain what you placed.

@@ -1,0 +1,88 @@
+{"spec":"stone","ok":{"id":"minecraft:stone","states":{}}}
+{"spec":"minecraft:stone","ok":{"id":"minecraft:stone","states":{}}}
+{"spec":" stone ","ok":{"id":"minecraft:stone","states":{}}}
+{"spec":"minecraft: stone","ok":{"id":"minecraft:stone","states":{}}}
+{"spec":"STONE","error":"palette entry: unknown block \"STONE\""}
+{"spec":"","error":"palette entry: empty block id"}
+{"spec":"minecraft:","error":"palette entry: empty block id"}
+{"spec":"air","ok":{"id":"minecraft:air","states":{}}}
+{"spec":"minecraft:air","ok":{"id":"minecraft:air","states":{}}}
+{"spec":"air[waterlogged=true]","ok":{"id":"minecraft:air","states":{}}}
+{"spec":"oak_stairs[facing=east]","ok":{"id":"minecraft:oak_stairs","states":{"facing":"east"}}}
+{"spec":"oak_stairs[facing=east,half=top]","ok":{"id":"minecraft:oak_stairs","states":{"facing":"east","half":"top"}}}
+{"spec":"oak_stairs[ facing = east ]","ok":{"id":"minecraft:oak_stairs","states":{"facing":"east"}}}
+{"spec":"oak_stairs[facing=up]","error":"palette entry: \"oak_stairs\" state facing=up is invalid (valid: north, south, east, west)"}
+{"spec":"oak_stairs[facing]","error":"palette entry: malformed block state \"facing\" in \"oak_stairs[facing]\""}
+{"spec":"oak_stairs[facing=east","error":"palette entry: malformed block states in \"oak_stairs[facing=east\""}
+{"spec":"oak_stairs[,facing=east,]","ok":{"id":"minecraft:oak_stairs","states":{"facing":"east"}}}
+{"spec":"oak_stairs[facing=east,facing=west]","ok":{"id":"minecraft:oak_stairs","states":{"facing":"west"}}}
+{"spec":"oak_stairs[shape=straight]","error":"palette entry: block \"oak_stairs\" has no state \"shape\" (valid: facing, half)"}
+{"spec":"stone[a=b]","error":"palette entry: block \"stone\" has no state \"a\" (valid: none)"}
+{"spec":"water[level=3]","ok":{"id":"minecraft:water","states":{"level":"3"}}}
+{"spec":"water[level=03]","error":"palette entry: \"water\" state level=03 is invalid (valid: 0, 1, 2, 3)"}
+{"spec":"ston","error":"palette entry: unknown block \"ston\" (closest matches: stone)"}
+{"spec":"stairs","error":"palette entry: unknown block \"stairs\" (closest matches: oak_stairs)"}
+{"spec":"oak","error":"palette entry: unknown block \"oak\" (closest matches: oak_planks, oak_stairs)"}
+{"spec":"o","error":"palette entry: unknown block \"o\" (closest matches: stone, oak_planks, gold_block, oak_stairs, note_block)"}
+{"spec":"xyz","error":"palette entry: unknown block \"xyz\""}
+{"spec":"constructor","error":"entry is not iterable"}
+{"spec":"toString","error":"entry is not iterable"}
+{"spec":"__proto__","error":"entry is not iterable"}
+{"spec":"hasOwnProperty","error":"entry is not iterable"}
+{"spec":"valueOf","error":"entry is not iterable"}
+{"spec":"oak_stairs[constructor=x]","error":"allowed.includes is not a function"}
+{"spec":"oak_stairs[toString=x]","error":"allowed.includes is not a function"}
+{"spec":"7","ok":{"id":"minecraft:7","states":{}}}
+{"spec":"7[3=a]","ok":{"id":"minecraft:7","states":{"3":"a"}}}
+{"spec":"7[3=c]","error":"palette entry: \"7\" state 3=c is invalid (valid: a, b)"}
+{"spec":"7[x=1,3=b]","ok":{"id":"minecraft:7","states":{"3":"b","x":"1"}}}
+{"spec":"note_block[note=24]","ok":{"id":"minecraft:note_block","states":{"note":"24"}}}
+{"spec":"note_block[note=25]","error":"palette entry: \"note_block\" state note=25 is invalid (valid: 0, 1, 24)"}
+{"spec":"é","error":"palette entry: unknown block \"é\""}
+{"spec":"stone[]","ok":{"id":"minecraft:stone","states":{}}}
+{"spec":"stone[=x]","error":"palette entry: block \"stone\" has no state \"\" (valid: none)"}
+{"spec":"gold_block[x=y=z]","error":"palette entry: block \"gold_block\" has no state \"x\" (valid: none)"}
+{"spec":{"id":"stone"},"ok":{"id":"minecraft:stone","states":{}}}
+{"spec":{"id":"minecraft:stone","states":{}},"ok":{"id":"minecraft:stone","states":{}}}
+{"spec":{"id":"stone","states":null},"ok":{"id":"minecraft:stone","states":{}}}
+{"spec":{"id":"stone","states":[]},"error":"palette entry: states must be an object"}
+{"spec":{"id":"stone","states":"x"},"error":"palette entry: states must be an object"}
+{"spec":{"id":5},"error":"palette entry: block must be a string like \"oak_planks\" or \"oak_stairs[facing=north]\", or { id, states }"}
+{"spec":{"id":null},"error":"palette entry: block must be a string like \"oak_planks\" or \"oak_stairs[facing=north]\", or { id, states }"}
+{"spec":{},"error":"palette entry: block must be a string like \"oak_planks\" or \"oak_stairs[facing=north]\", or { id, states }"}
+{"spec":{"states":{}},"error":"palette entry: block must be a string like \"oak_planks\" or \"oak_stairs[facing=north]\", or { id, states }"}
+{"spec":5,"error":"palette entry: block must be a string like \"oak_planks\" or \"oak_stairs[facing=north]\", or { id, states }"}
+{"spec":null,"error":"palette entry: block must be a string like \"oak_planks\" or \"oak_stairs[facing=north]\", or { id, states }"}
+{"spec":true,"error":"palette entry: block must be a string like \"oak_planks\" or \"oak_stairs[facing=north]\", or { id, states }"}
+{"spec":["stone"],"error":"palette entry: block must be a string like \"oak_planks\" or \"oak_stairs[facing=north]\", or { id, states }"}
+{"spec":{"id":"oak_stairs","states":{"facing":"east"}},"ok":{"id":"minecraft:oak_stairs","states":{"facing":"east"}}}
+{"spec":{"id":"oak_stairs","states":{"half":"top","facing":"east"}},"ok":{"id":"minecraft:oak_stairs","states":{"half":"top","facing":"east"}}}
+{"spec":{"id":"oak_stairs","states":{"facing":["east"]}},"ok":{"id":"minecraft:oak_stairs","states":{"facing":"east"}}}
+{"spec":{"id":"oak_stairs","states":{"facing":[["east"]]}},"ok":{"id":"minecraft:oak_stairs","states":{"facing":"east"}}}
+{"spec":{"id":"oak_stairs","states":{"facing":1}},"error":"palette entry: \"oak_stairs\" state facing=1 is invalid (valid: north, south, east, west)"}
+{"spec":{"id":"oak_stairs","states":{"facing":true}},"error":"palette entry: \"oak_stairs\" state facing=true is invalid (valid: north, south, east, west)"}
+{"spec":{"id":"oak_stairs","states":{"facing":null}},"error":"palette entry: \"oak_stairs\" state facing=null is invalid (valid: north, south, east, west)"}
+{"spec":{"id":"oak_stairs","states":{"facing":{}}},"error":"palette entry: \"oak_stairs\" state facing=[object Object] is invalid (valid: north, south, east, west)"}
+{"spec":{"id":"oak_stairs","states":{"facing":[null,"x"]}},"error":"palette entry: \"oak_stairs\" state facing=,x is invalid (valid: north, south, east, west)"}
+{"spec":{"id":"water","states":{"level":3}},"ok":{"id":"minecraft:water","states":{"level":"3"}}}
+{"spec":{"id":"water","states":{"level":3}},"ok":{"id":"minecraft:water","states":{"level":"3"}}}
+{"spec":{"id":"water","states":{"level":1e+21}},"error":"palette entry: \"water\" state level=1e+21 is invalid (valid: 0, 1, 2, 3)"}
+{"spec":{"id":"water","states":{"level":0}},"ok":{"id":"minecraft:water","states":{"level":"0"}}}
+{"spec":{"id":"water","states":{"level":0.5}},"error":"palette entry: \"water\" state level=0.5 is invalid (valid: 0, 1, 2, 3)"}
+{"spec":{"id":"note_block","states":{"note":24,"instrument":"bass"}},"ok":{"id":"minecraft:note_block","states":{"note":"24","instrument":"bass"}}}
+{"spec":{"id":"note_block","states":{"1":"x","note":"0"}},"error":"palette entry: block \"note_block\" has no state \"1\" (valid: note, instrument)"}
+{"spec":{"id":"7","states":{"3":"b","x":"1"}},"ok":{"id":"minecraft:7","states":{"3":"b","x":"1"}}}
+{"spec":{"id":"7","states":{"3":"c"}},"error":"palette entry: \"7\" state 3=c is invalid (valid: a, b)"}
+{"spec":{"id":"stone","states":{"constructor":"x"}},"error":"allowed.includes is not a function"}
+{"spec":{"id":"oak_stairs","states":{"__proto__":"x"}},"error":"allowed.includes is not a function"}
+{"spec":{"id":"oak_stairs","states":{"valueOf":"x"}},"error":"allowed.includes is not a function"}
+{"spec":{"id":"constructor"},"error":"entry is not iterable"}
+{"spec":{"id":"__proto__"},"error":"entry is not iterable"}
+{"spec":{"id":"isPrototypeOf"},"error":"entry is not iterable"}
+{"spec":{"id":" minecraft:stone "},"error":"palette entry: unknown block \"minecraft:stone\" (closest matches: stone)"}
+{"spec":{"id":"minecraft:  stone"},"ok":{"id":"minecraft:stone","states":{}}}
+{"spec":{"id":""},"error":"palette entry: empty block id"}
+{"spec":{"id":"gold_block","states":{"a":1}},"error":"palette entry: block \"gold_block\" has no state \"a\" (valid: none)"}
+{"spec":{"id":"oak_stairs","states":{"facing":"east","bogus":"x"}},"error":"palette entry: block \"oak_stairs\" has no state \"bogus\" (valid: facing, half)"}
+{"spec":{"id":"oak_stairs","states":{"bogus":"x","facing":"up"}},"error":"palette entry: block \"oak_stairs\" has no state \"bogus\" (valid: facing, half)"}
+{"registry":{"7":[{"3":["a","b"],"x":["1"]},{"3":"a","x":"1"}],"stone":[{},{}],"glass":[{},{}],"oak_planks":[{},{}],"gold_block":[{},{}],"dirt":[{},{}],"tnt":[{},{}],"deepslate":[{},{}],"water":[{"level":["0","1","2","3"]},{"level":"0"}],"oak_stairs":[{"facing":["north","south","east","west"],"half":["top","bottom"]},{"facing":"north","half":"bottom"}],"note_block":[{"note":["0","1","24"],"instrument":["harp","bass"]},{"note":"0","instrument":"harp"}]}}

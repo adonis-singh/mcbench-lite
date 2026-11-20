@@ -1,0 +1,39 @@
+[package]
+name = "mcbench-headless"
+description = "The headless command line and its JSON-lines protocol for the benchmark, CI and parity scripts"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+async-trait.workspace = true
+mcbench-agent.workspace = true
+mcbench-tools.workspace = true
+mcbench-build.workspace = true
+mcbench-engine.workspace = true
+mcbench-core.workspace = true
+mcbench-render.workspace = true
+mcbench-draw.workspace = true
+mcbench-json.workspace = true
+mcbench-world.workspace = true
+mcbench-store.workspace = true
+mcbench-providers.workspace = true
+mcbench-sandbox.workspace = true
+mcbench-setup.workspace = true
+tokio = { workspace = true, features = ["rt", "rt-multi-thread", "time", "sync", "macros"] }
+tokio-util.workspace = true
+reqwest.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
+# The setup crate's test server and tiny data (`tests/setup.rs` reuses its
+# `tests/common`).
+crc32fast.workspace = true
+ruzstd.workspace = true
+tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros", "net", "io-util"] }
+
+[lints]
+workspace = true

@@ -1,0 +1,55 @@
+  Screen reader on.
+  mcbench-lite — Redstone lamp with a lever
+  Message entry
+  tab
+  New chat button
+  tab
+  Chats List with 3 items
+  Redstone lamp with a lever
+  open
+  tab
+  landmark Conversation
+  claude-opus-5-5, Yes: the base is still three by three, nine stone blocks, and nothing else moved.
+  tab
+  Message entry
+  left shift
+  landmark Conversation
+  claude-opus-5-5, Yes: the base is still three by three, nine stone blocks, and nothing else moved.
+  left shift
+  Chats List with 3 items
+  Redstone lamp with a lever
+  open
+  Castle gate
+  Redstone lamp with a lever
+  open
+  tab
+  landmark Conversation
+  claude-opus-5-5, Yes: the base is still three by three, nine stone blocks, and nothing else moved.
+  You, Build a redstone lamp that turns on with a lever, and explain what you placed.
+  claude-opus-5-5, work
+  claude-opus-5-5, work
+  heading level 1, A lamp on a lever
+  paragraph, The lamp is built and wired. It lights when the lever is on and goes dark when it is off; the old torch is gone. The block that does the work is a redstone_lamp, and the wiki page on lamps has the details.
+  heading level 2, What was placed
+  paragraph, The lamp is built and wired. It lights when the lever is on and goes dark when it is off; the old torch is gone. The block that does the work is a redstone_lamp, and the wiki page on lamps has the details.
+  leaving article.
+  claude-opus-5-5, work
+  tab
+  Worked · 2 steps collapsed button
+  return
+  expanded
+  tab
+  Reasoning collapsed button
+  tab
+  Built: a lamp with a lever collapsed button
+  escape
+  h
+  h
+  left shift
+  H
+  k
+  l
+  t
+  enter
+  Built: a lamp with a lever collapsed button
+  Screen reader off.

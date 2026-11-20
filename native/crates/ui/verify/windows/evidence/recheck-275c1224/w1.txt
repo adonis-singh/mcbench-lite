@@ -1,0 +1,56 @@
+== W1a notice: --refuse chat-lamp, send, Dismiss error by Enter, then Tab
+Input: kb(desktop):enter
+Speaking ['Redstone lamp with a lever · mcbench-lite', 'window']
+Speaking ['Message', 'edit', 'hello']
+Edit name="Message"
+exit=0 
+start: Edit name="Message"
+key[0] tab: Button name="Attach file"
+exit=0 
+== W1b archive the open chat by Enter, then Tab
+Input: kb(desktop):enter
+Speaking ['Castle gate, open', '1 of 2']
+ListItem name="Castle gate, open"
+exit=0 
+start: ListItem name="Castle gate, open"
+key[0] tab: Button name="Archive build"
+exit=0 
+== W1c delete an archived item by two Enters, then Tab
+exit=0 
+Input: kb(desktop):enter
+Speaking ['Delete for good']
+Speaking ['Delete for good?']
+Input: kb(desktop):enter
+Speaking ['Delete permanently']
+Speaking ['Restore', 'button', 'Restore to the list and open it']
+Button name="Restore"
+exit=0 
+start: Button name="Restore"
+key[0] tab: Button name="Delete permanently"
+exit=0 
+{"action":"delete","id":"chat-lamp"}
+{"action":"focus restored"}
+== W1d Ctrl+2 from the composer, then Tab
+Input: kb(desktop):control+2
+Speaking ['Benches', 'list']
+Speaking ['Towers and a bridge', '1 of 1']
+ListItem name="Towers and a bridge"
+exit=0 
+start: ListItem name="Towers and a bridge"
+key[0] tab: Button name="Show models"
+exit=0 
+== W1e archive the open bench by Enter, then Tab
+exit=0 
+Input: kb(desktop):enter
+Speaking ['Leaderboard', 'button']
+Button name="Leaderboard"
+exit=0 
+start: Button name="Leaderboard"
+key[0] tab: Button name="Show archived"
+exit=0 
+== Ctrl+1 back
+Input: kb(desktop):control+1
+Speaking ['Hide archived']
+Speaking ['expanded']
+Button name="Hide archived"
+exit=0 

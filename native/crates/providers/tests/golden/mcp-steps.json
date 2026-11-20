@@ -1,0 +1,20 @@
+[
+ {"name": "initialize", "send": ["{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2025-06-18\"}}\n"], "wait": 50},
+ {"name": "initialize without a version", "send": ["{\"jsonrpc\":\"2.0\",\"id\":\"a\",\"method\":\"initialize\"}\n"], "wait": 50},
+ {"name": "ping and a blank line", "send": ["\n   \n{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"ping\"}\n"], "wait": 50},
+ {"name": "tools/list", "send": ["{\"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"tools/list\",\"params\":{}}\n"], "wait": 50},
+ {"name": "tools/call with meta", "send": ["{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"tools/call\",\"params\":{\"name\":\"echo\",\"arguments\":{\"n\":2.50,\"10\":1,\"a\":[1e21,1e-7,-0]},\"_meta\":{\"callId\":\"call_x\",\"claudecode/toolUseId\":\"toolu_1\"}}}\n"], "wait": 100},
+ {"name": "tools/call with no meta or arguments", "send": ["{\"jsonrpc\":\"2.0\",\"id\":5,\"method\":\"tools/call\",\"params\":{\"name\":\"echo\"}}\n"], "wait": 100},
+ {"name": "tools/call with a string id and null arguments", "send": ["{\"jsonrpc\":\"2.0\",\"id\":\"s-6\",\"method\":\"tools/call\",\"params\":{\"name\":\"echo\",\"arguments\":null,\"_meta\":{\"callId\":\"7\"}}}\n"], "wait": 100},
+ {"name": "a failing tool", "send": ["{\"jsonrpc\":\"2.0\",\"id\":8,\"method\":\"tools/call\",\"params\":{\"name\":\"fail\",\"arguments\":{}}}\n"], "wait": 100},
+ {"name": "an image", "send": ["{\"jsonrpc\":\"2.0\",\"id\":9,\"method\":\"tools/call\",\"params\":{\"name\":\"image\",\"arguments\":{}}}\n"], "wait": 100},
+ {"name": "an unknown method", "send": ["{\"jsonrpc\":\"2.0\",\"id\":10,\"method\":\"resources/list\"}\n"], "wait": 50},
+ {"name": "no method", "send": ["{\"jsonrpc\":\"2.0\",\"id\":11}\n"], "wait": 50},
+ {"name": "a parse error", "send": ["{not json\n"], "wait": 50},
+ {"name": "notifications are not answered", "send": ["{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}\n5\n[1]\n\"text\"\n"], "wait": 50},
+ {"name": "crlf and a line split over writes", "send": ["{\"jsonrpc\":\"2.0\",\"id\":12,\"meth", "od\":\"ping\"}\r\n{\"jsonrpc\":\"2.0\",\"id\":13,\"method\":\"ping\"}\r\n"], "wait": 50},
+ {"name": "a slow call answered after a quick one", "send": ["{\"jsonrpc\":\"2.0\",\"id\":14,\"method\":\"tools/call\",\"params\":{\"name\":\"slow\",\"arguments\":{}}}\n{\"jsonrpc\":\"2.0\",\"id\":15,\"method\":\"tools/call\",\"params\":{\"name\":\"echo\",\"arguments\":{}}}\n"], "wait": 500},
+ {"name": "a cancelled call", "send": ["{\"jsonrpc\":\"2.0\",\"id\":16,\"method\":\"tools/call\",\"params\":{\"name\":\"hang\",\"arguments\":{}}}\n", "{\"jsonrpc\":\"2.0\",\"method\":\"notifications/cancelled\",\"params\":{\"requestId\":16,\"reason\":\"user\"}}\n"], "wait": 100},
+ {"name": "a cancel naming another id", "send": ["{\"jsonrpc\":\"2.0\",\"id\":17,\"method\":\"tools/call\",\"params\":{\"name\":\"slow\",\"arguments\":{}}}\n", "{\"jsonrpc\":\"2.0\",\"method\":\"notifications/cancelled\",\"params\":{\"requestId\":\"17\"}}\n"], "wait": 500},
+ {"name": "a call cut off by the client ending", "send": ["{\"jsonrpc\":\"2.0\",\"id\":18,\"method\":\"tools/call\",\"params\":{\"name\":\"hang\",\"arguments\":{}}}\n"], "wait": 50, "end": true}
+]

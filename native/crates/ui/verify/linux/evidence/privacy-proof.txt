@@ -1,0 +1,77 @@
+== check_tree-x11
+-- privacy-before.txt
+at-spi listing:
+total 0
+drwx------  2 user user   60 2026-11-17 04:15:16.617251896 +0100 .
+drwx------ 56 user user 1820 2026-11-17 04:07:55.967307048 +0100 ..
+srwxr-xr-x  1 user user    0 2026-11-14 12:56:35.947940040 +0100 bus_0
+dconf mtime: 1794836126156751804 ~/.config/dconf/user
+-- privacy-after.txt
+at-spi listing:
+total 0
+drwx------  2 user user   60 2026-11-17 04:15:16.617251896 +0100 .
+drwx------ 56 user user 1820 2026-11-17 04:07:55.967307048 +0100 ..
+srwxr-xr-x  1 user user    0 2026-11-14 12:56:35.947940040 +0100 bus_0
+dconf mtime: 1794836126156751804 ~/.config/dconf/user
+-- privacy.txt
+private: snapshots equal, 0 findings, samples: 17
+-- privacy-watch.txt (last line)
+samples: 17
+== check_tree-wayland
+-- privacy-before.txt
+at-spi listing:
+total 0
+drwx------  2 user user   60 2026-11-17 04:15:16.617251896 +0100 .
+drwx------ 56 user user 1820 2026-11-17 04:07:55.967307048 +0100 ..
+srwxr-xr-x  1 user user    0 2026-11-14 12:56:35.947940040 +0100 bus_0
+dconf mtime: 1794836126156751804 ~/.config/dconf/user
+-- privacy-after.txt
+at-spi listing:
+total 0
+drwx------  2 user user   60 2026-11-17 04:15:16.617251896 +0100 .
+drwx------ 56 user user 1820 2026-11-17 04:07:55.967307048 +0100 ..
+srwxr-xr-x  1 user user    0 2026-11-14 12:56:35.947940040 +0100 bus_0
+dconf mtime: 1794836126156751804 ~/.config/dconf/user
+-- privacy.txt
+private: snapshots equal, 0 findings, samples: 16
+-- privacy-watch.txt (last line)
+samples: 16
+== check_orca-x11
+-- privacy-before.txt
+at-spi listing:
+total 0
+drwx------  2 user user   60 2026-11-17 04:15:16.617251896 +0100 .
+drwx------ 56 user user 1820 2026-11-17 04:07:55.967307048 +0100 ..
+srwxr-xr-x  1 user user    0 2026-11-14 12:56:35.947940040 +0100 bus_0
+dconf mtime: 1794836126156751804 ~/.config/dconf/user
+-- privacy-after.txt
+at-spi listing:
+total 0
+drwx------  2 user user   60 2026-11-17 04:15:16.617251896 +0100 .
+drwx------ 56 user user 1820 2026-11-17 04:07:55.967307048 +0100 ..
+srwxr-xr-x  1 user user    0 2026-11-14 12:56:35.947940040 +0100 bus_0
+dconf mtime: 1794836126156751804 ~/.config/dconf/user
+-- privacy.txt
+private: snapshots equal, 0 findings, samples: 66
+-- privacy-watch.txt (last line)
+samples: 66
+== negative test: a client connected to a socket in a stand-in for the real runtime folder
+pid N (python3) fd 3 is connected to a socket under <scratch>/fake-run
+pid N (python3) fd 3 is connected to a socket under <scratch>/fake-run
+...
+NOT PRIVATE: snapshots equal, 4 findings, samples: 4
+== check_tree-x11 with the session as its own process group (pgid in process-group.txt)
+-- privacy.txt
+private: snapshots equal, 0 findings, samples: 21
+-- processes-before.txt
+none
+-- processes-after.txt
+none
+== check_tree-wayland with the session as its own process group (pgid in process-group.txt)
+-- privacy.txt
+private: snapshots equal, 0 findings, samples: 20
+-- processes-before.txt
+none
+-- processes-after.txt
+none
+== the orphaned registry daemons of the runs before this fix (parent 1, working folder verify/linux), stopped by pid: 529411 536052 540589 588820 653476 693207 695593 700562 723741

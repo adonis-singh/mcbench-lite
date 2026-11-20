@@ -1,0 +1,272 @@
+[
+ {
+  "note": "the transcript while the turn runs",
+  "seen": {
+   "_params": [
+    "AXUIElementsForSearchPredicate",
+    "AXRangeForLine",
+    "AXUIElementCountForSearchPredicate",
+    "AXAttributedStringForRange",
+    "AXBoundsForRange",
+    "AXStringForRange",
+    "AXStyleRangeForIndex",
+    "AXRangeForPosition",
+    "AXReplaceRangeWithText",
+    "AXRangeForIndex",
+    "AXCellForColumnAndRow",
+    "AXLineForIndex"
+   ],
+   "_path": "0.0.8",
+   "_settable": [
+    "AXFocused",
+    "AXValue"
+   ],
+   "AXChildren": "<7 items>",
+   "AXChildrenInNavigationOrder": "<7 items>",
+   "AXEnabled": true,
+   "AXFocused": false,
+   "AXFrame": [
+    316,
+    135,
+    536.5,
+    604
+   ],
+   "AXHelp": "<error -25212>",
+   "AXIdentifier": "<error -25212>",
+   "AXLinkedUIElements": "<error -25212>",
+   "AXMaxValue": "<error -25212>",
+   "AXMinValue": "<error -25212>",
+   "AXOrientation": "AXUnknownOrientation",
+   "AXParent": "<AXGroup>",
+   "AXPlaceholderValue": "<error -25212>",
+   "AXPosition": [
+    316,
+    135
+   ],
+   "AXRequired": false,
+   "AXRole": "AXGroup",
+   "AXRoleDescription": "group",
+   "AXSelectedChildren": "<error -25212>",
+   "AXSize": [
+    536.5,
+    604
+   ],
+   "AXSubrole": "AXLandmarkRegion",
+   "AXTitle": "Conversation",
+   "AXTopLevelUIElement": "<AXWindow Redstone lamp with a lever · mcbench-lite>",
+   "AXValue": "<error -25212>",
+   "AXWindow": "<AXWindow Redstone lamp with a lever · mcbench-lite>"
+  }
+ },
+ {
+  "check": "the working line shows while the turn runs",
+  "ok": true,
+  "seen": [
+   "Working for 0s"
+  ]
+ },
+ {
+  "note": "the working line's node",
+  "seen": {
+   "_params": [
+    "AXUIElementsForSearchPredicate",
+    "AXRangeForLine",
+    "AXUIElementCountForSearchPredicate",
+    "AXAttributedStringForRange",
+    "AXBoundsForRange",
+    "AXStringForRange",
+    "AXStyleRangeForIndex",
+    "AXRangeForPosition",
+    "AXReplaceRangeWithText",
+    "AXRangeForIndex",
+    "AXCellForColumnAndRow",
+    "AXLineForIndex"
+   ],
+   "_path": "0.0.8.6",
+   "_settable": [
+    "AXFocused",
+    "AXValue"
+   ],
+   "AXChildren": "<0 items>",
+   "AXChildrenInNavigationOrder": "<0 items>",
+   "AXEnabled": true,
+   "AXFocused": false,
+   "AXFrame": [
+    316,
+    703,
+    141,
+    36
+   ],
+   "AXHelp": "<error -25212>",
+   "AXIdentifier": "<error -25212>",
+   "AXLinkedUIElements": "<error -25212>",
+   "AXMaxValue": "<error -25212>",
+   "AXMinValue": "<error -25212>",
+   "AXOrientation": "AXUnknownOrientation",
+   "AXParent": "<AXGroup Conversation>",
+   "AXPlaceholderValue": "<error -25212>",
+   "AXPosition": [
+    316,
+    703
+   ],
+   "AXRequired": false,
+   "AXRole": "AXGroup",
+   "AXRoleDescription": "group",
+   "AXSelectedChildren": "<error -25212>",
+   "AXSize": [
+    141,
+    36
+   ],
+   "AXSubrole": "AXApplicationGroup",
+   "AXTitle": "Working for 0s",
+   "AXTopLevelUIElement": "<AXWindow Redstone lamp with a lever · mcbench-lite>",
+   "AXValue": "<error -25212>",
+   "AXWindow": "<AXWindow Redstone lamp with a lever · mcbench-lite>"
+  }
+ },
+ {
+  "note": "the articles after the full turn",
+  "seen": [
+   "You, Thanks. Is the base still three by three?",
+   "claude-opus-5-5, Yes: the base is still three by three, nine stone blocks, and nothing else moved.",
+   "You, Make it brighter",
+   "claude-opus-5-5, work",
+   "Notice, Warning: The model fell back to a smaller context window",
+   "Notice, Tasks, 3 of 3\nLay the stone base, done\nPlace the lamp, done\nCheck it in Minecraft, done",
+   "claude-opus-5-5, Adding a third lamp now. It goes two blocks east of the second one, on the same stone row, with its own lever.\nExtend the stone base by two blocks\nPlace the lamp and the lever\nTest both levers\nThe first two lamps stay as they are, so nothing you built before changes."
+  ]
+ },
+ {
+  "check": "the fold says its steps",
+  "ok": true,
+  "seen": []
+ },
+ {
+  "check": "the plan card reads Tasks, 3 of 3",
+  "ok": true,
+  "seen": null
+ },
+ {
+  "check": "the warning notice reads Warning: …",
+  "ok": true,
+  "seen": null
+ },
+ {
+  "note": "the working line's title changes (once a second, not announced)",
+  "seen": [
+   "Working for 1s",
+   "Working for 2s",
+   "Working for 3s"
+  ]
+ },
+ {
+  "check": "announcements during the turn: only the answer at its end",
+  "ok": true,
+  "seen": [
+   {
+    "AXAnnouncementKey": "Adding a third lamp now. It goes two blocks east of the second one, on the same stone row, with its own lever.\nExtend the stone base by two blocks\nPlace the lamp and the lever\nTest both levers\nThe first two lamps stay as they are, so nothing you built before changes.",
+    "AXPriorityKey": 50
+   }
+  ]
+ },
+ {
+  "check": "the tool row 'Built: a stone base and a lamp'",
+  "ok": false,
+  "seen": null
+ },
+ {
+  "check": "the tool row 'Minecraft test completed: 2 tests: input and block-state observations'",
+  "ok": false,
+  "seen": null
+ },
+ {
+  "check": "the tool row 'Inspected build: (iso_se)'",
+  "ok": false,
+  "seen": null
+ },
+ {
+  "check": "the tool row 'Command failed: cat /work/notes.txt'",
+  "ok": false,
+  "seen": null
+ },
+ {
+  "check": "the shot is a picture named Picture 1",
+  "ok": false,
+  "seen": null
+ },
+ {
+  "check": "Stop generating is a button while the turn streams",
+  "ok": true,
+  "seen": {
+   "path": "0.0.14",
+   "AXRole": "AXButton",
+   "AXSubrole": "AXUnknown",
+   "AXRoleDescription": "button",
+   "AXTitle": "Stop generating",
+   "AXEnabled": true,
+   "AXFocused": false,
+   "AXPosition": [
+    797.5,
+    819
+   ],
+   "AXSize": [
+    32,
+    32
+   ],
+   "actions": [
+    "AXPress"
+   ]
+  }
+ },
+ {
+  "check": "Stop pressed (logged)",
+  "ok": true,
+  "seen": null
+ },
+ {
+  "check": "a stopped turn says so",
+  "ok": true,
+  "seen": [
+   "claude-opus-5-5, (stopped by user)"
+  ]
+ },
+ {
+  "check": "the editing line",
+  "ok": false,
+  "seen": null
+ },
+ {
+  "check": "the composer holds the message",
+  "ok": false,
+  "seen": ""
+ },
+ {
+  "check": "Cancel edit is a button with its tip",
+  "ok": false,
+  "seen": null
+ },
+ {
+  "check": "the edit is the message now",
+  "ok": true,
+  "seen": [
+   "claude-opus-5-5, Adding a third lamp now. It goes two blocks east of the second one, on the same stone row, with its own lever.\nExtend the stone base by two blocks\nPlace the lamp and the lever\nTest both levers\nThe first two lamps stay as they are, so nothing you built before changes.",
+   "You, Again, slower please",
+   "claude-opus-5-5, work"
+  ]
+ },
+ {
+  "check": "the branch counter is a group named in words",
+  "ok": false,
+  "seen": null
+ },
+ {
+  "check": "Next branch is disabled on the last version",
+  "ok": false,
+  "seen": null
+ },
+ {
+  "check": "the part ran to its end (TypeError: 'NoneType' object is not subscriptable)",
+  "ok": false,
+  "seen": "Traceback (most recent call last):\n  File \"<home>", line 1160, in <module>\n    m.PARTS[name_](pt)\n    ~~~~~~~~~~~~~~^^^^\n  File \"<home>", line 503, in p_chat\n    m.press(p, prev, settle=1.0)\n    ~~~~~~~^^^^^^^^^^^^^^^^^^^^^\n  File \"<home>", line 201, in press\n    n = visible(p, n) if n[\"path\"].startswith(\"0.0.8.\") else n\n                         ~^^^^^^^^\nTypeError: 'NoneType' object is not subscriptable\n"
+ }
+]

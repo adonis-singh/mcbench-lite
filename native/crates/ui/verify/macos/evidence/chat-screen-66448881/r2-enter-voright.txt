@@ -1,0 +1,44 @@
+== into the table block, then the code block
+VO-Shift-Down (table block)	In table, 4 rows, 3 columns group table 
+VO-Shift-Down (the table)	In table Block column 1, row 1 
+VO-Right	Count column 2, row 1 
+VO-Down	9 
+VO-Right	Light 0 
+Left	heading level 2, Blocks used group 
+Left	code, rust, 5 lines group 
+VO-Shift-Down (code block)	In code, rust, 5 lines group 2 items Copy code button 
+VO-Right	Code, rust group 
+VO-Shift-Down (the code)	In Code, rust group 5 items fn build(world: &mut World) {  
+VO-Right (line)	    world.fill((0, 0, 0), (2, 0, 2), "stone");  
+VO-Right (line)	    world.set((1, 1, 1), "redstone_lamp");  
+== into a message (VO-Shift-Down)
+VO-Shift-Down (first message)	In You, Build a redstone lamp that turns on with a lever, and explain what you placed. article paragraph, Build a redstone lamp that turns on with a lever, and explain what you placed. group 
+VO-Right	paragraph, Build a redstone lamp that turns on with a lever, and explain what you placed. group 
+VO-Shift-Up	Out of You, Build a redstone lamp that turns on with a lever, and explain what you placed. article 
+== (2) VO-Right from the first message to the last, then VO-Left back
+VO-Right	claude-opus-5-5, work article 
+VO-Right	claude-opus-5-5, A lamp on a lever The lamp is built and wired. It lights when the lever is on and goes dark when it is off; the old torch is gone. The block that does the work is a redstone_lamp, and the wiki page on lamps has the details. What was placed A stone base, three by three The lamp on top powered from below with a lever on its west side A sign that says Pull me The program code, rust, 5 lines Blocks used table, 4 rows, 3 columns A lamp only needs power from one side: the lever powers the block it sits on, and that block powers the lamp. That is all. Pull the lever to test it. article 
+VO-Right	You, Put a label on the second lamp in English, Arabic, Hebrew, Japanese and Chinese. article 
+VO-Right	claude-opus-5-5, Labels in three scripts The sign above the second lamp now reads in each language you asked for: English: Lamp two Arabic, right to left:  مصباح رقم اثنين يعمل بالرافعة  Hebrew, right to left:  מנורה שנייה עם ידית  Japanese:  二番目のランプはレバーで点きます  Chinese:  第二盏灯由拉杆控制  Each sign line holds at most fifteen characters, so the longer lines wrap onto a second sign. article 
+VO-Right	You, Show me how it looks now. article 
+VO-Right	claude-opus-5-5, Here is the view from the south-east after the change: image, The two lamps on their stone base, seen from the south-east Both lamps are lit. See the lever page if you want a different facing. article 
+VO-Right	You, Thanks. Is the base still three by three? article 
+VO-Right	claude-opus-5-5, Yes: the base is still three by three, nine stone blocks, and nothing else moved. article 
+VO-Right	claude-opus-5-5, Yes: the base is still three by three, nine stone blocks, and nothing else moved. article 
+VO-Right	claude-opus-5-5, Yes: the base is still three by three, nine stone blocks, and nothing else moved. article 
+VO-Right	claude-opus-5-5, Yes: the base is still three by three, nine stone blocks, and nothing else moved. article 
+VO-Right	claude-opus-5-5, Yes: the base is still three by three, nine stone blocks, and nothing else moved. article 
+VO-Right	claude-opus-5-5, Yes: the base is still three by three, nine stone blocks, and nothing else moved. article 
+VO-Left	You, Thanks. Is the base still three by three? article 
+VO-Left	claude-opus-5-5, Here is the view from the south-east after the change: image, The two lamps on their stone base, seen from the south-east Both lamps are lit. See the lever page if you want a different facing. article 
+VO-Left	You, Show me how it looks now. article 
+VO-Left	claude-opus-5-5, Labels in three scripts The sign above the second lamp now reads in each language you asked for: English: Lamp two Arabic, right to left:  مصباح رقم اثنين يعمل بالرافعة  Hebrew, right to left:  מנורה שנייה עם ידית  Japanese:  二番目のランプはレバーで点きます  Chinese:  第二盏灯由拉杆控制  Each sign line holds at most fifteen characters, so the longer lines wrap onto a second sign. article 
+VO-Left	You, Put a label on the second lamp in English, Arabic, Hebrew, Japanese and Chinese. article 
+VO-Left	claude-opus-5-5, A lamp on a lever The lamp is built and wired. It lights when the lever is on and goes dark when it is off; the old torch is gone. The block that does the work is a redstone_lamp, and the wiki page on lamps has the details. What was placed A stone base, three by three The lamp on top powered from below with a lever on its west side A sign that says Pull me The program code, rust, 5 lines Blocks used table, 4 rows, 3 columns A lamp only needs power from one side: the lever powers the block it sits on, and that block powers the lamp. That is all. Pull the lever to test it. article 
+VO-Left	claude-opus-5-5, work article 
+VO-Left	You, Build a redstone lamp that turns on with a lever, and explain what you placed. article 
+VO-Left	You, Build a redstone lamp that turns on with a lever, and explain what you placed. article 
+VO-Left	You, Build a redstone lamp that turns on with a lever, and explain what you placed. article 
+VO-Left	You, Build a redstone lamp that turns on with a lever, and explain what you placed. article 
+VO-Left	You, Build a redstone lamp that turns on with a lever, and explain what you placed. article 
+VO-Left	You, Build a redstone lamp that turns on with a lever, and explain what you placed. article 

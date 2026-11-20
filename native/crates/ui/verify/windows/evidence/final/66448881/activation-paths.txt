@@ -1,0 +1,8 @@
+== alt-tab: UIA Edit name="Message" lct="edit" focus=1 value="" readonly=0 text="" 
+Input: kb(desktop):alt+tab
+Input: kb(desktop):NVDA+tab
+Speaking ['Recycle Bin', 'list item', '1 of 3']
+== client-click: UIA Group name="paragraph, Both lamps are lit. See the lever page if you want a different facing." lct="group" focus=1 set=0/9 
+Speaking ['Both lamps are lit. See the lever page if you want a different facing.']
+Input: kb(desktop):NVDA+tab
+Speaking ['Recycle Bin', 'list item', '1 of 3']

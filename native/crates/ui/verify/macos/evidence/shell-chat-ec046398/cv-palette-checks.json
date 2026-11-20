@@ -1,0 +1,555 @@
+[
+ {
+  "check": "Cmd-K opens a dialog named Search everything",
+  "ok": true,
+  "seen": {
+   "path": "0.0.15",
+   "AXRole": "AXWindow",
+   "AXSubrole": "AXDialog",
+   "AXRoleDescription": "dialog",
+   "AXTitle": "Search everything",
+   "AXEnabled": true,
+   "AXFocused": false,
+   "AXPosition": [
+    400,
+    262
+   ],
+   "AXSize": [
+    640,
+    540
+   ]
+  }
+ },
+ {
+  "note": "the dialog's attributes",
+  "seen": {
+   "_params": [
+    "AXUIElementsForSearchPredicate",
+    "AXRangeForLine",
+    "AXUIElementCountForSearchPredicate",
+    "AXAttributedStringForRange",
+    "AXBoundsForRange",
+    "AXStringForRange",
+    "AXStyleRangeForIndex",
+    "AXRangeForPosition",
+    "AXReplaceRangeWithText",
+    "AXRangeForIndex",
+    "AXCellForColumnAndRow",
+    "AXLineForIndex"
+   ],
+   "_path": "0.0.15",
+   "_settable": [
+    "AXFocused",
+    "AXValue"
+   ],
+   "AXChildren": "<2 items>",
+   "AXChildrenInNavigationOrder": "<2 items>",
+   "AXEnabled": true,
+   "AXFocused": false,
+   "AXFrame": [
+    400,
+    262,
+    640,
+    540
+   ],
+   "AXHelp": "<error -25212>",
+   "AXIdentifier": "<error -25212>",
+   "AXLinkedUIElements": "<error -25212>",
+   "AXMaxValue": "<error -25212>",
+   "AXMinValue": "<error -25212>",
+   "AXModal": false,
+   "AXOrientation": "AXUnknownOrientation",
+   "AXParent": "<AXGroup>",
+   "AXPlaceholderValue": "<error -25212>",
+   "AXPosition": [
+    400,
+    262
+   ],
+   "AXRequired": false,
+   "AXRole": "AXWindow",
+   "AXRoleDescription": "dialog",
+   "AXSelectedChildren": "<error -25212>",
+   "AXSize": [
+    640,
+    540
+   ],
+   "AXSubrole": "AXDialog",
+   "AXTitle": "Search everything",
+   "AXTopLevelUIElement": "<AXWindow Redstone lamp with a lever · mcbench-lite>",
+   "AXValue": "<error -25212>",
+   "AXWindow": "<AXWindow Redstone lamp with a lever · mcbench-lite>"
+  }
+ },
+ {
+  "check": "its field has focus",
+  "ok": true,
+  "seen": [
+   "AXTextField",
+   "Search everything"
+  ]
+ },
+ {
+  "check": "the results are a list named Results",
+  "ok": true,
+  "seen": {
+   "path": "0.0.15.1",
+   "AXRole": "AXList",
+   "AXSubrole": "AXUnknown",
+   "AXRoleDescription": "list",
+   "AXTitle": "Results",
+   "AXEnabled": true,
+   "AXFocused": false,
+   "AXPosition": [
+    400,
+    316
+   ],
+   "AXSize": [
+    640,
+    486
+   ]
+  }
+ },
+ {
+  "note": "the results' groups and items",
+  "seen": [
+   {
+    "path": "0.0.15.1.0",
+    "AXRole": "AXGroup",
+    "AXSubrole": "AXApplicationGroup",
+    "AXTitle": "Recent builds"
+   },
+   {
+    "path": "0.0.15.1.0.0",
+    "AXRole": "AXStaticText",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "Redstone lamp with a lever",
+    "AXSelected": true
+   },
+   {
+    "path": "0.0.15.1.0.1",
+    "AXRole": "AXStaticText",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "Castle gate",
+    "AXSelected": false
+   },
+   {
+    "path": "0.0.15.1.0.2",
+    "AXRole": "AXStaticText",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "Wheat farm",
+    "AXSelected": false
+   },
+   {
+    "path": "0.0.15.1.1",
+    "AXRole": "AXGroup",
+    "AXSubrole": "AXApplicationGroup",
+    "AXTitle": "Recent benches"
+   },
+   {
+    "path": "0.0.15.1.1.0",
+    "AXRole": "AXStaticText",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "Towers and a bridge",
+    "AXSelected": false
+   },
+   {
+    "path": "0.0.15.1.2",
+    "AXRole": "AXGroup",
+    "AXSubrole": "AXApplicationGroup",
+    "AXTitle": "Actions"
+   },
+   {
+    "path": "0.0.15.1.2.0",
+    "AXRole": "AXStaticText",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "New chat",
+    "AXSelected": false
+   },
+   {
+    "path": "0.0.15.1.2.1",
+    "AXRole": "AXStaticText",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "New bench",
+    "AXSelected": false
+   },
+   {
+    "path": "0.0.15.1.2.2",
+    "AXRole": "AXStaticText",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "Switch to Bench",
+    "AXSelected": false
+   },
+   {
+    "path": "0.0.15.1.2.3",
+    "AXRole": "AXStaticText",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "Leaderboard",
+    "AXSelected": false
+   },
+   {
+    "path": "0.0.15.1.2.4",
+    "AXRole": "AXStaticText",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "Hide the sidebar",
+    "AXSelected": false
+   },
+   {
+    "path": "0.0.15.1.2.5",
+    "AXRole": "AXStaticText",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "Light theme",
+    "AXSelected": false
+   },
+   {
+    "path": "0.0.15.1.2.6",
+    "AXRole": "AXStaticText",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "Settings",
+    "AXSelected": false
+   }
+  ]
+ },
+ {
+  "check": "one item is selected (the highlight)",
+  "ok": true,
+  "seen": [
+   "Redstone lamp with a lever"
+  ]
+ },
+ {
+  "check": "Down moves the highlight; focus stays in the field",
+  "ok": true,
+  "seen": [
+   [
+    "Wheat farm"
+   ],
+   [
+    "AXTextField",
+    "Search everything"
+   ]
+  ]
+ },
+ {
+  "check": "the core's builds are listed with their detail",
+  "ok": true,
+  "seen": [
+   "Castle gate, Build a castle gate with a portcullis."
+  ]
+ },
+ {
+  "check": "Enter runs the highlighted item",
+  "ok": true,
+  "seen": "Castle gate · mcbench-lite"
+ },
+ {
+  "check": "and closes the palette",
+  "ok": true,
+  "seen": null
+ },
+ {
+  "check": "nothing found says so",
+  "ok": true,
+  "seen": [
+   "Nothing matches “zzzqqq”"
+  ]
+ },
+ {
+  "check": "Escape closes it, focus to the composer",
+  "ok": true,
+  "seen": [
+   "AXTextArea",
+   "Message"
+  ]
+ },
+ {
+  "check": "Cmd-K again closes it",
+  "ok": true,
+  "seen": [
+   null,
+   null
+  ]
+ },
+ {
+  "check": "a press on the scrim closes it",
+  "ok": true,
+  "seen": [
+   null,
+   null
+  ]
+ },
+ {
+  "note": "announcements and focus changes while the palette was used",
+  "seen": [
+   {
+    "note": "AXFocusedUIElementChanged",
+    "role": "AXTextField",
+    "label": "Search everything",
+    "info": {}
+   },
+   {
+    "note": "AXTitleChanged",
+    "role": "AXGroup",
+    "label": "Redstone lamp with a lever",
+    "info": {}
+   },
+   {
+    "note": "AXAnnouncementRequested",
+    "role": "AXWindow",
+    "label": "Redstone lamp with a lever · mcbench-lite",
+    "info": {
+     "AXAnnouncementKey": "Redstone lamp with a lever",
+     "AXPriorityKey": 50
+    }
+   },
+   {
+    "note": "AXTitleChanged",
+    "role": "AXGroup",
+    "label": "Castle gate",
+    "info": {}
+   },
+   {
+    "note": "AXAnnouncementRequested",
+    "role": "AXWindow",
+    "label": "Redstone lamp with a lever · mcbench-lite",
+    "info": {
+     "AXAnnouncementKey": "Castle gate",
+     "AXPriorityKey": 50
+    }
+   },
+   {
+    "note": "AXTitleChanged",
+    "role": "AXGroup",
+    "label": "Wheat farm",
+    "info": {}
+   },
+   {
+    "note": "AXAnnouncementRequested",
+    "role": "AXWindow",
+    "label": "Redstone lamp with a lever · mcbench-lite",
+    "info": {
+     "AXAnnouncementKey": "Wheat farm",
+     "AXPriorityKey": 50
+    }
+   },
+   {
+    "note": "AXTitleChanged",
+    "role": "AXGroup",
+    "label": "Actions",
+    "info": {}
+   },
+   {
+    "note": "AXTitleChanged",
+    "role": "AXGroup",
+    "label": "Prompts",
+    "info": {}
+   },
+   {
+    "note": "AXTitleChanged",
+    "role": "AXGroup",
+    "label": "Settings",
+    "info": {}
+   },
+   {
+    "note": "AXTitleChanged",
+    "role": "AXGroup",
+    "label": "Two towers",
+    "info": {}
+   },
+   {
+    "note": "AXAnnouncementRequested",
+    "role": "AXWindow",
+    "label": "Redstone lamp with a lever · mcbench-lite",
+    "info": {
+     "AXAnnouncementKey": "Two towers",
+     "AXPriorityKey": 50
+    }
+   },
+   {
+    "note": "AXTitleChanged",
+    "role": "AXGroup",
+    "label": "Castle gate",
+    "info": {}
+   },
+   {
+    "note": "AXAnnouncementRequested",
+    "role": "AXWindow",
+    "label": "Redstone lamp with a lever · mcbench-lite",
+    "info": {
+     "AXAnnouncementKey": "Castle gate",
+     "AXPriorityKey": 50
+    }
+   },
+   {
+    "note": "AXTitleChanged",
+    "role": "AXGroup",
+    "label": null,
+    "info": {}
+   },
+   {
+    "note": "AXTitleChanged",
+    "role": "AXGroup",
+    "label": "Castle gate",
+    "info": {}
+   },
+   {
+    "note": "AXAnnouncementRequested",
+    "role": "AXWindow",
+    "label": "Redstone lamp with a lever · mcbench-lite",
+    "info": {
+     "AXAnnouncementKey": "Castle gate",
+     "AXPriorityKey": 50
+    }
+   },
+   {
+    "note": "AXTitleChanged",
+    "role": "AXGroup",
+    "label": null,
+    "info": {}
+   },
+   {
+    "note": "AXTitleChanged",
+    "role": "AXGroup",
+    "label": "Castle gate",
+    "info": {}
+   },
+   {
+    "note": "AXAnnouncementRequested",
+    "role": "AXWindow",
+    "label": "Redstone lamp with a lever · mcbench-lite",
+    "info": {
+     "AXAnnouncementKey": "Castle gate",
+     "AXPriorityKey": 50
+    }
+   },
+   {
+    "note": "AXTitleChanged",
+    "role": "AXWindow",
+    "label": "Castle gate · mcbench-lite",
+    "info": {}
+   },
+   {
+    "note": "AXTitleChanged",
+    "role": "AXGroup",
+    "label": null,
+    "info": {}
+   },
+   {
+    "note": "AXTitleChanged",
+    "role": "AXGroup",
+    "label": "Castle gate, open",
+    "info": {}
+   },
+   {
+    "note": "AXTitleChanged",
+    "role": "AXGroup",
+    "label": "Redstone lamp with a lever",
+    "info": {}
+   },
+   {
+    "note": "AXFocusedUIElementChanged",
+    "role": "AXTextArea",
+    "label": "Message",
+    "info": {}
+   },
+   {
+    "note": "AXTitleChanged",
+    "role": "AXGroup",
+    "label": "Castle gate",
+    "info": {}
+   },
+   {
+    "note": "AXAnnouncementRequested",
+    "role": "AXWindow",
+    "label": "Castle gate · mcbench-lite",
+    "info": {
+     "AXAnnouncementKey": "Castle gate",
+     "AXPriorityKey": 50
+    }
+   },
+   {
+    "note": "AXFocusedUIElementChanged",
+    "role": "AXTextField",
+    "label": "Search everything",
+    "info": {}
+   },
+   {
+    "note": "AXTitleChanged",
+    "role": "AXGroup",
+    "label": "Redstone lamp with a lever",
+    "info": {}
+   },
+   {
+    "note": "AXAnnouncementRequested",
+    "role": "AXWindow",
+    "label": "Castle gate · mcbench-lite",
+    "info": {
+     "AXAnnouncementKey": "Redstone lamp with a lever",
+     "AXPriorityKey": 50
+    }
+   },
+   {
+    "note": "AXTitleChanged",
+    "role": "AXGroup",
+    "label": "Settings",
+    "info": {}
+   },
+   {
+    "note": "AXTitleChanged",
+    "role": "AXGroup",
+    "label": "Clear leaderboard",
+    "info": {}
+   },
+   {
+    "note": "AXAnnouncementRequested",
+    "role": "AXWindow",
+    "label": "Castle gate · mcbench-lite",
+    "info": {
+     "AXAnnouncementKey": "Clear leaderboard",
+     "AXPriorityKey": 50
+    }
+   },
+   {
+    "note": "AXTitleChanged",
+    "role": "AXStaticText",
+    "label": "Nothing matches “zz”",
+    "info": {}
+   },
+   {
+    "note": "AXTitleChanged",
+    "role": "AXStaticText",
+    "label": "Searching…",
+    "info": {}
+   },
+   {
+    "note": "AXTitleChanged",
+    "role": "AXStaticText",
+    "label": "Nothing matches “zzz”",
+    "info": {}
+   },
+   {
+    "note": "AXTitleChanged",
+    "role": "AXStaticText",
+    "label": "Searching…",
+    "info": {}
+   },
+   {
+    "note": "AXTitleChanged",
+    "role": "AXStaticText",
+    "label": "Nothing matches “zzzq”",
+    "info": {}
+   },
+   {
+    "note": "AXTitleChanged",
+    "role": "AXStaticText",
+    "label": "Searching…",
+    "info": {}
+   },
+   {
+    "note": "AXTitleChanged",
+    "role": "AXStaticText",
+    "label": "Nothing matches “zzzqq”",
+    "info": {}
+   }
+  ]
+ }
+]

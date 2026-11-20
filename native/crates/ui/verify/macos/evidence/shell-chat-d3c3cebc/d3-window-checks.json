@@ -1,0 +1,298 @@
+[
+ {
+  "check": "dragging the sidebar's edge right widens it",
+  "ok": true,
+  "seen": [
+   217,
+   292
+  ]
+ },
+ {
+  "note": "the widest the drag allows (list width)",
+  "seen": 292
+ },
+ {
+  "check": "dragging under 140 collapses it",
+  "ok": true,
+  "seen": null
+ },
+ {
+  "check": "a double-click on the edge collapses it",
+  "ok": true,
+  "seen": null
+ },
+ {
+  "check": "dragging the split widens the chat column",
+  "ok": true,
+  "seen": [
+   536.5,
+   603
+  ]
+ },
+ {
+  "note": "full screen and minimise",
+  "seen": {
+   "full screen": [
+    {
+     "AXTitle": "Redstone lamp with a lever · mcbench-lite",
+     "minimized": false,
+     "fullscreen": true,
+     "AXPosition": [
+      0,
+      0
+     ],
+     "AXSize": [
+      1440,
+      900
+     ]
+    }
+   ],
+   "out": [
+    {
+     "AXTitle": "Redstone lamp with a lever · mcbench-lite",
+     "minimized": false,
+     "fullscreen": false,
+     "AXPosition": [
+      80,
+      30
+     ],
+     "AXSize": [
+      1280,
+      820
+     ]
+    }
+   ],
+   "minimised": [
+    {
+     "AXTitle": "Redstone lamp with a lever · mcbench-lite",
+     "minimized": true,
+     "fullscreen": false,
+     "AXPosition": [
+      80,
+      30
+     ],
+     "AXSize": [
+      1280,
+      820
+     ]
+    }
+   ],
+   "back": [
+    {
+     "AXTitle": "Redstone lamp with a lever · mcbench-lite",
+     "minimized": false,
+     "fullscreen": false,
+     "AXPosition": [
+      80,
+      30
+     ],
+     "AXSize": [
+      1280,
+      820
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "check": "Ctrl-Cmd-F enters and leaves full screen, Cmd-M minimises",
+  "ok": true,
+  "seen": {
+   "full screen": [
+    {
+     "AXTitle": "Redstone lamp with a lever · mcbench-lite",
+     "minimized": false,
+     "fullscreen": true,
+     "AXPosition": [
+      0,
+      0
+     ],
+     "AXSize": [
+      1440,
+      900
+     ]
+    }
+   ],
+   "out": [
+    {
+     "AXTitle": "Redstone lamp with a lever · mcbench-lite",
+     "minimized": false,
+     "fullscreen": false,
+     "AXPosition": [
+      80,
+      30
+     ],
+     "AXSize": [
+      1280,
+      820
+     ]
+    }
+   ],
+   "minimised": [
+    {
+     "AXTitle": "Redstone lamp with a lever · mcbench-lite",
+     "minimized": true,
+     "fullscreen": false,
+     "AXPosition": [
+      80,
+      30
+     ],
+     "AXSize": [
+      1280,
+      820
+     ]
+    }
+   ],
+   "back": [
+    {
+     "AXTitle": "Redstone lamp with a lever · mcbench-lite",
+     "minimized": false,
+     "fullscreen": false,
+     "AXPosition": [
+      80,
+      30
+     ],
+     "AXSize": [
+      1280,
+      820
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "check": "Cmd-Q quits",
+  "ok": true,
+  "seen": null
+ },
+ {
+  "note": "the preferences file after quitting",
+  "seen": "{\"light\":false,\"sidebarOpen\":true,\"sidebarWidth\":311.0,\"chatWidth\":604.0,\"binds\":{},\"benchMode\":false,\"lastModel\":[\"anthropic\",\"claude-opus-5-5\"],\"lastResolution\":1,\"place\":\"/chat/chat-gate\",\"window\":{\"display\":\"9a0911c6-7b3d-4140-93fb-de91cce602db\",\"x\":120.0,\"y\":80.0,\"width\":1100.0,\"height\":700.0},\"openBenches\":[],\"promptsOpen\":true}"
+ },
+ {
+  "note": "before quitting and after starting again",
+  "seen": {
+   "before": {
+    "window": [
+     {
+      "AXTitle": "Castle gate · mcbench-lite",
+      "minimized": false,
+      "fullscreen": false,
+      "AXPosition": [
+       120,
+       80
+      ],
+      "AXSize": [
+       1100,
+       700
+      ]
+     }
+    ],
+    "title": "Castle gate · mcbench-lite",
+    "sidebar": [
+     292,
+     475
+    ],
+    "column": [
+     603,
+     484
+    ]
+   },
+   "after": {
+    "window": [
+     {
+      "AXTitle": "Castle gate · mcbench-lite",
+      "minimized": false,
+      "fullscreen": false,
+      "AXPosition": [
+       120,
+       80
+      ],
+      "AXSize": [
+       1100,
+       700
+      ]
+     }
+    ],
+    "title": "Castle gate · mcbench-lite",
+    "sidebar": [
+     292,
+     475
+    ],
+    "column": [
+     603,
+     484
+    ]
+   }
+  }
+ },
+ {
+  "check": "the window's position and size come back",
+  "ok": true,
+  "seen": [
+   [
+    {
+     "AXTitle": "Castle gate · mcbench-lite",
+     "minimized": false,
+     "fullscreen": false,
+     "AXPosition": [
+      120,
+      80
+     ],
+     "AXSize": [
+      1100,
+      700
+     ]
+    }
+   ],
+   [
+    {
+     "AXTitle": "Castle gate · mcbench-lite",
+     "minimized": false,
+     "fullscreen": false,
+     "AXPosition": [
+      120,
+      80
+     ],
+     "AXSize": [
+      1100,
+      700
+     ]
+    }
+   ]
+  ]
+ },
+ {
+  "check": "the open place comes back",
+  "ok": true,
+  "seen": "Castle gate · mcbench-lite"
+ },
+ {
+  "check": "the sidebar's width comes back",
+  "ok": true,
+  "seen": [
+   [
+    292,
+    475
+   ],
+   [
+    292,
+    475
+   ]
+  ]
+ },
+ {
+  "check": "the split comes back",
+  "ok": true,
+  "seen": [
+   [
+    603,
+    484
+   ],
+   [
+    603,
+    484
+   ]
+  ]
+ }
+]

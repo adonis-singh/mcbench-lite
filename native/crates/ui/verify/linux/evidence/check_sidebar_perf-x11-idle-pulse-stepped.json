@@ -1,0 +1,43 @@
+{
+ "scenario": "idle-pulse",
+ "backend": "x11",
+ "first_frame_ms": 418.541,
+ "key_to_paint_ms": {
+  "count": 1,
+  "mean": 0.525,
+  "p50": 0.525,
+  "p99": 0.525,
+  "worst": 0.525
+ },
+ "scroll_to_paint_ms": null,
+ "frame_work_ms": {
+  "count": 469,
+  "mean": 0.356,
+  "p50": 0.301,
+  "p99": 0.762,
+  "worst": 11.058
+ },
+ "load": [
+  "11.84",
+  "7.53",
+  "7.53"
+ ],
+ "idle": {
+  "window_s": 20.0,
+  "frames": 0,
+  "cpu_percent": 0.25,
+  "frame_interval_ms": null
+ },
+ "pulse": {
+  "window_s": 20.0,
+  "frames": 400,
+  "cpu_percent": 36.3,
+  "frame_interval_ms": {
+   "count": 399,
+   "mean": 50.005,
+   "p50": 48.003,
+   "p99": 64.064,
+   "worst": 64.094
+  }
+ }
+}

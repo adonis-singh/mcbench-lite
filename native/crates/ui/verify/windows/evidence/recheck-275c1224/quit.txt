@@ -1,0 +1,4 @@
+== item 6: close button (1297,24) with a chat running (--running chat-gate)
+0 0 exit=0  
+== item 6: Alt+F4 on the landing (--open /new)
+0 0 exit=0  

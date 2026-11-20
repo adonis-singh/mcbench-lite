@@ -1,0 +1,29 @@
+{
+ "scenario": "scroll",
+ "backend": "wayland",
+ "first_frame_ms": 327.27,
+ "window_s": 6.01,
+ "frames_in_window": 250,
+ "cpu_percent": 148.6,
+ "key_to_paint_ms": null,
+ "frame_work_ms": {
+  "count": 265,
+  "mean": 0.988,
+  "p50": 0.854,
+  "p99": 3.335,
+  "worst": 13.151
+ },
+ "frame_interval_ms_in_window": {
+  "count": 249,
+  "mean": 24.026,
+  "p50": 25.09899999999925,
+  "p99": 32.3730000000005,
+  "worst": 38.59900000000016
+ },
+ "accessibility": true,
+ "load": [
+  "8.41",
+  "10.55",
+  "15.12"
+ ]
+}

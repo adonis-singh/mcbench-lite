@@ -1,0 +1,13 @@
+cell at  , paragraph at  
+drag from table cell Block into the last paragraph:
+None
+double-click on 'used' in heading Blocks used ( ):
+None
+triple-click on that heading:
+None
+double-click at 268 382 on the first word of Both_lamps_are_lit._See_the_le:
+'Both'
+triple-click there:
+'Both lamps are lit. See the lever page if you want a different facing.'
+drag from cell (271,474) to below the table (456,615):
+'Block\tCount\tLight\nstone\t9\t0\nredstone_lamp\t1\t15\nlever\t1\t0\nA lamp only needs power fro'

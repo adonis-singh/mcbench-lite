@@ -1,0 +1,7 @@
+before: ListItem name="Castle gate" lct="option" focus=0 set=2/0 patterns=[SelectionItem] selected=0
+after:  ListItem name="Castle gate" lct="option" focus=1 set=2/0 patterns=[SelectionItem] selected=1
+before: ListItem name="Wheat farm" lct="option" focus=0 set=3/0 patterns=[SelectionItem] selected=0
+uia-probe: invoke: the element does not offer pattern 10000
+exit=2 
+before: Button name="New chat" lct="button" focus=0 patterns=[Invoke]
+after:  Button name="New chat" lct="button" focus=0 patterns=[Invoke]

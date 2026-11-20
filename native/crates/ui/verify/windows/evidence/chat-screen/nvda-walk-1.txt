@@ -1,0 +1,47 @@
+Speaking ['Desktop', 'list']
+Speaking ['Recycle Bin', 'not selected', '1 of 3']
+Speaking ['mcbench-lite ƒ?" Redstone lamp with a lever', 'window']
+Speaking ['Message', 'edit', 'blank']
+Input: kb(desktop):tab
+Speaking ['New chat', 'button']
+Input: kb(desktop):tab
+Speaking ['Chats', 'list']
+Speaking ['Redstone lamp with a lever']
+Input: kb(desktop):tab
+Speaking ['Conversation', 'grouping']
+Speaking ['claude-opus-5-5', 'grouping', 'message']
+Input: kb(desktop):upArrow
+Speaking ['You', 'grouping', 'message']
+Input: kb(desktop):upArrow
+Speaking ['claude-opus-5-5', 'grouping', 'message']
+Input: kb(desktop):home
+Speaking ['You', 'grouping', 'message']
+Input: kb(desktop):downArrow
+Speaking ['claude-opus-5-5', 'grouping', 'work']
+Input: kb(desktop):downArrow
+Speaking ['claude-opus-5-5', 'grouping', 'message']
+Input: kb(desktop):downArrow
+Speaking ['You', 'grouping', 'message']
+Input: kb(desktop):tab
+Speaking ['Message', 'edit', 'blank']
+Input: kb(desktop):tab
+Speaking ['New chat', 'button']
+Input: kb(desktop):tab
+Speaking ['Chats', 'list']
+Speaking ['Redstone lamp with a lever']
+Input: kb(desktop):tab
+Speaking ['Conversation', 'grouping']
+Speaking ['You', 'grouping', 'message']
+Input: kb(desktop):tab
+Speaking ['Message', 'edit', 'blank']
+Input: kb(desktop):enter
+Input: kb(desktop):tab
+Speaking ['New chat', 'button']
+Input: kb(desktop):tab
+Speaking ['Chats', 'list']
+Speaking ['Redstone lamp with a lever']
+Input: kb(desktop):enter
+Input: kb(desktop):shift+tab
+Speaking ['New chat', 'button']
+Input: kb(desktop):enter
+Speaking ['Message', 'edit', 'Add a cat', 'blank']

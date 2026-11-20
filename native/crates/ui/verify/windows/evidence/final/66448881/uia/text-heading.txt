@@ -1,0 +1,10 @@
+element: Text name="A lamp on a lever" lct="heading" id="" fw="AccessKit" enabled=1 kbfocusable=0 focus=0 offscreen=0 ctl=1 content=1 rect=[298,-48,940x23] heading=1 set=0/9 level=1 patterns=[Value,Text,LegacyIAccessible] value="A lamp on a lever" readonly=1 text="A lamp on a lever"
+document: "A lamp on a lever" (17 UTF-16 units)
+supported selection: 0
+word[0] = "A "
+word[1] = "lamp "
+word[2] = "on "
+word[3] = "a "
+word[4] = "lever"
+word count: 5
+caret: no TextPattern2

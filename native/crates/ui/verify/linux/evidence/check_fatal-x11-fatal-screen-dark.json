@@ -1,0 +1,22 @@
+[
+ {
+  "check": "the panicking process ends",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "its crash log is written",
+  "ok": true,
+  "detail": "['<scratch>/check_fatal-x11-screen/dev/logs/crash-1794994748-768417.log']"
+ },
+ {
+  "check": "the error screen's own panic ends it",
+  "ok": true,
+  "detail": "logs 2, apps []"
+ },
+ {
+  "check": "and starts nothing more",
+  "ok": true,
+  "detail": "apps [], logs ['<scratch>/check_fatal-x11-screen/dev/logs/crash-1794994748-768417.log', '<scratch>/check_fatal-x11-screen/dev/logs/crash-1794994749-769904.log']"
+ }
+]

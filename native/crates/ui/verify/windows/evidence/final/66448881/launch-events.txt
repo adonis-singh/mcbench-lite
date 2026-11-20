@@ -1,0 +1,3 @@
+   0.046 focus | Text name="C:\\t\\s4-native\\release\\mcbench-ui-dev.exe" lct="terminal" id="" help="C:\\t\\s4-native\\release\\mcbench-ui-dev.exe" class="TermControl" fw="XAML" enabled=1 kbfocusable
+recording events of mcbench-ui-dev for 10 s
+recording done

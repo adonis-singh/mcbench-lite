@@ -1,0 +1,116 @@
+[
+ {
+  "note": "VO Shift-Tab, Tab to the trigger",
+  "seen": "Resolution: Standard collapsed button"
+ },
+ {
+  "note": "VO Tab",
+  "seen": "Chat model: claude-opus-5-5 collapsed button"
+ },
+ {
+  "note": "VO Enter opens it",
+  "seen": "Search models Search models... edit text"
+ },
+ {
+  "note": "VO heard over 2 s",
+  "seen": [
+   "Search models Search models... edit text",
+   "You are currently on a text field, inside of a dialog. To enter text in this field, type."
+  ]
+ },
+ {
+  "note": "VO Down to the first model",
+  "seen": "Claude Opus 5.5 claude-opus-5-5 (1 of 4)"
+ },
+ {
+  "note": "VO Down",
+  "seen": "Claude Haiku 5.5 claude-haiku-5-5 (3 of 4)"
+ },
+ {
+  "note": "VO VO-Right",
+  "seen": "Favorite Claude Haiku 5.5 toggle button (4 of 4)"
+ },
+ {
+  "note": "VO VO-Right",
+  "seen": "Favorite Claude Haiku 5.5 toggle button (4 of 4)"
+ },
+ {
+  "note": "VO Escape",
+  "seen": "Chat model: claude-opus-5-5 collapsed button"
+ },
+ {
+  "note": "VO Shift-Tab, Tab to Resolution",
+  "seen": "84% 84% of context · 840k of 1M tokens editable circular level indicator"
+ },
+ {
+  "note": "VO Tab",
+  "seen": "Resolution: Standard collapsed button"
+ },
+ {
+  "note": "VO Enter opens the slider",
+  "seen": "Standard Resolution slider"
+ },
+ {
+  "note": "VO heard over 2 s",
+  "seen": [
+   "Standard Resolution slider",
+   "The model chooses the size. You are currently on a slider, inside of a dialog. To start interacting with the slider, press Control-Option-Shift-Down Arrow."
+  ]
+ },
+ {
+  "note": "VO Right",
+  "seen": "High (2×)"
+ },
+ {
+  "note": "VO VO-Shift-Down (interact)",
+  "seen": "In slider"
+ },
+ {
+  "note": "VO VO-Up (increment)",
+  "seen": "High (2×)"
+ },
+ {
+  "note": "VO VO-Down (decrement)",
+  "seen": ""
+ },
+ {
+  "note": "VO VO-Shift-Up",
+  "seen": "Out of slider"
+ },
+ {
+  "note": "VO Escape",
+  "seen": "Resolution: Maximum (10×) collapsed button"
+ },
+ {
+  "note": "VO Shift-Tab, Tab to effort",
+  "seen": "Chat model: claude-opus-5-5 collapsed button"
+ },
+ {
+  "note": "VO Tab",
+  "seen": "Reasoning effort: medium collapsed button"
+ },
+ {
+  "note": "VO Enter opens it",
+  "seen": "medium text (2 of 3)"
+ },
+ {
+  "note": "VO Down",
+  "seen": "high text (3 of 3)"
+ },
+ {
+  "note": "VO Escape",
+  "seen": "Reasoning effort: medium collapsed button"
+ },
+ {
+  "note": "VO Shift-Tab, Tab to the meter",
+  "seen": "Near weekly limit Resets at 3:40 PM"
+ },
+ {
+  "note": "VO Tab",
+  "seen": "84% 84% of context · 840k of 1M tokens editable circular level indicator"
+ },
+ {
+  "note": "VO Tab to the chip",
+  "seen": "Resolution: Maximum (10×) collapsed button"
+ }
+]

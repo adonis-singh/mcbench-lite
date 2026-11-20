@@ -1,0 +1,83 @@
+#!/usr/bin/busybox sh
+# The bash sandbox's start in the app's WSL2 distro (src/windows.rs puts it at
+# /usr/lib/mcbench/wsl-init when it imports the distro). The app runs it as
+# root through wsl.exe, whose stdin and stdout become the guest agent's
+# stream; it is what guest/init does in the macOS VM, for a distro:
+#
+#   wsl-init <sandbox folder> <root filesystem folder> <rootfs file> <sha256> <uid>:<gid>
+#
+# The two folders are Windows paths: the data folder's sandbox folder (the
+# chats' /work, read and write) is mounted by drvfs at /mnt/sandbox, the root
+# filesystem's folder read only at /mnt/rootfs (automount is off: nothing
+# else of Windows is mounted). The agent's own folder, the unpacked root
+# filesystem, is /var/mcbench on the distro's own disk. A cgroup v2 folder
+# with the memory, pids and cpu controllers is given to the agent's user,
+# the networked box's netfilter modules are loaded, and the agent becomes
+# the user and serves on stdin and stdout. Messages go to
+# stderr; "mcbench wsl init: ready" is the last before the agent starts.
+PATH=/usr/bin
+export PATH
+fail() {
+  echo "mcbench wsl init: $*" >&2
+  exit 1
+}
+[ $# -eq 5 ] || fail "usage: wsl-init <sandbox folder> <rootfs folder> <rootfs file> <sha256> <uid>:<gid>"
+SANDBOX=$1
+ROOTFS_DIR=$2
+ROOTFS=$3
+SHA256=$4
+UID_=${5%:*}
+GID_=${5#*:}
+
+mounted() { grep -q " $1 " /proc/mounts; }
+
+mkdir -p /mnt/sandbox /mnt/rootfs /var/mcbench || fail "making the mount points"
+# A distro that ran before keeps its mounts until it stops: each start
+# mounts this run's folders (detached, so an agent still ending keeps its own).
+for dir in /mnt/sandbox /mnt/rootfs /var/mcbench/.run; do
+  mounted "$dir" && { umount -l "$dir" || fail "unmounting $dir"; }
+done
+# WSL's init is drvfs's mount helper: WSL links /sbin/mount.drvfs to it in
+# every distro it starts. Files the host made, which have no Linux mode in
+# their metadata, are shown 0644 and folders 0755, as on a Linux host.
+/sbin/mount.drvfs "$SANDBOX" /mnt/sandbox -o "metadata,uid=$UID_,gid=$GID_,umask=022,fmask=133" || fail "mounting $SANDBOX at /mnt/sandbox"
+/sbin/mount.drvfs "$ROOTFS_DIR" /mnt/rootfs -o ro || fail "mounting $ROOTFS_DIR at /mnt/rootfs"
+
+chown "$UID_:$GID_" /var/mcbench || fail "giving /var/mcbench to the agent's user"
+# The boxes' run folders live in memory, as in the macOS VM.
+mkdir -p /var/mcbench/.run
+mount -t tmpfs -o mode=0755 tmpfs /var/mcbench/.run || fail "mounting /var/mcbench/.run"
+chown "$UID_:$GID_" /var/mcbench/.run
+
+# pasta opens /dev/net/tun as the agent's user: WSL's /dev has it 0666.
+[ -r /dev/net/tun ] && [ -w /dev/net/tun ] || fail "the tun device is not open to every user: $(ls -l /dev/net/tun)"
+
+# The networked box's rules: iptables-nft's REJECT through nf_tables (both
+# modules of WSL's kernel, in its modules disk).
+for module in nft_compat ipt_REJECT; do
+  modprobe "$module" || fail "loading $module"
+done
+
+# The agent's user gets a cgroup subtree of its own with the controllers the
+# boxes' limits need. WSL gives each distro a cgroup v2 namespace whose root
+# holds no process (the distro's own are in non-systemd), so the controllers
+# can be enabled there; the folder is named after the distro.
+CG=$(awk '$3 == "cgroup2" { print $2; exit }' /proc/mounts)
+[ -n "$CG" ] || fail "no cgroup2 file system is mounted: $(grep cgroup /proc/mounts | tr '\n' ';')"
+for controller in memory pids cpu; do
+  grep -qw "$controller" "$CG/cgroup.controllers" || fail "the cgroup v2 controller $controller is missing (it has: $(cat "$CG/cgroup.controllers"))"
+done
+OURS=$CG/mcbench-$WSL_DISTRO_NAME
+echo "+memory +pids +cpu" > "$CG/cgroup.subtree_control" || fail "enabling the controllers in $CG"
+mkdir -p "$OURS/agent" || fail "making $OURS"
+echo "+memory +pids +cpu" > "$OURS/cgroup.subtree_control" || fail "enabling the controllers in $OURS"
+for file in "$OURS" "$OURS/cgroup.procs" "$OURS/cgroup.threads" "$OURS/cgroup.subtree_control" \
+  "$OURS/agent" "$OURS/agent/cgroup.procs" "$OURS/agent/cgroup.threads"; do
+  chown "$UID_:$GID_" "$file" || fail "giving $file to the agent's user"
+done
+echo 0 > "$OURS/agent/cgroup.procs" || fail "entering $OURS/agent"
+
+cd /var/mcbench || fail "/var/mcbench"
+echo "mcbench wsl init: ready" >&2
+exec env -i PATH=/usr/bin HOME=/var/mcbench \
+  /usr/bin/mcbench-sandbox-agent guest - "$UID_:$GID_" "$OURS" /var/mcbench "/mnt/rootfs/$ROOTFS" "$SHA256"

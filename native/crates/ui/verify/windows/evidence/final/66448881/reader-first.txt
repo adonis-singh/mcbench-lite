@@ -1,0 +1,15 @@
+== NVDA running before launch, title-click: UIA Edit name="Message" lct="edit" focus=1 value="" readonly=0 text="" 
+Speaking ['mcbench-lite — Redstone lamp with a lever', 'window']
+Speaking ['Message', 'edit', 'blank']
+Input: kb(desktop):NVDA+tab
+Speaking ['Message', 'edit', 'focused', 'blank']
+== NVDA running before launch, alt-tab: UIA Edit name="Message" lct="edit" focus=1 value="" readonly=0 text="" 
+Speaking ['mcbench-lite — Redstone lamp with a lever', 'window']
+Speaking ['Message', 'edit', 'blank']
+Input: kb(desktop):NVDA+tab
+Speaking ['Message', 'edit', 'focused', 'blank']
+== NVDA running before launch, client-click: UIA Group name="paragraph, Both lamps are lit. See the lever page if you want a different facing." lct="group" focus=1 set=0/9 
+Speaking ['claude-opus-5-5, Here is the view from the south-east after the change:\nimage, The two lamps on their stone base, seen from the south-east\nBoth lamps are lit. See the lever page if you want a different facing.', 'grouping', '7 of 9']
+Speaking ['paragraph, Both lamps are lit. See the lever page if you want a different facing.', 'grouping']
+Input: kb(desktop):NVDA+tab
+Speaking ['paragraph, Both lamps are lit. See the lever page if you want a different facing.', 'grouping', 'focused']

@@ -1,0 +1,8 @@
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+ink of H in Adwaita Sans: 400 100520, 620 100520, 700 100520
+
+thread 'heavier_weights_draw_heavier_glyphs' (3307719) panicked at crates/ui/tests/bold.rs:56:5:
+620 draws heavier than 400
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+error: test failed, to rerun pass `-p mcbench-ui --test bold`

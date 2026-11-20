@@ -1,0 +1,21 @@
+# The Minecraft data the native app ships (native/tools/extract/README.md),
+# written by native/tools/extract/bundle.sh from one run of the extractor and
+# never edited by hand. mcbench-setup's build embeds the bundle that
+# MCBENCH_DATA_BUNDLE names once its sha256 and size are these.
+minecraft	1.21.10
+bundle	bb9a8a767a67690a96fabb073aeffc63b3a268bc04005619b8d8da8830b5bdad	1365781
+url	not-published-yet
+zstd	1.5.7
+file	blocks.txt	407a978cb3963cae4d2d52ad91f572439eed442116eb6780f4e4e3c5630bfa27	4514886
+file	loot.json	869f2edc18e947837a1b2100e8ba70ed66318b6e71621ead57d07f09957035a7	410171
+file	datafix.txt	29a351e1b8250d85d725f467a9505109b86bd7083a8c407d049b356386cb9f58	601273
+file	block-table.tsv	afb2694897c27e97edb02edf61ba497f351787dd107629fd1482d118430482e5	4028431
+file	render-layers.tsv	4efc802e94b7401f91a168206e6a00e7257c0f76554db4bc0b924d621b334a0e	2699076
+file	tints.tsv	abb2a9eac1a67b6fa313def224f39604972b8df88e56087b8dba87b03b12d401	3347801
+file	mcbench-pack.bin	0d109c362f26545408034efffce5f847d44bd9b2b0705306702bf1c99c62a3d5	3385502
+file	mcbench-entities.json	6f347cc292ece066171729984d9a66b5485aa28b9284a5f7d3848bf48a1686f1	4891795
+file	settings.json	08abfc780306f173f66567a30e93a84451b08eca8f89419076a9a1c300ab9e52	372
+file	map-settings.json	22b856216fd9f9beac02baf23cf3f15de6ecc7a7a41ef96570974d087a5a9016	354
+file	blocks.json	178a12096f59f863758a6c685e5eb6de38721b376a30a30383e171d0799f3ee7	131797
+file	client-jar.json	2c9eb0c67fee6d5f74bdb390f539328cc9ac95cb30fa39fdbf532261c2949ef4	702401
+file	night.json	2350887c5e018efd49dcfba142aa3c66a04cafd474de6870d4cebe21c40730e9	479577

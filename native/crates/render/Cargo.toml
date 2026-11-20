@@ -1,0 +1,17 @@
+[package]
+name = "mcbench-render"
+description = "The renderer's interface: what the core asks the drawing crate for"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+serde.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
+
+[lints]
+workspace = true

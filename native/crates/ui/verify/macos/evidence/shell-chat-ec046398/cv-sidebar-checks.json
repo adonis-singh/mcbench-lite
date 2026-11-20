@@ -1,0 +1,398 @@
+[
+ {
+  "check": "the Build list is an AXList named Chats",
+  "ok": true,
+  "seen": {
+   "path": "0.0.5",
+   "AXRole": "AXList",
+   "AXSubrole": "AXUnknown",
+   "AXRoleDescription": "list",
+   "AXTitle": "Chats",
+   "AXEnabled": true,
+   "AXFocused": false,
+   "AXPosition": [
+    89,
+    181
+   ],
+   "AXSize": [
+    217,
+    595
+   ]
+  }
+ },
+ {
+  "check": "each row's name says open and its status",
+  "ok": true,
+  "seen": [
+   "Redstone lamp with a lever, open",
+   "Castle gate, Working",
+   "Wheat farm, Finished, not opened yet, Resolution: Very high (5×)"
+  ]
+ },
+ {
+  "note": "a row's attributes",
+  "seen": {
+   "_actions": [
+    "AXPress"
+   ],
+   "_params": [
+    "AXUIElementsForSearchPredicate",
+    "AXRangeForLine",
+    "AXUIElementCountForSearchPredicate",
+    "AXAttributedStringForRange",
+    "AXBoundsForRange",
+    "AXStringForRange",
+    "AXStyleRangeForIndex",
+    "AXRangeForPosition",
+    "AXReplaceRangeWithText",
+    "AXRangeForIndex",
+    "AXCellForColumnAndRow",
+    "AXLineForIndex"
+   ],
+   "_path": "0.0.5.1",
+   "_settable": [
+    "AXFocused",
+    "AXSelected",
+    "AXValue"
+   ],
+   "AXChildren": "<1 items>",
+   "AXChildrenInNavigationOrder": "<1 items>",
+   "AXEnabled": true,
+   "AXFocused": false,
+   "AXFrame": [
+    89,
+    220,
+    217,
+    35
+   ],
+   "AXHelp": "<error -25212>",
+   "AXIdentifier": "<error -25212>",
+   "AXLinkedUIElements": "<error -25212>",
+   "AXMaxValue": "<error -25212>",
+   "AXMinValue": "<error -25212>",
+   "AXOrientation": "AXUnknownOrientation",
+   "AXParent": "<AXList Chats>",
+   "AXPlaceholderValue": "<error -25212>",
+   "AXPosition": [
+    89,
+    220
+   ],
+   "AXRequired": false,
+   "AXRole": "AXGroup",
+   "AXRoleDescription": "group",
+   "AXSelected": false,
+   "AXSelectedChildren": "<error -25212>",
+   "AXSize": [
+    217,
+    35
+   ],
+   "AXSubrole": "AXUnknown",
+   "AXTitle": "Castle gate, Working",
+   "AXTopLevelUIElement": "<AXWindow Redstone lamp with a lever · mcbench-lite>",
+   "AXValue": "<error -25212>",
+   "AXWindow": "<AXWindow Redstone lamp with a lever · mcbench-lite>"
+  }
+ },
+ {
+  "check": "no row has a description",
+  "ok": true,
+  "seen": [
+   "<error -25212>",
+   "<error -25212>",
+   "<error -25212>"
+  ]
+ },
+ {
+  "note": "the open row's every attribute (what AX gives for aria-current)",
+  "seen": {
+   "_actions": [
+    "AXPress"
+   ],
+   "_depth": 4,
+   "_params": [
+    "AXUIElementsForSearchPredicate",
+    "AXRangeForLine",
+    "AXUIElementCountForSearchPredicate",
+    "AXAttributedStringForRange",
+    "AXBoundsForRange",
+    "AXStringForRange",
+    "AXStyleRangeForIndex",
+    "AXRangeForPosition",
+    "AXReplaceRangeWithText",
+    "AXRangeForIndex",
+    "AXCellForColumnAndRow",
+    "AXLineForIndex"
+   ],
+   "_path": "0.0.5.0",
+   "_settable": [
+    "AXFocused",
+    "AXSelected",
+    "AXValue"
+   ],
+   "AXChildren": "<1 items>",
+   "AXChildrenInNavigationOrder": "<1 items>",
+   "AXEnabled": true,
+   "AXFocused": false,
+   "AXFrame": [
+    89,
+    184,
+    217,
+    35
+   ],
+   "AXHelp": "<error -25212>",
+   "AXIdentifier": "<error -25212>",
+   "AXLinkedUIElements": "<error -25212>",
+   "AXMaxValue": "<error -25212>",
+   "AXMinValue": "<error -25212>",
+   "AXOrientation": "AXUnknownOrientation",
+   "AXParent": "<AXList Chats>",
+   "AXPlaceholderValue": "<error -25212>",
+   "AXPosition": [
+    89,
+    184
+   ],
+   "AXRequired": false,
+   "AXRole": "AXGroup",
+   "AXRoleDescription": "group",
+   "AXSelected": false,
+   "AXSelectedChildren": "<error -25212>",
+   "AXSize": [
+    217,
+    35
+   ],
+   "AXSubrole": "AXUnknown",
+   "AXTitle": "Redstone lamp with a lever, open",
+   "AXTopLevelUIElement": "<AXWindow Redstone lamp with a lever · mcbench-lite>",
+   "AXValue": "<error -25212>",
+   "AXWindow": "<AXWindow Redstone lamp with a lever · mcbench-lite>"
+  }
+ },
+ {
+  "check": "the running chat's Archive build is not enabled",
+  "ok": true,
+  "seen": {
+   "AXRole": "AXButton",
+   "AXSubrole": "AXUnknown",
+   "AXRoleDescription": "button",
+   "AXTitle": "Archive build",
+   "AXValue": "<error -25212>",
+   "AXHelp": "Stop the running turn before archiving",
+   "AXEnabled": false,
+   "AXFocused": false,
+   "AXPosition": [
+    274,
+    223.5
+   ],
+   "AXSize": [
+    28,
+    28
+   ]
+  }
+ },
+ {
+  "check": "its help says why",
+  "ok": true,
+  "seen": "Stop the running turn before archiving"
+ },
+ {
+  "check": "an idle row's Archive build says what it does",
+  "ok": true,
+  "seen": "Archive build (it can be restored for 7 days)"
+ },
+ {
+  "check": "Tab reaches the current row",
+  "ok": true,
+  "seen": [
+   "AXGroup",
+   "Redstone lamp with a lever, open"
+  ]
+ },
+ {
+  "check": "down focuses Castle gate, Working",
+  "ok": true,
+  "seen": [
+   "AXGroup",
+   "Castle gate, Working"
+  ]
+ },
+ {
+  "check": "end focuses Wheat farm, Finished, not opened yet, Resolution: Very high (5×)",
+  "ok": true,
+  "seen": [
+   "AXGroup",
+   "Wheat farm, Finished, not opened yet, Resolution: Very high (5×)"
+  ]
+ },
+ {
+  "check": "home focuses Redstone lamp with a lever, open",
+  "ok": true,
+  "seen": [
+   "AXGroup",
+   "Redstone lamp with a lever, open"
+  ]
+ },
+ {
+  "check": "down focuses Castle gate, Working",
+  "ok": true,
+  "seen": [
+   "AXGroup",
+   "Castle gate, Working"
+  ]
+ },
+ {
+  "check": "walking opened nothing",
+  "ok": true,
+  "seen": []
+ },
+ {
+  "check": "the focused row is not selected by walking",
+  "ok": true,
+  "seen": false
+ },
+ {
+  "check": "Space opens the focused row",
+  "ok": true,
+  "seen": [
+   {
+    "action": "opened chat",
+    "chat": "chat-gate",
+    "title": "Castle gate"
+   },
+   {
+    "action": "joined",
+    "chat": "chat-gate"
+   }
+  ]
+ },
+ {
+  "check": "the window's title follows",
+  "ok": true,
+  "seen": "Castle gate · mcbench-lite"
+ },
+ {
+  "check": "the opened row says open",
+  "ok": true,
+  "seen": [
+   "AXGroup",
+   "Castle gate, open, Working"
+  ]
+ },
+ {
+  "check": "Enter opens the focused row",
+  "ok": true,
+  "seen": [
+   {
+    "action": "joined",
+    "chat": "chat-gate"
+   },
+   {
+    "action": "opened chat",
+    "chat": "chat-farm",
+    "title": "Wheat farm"
+   }
+  ]
+ },
+ {
+  "check": "the open chat is marked seen at once",
+  "ok": true,
+  "seen": [
+   "Redstone lamp with a lever",
+   "Castle gate, Working",
+   "Wheat farm, open, Resolution: Very high (5×)"
+  ]
+ },
+ {
+  "check": "focus stays on the row after opening",
+  "ok": true,
+  "seen": [
+   "AXGroup",
+   "Wheat farm, open, Resolution: Very high (5×)"
+  ]
+ },
+ {
+  "note": "the search field",
+  "seen": {
+   "AXRole": "AXTextField",
+   "AXTitle": "Search chats",
+   "AXPlaceholderValue": "Search",
+   "AXValue": "",
+   "AXHelp": "<error -25212>"
+  }
+ },
+ {
+  "check": "the search field's placeholder",
+  "ok": true,
+  "seen": "Search"
+ },
+ {
+  "check": "the search narrows the list with the snippet in the name",
+  "ok": true,
+  "seen": [
+   "Castle gate, Working, …gate with a portcullis."
+  ]
+ },
+ {
+  "check": "the field holds the text",
+  "ok": true,
+  "seen": "portcullis"
+ },
+ {
+  "check": "Escape clears the search",
+  "ok": true,
+  "seen": [
+   "Redstone lamp with a lever",
+   "Castle gate, Working",
+   "Wheat farm, open, Resolution: Very high (5×)"
+  ]
+ },
+ {
+  "check": "Escape leaves the field",
+  "ok": true,
+  "seen": [
+   null,
+   null
+  ]
+ },
+ {
+  "note": "typing after Escape goes to",
+  "seen": [
+   [
+    "AXTextArea",
+    "Message"
+   ],
+   "nothing-like-this"
+  ]
+ },
+ {
+  "check": "Archive build archives the row",
+  "ok": true,
+  "seen": [
+   {
+    "action": "archive",
+    "chat": "chat-farm"
+   },
+   {
+    "action": "opened chat",
+    "chat": "chat-gate",
+    "title": "Castle gate"
+   },
+   {
+    "action": "joined",
+    "chat": "chat-gate"
+   }
+  ]
+ },
+ {
+  "check": "the open chat moves to the nearest row above",
+  "ok": true,
+  "seen": "Castle gate · mcbench-lite"
+ },
+ {
+  "check": "the list lost the row",
+  "ok": true,
+  "seen": [
+   "Redstone lamp with a lever",
+   "Castle gate, open, Working"
+  ]
+ }
+]

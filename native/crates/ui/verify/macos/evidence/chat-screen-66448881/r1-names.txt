@@ -1,0 +1,27 @@
+sh: line 4:   649 Terminated: 15          /usr/local/rig/mcbench-ui-dev --log /tmp/w.log > /tmp/w.out 2>&1
+hints (Speak instructions) now 0
+== launch (observer on): announcements at launch
+front: {"bundle":"","name":"mcbench-ui-dev","pid":756}
+== (1) Up/Down through messages, hints off (phrase 1 s after, and 3 s after)
+Shift-Tab	claude-opus-5-5, Yes: the base is still three by three, nine stone blocks, and nothing else moved. article 
+Home	You, Build a redstone lamp that turns on with a lever, and explain what you placed. article 
+Down	claude-opus-5-5, work article 
+Down	claude-opus-5-5, A lamp on a lever The lamp is built and wired. It lights when the lever is on and goes dark when it is off; the old torch is gone. The block that does the work is a redstone_lamp, and the wiki page on lamps has the details. What was placed A stone base, three by three The lamp on top powered from below with a lever on its west side A sign that says Pull me The program code, rust, 5 lines Blocks used table, 4 rows, 3 columns A lamp only needs power from one side: the lever powers the block it sits on, and that block powers the lamp. That is all. Pull the lever to test it. article 
+(3 s later)	claude-opus-5-5, A lamp on a lever The lamp is built and wired. It lights when the lever is on and goes dark when it is off; the old torch is gone. The block that does the work is a redstone_lamp, and the wiki page on lamps has the details. What was placed A stone base, three by three The lamp on top powered from below with a lever on its west side A sign that says Pull me The program code, rust, 5 lines Blocks used table, 4 rows, 3 columns A lamp only needs power from one side: the lever powers the block it sits on, and that block powers the lamp. That is all. Pull the lever to test it. article 
+Down	You, Put a label on the second lamp in English, Arabic, Hebrew, Japanese and Chinese. article 
+Up	claude-opus-5-5, A lamp on a lever The lamp is built and wired. It lights when the lever is on and goes dark when it is off; the old torch is gone. The block that does the work is a redstone_lamp, and the wiki page on lamps has the details. What was placed A stone base, three by three The lamp on top powered from below with a lever on its west side A sign that says Pull me The program code, rust, 5 lines Blocks used table, 4 rows, 3 columns A lamp only needs power from one side: the lever powers the block it sits on, and that block powers the lamp. That is all. Pull the lever to test it. article 
+== Right/Left through blocks of the long answer
+Right	heading level 1, A lamp on a lever group 
+Right	paragraph, The lamp is built and wired. It lights when the lever is on and goes dark when it is off; the old torch is gone. The block that does the work is a redstone_lamp, and the wiki page on lamps has the details. group 
+Right	heading level 2, What was placed group 
+Right	list, 3 items, A stone base, three by three The lamp on top powered from below with a lever on its west side A sign that says Pull me group 
+Right	heading level 2, The program group 
+Right	code, rust, 5 lines group 
+Right	heading level 2, Blocks used group 
+Right	table, 4 rows, 3 columns group 
+Right	quote, A lamp only needs power from one side: the lever powers the block it sits on, and that block powers the lamp. group 
+Right	paragraph, That is all. Pull the lever to test it. group 
+Right	paragraph, That is all. Pull the lever to test it. group 
+(3 s later)	paragraph, That is all. Pull the lever to test it. group 
+Left	quote, A lamp only needs power from one side: the lever powers the block it sits on, and that block powers the lamp. group 
+Left	table, 4 rows, 3 columns group 

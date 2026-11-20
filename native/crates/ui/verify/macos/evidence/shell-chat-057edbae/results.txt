@@ -1,0 +1,28 @@
+macOS guest (rig-s4 from rig-base-2, macOS 26), mcbench-ui-dev release built on the host at 057edbae, 2026-11-17.
+The guest was stopped at the coordinator's request (Mac on battery) after the parts below; the rest is not yet run.
+
+gate.py (regress, the gate's table on --fixture gate)
+  launch   frontmost at launch, the composer focused (AXFocused and the app's AXFocusedUIElement)        pass
+  tree     79 elements; every node with a role has bounds                                               pass
+  text     composer AXValue, AXSelectedTextRange, AXSelectedText follow typing, Alt-Left, Cmd-A, Delete pass
+  actions  link (logged), image (logged, opens the lightbox layer), Worked fold toggled twice by AXPress,
+           chat rows opened by AXPress, New chat                                                         pass
+  events   AXAnnouncementRequested once at the turn's end with the answer (3 of 4 runs; the first run of 4
+           saw none in the 16 s after the send: not concluded); the working line's AXTitleChanged once a
+           second ("Working for 1s" ...); the row's name "Redstone lamp with a lever, Working" while it runs pass*
+  keys     the whole Tab walk (15 stops) both ways; the list's Down, Up, End, Home, Return; the transcript's
+           Up, Down, Home, End, Page Up, Page Down; Cmd-A then Cmd-C copies the whole transcript          pass
+  select   drag across messages copies their text; double click a word; triple click a paragraph; Cmd-A pass
+  cell     drag from the first table cell copies the cells tab-separated and the text after it         pass
+  cache    a pointer moving over the window leaves the tree identical                                  pass
+  ime      composer: "nihongo" under Japanese shows 日本語 underlined in place, Return commits it; the
+           palette's field: "kouji" shows 工事 with the candidate window at the caret, Return commits and
+           the palette stays open (by hand after starting the input method from the menu bar; ime.json is
+           the run before the input method was started, plain letters)                                  pass
+  window, vo                                                                                             not run
+
+checks.py (s1)
+  sidebar  25 of 26: the open row is not AXSelected (the list is a List with aria-current; its AXHelp is
+           "open"): a contract-text difference, FOR-CHAT 1
+  archive  17 of 19: the restore step after a delete read an empty archived list (not concluded)
+  filters  19 of 20: Tab out of the menu sends focus to mcbuild with no ring (FOR-CHAT 2)

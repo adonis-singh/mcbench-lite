@@ -1,0 +1,26 @@
+Input: kb(desktop):shift+tab
+Speaking [LangChangeCommand ('en'), 'Conversation', 'grouping', CancellableSpeech (still valid)]
+Speaking [LangChangeCommand ('en'), 'claude-opus-5-5, Yes: the base is still three by three, nine stone blocks, and nothing else moved.', 'grouping', '9 of 9', CancellableSpeech (still valid)]
+Input: kb(desktop):upArrow
+Speaking [LangChangeCommand ('en'), 'You, Thanks. Is the base still three by three?', 'grouping', '8 of 9', CancellableSpeech (still valid)]
+Input: kb(desktop):tab
+Speaking [LangChangeCommand ('en'), 'Copy message', 'button', CancellableSpeech (still valid)]
+Input: kb(desktop):tab
+Speaking [LangChangeCommand ('en'), 'Edit and branch', 'button', CancellableSpeech (still valid)]
+Input: kb(desktop):enter
+Speaking [LangChangeCommand ('en'), 'unavailable']
+Speaking [LangChangeCommand ('en'), 'Message', 'edit', CancellableSpeech (still valid), 'Thanks. Is the base still three by three?']
+Input: kb(desktop):escape
+Input: kb(desktop):shift+tab
+Speaking [LangChangeCommand ('en'), 'Conversation', 'grouping', CancellableSpeech (still valid)]
+Speaking [LangChangeCommand ('en'), 'claude-opus-5-5, Yes: the base is still three by three, nine stone blocks, and nothing else moved.', 'grouping', '9 of 9', CancellableSpeech (still valid)]
+Input: kb(desktop):upArrow
+Speaking [LangChangeCommand ('en'), 'You, Thanks. Is the base still three by three?', 'grouping', '8 of 9', CancellableSpeech (still valid)]
+Input: kb(desktop):tab
+Speaking [LangChangeCommand ('en'), 'Copy message', 'button', CancellableSpeech (still valid)]
+Input: kb(desktop):tab
+Speaking [LangChangeCommand ('en'), 'Edit and branch', 'button', CancellableSpeech (still valid)]
+Input: kb(desktop):enter
+Speaking [LangChangeCommand ('en'), 'unavailable']
+Speaking [LangChangeCommand ('en'), 'Message', 'edit', CancellableSpeech (still valid), 'Thanks. Is the base still three by three?']
+Input: kb(desktop):escape

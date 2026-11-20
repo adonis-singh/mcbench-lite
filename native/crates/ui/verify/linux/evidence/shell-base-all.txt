@@ -1,0 +1,28 @@
+all.sh on adipc, shell-base, 2026-11-17 (both backends; Orca not run). dconf user file's time and the real at-spi listing before and after:
+2026-11-17 07:36:58.391877531 +0100
+bus_0
+check_tree-x11               app exit 0 check exit 0  | 1 of 1 passed
+check_text-x11               app exit 0 check exit 0  | 177 of 177 passed
+check_actions-x11            app exit 0 check exit 0  | 37 of 37 passed
+check_keyboard-x11           app exit 0 check exit 0  | 53 of 53 passed
+check_selection-x11          app exit 0 check exit 0  | 9 of 9 passed
+check_quit-x11               app exit 0 check exit 0  | 2 of 2 passed
+check_long-x11               app exit 0 check exit 0  | 4 of 4 passed
+check_layout-x11             app exit 0 check exit 0  | 18 of 18 passed
+check_gallery-x11            app exit 0 check exit 0  | 22 of 22 passed
+check_tree-wayland           app exit 0 check exit 0  | 1 of 1 passed
+check_text-wayland           app exit 0 check exit 0  | 177 of 177 passed
+check_actions-wayland        app exit 0 check exit 0  | 37 of 37 passed
+check_keyboard-wayland       app exit 0 check exit 0  | 53 of 53 passed
+check_selection-wayland      app exit 0 check exit 0  | 9 of 9 passed
+check_quit-wayland           app exit 0 check exit 0  | 2 of 2 passed
+check_long-wayland           app exit 0 check exit 0  | 4 of 4 passed
+check_layout-wayland         app exit 0 check exit 1  | 14 of 18 passed
+check_gallery-wayland        app exit 0 check exit 0  | 22 of 22 passed
+2026-11-17 07:36:58.391877531 +0100
+bus_0
+
+check_layout.py after the pointer priming fix (each alone):
+check_layout-wayland     app exit 0 check exit 0  | 18 of 18 passed
+check_layout-x11         app exit 0 check exit 0  | 18 of 18 passed
+Every run's privacy verdict: private: snapshots equal, 0 findings.

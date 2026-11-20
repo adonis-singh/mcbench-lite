@@ -1,0 +1,152 @@
+[
+ {
+  "check": "one list per round",
+  "ok": true,
+  "detail": "['Benches', 'Prompts', 'Round 1', 'Round 2', 'Round 3']"
+ },
+ {
+  "check": "eight rows a round, by letter while blind",
+  "ok": true,
+  "detail": "24"
+ },
+ {
+  "check": "the running, failed and stopped models say so",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "a hidden bench shows no time or tokens",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "Tab reaches a round's vote",
+  "ok": true,
+  "detail": "Pick Build A as the best build"
+ },
+ {
+  "check": "the vote shows as the pick, pressed",
+  "ok": true,
+  "detail": "[\"toggle button 'Take back the pick of Build A'\"]"
+ },
+ {
+  "check": "the vote is announced",
+  "ok": true,
+  "detail": "['Ticks since the build was placed: 323 ticks', 'Your pick for this round: Build A', '']"
+ },
+ {
+  "check": "the vote reached the core",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "the round switch is a group of buttons",
+  "ok": true,
+  "detail": "1"
+ },
+ {
+  "check": "a press shows round 1",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "the round's button is pressed",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "Reveal models is offered while blind",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "Reveal asks first",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "revealed: the models' names",
+  "ok": true,
+  "detail": "['Castle with a moat, open, Working', 'Village houses', 'Towers and a bridge', 'Castle with a moat']"
+ },
+ {
+  "check": "gpt-5.5 twice: each with its effort",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "each row opens its model's chat",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "a member's chat has no composer",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "its breadcrumb goes back",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "Fork to Build is offered",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "the fork opens Build",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "the leaderboard is a table",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "one row a model",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "New bench is offered",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "the new bench asks its question",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "the Bench models picker is there",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "two models chosen from the picker by keyboard",
+  "ok": true,
+  "detail": "11"
+ },
+ {
+  "check": "the new bench opens its comparison",
+  "ok": true,
+  "detail": "[{'action': 'opened', 'place': '/bench'}, {'action': 'opened', 'place': '/bench/bench-new-1'}]"
+ },
+ {
+  "check": "the comparison's composer attaches files",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "the round's picture is in its prompt",
+  "ok": true,
+  "detail": "[\"Open Build A's chat\", \"Open Build B's chat\", 'Attach file', 'Send to every model', 'Compass / Face North', 'Export as a Minecraft world (a zip to unpack in .minecraft/saves)', 'Fill the window', 'Zoom in', 'Zoom out', 'Pause', 'Step one tick', 'Restart from the build']"
+ },
+ {
+  "check": "the round's picture opens the lightbox",
+  "ok": true,
+  "detail": ""
+ }
+]

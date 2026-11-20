@@ -1,0 +1,11 @@
+== W5 paste of a clipboard picture (Clipboard.SetImage of a PNG)
+clipboard holds an image: True
+Input: kb(desktop):control+v
+Input: kb(desktop):shift+tab
+Speaking ['image.png, jpeg', 'grouping']
+Speaking ['Remove attachment', 'button']
+Input: kb(desktop):shift+tab
+Speaking ['Conversation', 'grouping']
+Speaking ['claude-opus-5-5, Yes: the base is still three by three, nine stone blocks, and nothing else moved.', 'grouping', '9 of 9']
+{"action":"opened chat","chat":"chat-lamp","title":"Redstone lamp with a lever"}
+{"action":"read","files":["image.png"]}

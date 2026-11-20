@@ -1,0 +1,7 @@
+element: Group name="" lct="group" id="" fw="AccessKit" enabled=1 kbfocusable=0 focus=0 offscreen=0 ctl=1 content=1 rect=[298,-17,940x46] set=0/9 patterns=[Value,Text,LegacyIAccessible] value="The lamp is built and wired. It lights when the lever is on and goes dark when it is off; the old torch is gone. The block that does the work is a redstone_lamp, and the wiki page on lamps has the details." readonly=1 text="The lamp is built and wired. It lights when the lever is on and goes dark when it is off; the old torch is gone. The block that does the work is a redstone_lamp, and the wiki page on lamps has the details."
+document: "The lamp is built and wired. It lights when the lever is on and goes dark when it is off; the old torch is gone. The block that does the work is a redstone_lamp, and the wiki page on lamps has the details." (205 UTF-16 units)
+supported selection: 0
+line[0] = "The lamp is built and wired. It lights when the lever is on and goes dark when it is off; the old torch is gone. The block that does the work is a "
+line[1] = "redstone_lamp, and the wiki page on lamps has the details."
+line count: 2
+caret: no TextPattern2

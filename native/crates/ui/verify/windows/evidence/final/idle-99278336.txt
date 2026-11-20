@@ -1,0 +1,15 @@
+log C:\winvm\guié14-071.log
+A active, composer focused, within 10 s of a key (8 s window), load: 8.44, 10.60, 15.16:
+8 s: 14 presents (498 frame callbacks), CPU 1,281 ms = 15.98% of one core
+B active, composer focused, from about 15 s after the last key (20 s), load: 7.44, 10.23, 14.94:
+20 s: 0 presents (1242 frame callbacks), CPU 109 ms = 0.55% of one core
+C window inactive (20 s), load: 5.84, 9.63, 14.62:
+21 s: 0 presents (1305 frame callbacks), CPU 125 ms = 0.62% of one core
+D active, focus on a message (20 s), load: 5.22, 9.19, 14.34:
+21 s: 0 presents (1303 frame callbacks), CPU 156 ms = 0.78% of one core
+B' as B with --a11y-dump and a UIA client having activated the tree (20 s), load: 12.47, 10.46, 14.40:
+0 s: 0 presents (0 frame callbacks), CPU 0 ms = 0.00% of one core
+gpui-pre examples/a11y.rs, active, idle (20 s), load: 7.96, 9.56, 13.95:
+a11y-example: 94 ms CPU in 20,024 ms = 0.47% of one core; working set 28 MB
+B' as B with --a11y-dump and a UIA client having activated the tree (20 s), load: 4.75, 8.24, 13.15:
+20 s: 0 presents (1241 frame callbacks), CPU 297 ms = 1.48% of one core

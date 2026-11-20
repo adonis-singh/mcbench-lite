@@ -1,0 +1,163 @@
+The transcript as a web area or a document, with an AT-SPI Collection patch (2026-11-17, adipc, Xvfb :97, Orca 51.1 from source).
+
+Keys sent by the experiment after Orca starts: Shift+Tab (to the transcript), Home, Down x3, H (x2; x8 on the long fixture), K, L, T, Tab.
+Orca ran its default script (the app is not a Gecko, Chromium or WebKit toolkit) and entered browse mode on the transcript.
+Every H, K and L search went through Collection.GetMatches and returned at most one match: the virtual list has only the rows on screen in the tree.
+On the long fixture (400 messages, a "Step N" heading every fourth message) H found "Step 395" each time and wrapped.
+T found nothing (the adapter has no Table interface).
+Down in browse mode read "blank": the arrows went to Orca's caret navigation, not to the app's message navigation.
+The patch was dropped and the transcript stays a Region.
+
+== RootWebArea (document web), gate fixture
+speech:
+  Screen reader on.
+  mcbench-lite — Redstone lamp with a lever
+  Message entry
+  left shift
+  Browse mode
+  Conversation document web
+  claude-opus-5-5
+  message
+  blank
+  h
+  Wrapping to top.
+  Labels in three scripts heading 3
+  h
+  Wrapping to top.
+  Labels in three scripts heading 3
+  k
+  Wrapping to top.
+  the lever page link
+  l
+  Wrapping to top.
+  t
+  No more tables.
+  tab
+  Message entry
+  Screen reader off.
+Collection results:
+  AXUtilitiesCollection: ax_utilities_collection._find_all_with_role Root: [document web: 'Conversation' (0x7ff142855240)] any of: [heading]
+  AXCollection: 1 match(es) found in 0.0013 s
+  AXUtilitiesCollection: ax_utilities_collection._find_all_with_role Root: [document web: 'Conversation' (0x7ff142855240)] any of: [heading]
+  AXCollection: 1 match(es) found in 0.0013 s
+  AXUtilitiesCollection: ax_utilities_collection.find_all_with_role_and_all_states Root: [document web: 'Conversation' (0x7ff142855240)] Roles: [link] States: [focusable]
+  AXCollection: 1 match(es) found in 0.0012 s
+  AXUtilitiesCollection: ax_utilities_collection._find_all_with_role Root: [document web: 'Conversation' (0x7ff142855240)] any of: [list, description-list, page-tab-list]
+  AXCollection: 1 match(es) found in 0.0016 s
+  AXCollection: 0 match(es) found in 0.0014 s
+
+== Document (document frame), gate fixture
+speech:
+  Screen reader on.
+  mcbench-lite — Redstone lamp with a lever
+  Message entry
+  left shift
+  Browse mode
+  Conversation document frame Labels in three scripts
+  claude-opus-5-5
+  message
+  blank
+  mcbench-lite — Redstone lamp with a lever
+  Browse mode
+  Conversation document frame Labels in three scripts
+  claude-opus-5-5
+  message
+  h
+  Wrapping to top.
+  Labels in three scripts heading 3
+  h
+  Wrapping to top.
+  Labels in three scripts heading 3
+  k
+  Wrapping to top.
+  the lever page link
+  l
+  Wrapping to top.
+  t
+  No more tables.
+  tab
+  Message entry
+  Screen reader off.
+Collection results:
+  AXUtilitiesCollection: ax_utilities_collection._find_all_with_role Root: [document frame: 'Conversation' (0x7f505d5ae0c0)] any of: [heading]
+  AXCollection: 1 match(es) found in 0.0021 s
+  AXUtilitiesCollection: ax_utilities_collection._find_all_with_role Root: [document frame: 'Conversation' (0x7f505d5ae0c0)] any of: [heading]
+  AXCollection: 1 match(es) found in 0.0016 s
+  AXUtilitiesCollection: ax_utilities_collection.find_all_with_role_and_all_states Root: [document frame: 'Conversation' (0x7f505d5ae0c0)] Roles: [link] States: [focusable]
+  AXCollection: 1 match(es) found in 0.0016 s
+  AXUtilitiesCollection: ax_utilities_collection._find_all_with_role Root: [document frame: 'Conversation' (0x7f505d5ae0c0)] any of: [list, description-list, page-tab-list]
+  AXCollection: 1 match(es) found in 0.0015 s
+  AXCollection: 0 match(es) found in 0.0016 s
+
+== Document (document frame), long fixture
+speech:
+  Screen reader on.
+  mcbench-lite — Four hundred messages
+  Message entry
+  left shift
+  Browse mode
+  Conversation document frame The lamp sits on a stone base. Redstone dust carries power for fifteen blocks. A repeater adds a delay of one to four ticks. 
+  claude-opus-5-5
+  message
+  blank
+  mcbench-lite — Four hundred messages
+  Browse mode
+  Conversation document frame The lamp sits on a stone base. Redstone dust carries power for fifteen blocks. A repeater adds a delay of one to four ticks. 
+  claude-opus-5-5
+  message
+  h
+  Wrapping to top.
+  Step 395 heading 2
+  h
+  Wrapping to top.
+  Step 395 heading 2
+  h
+  Wrapping to top.
+  Step 395 heading 2
+  h
+  Wrapping to top.
+  Step 395 heading 2
+  h
+  Wrapping to top.
+  Step 395 heading 2
+  h
+  Wrapping to top.
+  Step 395 heading 2
+  h
+  Wrapping to top.
+  Step 395 heading 2
+  h
+  Wrapping to top.
+  Step 395 heading 2
+  k
+  No more links.
+  l
+  Wrapping to top.
+  t
+  No more tables.
+  tab
+  Message entry
+  Screen reader off.
+Collection results:
+  AXUtilitiesCollection: ax_utilities_collection._find_all_with_role Root: [document frame: 'Conversation' (0x7fa96c6fe300)] any of: [heading]
+  AXCollection: 1 match(es) found in 0.0047 s
+  AXUtilitiesCollection: ax_utilities_collection._find_all_with_role Root: [document frame: 'Conversation' (0x7fa96c6fe300)] any of: [heading]
+  AXCollection: 1 match(es) found in 0.0014 s
+  AXUtilitiesCollection: ax_utilities_collection._find_all_with_role Root: [document frame: 'Conversation' (0x7fa96c6fe300)] any of: [heading]
+  AXCollection: 1 match(es) found in 0.0033 s
+  AXUtilitiesCollection: ax_utilities_collection._find_all_with_role Root: [document frame: 'Conversation' (0x7fa96c6fe300)] any of: [heading]
+  AXCollection: 1 match(es) found in 0.0014 s
+  AXUtilitiesCollection: ax_utilities_collection._find_all_with_role Root: [document frame: 'Conversation' (0x7fa96c6fe300)] any of: [heading]
+  AXCollection: 1 match(es) found in 0.0014 s
+  AXUtilitiesCollection: ax_utilities_collection._find_all_with_role Root: [document frame: 'Conversation' (0x7fa96c6fe300)] any of: [heading]
+  AXCollection: 1 match(es) found in 0.0012 s
+  AXUtilitiesCollection: ax_utilities_collection._find_all_with_role Root: [document frame: 'Conversation' (0x7fa96c6fe300)] any of: [heading]
+  AXCollection: 1 match(es) found in 0.0015 s
+  AXUtilitiesCollection: ax_utilities_collection._find_all_with_role Root: [document frame: 'Conversation' (0x7fa96c6fe300)] any of: [heading]
+  AXCollection: 1 match(es) found in 0.0013 s
+  AXUtilitiesCollection: ax_utilities_collection.find_all_with_role_and_all_states Root: [document frame: 'Conversation' (0x7fa96c6fe300)] Roles: [link] States: [focusable]
+  AXCollection: 0 match(es) found in 0.0011 s
+  AXUtilitiesCollection: ax_utilities_collection._find_all_with_role Root: [document frame: 'Conversation' (0x7fa96c6fe300)] any of: [list, description-list, page-tab-list]
+  AXCollection: 1 match(es) found in 0.0014 s
+  AXCollection: 0 match(es) found in 0.0013 s
+

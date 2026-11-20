@@ -1,0 +1,60 @@
+[package]
+name = "mcbench-tools"
+description = "The tools models call: build, test_build, see_build, bash, view_image, prompt_library"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+mcbench-spawn.workspace = true
+async-trait.workspace = true
+tokio = { workspace = true, features = ["rt", "sync", "time", "macros", "process"] }
+tokio-util.workspace = true
+# share: the share id, and the wait for GitHub Pages over HTTPS.
+sha2.workspace = true
+reqwest.workspace = true
+rustls.workspace = true
+webpki-roots.workspace = true
+mcbench-world.workspace = true
+mcbench-engine.workspace = true
+mcbench-render.workspace = true
+mcbench-build.workspace = true
+mcbench-sandbox.workspace = true
+mcbench-store.workspace = true
+mcbench-json.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+indexmap.workspace = true
+getrandom.workspace = true
+flate2.workspace = true
+base64.workspace = true
+libm.workspace = true
+# share_viewer: BlueMap's pin and download (with reqwest and sha2 above), the
+# zip reader.
+mcbench-setup.workspace = true
+crc32fast.workspace = true
+
+[target.'cfg(unix)'.dependencies]
+libc.workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros", "test-util", "time", "net", "io-util"] }
+regex.workspace = true
+tempfile.workspace = true
+# The see_build differential's Rust side draws with the app's renderer.
+mcbench-draw.workspace = true
+
+[target.'cfg(windows)'.dev-dependencies]
+windows-sys = { workspace = true, features = ["Win32_Foundation", "Win32_System_Threading"] }
+
+# Its own main: the cases run one after another on one engine; the build
+# child is the real mcbench-build-child (mcbench_build::child_program).
+[[test]]
+name = "ported"
+path = "tests/ported/main.rs"
+harness = false
+
+[lints]
+workspace = true

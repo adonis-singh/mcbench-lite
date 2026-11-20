@@ -1,0 +1,65 @@
+[package]
+name = "mcbench-lite"
+description = "The mcbench-lite binary: the app's core and window, the headless mode, the tool bridge, the sandbox agent"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lib]
+name = "mcbench_lite"
+path = "src/lib.rs"
+
+[[bin]]
+name = "mcbench-lite"
+path = "src/main.rs"
+
+[features]
+# The shipped Minecraft data embedded (mcbench-setup's feature of that name,
+# on in every release build): `app` unpacks it into the data folder.
+shipped-data = ["mcbench-setup/shipped-data"]
+
+[dependencies]
+mcbench-ui.workspace = true
+mcbench-headless.workspace = true
+mcbench-providers.workspace = true
+mcbench-sandbox.workspace = true
+mcbench-agent.workspace = true
+mcbench-store.workspace = true
+mcbench-tools.workspace = true
+mcbench-build.workspace = true
+mcbench-engine.workspace = true
+mcbench-setup.workspace = true
+mcbench-world.workspace = true
+mcbench-render.workspace = true
+mcbench-draw.workspace = true
+mcbench-json.workspace = true
+mcbench-updater.workspace = true
+async-trait.workspace = true
+base64.workspace = true
+indexmap.workspace = true
+reqwest.workspace = true
+regex.workspace = true
+serde_json.workspace = true
+tokio = { workspace = true, features = ["rt", "rt-multi-thread", "sync", "time", "macros", "fs"] }
+tokio-util.workspace = true
+
+# The machine's offset from UTC, for a world export's zip dates (`live/`).
+[target.'cfg(unix)'.dependencies]
+libc = "=0.2.191"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "=0.61.2", features = ["Win32_Foundation", "Win32_System_Console", "Win32_System_Time"] }
+
+[dev-dependencies]
+flate2.workspace = true
+# The shared preview decoded (`tests/share_real.rs`): the interface's version.
+image = "=0.25.10"
+png.workspace = true
+rusqlite.workspace = true
+sha2.workspace = true
+tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros", "test-util"] }
+
+[lints]
+workspace = true

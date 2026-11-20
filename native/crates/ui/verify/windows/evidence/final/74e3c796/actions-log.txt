@@ -1,0 +1,6 @@
+{"action":"opened chat","chat":"chat-lamp","title":"Redstone lamp with a lever"}
+{"action":"sent","text":"Again"}
+{"action":"sent","text":"Again"}
+{"action":"opened chat","chat":"chat-farm","title":"Wheat farm"}
+{"action":"sent","text":"Fail"}
+{"action":"sent","text":"Fail"}

@@ -1,0 +1,43 @@
+Speaking ['Desktop', 'list']
+Speaking ['Recycle Bin', 'not selected', '1 of 3']
+Speaking ['mcbench-lite — Redstone lamp with a lever', 'window']
+Speaking ['Message', 'edit', 'blank']
+Input: kb(desktop):tab
+Speaking ['New chat', 'button']
+Input: kb(desktop):tab
+Speaking ['Chats', 'list']
+Speaking ['Redstone lamp with a lever', 'open', '1 of 3']
+Input: kb(desktop):downArrow
+Speaking ['Castle gate', '2 of 3']
+Input: kb(desktop):downArrow
+Speaking ['Wheat farm', '3 of 3']
+Input: kb(desktop):upArrow
+Speaking ['Castle gate', '2 of 3']
+Input: kb(desktop):upArrow
+Speaking ['Redstone lamp with a lever', 'open', '1 of 3']
+Input: kb(desktop):tab
+Speaking ['Conversation', 'grouping']
+Speaking ['claude-opus-5-5', 'grouping', 'message, Yes: the base is still three by three, nine stone blocks, and nothing else moved.', '9 of 9']
+Input: kb(desktop):upArrow
+Speaking ['You', 'grouping', 'message, Thanks. Is the base still three by three?', '8 of 9']
+Input: kb(desktop):upArrow
+Speaking ['claude-opus-5-5', 'grouping', 'message, Here is the view from the south-east after the change:\nBoth lamps are lit. See the lever page if you want a different facing.', '7 of 9']
+Input: kb(desktop):home
+Speaking ['You', 'grouping', 'message, Build a redstone lamp that turns on with a lever, and explain what you placed.', '1 of 9']
+Input: kb(desktop):downArrow
+Speaking ['claude-opus-5-5', 'grouping', 'work', '2 of 9']
+Input: kb(desktop):tab
+Speaking ['Worked · 2 steps', 'button', 'collapsed']
+Speaking ['expanded']
+Speaking ['collapsed']
+Input: kb(desktop):enter
+Speaking ['expanded']
+Speaking ['Message', 'edit', 'blank']
+Input: kb(desktop):enter
+Speaking ['Adding a third lamp now. It goes two blocks east of the second one, on the same stone row, with its own lever.\nExtend the stone base by two blocks\nPlace the lamp and the lever\nTest both levers\nThe first two lamps stay as they are, so nothing you built before changes.']
+Input: kb(desktop):enter
+Input: kb(desktop):tab
+Speaking ['Stop', 'button']
+Input: kb(desktop):enter
+Speaking ['Message', 'edit', 'blank']
+Speaking ['Adding a third lamp now. It goes two blocks east']

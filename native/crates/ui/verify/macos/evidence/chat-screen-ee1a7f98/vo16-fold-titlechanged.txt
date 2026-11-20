@@ -1,0 +1,5 @@
+Tab (fold)	Worked · 2 steps collapsed button 
+VO-Space	 
+Space	You are currently on a button, inside of a article. To click this button, press Control-Option-Space. To exit this group, press Control-Option-Shift-Up Arrow. 
+AXPress	Worked · 2 steps 
+AXPress	Worked · 2 steps 

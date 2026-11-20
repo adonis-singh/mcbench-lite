@@ -23,6 +23,10 @@ pub struct Paths {
     pub render_layers: PathBuf,
     pub entities: PathBuf,
     pub client_jar: PathBuf,
+    // `night.json`, Minecraft's night for the live view (live/night.rs);
+    // the helper, which draws see_build's day alone, takes none.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub night: Option<PathBuf>,
     // Linux: the software floor's driver library shipped beside the helper.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub software_vulkan: Option<PathBuf>,
@@ -34,10 +38,16 @@ impl Paths {
     // files itself.
     pub fn of_data(data: &Path) -> Result<Paths, String> {
         let bluemap = data.join("minecraft-live/bluemap");
-        let bake = only(&bluemap, |name| name.len() == 16 && name.chars().all(|c| c.is_ascii_hexdigit()))?;
+        let bake = only(&bluemap, |name| {
+            name.len() == 16 && name.chars().all(|c| c.is_ascii_hexdigit())
+        })?;
         let paper = data.join("minecraft-live/paper");
-        let table = only(&paper, |name| name.starts_with("block-table-") && name.ends_with(".tsv"))?;
-        let jar = only(&bluemap.join("data"), |name| name.starts_with("minecraft-client-") && name.ends_with(".jar"))?;
+        let table = only(&paper, |name| {
+            name.starts_with("block-table-") && name.ends_with(".tsv")
+        })?;
+        let jar = only(&bluemap.join("data"), |name| {
+            name.starts_with("minecraft-client-") && name.ends_with(".jar")
+        })?;
         Ok(Paths {
             pack: bake.join("web/mcbench-pack.bin"),
             textures: bake.join("web/maps/live/textures.json"),
@@ -47,6 +57,9 @@ impl Paths {
             render_layers: bake.join("render-layers.tsv"),
             entities: bake.join("web/mcbench-entities.json"),
             client_jar: jar,
+            // A data folder of today's bake has no night; one a test or
+            // tool put beside it is read.
+            night: Some(data.join("night.json")).filter(|p| p.is_file()),
             software_vulkan: None,
         })
     }
@@ -61,7 +74,11 @@ fn only(folder: &Path, wanted: impl Fn(&str) -> bool) -> Result<PathBuf, String>
         .collect();
     match found.as_slice() {
         [one] => Ok(one.clone()),
-        _ => Err(format!("{} holds {} matching entries, not one", folder.display(), found.len())),
+        _ => Err(format!(
+            "{} holds {} matching entries, not one",
+            folder.display(),
+            found.len()
+        )),
     }
 }
 
@@ -87,10 +104,20 @@ pub struct Atlas {
 // the next power of two, four alpha-aware mip levels (`halve`), and each
 // texture's box.
 pub fn block_atlas(png: &[u8], map: &[u8]) -> Result<Atlas, String> {
-    let image = image::load_from_memory(png).map_err(|e| format!("atlas.png: {e}"))?.to_rgba8();
+    let image = image::load_from_memory(png)
+        .map_err(|e| format!("atlas.png: {e}"))?
+        .to_rgba8();
     let side = image.width().max(image.height()).next_power_of_two();
     let mut base = vec![0u8; (side * side * 4) as usize];
-    blit(&mut base, side, image.as_raw(), image.width(), image.height(), 0, 0);
+    blit(
+        &mut base,
+        side,
+        image.as_raw(),
+        image.width(),
+        image.height(),
+        0,
+        0,
+    );
     let mut levels = vec![base];
     let mut width = side;
     for _ in 0..4 {
@@ -98,22 +125,43 @@ pub fn block_atlas(png: &[u8], map: &[u8]) -> Result<Atlas, String> {
         width /= 2;
         levels.push(next);
     }
-    let map: serde_json::Map<String, serde_json::Value> = serde_json::from_slice(map).map_err(|e| format!("atlas_map.json: {e}"))?;
+    let map: serde_json::Map<String, serde_json::Value> =
+        serde_json::from_slice(map).map_err(|e| format!("atlas_map.json: {e}"))?;
     let mut boxes = HashMap::new();
     for (id, value) in map {
         let v: Vec<u32> = value
             .as_array()
             .ok_or("atlas_map.json has an entry that is not a list")?
             .iter()
-            .map(|n| n.as_u64().map(|n| n as u32).ok_or("atlas_map.json has a box that is not whole numbers"))
+            .map(|n| {
+                n.as_u64()
+                    .map(|n| n as u32)
+                    .ok_or("atlas_map.json has a box that is not whole numbers")
+            })
             .collect::<Result<_, _>>()?;
-        let [u, v0, du, dv] = v[..] else { return Err(format!("atlas_map.json's box for {id} is not four numbers")) };
+        let [u, v0, du, dv] = v[..] else {
+            return Err(format!("atlas_map.json's box for {id} is not four numbers"));
+        };
         // Animated textures are vertical strips: the first square frame.
-        let dv = if du != dv && id.starts_with("block/") { du } else { dv };
-        let key = if id.contains(':') { id } else { format!("minecraft:{id}") };
+        let dv = if du != dv && id.starts_with("block/") {
+            du
+        } else {
+            dv
+        };
+        let key = if id.contains(':') {
+            id
+        } else {
+            format!("minecraft:{id}")
+        };
         boxes.insert(key, [u, v0, u + du, v0 + dv]);
     }
-    Ok(Atlas { side, levels, boxes, pixel: [1.0 / side as f32; 2], mipmapped: true })
+    Ok(Atlas {
+        side,
+        levels,
+        boxes,
+        pixel: [1.0 / side as f32; 2],
+        mipmapped: true,
+    })
 }
 
 fn blit(dst: &mut [u8], side: u32, src: &[u8], width: u32, height: u32, x: u32, y: u32) {
@@ -180,31 +228,58 @@ fn halve(src: &[u8], width: u32) -> Vec<u8> {
 // bake takes it.
 pub fn entity_atlas(json: &serde_json::Value, jar: &Path) -> Result<Atlas, String> {
     let atlas = &json["atlas"];
-    let width = atlas["width"].as_u64().ok_or("The entity capture's atlas has no width")? as u32;
-    let height = atlas["height"].as_u64().ok_or("The entity capture's atlas has no height")? as u32;
-    let rects = atlas["rects"].as_object().ok_or("The entity capture's atlas has no rects")?;
+    let width = atlas["width"]
+        .as_u64()
+        .ok_or("The entity capture's atlas has no width")? as u32;
+    let height = atlas["height"]
+        .as_u64()
+        .ok_or("The entity capture's atlas has no height")? as u32;
+    let rects = atlas["rects"]
+        .as_object()
+        .ok_or("The entity capture's atlas has no rects")?;
     let side = width.max(height).next_power_of_two();
     let mut pixels = vec![0u8; (side * side * 4) as usize];
     // The jar read whole (one read instead of thousands of small ones),
     // each texture's PNG and animation file taken from it, then decoded in
     // parallel.
-    let mut zip = zip::ZipArchive::new(std::io::Cursor::new(read(jar)?)).map_err(|e| format!("{}: {e}", jar.display()))?;
+    let mut zip = zip::ZipArchive::new(std::io::Cursor::new(read(jar)?))
+        .map_err(|e| format!("{}: {e}", jar.display()))?;
     let mut wanted = Vec::new();
     for (name, rect) in rects {
-        let r: Vec<u32> = rect.as_array().ok_or("An entity atlas rect is not a list")?.iter().map(|v| v.as_u64().unwrap_or(u64::MAX) as u32).collect();
-        let [x, y, w, h] = r[..] else { return Err(format!("The entity atlas rect of {name} is not four numbers")) };
+        let r: Vec<u32> = rect
+            .as_array()
+            .ok_or("An entity atlas rect is not a list")?
+            .iter()
+            .map(|v| v.as_u64().unwrap_or(u64::MAX) as u32)
+            .collect();
+        let [x, y, w, h] = r[..] else {
+            return Err(format!(
+                "The entity atlas rect of {name} is not four numbers"
+            ));
+        };
         if x + w > width || y + h > height {
-            return Err(format!("The entity atlas rect of {name} lies outside the atlas"));
+            return Err(format!(
+                "The entity atlas rect of {name} lies outside the atlas"
+            ));
         }
-        let (space, path) = name.split_once(':').ok_or_else(|| format!("The entity texture {name} has no namespace"))?;
+        let (space, path) = name
+            .split_once(':')
+            .ok_or_else(|| format!("The entity texture {name} has no namespace"))?;
         let entry = format!("assets/{space}/textures/{path}.png");
         let mut bytes = Vec::new();
-        zip.by_name(&entry).map_err(|e| format!("{entry} in the client jar: {e}"))?.read_to_end(&mut bytes).map_err(|e| format!("{entry}: {e}"))?;
+        zip.by_name(&entry)
+            .map_err(|e| format!("{entry} in the client jar: {e}"))?
+            .read_to_end(&mut bytes)
+            .map_err(|e| format!("{entry}: {e}"))?;
         let animated = match zip.by_name(&format!("{entry}.mcmeta")) {
             Ok(mut meta) => {
                 let mut text = String::new();
-                meta.read_to_string(&mut text).map_err(|e| format!("{entry}.mcmeta: {e}"))?;
-                serde_json::from_str::<serde_json::Value>(&text).map_err(|e| format!("{entry}.mcmeta: {e}"))?.get("animation").is_some()
+                meta.read_to_string(&mut text)
+                    .map_err(|e| format!("{entry}.mcmeta: {e}"))?;
+                serde_json::from_str::<serde_json::Value>(&text)
+                    .map_err(|e| format!("{entry}.mcmeta: {e}"))?
+                    .get("animation")
+                    .is_some()
             }
             Err(zip::result::ZipError::FileNotFound) => false,
             Err(e) => return Err(format!("{entry}.mcmeta: {e}")),
@@ -215,29 +290,60 @@ pub fn entity_atlas(json: &serde_json::Value, jar: &Path) -> Result<Atlas, Strin
     let decoded: Vec<(String, image::RgbaImage, [u32; 4])> = wanted
         .into_par_iter()
         .map(|(name, entry, bytes, animated, [x, y, w, h])| {
-            let image = image::load_from_memory_with_format(&bytes, image::ImageFormat::Png).map_err(|e| format!("{entry}: {e}"))?.to_rgba8();
-            let frame_height = if animated { image.width() } else { image.height() };
+            let image = image::load_from_memory_with_format(&bytes, image::ImageFormat::Png)
+                .map_err(|e| format!("{entry}: {e}"))?
+                .to_rgba8();
+            let frame_height = if animated {
+                image.width()
+            } else {
+                image.height()
+            };
             if image.width() != w || frame_height != h {
-                return Err(format!("{entry} is {}x{frame_height}; the entity capture placed it as {w}x{h}", image.width()));
+                return Err(format!(
+                    "{entry} is {}x{frame_height}; the entity capture placed it as {w}x{h}",
+                    image.width()
+                ));
             }
             Ok((name, image, [x, y, w, h]))
         })
         .collect::<Result<_, String>>()?;
     let mut boxes = HashMap::new();
     for (name, image, [x, y, w, h]) in decoded {
-        blit(&mut pixels, side, &image.as_raw()[..(w * h * 4) as usize], w, h, x, y);
+        blit(
+            &mut pixels,
+            side,
+            &image.as_raw()[..(w * h * 4) as usize],
+            w,
+            h,
+            x,
+            y,
+        );
         boxes.insert(name, [x, y, x + w, y + h]);
     }
     let longest = width.max(height) as f32;
     let s = side as f32;
-    Ok(Atlas { side, levels: vec![pixels], boxes, pixel: [width as f32 / (longest * s), height as f32 / (longest * s)], mipmapped: false })
+    Ok(Atlas {
+        side,
+        levels: vec![pixels],
+        boxes,
+        pixel: [width as f32 / (longest * s), height as f32 / (longest * s)],
+        mipmapped: false,
+    })
 }
 
 // By the pack's material index, the texture's resource path (BlueMap's
 // textures.json).
 pub fn material_names(bytes: &[u8]) -> Result<Vec<String>, String> {
-    let list: Vec<serde_json::Value> = serde_json::from_slice(bytes).map_err(|e| format!("textures.json: {e}"))?;
-    list.iter().map(|t| t["resourcePath"].as_str().map(str::to_string).ok_or_else(|| "textures.json has an entry without a resourcePath".to_string())).collect()
+    let list: Vec<serde_json::Value> =
+        serde_json::from_slice(bytes).map_err(|e| format!("textures.json: {e}"))?;
+    list.iter()
+        .map(|t| {
+            t["resourcePath"]
+                .as_str()
+                .map(str::to_string)
+                .ok_or_else(|| "textures.json has an entry without a resourcePath".to_string())
+        })
+        .collect()
 }
 
 // What see_build's page knows of each pack state from the block table and
@@ -257,7 +363,11 @@ pub fn facts(table: &str, layers: &str, pack: &Pack) -> Result<Vec<Facts>, Strin
         return Err("The block table is too short".into());
     }
     lines.truncate(lines.len() - 3);
-    let states: Vec<Vec<&str>> = lines.iter().filter(|l| !l.starts_with("default\t")).map(|l| l.split('\t').collect::<Vec<_>>()).collect();
+    let states: Vec<Vec<&str>> = lines
+        .iter()
+        .filter(|l| !l.starts_with("default\t"))
+        .map(|l| l.split('\t').collect::<Vec<_>>())
+        .collect();
     let mut blended = Vec::new();
     let mut layer_lines = Vec::new();
     for line in layers.lines().filter(|l| !l.is_empty()) {
@@ -268,19 +378,41 @@ pub fn facts(table: &str, layers: &str, pack: &Pack) -> Result<Vec<Facts>, Strin
         }
     }
     if layer_lines.len() != states.len() {
-        return Err(format!("The render layers have {} states, the block table {}", layer_lines.len(), states.len()));
+        return Err(format!(
+            "The render layers have {} states, the block table {}",
+            layer_lines.len(),
+            states.len()
+        ));
     }
     let mut out = vec![Facts::default(); pack.states.len()];
-    let layer = |text: &str| -> Result<bool, String> { blended.get(text.parse::<usize>().map_err(|e| format!("render layer {text}: {e}"))?).copied().ok_or_else(|| format!("No render layer {text}")) };
+    let layer = |text: &str| -> Result<bool, String> {
+        blended
+            .get(
+                text.parse::<usize>()
+                    .map_err(|e| format!("render layer {text}: {e}"))?,
+            )
+            .copied()
+            .ok_or_else(|| format!("No render layer {text}"))
+    };
     for (fields, line) in states.iter().zip(&layer_lines) {
         if fields.len() < 4 || line.len() < 3 {
-            return Err(format!("A block table or render layer line is short: {}", fields[0]));
+            return Err(format!(
+                "A block table or render layer line is short: {}",
+                fields[0]
+            ));
         }
         if fields[0] != line[0] {
-            return Err(format!("The render layers name {} where the block table names {}", line[0], fields[0]));
+            return Err(format!(
+                "The render layers name {} where the block table names {}",
+                line[0], fields[0]
+            ));
         }
         let state = pack.named(fields[0])?;
-        out[state as usize] = Facts { full: fields[3] == "63", model_blended: layer(line[1])?, fluid_blended: layer(line[2])? };
+        out[state as usize] = Facts {
+            full: fields[3] == "63",
+            model_blended: layer(line[1])?,
+            fluid_blended: layer(line[2])?,
+        };
     }
     Ok(out)
 }
@@ -312,10 +444,25 @@ pub fn overworld(jar: &Path) -> Result<Level, String> {
     let mut zip = zip::ZipArchive::new(file).map_err(|e| format!("{}: {e}", jar.display()))?;
     const NAME: &str = "data/minecraft/dimension_type/overworld.json";
     let mut text = String::new();
-    std::io::Read::read_to_string(&mut zip.by_name(NAME).map_err(|e| format!("{}: {NAME}: {e}", jar.display()))?, &mut text).map_err(|e| format!("{}: {NAME}: {e}", jar.display()))?;
-    let json: serde_json::Value = serde_json::from_str(&text).map_err(|e| format!("{}: {NAME}: {e}", jar.display()))?;
-    let field = |k: &str| json[k].as_i64().map(|v| v as i32).ok_or(format!("{}: {NAME} has no {k}", jar.display()));
-    Ok(Level { min_y: field("min_y")?, height: field("height")? })
+    std::io::Read::read_to_string(
+        &mut zip
+            .by_name(NAME)
+            .map_err(|e| format!("{}: {NAME}: {e}", jar.display()))?,
+        &mut text,
+    )
+    .map_err(|e| format!("{}: {NAME}: {e}", jar.display()))?;
+    let json: serde_json::Value =
+        serde_json::from_str(&text).map_err(|e| format!("{}: {NAME}: {e}", jar.display()))?;
+    let field = |k: &str| {
+        json[k]
+            .as_i64()
+            .map(|v| v as i32)
+            .ok_or(format!("{}: {NAME} has no {k}", jar.display()))
+    };
+    Ok(Level {
+        min_y: field("min_y")?,
+        height: field("height")?,
+    })
 }
 
 pub struct EntityAssets {
@@ -325,14 +472,25 @@ pub struct EntityAssets {
 
 impl Assets {
     pub fn load(paths: &Paths) -> Result<Assets, String> {
-        let pack = Pack::read(&read(&paths.pack)?).map_err(|e| format!("{}: {e}", paths.pack.display()))?;
+        let pack = Pack::read(&read(&paths.pack)?)
+            .map_err(|e| format!("{}: {e}", paths.pack.display()))?;
         let names = material_names(&read(&paths.textures)?)?;
-        let table = String::from_utf8(read(&paths.block_table)?).map_err(|_| "The block table is not UTF-8".to_string())?;
-        let layers = String::from_utf8(read(&paths.render_layers)?).map_err(|_| "The render layers are not UTF-8".to_string())?;
+        let table = String::from_utf8(read(&paths.block_table)?)
+            .map_err(|_| "The block table is not UTF-8".to_string())?;
+        let layers = String::from_utf8(read(&paths.render_layers)?)
+            .map_err(|_| "The render layers are not UTF-8".to_string())?;
         let facts = facts(&table, &layers, &pack)?;
         let atlas = block_atlas(&read(&paths.atlas)?, &read(&paths.atlas_map)?)?;
         let level = overworld(&paths.client_jar)?;
-        Ok(Assets { pack, names, facts, atlas, paths: paths.clone(), level, entity: std::sync::OnceLock::new() })
+        Ok(Assets {
+            pack,
+            names,
+            facts,
+            atlas,
+            paths: paths.clone(),
+            level,
+            entity: std::sync::OnceLock::new(),
+        })
     }
 
     // Whether a world with entities has loaded the capture.
@@ -340,11 +498,17 @@ impl Assets {
         self.entity.get().is_some()
     }
 
+    // The entity assets, if something has loaded them.
+    pub fn entity_assets(&self) -> Option<&EntityAssets> {
+        self.entity.get()
+    }
+
     pub fn entity(&self) -> Result<&EntityAssets, String> {
         if let Some(e) = self.entity.get() {
             return Ok(e);
         }
-        let json: serde_json::Value = serde_json::from_slice(&read(&self.paths.entities)?).map_err(|e| format!("{}: {e}", self.paths.entities.display()))?;
+        let json: serde_json::Value = serde_json::from_slice(&read(&self.paths.entities)?)
+            .map_err(|e| format!("{}: {e}", self.paths.entities.display()))?;
         let atlas = entity_atlas(&json, &self.paths.client_jar)?;
         let capture = crate::entities::Capture::new(json)?;
         let _ = self.entity.set(EntityAssets { capture, atlas });

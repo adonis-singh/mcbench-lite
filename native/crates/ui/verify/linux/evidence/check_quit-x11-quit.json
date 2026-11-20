@@ -1,0 +1,12 @@
+[
+ {
+  "check": "the app's window is found and asked to close",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "closing the window ends the process within 5 s",
+  "ok": true,
+  "detail": ""
+ }
+]

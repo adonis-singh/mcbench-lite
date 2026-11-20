@@ -1,0 +1,8 @@
+front: {"bundle":"","name":"mcbench-ui-dev","pid":1304}
+application mcbench-lite — stopped window Quit button has keyboard focus
+focus: ['Quit']
+Space: process gone
+segv exit 139
+mcbench-lite 0.1.0 pid 1337: fatal SIGSEGV
+new reports: []
+no crash dialog

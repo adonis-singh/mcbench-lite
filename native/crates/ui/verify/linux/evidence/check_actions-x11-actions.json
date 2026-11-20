@@ -1,0 +1,187 @@
+[
+ {
+  "check": "Send is enabled with text",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "Send pressed through AT-SPI",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "Stop is present while the turn streams",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "the transcript is busy while streaming",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "Stop pressed through AT-SPI",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "Stop is gone after the turn",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "Send is back",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "the transcript is not busy after the turn",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "the polite status holds the answer",
+  "ok": true,
+  "detail": "Adding a third lamp now. It goes two blocks east of the seco"
+ },
+ {
+  "check": "New chat pressed through AT-SPI",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "a chat row pressed through AT-SPI",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "the first chat opened again",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "a message takes focus through AT-SPI",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "the fold is collapsed",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "the fold expanded through AT-SPI",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "the tool row is collapsed",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "the tool row toggled through AT-SPI",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "the tool row is expanded",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "its details are labelled by the row",
+  "ok": true,
+  "detail": "panel"
+ },
+ {
+  "check": "Copy code present",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "Copy code pressed through AT-SPI",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "the link is present with its address",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "the link's URI",
+  "ok": true,
+  "detail": "https://minecraft.wiki/w/Redstone_Lamp"
+ },
+ {
+  "check": "the link activated through AT-SPI",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "the image is present with its alt text",
+  "ok": true,
+  "detail": "The two lamps on their stone base, seen from the south-east"
+ },
+ {
+  "check": "the image activated through AT-SPI",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "the error is in the assertive region",
+  "ok": true,
+  "detail": "The provider refused the request: rate limited (a fixture error)"
+ },
+ {
+  "check": "the error is announced",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "the error item's text",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "Dismiss error pressed through AT-SPI",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "the error item is gone",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "events of object:state-changed:focused",
+  "ok": true,
+  "detail": "31"
+ },
+ {
+  "check": "events of object:text-changed:insert",
+  "ok": true,
+  "detail": "28"
+ },
+ {
+  "check": "events of object:children-changed:add",
+  "ok": true,
+  "detail": "59"
+ },
+ {
+  "check": "events of object:state-changed:busy",
+  "ok": true,
+  "detail": "4"
+ },
+ {
+  "check": "events of object:state-changed:expanded",
+  "ok": true,
+  "detail": "2"
+ },
+ {
+  "check": "an announcement or a name change of the live region",
+  "ok": true,
+  "detail": ""
+ }
+]

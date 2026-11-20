@@ -1,0 +1,27 @@
+{
+ "most_listed": {
+  "open": 416,
+  "key": 416,
+  "scroll": 416
+ },
+ "timings": {
+  "open": {
+   "count": 22,
+   "p50_ms": 13.59,
+   "p90_ms": 14.55,
+   "max_ms": 24.88
+  },
+  "key": {
+   "count": 46,
+   "p50_ms": 11.08,
+   "p90_ms": 13.47,
+   "max_ms": 322.83
+  },
+  "scroll": {
+   "count": 40,
+   "p50_ms": 12.15,
+   "p90_ms": 12.81,
+   "max_ms": 13.27
+  }
+ }
+}

@@ -1,0 +1,54 @@
+[
+ {
+  "check": "a send while setup runs is held, with its line",
+  "ok": true,
+  "seen": {
+   "AXRole": "AXGroup",
+   "AXSubrole": "AXApplicationStatus",
+   "AXRoleDescription": "group",
+   "AXTitle": "Sends when the app is ready. 1 of 2 done.",
+   "AXValue": "<error -25212>",
+   "AXHelp": "<error -25212>",
+   "AXEnabled": true,
+   "AXFocused": false,
+   "AXPosition": [
+    330,
+    715
+   ],
+   "AXSize": [
+    508.5,
+    24
+   ]
+  }
+ },
+ {
+  "check": "and its Don't send button",
+  "ok": true,
+  "seen": null
+ },
+ {
+  "check": "nothing is sent meanwhile",
+  "ok": true,
+  "seen": null
+ },
+ {
+  "check": "Don't send drops the hold and keeps the text",
+  "ok": true,
+  "seen": "Hold this"
+ },
+ {
+  "check": "sent again, it is held again",
+  "ok": true,
+  "seen": null
+ },
+ {
+  "check": "it goes when the running step finishes",
+  "ok": true,
+  "seen": null
+ },
+ {
+  "check": "the line is gone",
+  "ok": true,
+  "seen": null
+ }
+]

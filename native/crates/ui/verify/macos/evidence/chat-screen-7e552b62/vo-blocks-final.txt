@@ -1,0 +1,36 @@
+Speak instructions for using the item in the VoiceOver cursor 1
+hints now 0
+=== hints off: messages
+Home	You, message, Build a redstone lamp that turns on with a lever, and explain what you placed. article 
+Up	You, message, Build a redstone lamp that turns on with a lever, and explain what you placed. article 
+Down	claude-opus-5-5, work article 
+Down (long answer)	claude-opus-5-5, message, A lamp on a lever The lamp is built and wired. It lights when the lever is on and goes dark when it is off; the old torch is gone. The block that does the work is a redstone_lamp, and the wiki page on lamps has the details. What was placed A stone base, three by three The lamp on top powered from below with a lever on its west side A sign that says Pull me The program fn build(world: &mut World) {     world.fill((0, 0, 0), (2, 0, 2), "stone");     world.set((1, 1, 1), "redstone_lamp");     world.set((0, 1, 1), "lever[face=floor,facing=west]"); } Blocks used Block, Count, Light stone, 9, 0 redstone_lamp, 1, 15 lever, 1, 0 A lamp only needs power from one side: the lever powers the block it sits on, and that block powers the lamp. That is all. Pull the lever to test it. article 
+=== blocks with Right (2.5 s after each: no hint should follow)
+Right	heading level 1, A lamp on a lever group 
+Right	paragraph, The lamp is built and wired. It lights when the lever is on and goes dark when it is off; the old torch is gone. The block that does the work is a redstone_lamp, and the wiki page on lamps has the details. group 
+Right	heading level 2, What was placed group 
+Right	list, 3 items, A stone base, three by three The lamp on top powered from below with a lever on its west side A sign that says Pull me group 
+Right	heading level 2, The program group 
+Right	code, rust group 
+Right	heading level 2, Blocks used group 
+Right	table, 4 rows group 
+Right	quote, A lamp only needs power from one side: the lever powers the block it sits on, and that block powers the lamp. group 
+Right	paragraph, That is all. Pull the lever to test it. group 
+Left	quote, A lamp only needs power from one side: the lever powers the block it sits on, and that block powers the lamp. group 
+Left	table, 4 rows group 
+Left	heading level 2, Blocks used group 
+=== into the table block
+Right	table, 4 rows group 
+Right	quote, A lamp only needs power from one side: the lever powers the block it sits on, and that block powers the lamp. group 
+VO-Shift-Down	In quote, A lamp only needs power from one side: the lever powers the block it sits on, and that block powers the lamp. group A lamp only needs power from one side: the lever powers the block it sits on, and that block powers the lamp. 
+VO-Shift-Down (into the table)	In text A lamp only needs power from one side: the lever powers the block it sits on, and that block powers the lamp. 
+VO-Right	A 
+VO-Down	 lamp only needs power from one side: the lever powers the block it sits on, and that block powers the lamp. 
+=== into the code block
+Left	table, 4 rows group 
+Left	heading level 2, Blocks used group 
+VO-Shift-Down	In heading level 2, Blocks used group heading level 2 Blocks used 
+VO-Right	heading level 2 Blocks used 
+VO-Shift-Down (into the code)	In heading level 2 Blocks used content is empty 
+VO-Down (next line)	empty heading level 2 Blocks used 
+VO-Down (next line)	empty heading level 2 Blocks used 

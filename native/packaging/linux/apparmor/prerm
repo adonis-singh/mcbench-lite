@@ -1,0 +1,10 @@
+#!/bin/sh
+# The .deb's prerm: on removal, unloads the app's AppArmor profile when it is
+# loaded and removes /etc/apparmor.d/mcbench-lite when postinst installed it.
+set -e
+if [ "$1" = remove ]; then
+  if grep -q '^mcbench-lite ' /sys/kernel/security/apparmor/profiles 2>/dev/null; then
+    apparmor_parser -R /etc/apparmor.d/mcbench-lite
+  fi
+  rm -f /etc/apparmor.d/mcbench-lite
+fi

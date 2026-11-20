@@ -1,0 +1,28 @@
+ AXApplication None 'mcbench-ui-dev' 'None' None None None
+0 AXWindow AXStandardWindow 'mcbench-lite — stopped' 'None' None False ['AXRaise']
+0.0 AXGroup AXUnknown None 'None' None False None
+0.1 AXButton AXCloseButton None 'None' None False ['AXPress']
+0.2 AXButton AXFullScreenButton None 'None' this button also has an action to zoom the window False ['AXPress', 'AXZoomWindow', 'AXShowMenu']
+0.2.0 AXGroup None None 'None' None False None
+0.3 AXButton AXMinimizeButton None 'None' None False ['AXPress']
+0.4 AXStaticText None None 'mcbench-lite — stopped' None False None
+VO-Home	missing value 
+VO-Right	Welcome to macOS. VoiceOver is on. 
+VO-Right	Quit button 
+VO-Right	Quit button 
+Tab	Quit button 
+Tab	Quit button 
+fatal screen Space on Quit: process gone
+== panic: exit 101; stderr: v::crash_later::{closure#0}, ()>::{closure#1} as core::ops::function::FnOnce<()>>::call_once::{shim:vtable#0}   10: <std::sys::thread::unix::Thread>::new::thread_start   11: __pthread_cond_wait  crash log: <TMPDIR> 
+   crash log: crash-1794889697-896.log crash-signals.log  mcbench-lite 0.1.0 panicked thread: unnamed message: a panic on purpose (--crash panic) location: crates/ui/src/bin/mcbench-ui-dev/main.rs:107:24 pid: 896  backtrace:    0: <backtrace::capture::Backtrace>::create    1: <backtrace::capture::Backtrace>::new    2: mcbench_ui::crash::install::{closure#1
+   windows with a crash dialog: 
+== abort: exit 134; stderr: 
+   crash log: crash-signals.log  mcbench-lite 0.1.0 pid 921: fatal SIGABRT 
+   windows with a crash dialog: 
+== segv: exit 139; stderr: 
+   crash log: crash-signals.log  mcbench-lite 0.1.0 pid 946: fatal SIGSEGV 
+   windows with a crash dialog: 
+== objc: exit 134; stderr: fatal runtime error: Rust cannot catch foreign exceptions, aborting 
+   crash log: crash-signals.log  mcbench-lite 0.1.0 pid 971: fatal SIGABRT 
+   windows with a crash dialog: 
+new DiagnosticReports: 

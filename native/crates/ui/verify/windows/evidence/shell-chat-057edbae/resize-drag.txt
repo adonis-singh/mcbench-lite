@@ -1,0 +1,15 @@
+live resize: pointer drag of the right edge 1324 -> 924 -> 1324 in 10 px steps, trace binary:  14:28:07 up 3 days,  1:31,  4 users,  load average: 4.45, 3.27, 3.00
+drag took 16 s
+gatewin-rate frames/s 100 presents/s 7
+gatewin-rate frames/s 117 presents/s 7
+gatewin-rate frames/s 106 presents/s 7
+gatewin-rate frames/s 134 presents/s 7
+gatewin-rate frames/s 108 presents/s 7
+gatewin-rate frames/s 111 presents/s 7
+gatewin-rate frames/s 125 presents/s 5
+gatewin-rate frames/s 135 presents/s 5
+gatewin-rate frames/s 121 presents/s 5
+gatewin-rate frames/s 93 presents/s 6
+gatewin-rate frames/s 112 presents/s 5
+gatewin-rate frames/s 100 presents/s 7
+ 14:28:25 up 3 days,  1:32,  4 users,  load average: 3.72, 3.18, 2.98

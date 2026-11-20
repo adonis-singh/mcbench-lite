@@ -1,0 +1,34 @@
+Speaking ['Desktop', 'list']
+Speaking ['Recycle Bin', 'not selected', '1 of 3']
+Speaking ['mcbench-lite — Redstone lamp with a lever', 'window']
+Speaking ['Message', 'edit', 'blank']
+Input: kb(desktop):tab
+Speaking ['New chat', 'button']
+Input: kb(desktop):tab
+Speaking ['Chats', 'list']
+Speaking ['Redstone lamp with a lever', 'open', '1 of 3']
+Input: kb(desktop):downArrow
+Speaking ['Castle gate', '2 of 3']
+Input: kb(desktop):downArrow
+Speaking ['Wheat farm', '3 of 3']
+Input: kb(desktop):upArrow
+Speaking ['Castle gate', '2 of 3']
+Input: kb(desktop):upArrow
+Speaking ['Redstone lamp with a lever', 'open', '1 of 3']
+Input: kb(desktop):tab
+Speaking ['Conversation', 'grouping']
+Speaking ['claude-opus-5-5', 'grouping', 'message, Yes: the base is still three by three, nine stone blocks, and nothing else moved.', '9 of 9']
+Input: kb(desktop):upArrow
+Speaking ['You', 'grouping', 'message, Thanks. Is the base still three by three?', '8 of 9']
+Input: kb(desktop):upArrow
+Speaking ['claude-opus-5-5', 'grouping', 'message, Here is the view from the south-east after the change:\nBoth lamps are lit. See the lever page if you want a different facing.', '7 of 9']
+Input: kb(desktop):home
+Speaking ['You', 'grouping', 'message, Build a redstone lamp that turns on with a lever, and explain what you placed.', '1 of 9']
+Input: kb(desktop):downArrow
+Speaking ['claude-opus-5-5', 'grouping', 'work', '2 of 9']
+Input: kb(desktop):tab
+Speaking ['Worked · 2 steps', 'button', 'collapsed']
+Speaking ['expanded']
+Speaking ['collapsed']
+Input: kb(desktop):enter
+Speaking ['expanded']

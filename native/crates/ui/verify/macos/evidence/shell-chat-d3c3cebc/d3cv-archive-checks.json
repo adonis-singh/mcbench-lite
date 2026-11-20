@@ -1,0 +1,315 @@
+[
+ {
+  "check": "Show archived is a button, collapsed",
+  "ok": true,
+  "seen": {
+   "AXRole": "AXButton",
+   "AXSubrole": "AXUnknown",
+   "AXRoleDescription": "button",
+   "AXTitle": "Show archived",
+   "AXValue": "<error -25212>",
+   "AXHelp": "<error -25212>",
+   "AXEnabled": true,
+   "AXFocused": false,
+   "AXExpanded": false,
+   "AXPosition": [
+    93,
+    788
+   ],
+   "AXSize": [
+    123,
+    32
+   ]
+  }
+ },
+ {
+  "check": "Enter opens it and the toggle says Hide archived, expanded",
+  "ok": true,
+  "seen": {
+   "AXRole": "AXButton",
+   "AXSubrole": "AXUnknown",
+   "AXRoleDescription": "button",
+   "AXTitle": "Hide archived",
+   "AXValue": "<error -25212>",
+   "AXHelp": "<error -25212>",
+   "AXEnabled": true,
+   "AXFocused": true,
+   "AXExpanded": true,
+   "AXPosition": [
+    93,
+    744
+   ],
+   "AXSize": [
+    118,
+    32
+   ]
+  }
+ },
+ {
+  "check": "the archived rows are an AXList named Archived",
+  "ok": true,
+  "seen": {
+   "path": "0.0.7",
+   "AXRole": "AXList",
+   "AXSubrole": "AXUnknown",
+   "AXRoleDescription": "list",
+   "AXTitle": "Archived",
+   "AXEnabled": true,
+   "AXFocused": false,
+   "AXPosition": [
+    93,
+    776
+   ],
+   "AXSize": [
+    209,
+    44
+   ]
+  }
+ },
+ {
+  "check": "a row says its time left",
+  "ok": true,
+  "seen": [
+   "Old windmill, 5 days left"
+  ]
+ },
+ {
+  "check": "Space closes it",
+  "ok": true,
+  "seen": null
+ },
+ {
+  "check": "AXPress opens it",
+  "ok": true,
+  "seen": null
+ },
+ {
+  "note": "the archived row and its buttons",
+  "seen": [
+   {
+    "AXRole": "AXGroup",
+    "AXSubrole": "AXUnknown",
+    "AXRoleDescription": "group",
+    "AXTitle": "Old windmill, 5 days left",
+    "AXValue": "<error -25212>",
+    "AXHelp": "<error -25212>",
+    "AXEnabled": true,
+    "AXFocused": false,
+    "AXSelected": false,
+    "AXPosition": [
+     93,
+     778
+    ],
+    "AXSize": [
+     209,
+     38
+    ]
+   },
+   {
+    "AXRole": "AXButton",
+    "AXSubrole": "AXUnknown",
+    "AXRoleDescription": "button",
+    "AXTitle": "Restore",
+    "AXValue": "<error -25212>",
+    "AXHelp": "Restore to the list and open it",
+    "AXEnabled": true,
+    "AXFocused": false,
+    "AXPosition": [
+     240,
+     783
+    ],
+    "AXSize": [
+     28,
+     28
+    ]
+   },
+   {
+    "AXRole": "AXButton",
+    "AXSubrole": "AXUnknown",
+    "AXRoleDescription": "button",
+    "AXTitle": "Delete permanently",
+    "AXValue": "<error -25212>",
+    "AXHelp": "Delete permanently: this cannot be undone",
+    "AXEnabled": true,
+    "AXFocused": false,
+    "AXPosition": [
+     270,
+     783
+    ],
+    "AXSize": [
+     28,
+     28
+    ]
+   }
+  ]
+ },
+ {
+  "check": "Delete permanently says it cannot be undone",
+  "ok": true,
+  "seen": "Delete permanently: this cannot be undone"
+ },
+ {
+  "check": "Restore says what it does",
+  "ok": true,
+  "seen": "Restore to the list and open it"
+ },
+ {
+  "check": "the first press arms it: the button is named Delete for good",
+  "ok": true,
+  "seen": [
+   "Old windmill, Delete for good?",
+   "Restore",
+   "Delete for good"
+  ]
+ },
+ {
+  "check": "armed, its help says to click again",
+  "ok": true,
+  "seen": "Click again to delete it for good"
+ },
+ {
+  "check": "the row's name says Delete for good?",
+  "ok": true,
+  "seen": [
+   "Delete for good",
+   "Delete for good?"
+  ]
+ },
+ {
+  "check": "focus stays on the button",
+  "ok": true,
+  "seen": [
+   "AXButton",
+   "Delete for good"
+  ]
+ },
+ {
+  "check": "after 4 s it is Delete permanently again",
+  "ok": true,
+  "seen": [
+   "Delete permanently",
+   "Delete for good?"
+  ]
+ },
+ {
+  "note": "notifications while arming",
+  "seen": [
+   {
+    "note": "AXTitleChanged",
+    "role": "AXGroup",
+    "label": "Delete for good?",
+    "info": {}
+   },
+   {
+    "note": "AXAnnouncementRequested",
+    "role": "AXWindow",
+    "label": "Redstone lamp with a lever · mcbench-lite",
+    "info": {
+     "AXAnnouncementKey": "Delete for good?",
+     "AXPriorityKey": 50
+    }
+   },
+   {
+    "note": "AXTitleChanged",
+    "role": "AXGroup",
+    "label": "Old windmill, Delete for good?",
+    "info": {}
+   },
+   {
+    "note": "AXTitleChanged",
+    "role": "AXButton",
+    "label": "Delete for good",
+    "info": {}
+   },
+   {
+    "note": "AXUIElementDestroyed",
+    "role": "",
+    "label": null,
+    "info": null
+   },
+   {
+    "note": "AXTitleChanged",
+    "role": "AXButton",
+    "label": "Delete permanently",
+    "info": {}
+   },
+   {
+    "note": "AXTitleChanged",
+    "role": "AXGroup",
+    "label": "Old windmill, 5 days left",
+    "info": {}
+   }
+  ]
+ },
+ {
+  "check": "arming announces Delete for good? once, and disarming nothing",
+  "ok": true,
+  "seen": [
+   "Delete for good?"
+  ]
+ },
+ {
+  "check": "two presses within 4 s delete it",
+  "ok": true,
+  "seen": [
+   {
+    "action": "delete armed",
+    "id": "chat-windmill"
+   },
+   {
+    "action": "delete",
+    "id": "chat-windmill"
+   },
+   {
+    "action": "focus restored"
+   }
+  ]
+ },
+ {
+  "check": "the row is gone",
+  "ok": true,
+  "seen": null
+ },
+ {
+  "check": "with nothing archived the toggle is gone",
+  "ok": true,
+  "seen": []
+ },
+ {
+  "check": "archiving a chat brings the section back",
+  "ok": true,
+  "seen": [
+   "Archive build",
+   "Archive build",
+   "Show archived"
+  ]
+ },
+ {
+  "check": "the archived chat says 7 days left",
+  "ok": true,
+  "seen": [
+   "Wheat farm, 7 days left"
+  ]
+ },
+ {
+  "check": "Space on Restore restores it and opens it",
+  "ok": true,
+  "seen": "Wheat farm · mcbench-lite"
+ },
+ {
+  "check": "the row is back in the list",
+  "ok": true,
+  "seen": [
+   "Redstone lamp with a lever",
+   "Castle gate",
+   "Wheat farm, open, Resolution: Very high (5×)"
+  ]
+ },
+ {
+  "note": "focus after Restore",
+  "seen": [
+   "AXGroup",
+   "Wheat farm, open, Resolution: Very high (5×)"
+  ]
+ }
+]

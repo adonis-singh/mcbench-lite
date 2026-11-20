@@ -1,0 +1,3 @@
+== launch (no activation)
+Speaking ['Desktop', 'list']
+Speaking ['Recycle Bin', 'not selected', '1 of 3']

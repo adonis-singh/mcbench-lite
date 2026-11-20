@@ -1,0 +1,42 @@
+Speaking ['Desktop', 'list']
+Speaking ['Recycle Bin', 'not selected', '1 of 3']
+Speaking ['You, Put a label on the second lamp in English, Arabic, Hebrew, Japanese and Chinese.']
+Speaking ['mcbench-lite — Redstone lamp with a lever', 'window']
+Speaking ['Message', 'edit', 'blank']
+Input: kb(desktop):tab
+Speaking ['New chat', 'button']
+Input: kb(desktop):tab
+Speaking ['Chats', 'list']
+Speaking ['Redstone lamp with a lever', 'open', '1 of 3']
+Input: kb(desktop):downArrow
+Speaking ['Castle gate', '2 of 3']
+Input: kb(desktop):downArrow
+Speaking ['Wheat farm', '3 of 3']
+Input: kb(desktop):upArrow
+Speaking ['Castle gate', '2 of 3']
+Input: kb(desktop):upArrow
+Speaking ['Redstone lamp with a lever', 'open', '1 of 3']
+Input: kb(desktop):downArrow
+Speaking ['Castle gate', '2 of 3']
+Input: kb(desktop):enter
+Speaking ['Castle gate']
+Input: kb(desktop):upArrow
+Speaking ['Redstone lamp with a lever', '1 of 3']
+Input: kb(desktop):enter
+Speaking ['Redstone lamp with a lever']
+Input: kb(desktop):tab
+Speaking ['Conversation', 'grouping']
+Speaking ['claude-opus-5-5, Yes: the base is still three by three, nine stone blocks, and nothing else moved.', 'grouping', '9 of 9']
+Input: kb(desktop):upArrow
+Speaking ['You, Thanks. Is the base still three by three?', 'grouping', '8 of 9']
+Input: kb(desktop):rightArrow
+Speaking ['paragraph, Thanks. Is the base still three by three?', 'grouping']
+Input: kb(desktop):rightArrow
+Input: kb(desktop):leftArrow
+Speaking ['You, Thanks. Is the base still three by three?', 'grouping', '8 of 9']
+Input: kb(desktop):home
+Speaking ['You, Build a redstone lamp that turns on with a lever, and explain what you placed.', 'grouping', '1 of 9']
+Input: kb(desktop):downArrow
+Speaking ['claude-opus-5-5, work', 'grouping', '2 of 9']
+Input: kb(desktop):downArrow
+Speaking ['claude-opus-5-5, A lamp on a lever\nThe lamp is built and wired. It lights when the lever is on and goes dark when it is off; the old torch is gone. The block that does the work is a redstone_lamp, and the wiki page on lamps has the details.\nWhat was placed\nA stone base, three by three\nThe lamp on top\npowered from below\nwith a lever on its west side\nA sign that says Pull me\nThe program\ncode, rust, 5 lines\nBlocks used\ntable, 4 rows, 3 columns\nA lamp only needs power from one side: the lever powers the block it sits on, and that block powers the lamp.\nThat is all. Pull the lever to test it.', 'grouping', '3 of 9']

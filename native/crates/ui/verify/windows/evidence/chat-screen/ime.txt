@@ -1,0 +1,2 @@
+preedit, UIA value: value="にほんご"
+after commit, UIA value: value="日本語"

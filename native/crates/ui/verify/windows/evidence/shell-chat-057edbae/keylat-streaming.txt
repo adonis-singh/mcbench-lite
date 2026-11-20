@@ -1,0 +1,6 @@
+1
+keylat, long fixture, while a turn streams (--turn full --rate-ms 500):  14:24:46 up 3 days,  1:28,  4 users,  load average: 1.74, 2.40, 2.73
+key-to-screen ms over 30: median 67.4, min 62.9, max 95.0; all 62.9 63.3 63.6 64.1 79.5 64.0 95.0 64.3 66.7 95.0 80.6 64.1 79.2 79.4 67.1 63.6 79.1 79.2 79.4 67.7 63.5 67.4 79.4 63.9 64.1 63.0 94.8 79.1 63.1 78.4
+exit=0 
+1
+ 14:25:09 up 3 days,  1:28,  4 users,  load average: 3.01, 2.64, 2.80

@@ -1,0 +1,17 @@
+[
+ {
+  "check": "the prompt is 20,000 characters or more",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "the app wrote its metrics",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "keys were timed",
+  "ok": true,
+  "detail": "{\"count\": 42, \"mean\": 40.165, \"p50\": 35.652, \"p99\": 124.077, \"worst\": 124.077}"
+ }
+]

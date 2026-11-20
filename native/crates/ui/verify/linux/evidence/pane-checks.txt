@@ -1,0 +1,91 @@
+# pane agent, 2026-11-18, adipc: verify/linux/all.sh's pane block on the dev binary of s4-pane after ebc6e08a (the cover's Preparing the live world, a double click in player mode)
+== check_pane-x11-dark
+ok      the pane is a canvas named Live Minecraft world
+ok      it is described by its state: Redstone lamp with a lever, 897 blocks, playing
+ok      the tick counter counts (the stand-in's 20 ticks a second): ['Ticks since the build was placed: 24 ticks'] ['Ticks since the build was placed: 54 ticks']
+ok      Tab reaches the pane after the chat column: canvas 'Live Minecraft world'
+ok      W held moves the camera (the picture changed)
+ok      W stays with the pane (nothing typed in the composer): ''
+ok      Enter uses the block at the centre and the polite region says it: ['Grass Block at 19, 63, 1, takes no input']
+ok      Tab reaches Pause: button 'Pause'
+ok      Space pauses: the button reads Play
+ok      paused: the pane says so: Redstone lamp with a lever, 897 blocks, paused
+ok      a click on a block is announced: ['Grass Block at 16, 63, 5, takes no input']
+ok      the clicked block's label shows
+ok      a right drag turns the camera
+ok      the narrow bar hides Day/Night and the view switch (BlueMap's thin-hide)
+ok      the bar is one line along the pane's top: 501x32
+ok      Fill fills the window: the pane from the top left, the window's size: 0,0 1280x820
+ok      filling the window, the bar shows all of BlueMap's controls on one line: 1264x32
+ok      one wheel notch sends one Wheel of 3 lines, zooming in: [{'action': 'wheel', 'delta': -3.0, 'lines': True}]
+ok      at a 640 px pane the x and z fields keep room for their numbers (60 px or more each): [71, 71]
+ok      Day/Night switches to night
+ok      the selection tool is on
+ok      the box lands in the composer as a chip: Remove Grass Block, middle
+ok      Escape stops the selection tool
+ok      player mode stands beside the build
+ok      a click takes the pointer (the lock): [{'action': 'pointer', 'captured': True, 'yaw': -62.99160385131836}]
+ok      the look follows relative motion past the window's edge (2000 px moved, more than the window's width): yaw turned 300.0 degrees
+ok      Escape frees the pointer first: [{'action': 'pointer', 'captured': True, 'yaw': -62.99160385131836}, {'action': 'pointer', 'captured': False}]
+ok      the pointer is back where it was taken: (640, 440) -> (640, 440)
+ok      the window losing focus frees the pointer: [{'action': 'pointer', 'captured': True, 'yaw': 237.00840759277344}, {'action': 'pointer', 'captured': False}]
+ok      Escape puts it back beside the chat
+ok      the .schem is saved where --save-to says: ['Redstone lamp with a lever.schem']
+ok      the polite region says where it went: ['Saved Redstone lamp with a lever.schem']
+ok      locked again before quitting: {'action': 'pointer', 'captured': True, 'yaw': -62.99160385131836}
+ok      quitting while locked leaves no grab: grab status 0
+34 of 34 passed
+== check_pane-wayland-dark
+ok      the pane is a canvas named Live Minecraft world
+ok      it is described by its state: Redstone lamp with a lever, 897 blocks, playing
+ok      the tick counter counts (the stand-in's 20 ticks a second): ['Ticks since the build was placed: 29 ticks'] ['Ticks since the build was placed: 59 ticks']
+ok      Tab reaches the pane after the chat column: canvas 'Live Minecraft world'
+ok      W held moves the camera (the picture changed)
+ok      W stays with the pane (nothing typed in the composer): ''
+ok      Enter uses the block at the centre and the polite region says it: ['Grass Block at 18, 63, 2, takes no input']
+ok      Tab reaches Pause: button 'Pause'
+ok      Space pauses: the button reads Play
+ok      paused: the pane says so: Redstone lamp with a lever, 897 blocks, paused
+ok      a click on a block is announced: ['Grass Block at 15, 63, 6, takes no input']
+ok      the clicked block's label shows
+ok      a right drag turns the camera
+ok      the narrow bar hides Day/Night and the view switch (BlueMap's thin-hide)
+ok      the bar is one line along the pane's top: 501x32
+ok      Fill fills the window: the pane from the top left, the window's size: 0,0 1280x820
+ok      filling the window, the bar shows all of BlueMap's controls on one line: 1264x32
+ok      one wheel notch sends one Wheel of 3 lines, zooming in: [{'action': 'wheel', 'delta': -3.0, 'lines': True}]
+ok      at a 640 px pane the x and z fields keep room for their numbers (60 px or more each): [71, 71]
+ok      Day/Night switches to night
+ok      the selection tool is on
+ok      the box lands in the composer as a chip: Remove Stone Bricks, middle
+ok      Escape stops the selection tool
+ok      player mode stands beside the build
+ok      the private compositor offers no pointer lock: refused with its reason as a note: The pointer could not be taken: The compositor offers no pointer lock (zwp_pointer_constraints_v1)
+ok      Escape puts it back beside the chat
+ok      the .schem is saved where --save-to says: ['Redstone lamp with a lever.schem']
+ok      the polite region says where it went: ['The pointer could not be taken: The compositor offers no pointer lock (zwp_pointer_constraints_v1)', 'Saved Redstone lamp with a lever.schem']
+28 of 28 passed
+== check_pane_perf-x11-orbit
+ok      the window logged its costs
+{"mode": "orbit", "pane_logical": [1280, 820], "load_before": "43.10", "load_after": "43.81", "window": {"frames": 118, "dropped": 0, "repaints": 31, "mean_ms": 2.474163008474577, "p50_ms": 2.1719399999999998, "p99_ms": 7.43172, "worst_ms": 10.037343, "input_to_paint": {"count": 3, "mean_ms": 50.425763999999994, "p50_ms": 51.146358000000006, "p95_ms": 86.602998, "p99_ms": 86.602998, "worst_ms": 86.602998}, "wait": {"count": 118, "mean_ms": 30.10386516101695, "p50_ms": 30.318292, "p95_ms": 52.365812, "p99_ms": 58.669471, "worst_ms": 108.67550700000001}, "render": {"count": 117, "mean_ms": 35.39574395726495, "p50_ms": 37.391672, "p95_ms": 53.469364, "p99_ms": 74.24977000000001, "worst_ms": 90.3417}, "recent": [{"ms_ago": 523, "seq": 111}, {"ms_ago": 447, "seq": 112}, {"ms_ago": 382, "seq": 113}, {"ms_ago": 300, "seq": 114}, {"ms_ago": 239, "seq": 115}, {"ms_ago": 173, "seq": 116}, {"ms_ago": 108, "seq": 117}, {"ms_ago": 47, "seq": 118}]}}
+1 of 1 passed
+== check_pane_perf-wayland-orbit
+ok      the window logged its costs
+{"mode": "orbit", "pane_logical": [1280, 820], "load_before": "33.73", "load_after": "33.19", "window": {"frames": 141, "dropped": 0, "repaints": 145, "mean_ms": 1.3706444893617018, "p50_ms": 1.069328, "p99_ms": 4.240704, "worst_ms": 4.8065169999999995, "input_to_paint": {"count": 1, "mean_ms": 37.490972, "p50_ms": 37.490972, "p95_ms": 37.490972, "p99_ms": 37.490972, "worst_ms": 37.490972}, "wait": {"count": 141, "mean_ms": 12.020257375886525, "p50_ms": 8.945448, "p95_ms": 26.348237, "p99_ms": 68.048214, "worst_ms": 100.711159}, "render": {"count": 140, "mean_ms": 39.106169092857115, "p50_ms": 39.891055, "p95_ms": 50.94916, "p99_ms": 55.511403, "worst_ms": 64.030924}, "recent": [{"ms_ago": 429, "seq": 134}, {"ms_ago": 367, "seq": 135}, {"ms_ago": 327, "seq": 136}, {"ms_ago": 278, "seq": 137}, {"ms_ago": 219, "seq": 138}, {"ms_ago": 159, "seq": 139}, {"ms_ago": 96, "seq": 140}, {"ms_ago": 52, "seq": 141}]}}
+1 of 1 passed
+== check_pane_perf-x11-idle
+FAILED  an idle pane paints nothing for 60 s: 2 painted, at [18, 66] ms after the Pause
+ok      the window logged its costs
+{"mode": "idle", "pane_logical": [1280, 820], "load_before": "44.97", "frames_in_60s": 2, "painted_ms_after_pause": [18, 66], "frames_after_the_first_100_ms": 0, "cpu_percent": 8.1, "load_after": "46.82", "window": {"frames": 65, "dropped": 0, "repaints": 4, "mean_ms": 1.4266206923076925, "p50_ms": 1.1858490000000002, "p99_ms": 3.326051, "worst_ms": 3.861456, "input_to_paint": {"count": 0}, "wait": {"count": 65, "mean_ms": 31.38915644615384, "p50_ms": 30.421175, "p95_ms": 56.507085, "p99_ms": 70.566298, "worst_ms": 100.911781}, "render": {"count": 64, "mean_ms": 25.910219718750003, "p50_ms": 26.187393, "p95_ms": 38.925109, "p99_ms": 40.811789000000005, "worst_ms": 42.276326000000005}, "recent": [{"ms_ago": 60643, "seq": 58}, {"ms_ago": 60598, "seq": 59}, {"ms_ago": 60546, "seq": 60}, {"ms_ago": 60496, "seq": 61}, {"ms_ago": 60437, "seq": 62}, {"ms_ago": 60388, "seq": 63}, {"ms_ago": 60341, "seq": 64}, {"ms_ago": 60293, "seq": 65}]}}
+1 of 2 passed
+== check_pane_perf-wayland-idle
+FAILED  an idle pane paints nothing for 60 s: 1 painted, at [31] ms after the Pause
+ok      the window logged its costs
+{"mode": "idle", "pane_logical": [1280, 820], "load_before": "32.68", "frames_in_60s": 1, "painted_ms_after_pause": [31], "frames_after_the_first_100_ms": 0, "cpu_percent": 5.9, "load_after": "26.56", "window": {"frames": 66, "dropped": 0, "repaints": 81, "mean_ms": 0.7646762575757576, "p50_ms": 0.844281, "p99_ms": 1.810945, "worst_ms": 2.0911969999999998, "input_to_paint": {"count": 0}, "wait": {"count": 66, "mean_ms": 12.49631092424242, "p50_ms": 5.829557, "p95_ms": 18.777666, "p99_ms": 53.960519999999995, "worst_ms": 273.314874}, "render": {"count": 65, "mean_ms": 40.153653215384615, "p50_ms": 42.997747000000004, "p95_ms": 49.535205999999995, "p99_ms": 50.049982, "worst_ms": 51.669413999999996}, "recent": [{"ms_ago": 60680, "seq": 59}, {"ms_ago": 60629, "seq": 60}, {"ms_ago": 60580, "seq": 61}, {"ms_ago": 60539, "seq": 62}, {"ms_ago": 60487, "seq": 63}, {"ms_ago": 60440, "seq": 64}, {"ms_ago": 60392, "seq": 65}, {"ms_ago": 60337, "seq": 66}]}}
+1 of 2 passed
+== check_first_frame-x11
+ok      one first_frame line: [{"action": "first_frame", "since_start_ms": 721.318966, "epoch_ms": 1794991640595}]
+1 of 1 passed
+== check_first_frame-wayland
+ok      one first_frame line: [{"action": "first_frame", "since_start_ms": 633.2521439999999, "epoch_ms": 1794991768606}]
+1 of 1 passed

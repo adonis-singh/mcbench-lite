@@ -1,0 +1,4 @@
+    preedit '日本語' [3, 0]
+    after Return (commit) '日本語' [3, 0]
+    after switching to US and clicking '日本語' [3, 0]
+    after typing x '日本語x' [4, 0]

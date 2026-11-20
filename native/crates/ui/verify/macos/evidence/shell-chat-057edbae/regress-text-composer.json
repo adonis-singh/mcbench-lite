@@ -1,0 +1,71 @@
+[
+ {
+  "did": [
+   "type",
+   "Hello world"
+  ],
+  "AXValue": "Hello world",
+  "AXSelectedTextRange": [
+   11,
+   0
+  ],
+  "AXSelectedText": "",
+  "AXNumberOfCharacters": 11
+ },
+ {
+  "did": [
+   "key",
+   "left",
+   "alt"
+  ],
+  "AXValue": "Hello world",
+  "AXSelectedTextRange": [
+   6,
+   0
+  ],
+  "AXSelectedText": "",
+  "AXNumberOfCharacters": 11
+ },
+ {
+  "did": [
+   "key",
+   "left",
+   "alt,shift"
+  ],
+  "AXValue": "Hello world",
+  "AXSelectedTextRange": [
+   0,
+   6
+  ],
+  "AXSelectedText": "Hello ",
+  "AXNumberOfCharacters": 11
+ },
+ {
+  "did": [
+   "key",
+   "a",
+   "cmd"
+  ],
+  "AXValue": "Hello world",
+  "AXSelectedTextRange": [
+   0,
+   11
+  ],
+  "AXSelectedText": "Hello world",
+  "AXNumberOfCharacters": 11
+ },
+ {
+  "did": [
+   "key",
+   "delete",
+   ""
+  ],
+  "AXValue": "",
+  "AXSelectedTextRange": [
+   0,
+   0
+  ],
+  "AXSelectedText": "",
+  "AXNumberOfCharacters": 0
+ }
+]

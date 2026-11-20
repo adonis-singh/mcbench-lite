@@ -1,0 +1,6 @@
+grid 4 x 3, row or column major 0
+column headers: [DataItem "Block", DataItem "Count", DataItem "Light"]
+row headers: []
+GetItem(0,0) = DataItem "Block" at r0c0, containing grid is the table: true, column header items [], row header items []
+GetItem(0,1) = DataItem "Count" at r0c1, containing grid is the table: true, column header items [], row header items []
+GetItem(0,2) = DataItem "Light" at r0c2, containing grid is the table: true, column header items [], row header items []

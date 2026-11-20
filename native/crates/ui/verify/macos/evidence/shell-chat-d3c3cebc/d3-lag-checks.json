@@ -1,0 +1,206 @@
+[
+ {
+  "note": "dump-off-client-on: screen and AX over time after 30 wheel clicks",
+  "seen": [
+   {
+    "t": 5.7,
+    "screen": "8fb1367a",
+    "ax": [
+     5,
+     157,
+     321
+    ]
+   },
+   {
+    "t": 6.6,
+    "screen": "7f656050",
+    "ax": [
+     5,
+     157,
+     321
+    ]
+   },
+   {
+    "t": 8.1,
+    "screen": "7f656050",
+    "ax": [
+     5,
+     157,
+     321
+    ]
+   },
+   {
+    "t": 9.6,
+    "screen": "7f656050",
+    "ax": [
+     5,
+     157,
+     321
+    ]
+   },
+   {
+    "t": 11.0,
+    "screen": "7f656050",
+    "ax": [
+     5,
+     157,
+     321
+    ]
+   },
+   {
+    "t": 12.4,
+    "screen": "7f656050",
+    "ax": [
+     5,
+     157,
+     321
+    ]
+   }
+  ]
+ },
+ {
+  "note": "dump-off-client-on: sample of the process right after the scroll (top of the main thread)",
+  "seen": "Analysis of sampling mcbench-ui-dev (pid 2847) every 1 millisecond\nProcess:         mcbench-ui-dev [2847]\nPath:            /usr/local/rig/mcbench-ui-dev\nLoad Address:    0x1008d4000\nIdentifier:      mcbench-ui-dev\nVersion:         0\nCode Type:       ARM64\nPlatform:        macOS\nParent Process:  launchd [1]\nTarget Type:     live task\n\nDate/Time:       2026-11-17 17:24:05.197 +0000\nLaunch Time:     2026-11-17 17:23:48.985 +0000\nOS Version:      macOS 26.6.2 (25G83)\nReport Version:  7\nAnalysis Tool:   /usr/bin/sample\n\nPhysical footprint:         98.5M\nPhysical footprint (peak):  98.9M\nIdle exit:                  untracked\n----\n\nCall graph:\n    3082 Thread_25082: main\n    + 3082 start  (in dyld) + 6992  [0x188db84e4]\n    +   3082 main  (in mcbench-ui-dev) + 856  [0x1008de274]\n    +     3082 _RINvNtNtCsdnanKjkF2cC_3std3sys9backtrace28___rust_begin_short_backtraceFEuuECsgXIy0ryZ8nH_14mcbench_ui_dev  (in mcbench-ui-dev) + 12  [0x1008da188]\n    +       3082 _RNvCsgXIy0ryZ8nH_14mcbench_ui_dev4main  (in mcbench-ui-dev) + 5468  [0x1008dcea4]\n    +         3082 _RNvCsdu8ikOlKwXp_10mcbench_ui3run  (in mcbench-ui-dev) + 288  [0x1011a450c]\n    +           3082 _RINvMs5_NtCsbdefe5RDGzv_4gpui3appNtB6_11Application3runNCNvCsdu8ikOlKwXp_10mcbench_ui3run0EBV_  (in mcbench-ui-dev) + 260  [0x1011a4734]\n    +             3082 _RNvXs_NtCshqYOghhr0kk_10gpui_macos8platformNtB4_11MacPlatformNtNtCsbdefe5RDGzv_4gpui8platform8Platform3run  (in mcbench-ui-dev) + 384  [0x100fc3c3c]\n    +               3082 -[NSApplication run]  (in AppKit) + 368  [0x18d66913c]\n    +                 3082 -[NSApplication(NSEventRouting) nextEventMatchingMask:untilDate:inMode:dequeue:]  (in AppKit) + 72  [0x18e20b678]\n    +                   3082 -[NSApplication(NSEventRouting) _nextEventMatchingEventMask:untilDate:inMode:dequeue:]  (in AppKit) + 688  [0x18e20b96c]\n    +                     3082 _DPSNextEvent  (in AppKit) + 576  [0x18d676084]\n    +                       3082 _DPSBlockUntilNextEventMatchingListInMode  (in AppKit) + 228  [0x18dd223d0]\n    +                         3082 _BlockUntilNextEventMatchingListInMode  (in HIToolbox) + 48  [0x1961b814c]\n    +                           3082 ReceiveNextEventCommon  (in HIToolbox) + 488  [0x19602e8bc]\n    +                             3082 RunCurrentEventLoopInMode  (in HIToolbox) + 320  [0x19602b560]\n    +                               3081 _CFRunLoopRunSpecificWithOptions  (in CoreFoundation) + 532  [0x189312264]\n    +                               ! 2907 __CFRunLoopRun  (in CoreFoundation) + 1188  [0x18923f9f4]\n    +                               ! : 2886 __CFRunLoopServiceMachPort  (in CoreFoundation) + 160  [0x189241108]\n    +                               ! : | 2886 mach_msg  (in libsystem_kernel.dylib) + 24  [0x18913ffc0]\n    +                               ! : |   2885 mach_msg_overwrite  (in libsystem_kernel.dylib) + 480  [0x1891489c0]\n    +                               ! : |   + 2885 mach_msg2_internal  (in libsystem_kernel.dylib) + 76  [0x1891525a4]\n    +                               ! : |   +   2885 mach_msg2_trap  (in libsystem_kernel.dylib) + 8  [0x18913fc34]\n    +                               ! : |   1 mach_msg_overwrite  (in libsystem_kernel.dylib) + 0  [0x1891487e0]\n    +                               ! : 18 __CFRunLoopServiceMachPort  (in CoreFoundation) + 180  [0x18924111c]\n    +                               ! : | 17 voucher_mach_msg_adopt  (in libdispatch.dylib) + 208  [0x188fee954]\n    +                               ! : | + 17 _dispatch_set_priority_and_mach_voucher_slow  (in libdispatch.dylib) + 208  [0x188fcb3b8]\n    +                               ! : | +   17 _pthread_set_properties_self  (in libsystem_pthread.dylib) + 148  [0x189180894]\n    +                               ! : | +     17 __bsdthread_ctl  (in libsystem_kernel.dylib) + 8  [0x189141aa0]\n    +                               ! : | 1 voucher_mach_msg_adopt  (in libdispatch.dylib) + 136  [0x188fee90c]\n    +                               ! : |   1 _voucher_create_with_mach_voucher  (in libdispatch.dylib) + 92  [0x188fedb38]\n    +                               ! : |     1 _os_object_alloc_realized  (in libdispatch.dylib) + 32  [0x188fc8850]\n    +                               ! : |       1 class_createInstance  (in libobjc.A.dylib) + 76  [0x188d177dc]\n    +                               ! : |         1 DYLD-STUB$$malloc_type_calloc  (in libobjc.A.dylib) + 0  [0x188d520dc]\n    +                               ! : 2 __CFRunLoopServiceMachPort  (in CoreFoundation) + 160  [0x189241108]\n    +                               ! : 1 __CFRunLoopServiceMachPort  (in CoreFoundation) + 172  [0x189241114]\n    +                               ! :   1 DYLD-STUB$$voucher_mach_msg_revert  (in CoreFoundation) + 0  [0x1893c12c4]\n    +                               ! 143 __CFRunLoopRun  (in CoreFoundation) + 2168  [0x18923fdc8]\n    +                               ! : 141 __CFRunLoopDoSource1  (in CoreFoundation) + 504  [0x189241400]\n    +                               ! : | 140 __CFRUNLOOP_IS_CALLING_OUT_TO_A_SOURCE1_PERFORM_FUNCTION__  (in CoreFoundation) + 60  [0x1892414d8]\n    +                               ! : | + 109 mshMIGPerform  (in HIServices) + 208  [0x19082edd4]\n    +                               ! : | + ! 106 _XCopyAttributeValue  (in HIServices) + 400  [0x1908720cc]\n    +                               ! : | + ! : 61 _AXXMIGCopyAttributeValue  (in HIServices) + 464  [0x19084e91c]\n    +                               ! : | + ! : | 33 CopyAttributeValue  (in AppKit) + 176  [0x18de186f0]\n    +                               ! : | + ! : | + 29 CopyAppKitUIElementAttributeValueNoCatch  (in AppKit) + 92  [0x18de1bad8]\n    +                               ! : | + ! : | + ! 19 -[NSObject(NSAccessibilityInternal) _accessibilityValueForAttribute:clientError:]  (in AppKit) + 272  [0x18de15d78]\n    +                               ! : | + ! : | + ! : 18 _NSAccessibilityEntryPointValueForAttribute  (in AppKit) + 224  [0x18d8baa"
+ },
+ {
+  "note": "dump-off-client-off: screen and AX over time after 30 wheel clicks",
+  "seen": [
+   {
+    "t": 5.1,
+    "screen": "7d4c3bd8",
+    "ax": null
+   },
+   {
+    "t": 5.7,
+    "screen": "465567c6",
+    "ax": null
+   },
+   {
+    "t": 6.4,
+    "screen": "465567c6",
+    "ax": null
+   },
+   {
+    "t": 7.0,
+    "screen": "465567c6",
+    "ax": null
+   },
+   {
+    "t": 7.6,
+    "screen": "465567c6",
+    "ax": null
+   },
+   {
+    "t": 8.3,
+    "screen": "465567c6",
+    "ax": null
+   }
+  ]
+ },
+ {
+  "note": "dump-off-client-off: sample of the process right after the scroll (top of the main thread)",
+  "seen": "Analysis of sampling mcbench-ui-dev (pid 2988) every 1 millisecond\nProcess:         mcbench-ui-dev [2988]\nPath:            /usr/local/rig/mcbench-ui-dev\nLoad Address:    0x104278000\nIdentifier:      mcbench-ui-dev\nVersion:         0\nCode Type:       ARM64\nPlatform:        macOS\nParent Process:  launchd [1]\nTarget Type:     live task\n\nDate/Time:       2026-11-17 17:24:27.692 +0000\nLaunch Time:     2026-11-17 17:24:19.398 +0000\nOS Version:      macOS 26.6.2 (25G83)\nReport Version:  7\nAnalysis Tool:   /usr/bin/sample\n\nPhysical footprint:         96.5M\nPhysical footprint (peak):  96.8M\nIdle exit:                  untracked\n----\n\nCall graph:\n    8240 Thread_26322   DispatchQueue_1: com.apple.main-thread  (serial)\n    + 8240 start  (in dyld) + 6992  [0x188db84e4]\n    +   8240 main  (in mcbench-ui-dev) + 856  [0x104282274]\n    +     8240 _RINvNtNtCsdnanKjkF2cC_3std3sys9backtrace28___rust_begin_short_backtraceFEuuECsgXIy0ryZ8nH_14mcbench_ui_dev  (in mcbench-ui-dev) + 12  [0x10427e188]\n    +       8240 _RNvCsgXIy0ryZ8nH_14mcbench_ui_dev4main  (in mcbench-ui-dev) + 5468  [0x104280ea4]\n    +         8240 _RNvCsdu8ikOlKwXp_10mcbench_ui3run  (in mcbench-ui-dev) + 288  [0x104b4850c]\n    +           8240 _RINvMs5_NtCsbdefe5RDGzv_4gpui3appNtB6_11Application3runNCNvCsdu8ikOlKwXp_10mcbench_ui3run0EBV_  (in mcbench-ui-dev) + 260  [0x104b48734]\n    +             8240 _RNvXs_NtCshqYOghhr0kk_10gpui_macos8platformNtB4_11MacPlatformNtNtCsbdefe5RDGzv_4gpui8platform8Platform3run  (in mcbench-ui-dev) + 384  [0x104967c3c]\n    +               8240 -[NSApplication run]  (in AppKit) + 368  [0x18d66913c]\n    +                 8240 -[NSApplication(NSEventRouting) nextEventMatchingMask:untilDate:inMode:dequeue:]  (in AppKit) + 72  [0x18e20b678]\n    +                   8240 -[NSApplication(NSEventRouting) _nextEventMatchingEventMask:untilDate:inMode:dequeue:]  (in AppKit) + 688  [0x18e20b96c]\n    +                     8240 _DPSNextEvent  (in AppKit) + 576  [0x18d676084]\n    +                       8240 _DPSBlockUntilNextEventMatchingListInMode  (in AppKit) + 228  [0x18dd223d0]\n    +                         8240 _BlockUntilNextEventMatchingListInMode  (in HIToolbox) + 48  [0x1961b814c]\n    +                           8240 ReceiveNextEventCommon  (in HIToolbox) + 488  [0x19602e8bc]\n    +                             8240 RunCurrentEventLoopInMode  (in HIToolbox) + 320  [0x19602b560]\n    +                               8240 _CFRunLoopRunSpecificWithOptions  (in CoreFoundation) + 532  [0x189312264]\n    +                                 8212 __CFRunLoopRun  (in CoreFoundation) + 1188  [0x18923f9f4]\n    +                                 ! 8212 __CFRunLoopServiceMachPort  (in CoreFoundation) + 160  [0x189241108]\n    +                                 !   8212 mach_msg  (in libsystem_kernel.dylib) + 24  [0x18913ffc0]\n    +                                 !     8212 mach_msg_overwrite  (in libsystem_kernel.dylib) + 480  [0x1891489c0]\n    +                                 !       8212 mach_msg2_internal  (in libsystem_kernel.dylib) + 76  [0x1891525a4]\n    +                                 !         8212 mach_msg2_trap  (in libsystem_kernel.dylib) + 8  [0x18913fc34]\n    +                                 17 __CFRunLoopRun  (in CoreFoundation) + 2168  [0x18923fdc8]\n    +                                 ! 17 __CFRunLoopDoSource1  (in CoreFoundation) + 504  [0x189241400]\n    +                                 !   17 __CFRUNLOOP_IS_CALLING_OUT_TO_A_SOURCE1_PERFORM_FUNCTION__  (in CoreFoundation) + 60  [0x1892414d8]\n    +                                 !     17 __CFMachPortPerform  (in CoreFoundation) + 288  [0x18926c43c]\n    +                                 !       17 display_timer_callback(__CFMachPort*, void*, long, void*)  (in QuartzCore) + 552  [0x1932d6934]\n    +                                 !         14 CA::Display::DisplayLink::dispatch_items(unsigned long long, unsigned long long, unsigned long long)  (in QuartzCore) + 868  [0x1932d6d2c]\n    +                                 !         : 14 CA::Display::MetalLinkItem::dispatch_(CA::SignPost::Interval<(CA::SignPost::CAEventCode)835322056>&)  (in QuartzCore) + 588  [0x19335abb0]\n    +                                 !         :   14 _RNvMsd_NtCse3PFbmfGhtI_10gpui_apple12display_linkNtB5_24MetalDisplayLinkDelegate12needs_update  (in mcbench-ui-dev) + 52  [0x1044db0f0]\n    +                                 !         :     14 _RNCNvMNtCshqYOghhr0kk_10gpui_macos6windowNtB4_14MacWindowState18start_display_link0B6_  (in mcbench-ui-dev) + 332  [0x10492e7f8]\n    +                                 !         :       14 _RNCNvMsu_NtCsbdefe5RDGzv_4gpui6windowNtB7_6Window3news8_0B9_  (in mcbench-ui-dev) + 2304  [0x10449acc0]\n    +                                 !         :         14 _RNCNCNvMsu_NtCsbdefe5RDGzv_4gpui6windowNtB9_6Window3news8_0s4_0Bb_  (in mcbench-ui-dev) + 160  [0x10449bd2c]\n    +                                 !         :           14 _RNvMsc_NtCsbdefe5RDGzv_4gpui3appNtB5_3App20update_window_erased  (in mcbench-ui-dev) + 252  [0x104325218]\n    +                                 !         :             13 _RNCINvMsc_NtCsbdefe5RDGzv_4gpui3appNtB8_3App16update_window_iduNCNCNCNvMsu_NtBa_6windowNtB1b_6Window3news8_0s4_00E0Ba_  (in mcbench-ui-dev) + 148  [0x10449c2fc]\n    +                                 !         :             | 11 _RNvMsw_NtCsbdefe5RDGzv_4gpui6windowNtB5_6Window4draw  (in mcbench-ui-dev) + 1160  [0x10443d9c8]\n    +                                 !         :             | + 7 _RNvMsw_NtCsbdefe5RDGzv_4gpui6windowNtB5_6Window10draw_roots  (in mcbench-ui-dev) + 1492  [0x104447fd4]\n    +                                 !         :             | + ! 7 _RNvMs9_NtCsbdefe5RDGzv_4gpui7elementNtB5_10AnyElement16prepaint_as_root  (in mcbench-ui-dev) + 156  [0x10441d028]\n    +                                 !         :             | + !   7 _RNvXs8_NtCsbdefe5RDGzv_4gpui7elementINtB5_8DrawableINtNtB7_4view11ViewElementNtBQ_7AnyViewEENtB5_13ElementObject8prepaintB7_  (in mc"
+ },
+ {
+  "note": "dump-on-client-on: screen and AX over time after 30 wheel clicks",
+  "seen": [
+   {
+    "t": 5.1,
+    "screen": "7d4c3bd8",
+    "ax": [
+     88,
+     157,
+     343.5
+    ]
+   },
+   {
+    "t": 6.6,
+    "screen": "6925bdae",
+    "ax": [
+     88,
+     157,
+     343.5
+    ]
+   },
+   {
+    "t": 8.0,
+    "screen": "6925bdae",
+    "ax": [
+     88,
+     157,
+     343.5
+    ]
+   },
+   {
+    "t": 9.5,
+    "screen": "6925bdae",
+    "ax": [
+     88,
+     157,
+     343.5
+    ]
+   },
+   {
+    "t": 10.9,
+    "screen": "6925bdae",
+    "ax": [
+     88,
+     157,
+     343.5
+    ]
+   },
+   {
+    "t": 12.3,
+    "screen": "6925bdae",
+    "ax": [
+     88,
+     157,
+     343.5
+    ]
+   }
+  ]
+ },
+ {
+  "note": "dump-on-client-on: sample of the process right after the scroll (top of the main thread)",
+  "seen": "Analysis of sampling mcbench-ui-dev (pid 3056) every 1 millisecond\nProcess:         mcbench-ui-dev [3056]\nPath:            /usr/local/rig/mcbench-ui-dev\nLoad Address:    0x104544000\nIdentifier:      mcbench-ui-dev\nVersion:         0\nCode Type:       ARM64\nPlatform:        macOS\nParent Process:  launchd [1]\nTarget Type:     live task\n\nDate/Time:       2026-11-17 17:24:58.786 +0000\nLaunch Time:     2026-11-17 17:24:36.964 +0000\nOS Version:      macOS 26.6.2 (25G83)\nReport Version:  7\nAnalysis Tool:   /usr/bin/sample\n\nPhysical footprint:         97.1M\nPhysical footprint (peak):  97.4M\nIdle exit:                  untracked\n----\n\nCall graph:\n    3803 Thread_26758: main\n    + 3803 start  (in dyld) + 6992  [0x188db84e4]\n    +   3803 main  (in mcbench-ui-dev) + 856  [0x10454e274]\n    +     3803 _RINvNtNtCsdnanKjkF2cC_3std3sys9backtrace28___rust_begin_short_backtraceFEuuECsgXIy0ryZ8nH_14mcbench_ui_dev  (in mcbench-ui-dev) + 12  [0x10454a188]\n    +       3803 _RNvCsgXIy0ryZ8nH_14mcbench_ui_dev4main  (in mcbench-ui-dev) + 5468  [0x10454cea4]\n    +         3803 _RNvCsdu8ikOlKwXp_10mcbench_ui3run  (in mcbench-ui-dev) + 288  [0x104e1450c]\n    +           3803 _RINvMs5_NtCsbdefe5RDGzv_4gpui3appNtB6_11Application3runNCNvCsdu8ikOlKwXp_10mcbench_ui3run0EBV_  (in mcbench-ui-dev) + 260  [0x104e14734]\n    +             3803 _RNvXs_NtCshqYOghhr0kk_10gpui_macos8platformNtB4_11MacPlatformNtNtCsbdefe5RDGzv_4gpui8platform8Platform3run  (in mcbench-ui-dev) + 384  [0x104c33c3c]\n    +               3803 -[NSApplication run]  (in AppKit) + 368  [0x18d66913c]\n    +                 3803 -[NSApplication(NSEventRouting) nextEventMatchingMask:untilDate:inMode:dequeue:]  (in AppKit) + 72  [0x18e20b678]\n    +                   3803 -[NSApplication(NSEventRouting) _nextEventMatchingEventMask:untilDate:inMode:dequeue:]  (in AppKit) + 688  [0x18e20b96c]\n    +                     3803 _DPSNextEvent  (in AppKit) + 576  [0x18d676084]\n    +                       3803 _DPSBlockUntilNextEventMatchingListInMode  (in AppKit) + 228  [0x18dd223d0]\n    +                         3803 _BlockUntilNextEventMatchingListInMode  (in HIToolbox) + 48  [0x1961b814c]\n    +                           3803 ReceiveNextEventCommon  (in HIToolbox) + 488  [0x19602e8bc]\n    +                             3801 RunCurrentEventLoopInMode  (in HIToolbox) + 320  [0x19602b560]\n    +                             ! 3799 _CFRunLoopRunSpecificWithOptions  (in CoreFoundation) + 532  [0x189312264]\n    +                             ! : 3595 __CFRunLoopRun  (in CoreFoundation) + 1188  [0x18923f9f4]\n    +                             ! : | 3585 __CFRunLoopServiceMachPort  (in CoreFoundation) + 160  [0x189241108]\n    +                             ! : | + 3585 mach_msg  (in libsystem_kernel.dylib) + 24  [0x18913ffc0]\n    +                             ! : | +   3585 mach_msg_overwrite  (in libsystem_kernel.dylib) + 480  [0x1891489c0]\n    +                             ! : | +     3585 mach_msg2_internal  (in libsystem_kernel.dylib) + 76  [0x1891525a4]\n    +                             ! : | +       3585 mach_msg2_trap  (in libsystem_kernel.dylib) + 8  [0x18913fc34]\n    +                             ! : | 9 __CFRunLoopServiceMachPort  (in CoreFoundation) + 180  [0x18924111c]\n    +                             ! : | + 9 voucher_mach_msg_adopt  (in libdispatch.dylib) + 208  [0x188fee954]\n    +                             ! : | +   9 _dispatch_set_priority_and_mach_voucher_slow  (in libdispatch.dylib) + 208  [0x188fcb3b8]\n    +                             ! : | +     9 _pthread_set_properties_self  (in libsystem_pthread.dylib) + 148  [0x189180894]\n    +                             ! : | +       9 __bsdthread_ctl  (in libsystem_kernel.dylib) + 8  [0x189141aa0]\n    +                             ! : | 1 __CFRunLoopServiceMachPort  (in CoreFoundation) + 188  [0x189241124]\n    +                             ! : 160 __CFRunLoopRun  (in CoreFoundation) + 2168  [0x18923fdc8]\n    +                             ! : | 158 __CFRunLoopDoSource1  (in CoreFoundation) + 504  [0x189241400]\n    +                             ! : | + 158 __CFRUNLOOP_IS_CALLING_OUT_TO_A_SOURCE1_PERFORM_FUNCTION__  (in CoreFoundation) + 60  [0x1892414d8]\n    +                             ! : | +   117 mshMIGPerform  (in HIServices) + 208  [0x19082edd4]\n    +                             ! : | +   ! 116 _XCopyAttributeValue  (in HIServices) + 400  [0x1908720cc]\n    +                             ! : | +   ! : 61 _AXXMIGCopyAttributeValue  (in HIServices) + 464  [0x19084e91c]\n    +                             ! : | +   ! : | 51 CopyAttributeValue  (in AppKit) + 176  [0x18de186f0]\n    +                             ! : | +   ! : | + 45 CopyAppKitUIElementAttributeValueNoCatch  (in AppKit) + 92  [0x18de1bad8]\n    +                             ! : | +   ! : | + ! 32 -[NSObject(NSAccessibilityInternal) _accessibilityValueForAttribute:clientError:]  (in AppKit) + 272  [0x18de15d78]\n    +                             ! : | +   ! : | + ! : 30 _NSAccessibilityEntryPointValueForAttribute  (in AppKit) + 224  [0x18d8baa54]\n    +                             ! : | +   ! : | + ! : | 30 NSAccessibilityPerformEntryPointObject  (in AppKit) + 44  [0x18e085f20]\n    +                             ! : | +   ! : | + ! : |   18 ___NSAccessibilityEntryPointValueForAttribute_block_invoke.773  (in AppKit) + 1520  [0x18e08a474]\n    +                             ! : | +   ! : | + ! : |   + 18 -[NSAccessibilityAttributeAccessorInfo getAttributeValue:forObject:]  (in AppKit) + 60  [0x18d6f2e58]\n    +                             ! : | +   ! : | + ! : |   +   5 NSAccessibilityGetObjectValueForAttribute  (in AppKit) + 1688  [0x18d6f3948]\n    +                             ! : | +   ! : | + ! : |   +   ! 5 NSAccessibilityGetObjectForAttributeUsingLegacyAPI  (in AppKit) + 280  [0x18d6f421c]\n    +                             ! : | +   ! : | + ! : |   +   !   1 -[NSMenuItem(Accessibility) accessibilityAttributeValue:]  (in AppKit) + 64  [0x18dfc8d54]\n    +           "
+ },
+ {
+  "note": "dump-on-client-off: screen and AX over time after 30 wheel clicks",
+  "seen": [
+   {
+    "t": 5.0,
+    "screen": "7d4c3bd8",
+    "ax": null
+   },
+   {
+    "t": 5.6,
+    "screen": "465567c6",
+    "ax": null
+   },
+   {
+    "t": 6.2,
+    "screen": "465567c6",
+    "ax": null
+   },
+   {
+    "t": 6.9,
+    "screen": "465567c6",
+    "ax": null
+   },
+   {
+    "t": 8.2,
+    "screen": "465567c6",
+    "ax": null
+   },
+   {
+    "t": 8.8,
+    "screen": "465567c6",
+    "ax": null
+   }
+  ]
+ },
+ {
+  "note": "dump-on-client-off: sample of the process right after the scroll (top of the main thread)",
+  "seen": "Analysis of sampling mcbench-ui-dev (pid 3153) every 1 millisecond\nProcess:         mcbench-ui-dev [3153]\nPath:            /usr/local/rig/mcbench-ui-dev\nLoad Address:    0x1002f4000\nIdentifier:      mcbench-ui-dev\nVersion:         0\nCode Type:       ARM64\nPlatform:        macOS\nParent Process:  launchd [1]\nTarget Type:     live task\n\nDate/Time:       2026-11-17 17:25:20.433 +0000\nLaunch Time:     2026-11-17 17:25:12.254 +0000\nOS Version:      macOS 26.6.2 (25G83)\nReport Version:  7\nAnalysis Tool:   /usr/bin/sample\n\nPhysical footprint:         94.4M\nPhysical footprint (peak):  94.6M\nIdle exit:                  untracked\n----\n\nCall graph:\n    3592 Thread_27479   DispatchQueue_1: com.apple.main-thread  (serial)\n    + 3592 start  (in dyld) + 6992  [0x188db84e4]\n    +   3592 main  (in mcbench-ui-dev) + 856  [0x1002fe274]\n    +     3592 _RINvNtNtCsdnanKjkF2cC_3std3sys9backtrace28___rust_begin_short_backtraceFEuuECsgXIy0ryZ8nH_14mcbench_ui_dev  (in mcbench-ui-dev) + 12  [0x1002fa188]\n    +       3592 _RNvCsgXIy0ryZ8nH_14mcbench_ui_dev4main  (in mcbench-ui-dev) + 5468  [0x1002fcea4]\n    +         3592 _RNvCsdu8ikOlKwXp_10mcbench_ui3run  (in mcbench-ui-dev) + 288  [0x100bc450c]\n    +           3592 _RINvMs5_NtCsbdefe5RDGzv_4gpui3appNtB6_11Application3runNCNvCsdu8ikOlKwXp_10mcbench_ui3run0EBV_  (in mcbench-ui-dev) + 260  [0x100bc4734]\n    +             3592 _RNvXs_NtCshqYOghhr0kk_10gpui_macos8platformNtB4_11MacPlatformNtNtCsbdefe5RDGzv_4gpui8platform8Platform3run  (in mcbench-ui-dev) + 384  [0x1009e3c3c]\n    +               3592 -[NSApplication run]  (in AppKit) + 368  [0x18d66913c]\n    +                 3592 -[NSApplication(NSEventRouting) nextEventMatchingMask:untilDate:inMode:dequeue:]  (in AppKit) + 72  [0x18e20b678]\n    +                   3592 -[NSApplication(NSEventRouting) _nextEventMatchingEventMask:untilDate:inMode:dequeue:]  (in AppKit) + 688  [0x18e20b96c]\n    +                     3592 _DPSNextEvent  (in AppKit) + 576  [0x18d676084]\n    +                       3592 _DPSBlockUntilNextEventMatchingListInMode  (in AppKit) + 228  [0x18dd223d0]\n    +                         3592 _BlockUntilNextEventMatchingListInMode  (in HIToolbox) + 48  [0x1961b814c]\n    +                           3592 ReceiveNextEventCommon  (in HIToolbox) + 488  [0x19602e8bc]\n    +                             3592 RunCurrentEventLoopInMode  (in HIToolbox) + 320  [0x19602b560]\n    +                               3592 _CFRunLoopRunSpecificWithOptions  (in CoreFoundation) + 532  [0x189312264]\n    +                                 3575 __CFRunLoopRun  (in CoreFoundation) + 1188  [0x18923f9f4]\n    +                                 ! 3574 __CFRunLoopServiceMachPort  (in CoreFoundation) + 160  [0x189241108]\n    +                                 ! : 3574 mach_msg  (in libsystem_kernel.dylib) + 24  [0x18913ffc0]\n    +                                 ! :   3574 mach_msg_overwrite  (in libsystem_kernel.dylib) + 480  [0x1891489c0]\n    +                                 ! :     3574 mach_msg2_internal  (in libsystem_kernel.dylib) + 76  [0x1891525a4]\n    +                                 ! :       3574 mach_msg2_trap  (in libsystem_kernel.dylib) + 8  [0x18913fc34]\n    +                                 ! 1 __CFRunLoopServiceMachPort  (in CoreFoundation) + 172  [0x189241114]\n    +                                 !   1 voucher_mach_msg_revert  (in libdispatch.dylib) + 0  [0x188fee958]\n    +                                 11 __CFRunLoopRun  (in CoreFoundation) + 2168  [0x18923fdc8]\n    +                                 ! 11 __CFRunLoopDoSource1  (in CoreFoundation) + 504  [0x189241400]\n    +                                 !   11 __CFRUNLOOP_IS_CALLING_OUT_TO_A_SOURCE1_PERFORM_FUNCTION__  (in CoreFoundation) + 60  [0x1892414d8]\n    +                                 !     11 __CFMachPortPerform  (in CoreFoundation) + 288  [0x18926c43c]\n    +                                 !       10 display_timer_callback(__CFMachPort*, void*, long, void*)  (in QuartzCore) + 552  [0x1932d6934]\n    +                                 !       : 9 CA::Display::DisplayLink::dispatch_items(unsigned long long, unsigned long long, unsigned long long)  (in QuartzCore) + 868  [0x1932d6d2c]\n    +                                 !       : | 9 CA::Display::MetalLinkItem::dispatch_(CA::SignPost::Interval<(CA::SignPost::CAEventCode)835322056>&)  (in QuartzCore) + 588  [0x19335abb0]\n    +                                 !       : |   9 _RNvMsd_NtCse3PFbmfGhtI_10gpui_apple12display_linkNtB5_24MetalDisplayLinkDelegate12needs_update  (in mcbench-ui-dev) + 52  [0x1005570f0]\n    +                                 !       : |     9 _RNCNvMNtCshqYOghhr0kk_10gpui_macos6windowNtB4_14MacWindowState18start_display_link0B6_  (in mcbench-ui-dev) + 332  [0x1009aa7f8]\n    +                                 !       : |       9 _RNCNvMsu_NtCsbdefe5RDGzv_4gpui6windowNtB7_6Window3news8_0B9_  (in mcbench-ui-dev) + 2304  [0x100516cc0]\n    +                                 !       : |         9 _RNCNCNvMsu_NtCsbdefe5RDGzv_4gpui6windowNtB9_6Window3news8_0s4_0Bb_  (in mcbench-ui-dev) + 160  [0x100517d2c]\n    +                                 !       : |           9 _RNvMsc_NtCsbdefe5RDGzv_4gpui3appNtB5_3App20update_window_erased  (in mcbench-ui-dev) + 252  [0x1003a1218]\n    +                                 !       : |             8 _RNCINvMsc_NtCsbdefe5RDGzv_4gpui3appNtB8_3App16update_window_iduNCNCNCNvMsu_NtBa_6windowNtB1b_6Window3news8_0s4_00E0Ba_  (in mcbench-ui-dev) + 148  [0x1005182fc]\n    +                                 !       : |             + 7 _RNvMsw_NtCsbdefe5RDGzv_4gpui6windowNtB5_6Window4draw  (in mcbench-ui-dev) + 1160  [0x1004b99c8]\n    +                                 !       : |             + ! 4 _RNvMsw_NtCsbdefe5RDGzv_4gpui6windowNtB5_6Window10draw_roots  (in mcbench-ui-dev) + 1492  [0x1004c3fd4]\n    +                                 !       : |             + ! : 4 _RNvMs9_NtCsbdefe5RDGzv_4gpui7elementNtB5_10AnyElement16prepaint_as_root  (in mcbench-ui-dev) + 156  [0x100"
+ }
+]

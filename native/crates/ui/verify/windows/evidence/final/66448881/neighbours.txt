@@ -1,0 +1,3 @@
+    Group "claude-opus-5-5, work" lct="article" id="" offscreen=0 ctl=1 content=1 rect=[276,-109,1044x47] set=2/9
+    Group "claude-opus-5-5, A lamp on a lever\nThe " lct="article" id="" offscreen=0 ctl=1 content=1 rect=[276,-62,1044x800] set=3/9
+    Group "You, Put a label on the second lamp in E" lct="article" id="" offscreen=0 ctl=1 content=1 rect=[276,738,1044x67] set=4/9

@@ -1,0 +1,28 @@
+{
+ "scenario": "typing",
+ "backend": "x11",
+ "first_frame_ms": 452.24,
+ "window_s": 8.82,
+ "frames_in_window": 61,
+ "cpu_percent": null,
+ "key_to_paint_ms": {
+  "count": 62,
+  "mean": 7.669,
+  "p50": 8.777,
+  "p99": 11.788,
+  "worst": 11.805
+ },
+ "frame_interval_ms_in_window": {
+  "count": 60,
+  "mean": 142.344,
+  "p50": 143.75,
+  "p99": 144.27599999999984,
+  "worst": 144.45199999999932
+ },
+ "accessibility": true,
+ "load": [
+  "10.43",
+  "13.34",
+  "11.73"
+ ]
+}

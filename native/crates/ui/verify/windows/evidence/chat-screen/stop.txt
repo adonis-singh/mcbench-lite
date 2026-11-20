@@ -1,0 +1,3 @@
+before: Button name="Stop" lct="button" focus=0 patterns=[Invoke]
+uia-probe: no element matches "name=Stop" in mcbench-ui-dev
+exit=2 

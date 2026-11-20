@@ -1,0 +1,530 @@
+[
+ {
+  "check": "Chat model: claude-opus-5-5 is a button",
+  "ok": true,
+  "seen": {
+   "AXRole": "AXButton",
+   "AXSubrole": "AXUnknown",
+   "AXRoleDescription": "button",
+   "AXTitle": "Chat model: claude-opus-5-5",
+   "AXValue": "<error -25212>",
+   "AXHelp": "claude-opus-5-5",
+   "AXEnabled": true,
+   "AXFocused": false,
+   "AXExpanded": false,
+   "AXPosition": [
+    361,
+    607
+   ],
+   "AXSize": [
+    150,
+    32
+   ]
+  }
+ },
+ {
+  "check": "Resolution: Standard is a button",
+  "ok": true,
+  "seen": {
+   "AXRole": "AXButton",
+   "AXSubrole": "AXUnknown",
+   "AXRoleDescription": "button",
+   "AXTitle": "Resolution: Standard",
+   "AXValue": "<error -25212>",
+   "AXHelp": "<error -25212>",
+   "AXEnabled": true,
+   "AXFocused": false,
+   "AXExpanded": false,
+   "AXPosition": [
+    282,
+    607
+   ],
+   "AXSize": [
+    76,
+    32
+   ]
+  }
+ },
+ {
+  "check": "Reasoning effort: medium is a button",
+  "ok": true,
+  "seen": {
+   "AXRole": "AXButton",
+   "AXSubrole": "AXUnknown",
+   "AXRoleDescription": "button",
+   "AXTitle": "Reasoning effort: medium",
+   "AXValue": "<error -25212>",
+   "AXHelp": "<error -25212>",
+   "AXEnabled": true,
+   "AXFocused": false,
+   "AXExpanded": false,
+   "AXPosition": [
+    514,
+    607
+   ],
+   "AXSize": [
+    80,
+    32
+   ]
+  }
+ },
+ {
+  "check": "the context meter is named by its tip",
+  "ok": true,
+  "seen": {
+   "AXRole": "AXLevelIndicator",
+   "AXSubrole": "AXMeter",
+   "AXRoleDescription": "level indicator",
+   "AXTitle": "84% of context · 840k of 1M tokens",
+   "AXValue": 84,
+   "AXMinValue": 0,
+   "AXMaxValue": 100,
+   "AXHelp": "84% of context · 840k of 1M tokens",
+   "AXPosition": [
+    253,
+    610
+   ],
+   "AXSize": [
+    26,
+    26
+   ]
+  }
+ },
+ {
+  "check": "the limit chip is named by its text, Resets at … as help",
+  "ok": true,
+  "seen": {
+   "AXRole": "AXStaticText",
+   "AXSubrole": "AXUnknown",
+   "AXRoleDescription": "text",
+   "AXTitle": "Near weekly limit",
+   "AXValue": "Near weekly limit",
+   "AXHelp": "Resets at 3:40 PM",
+   "AXEnabled": true,
+   "AXFocused": false,
+   "AXPosition": [
+    137,
+    612
+   ],
+   "AXSize": [
+    113,
+    22
+   ]
+  }
+ },
+ {
+  "check": "the trigger's help is the full id",
+  "ok": true,
+  "seen": "claude-opus-5-5"
+ },
+ {
+  "check": "the trigger is collapsed",
+  "ok": true,
+  "seen": false
+ },
+ {
+  "check": "it opens a dialog named Chat model",
+  "ok": true,
+  "seen": {
+   "AXRole": "AXWindow",
+   "AXSubrole": "AXDialog",
+   "AXRoleDescription": "dialog",
+   "AXTitle": "Chat model",
+   "AXValue": "<error -25212>",
+   "AXHelp": "<error -25212>",
+   "AXEnabled": true,
+   "AXFocused": false,
+   "AXPosition": [
+    151,
+    199
+   ],
+   "AXSize": [
+    360,
+    400
+   ]
+  }
+ },
+ {
+  "check": "the trigger is expanded",
+  "ok": true,
+  "seen": null
+ },
+ {
+  "check": "focus is in the search",
+  "ok": true,
+  "seen": [
+   "AXTextField",
+   "Search models"
+  ]
+ },
+ {
+  "note": "the rail and its tabs",
+  "seen": [
+   {
+    "AXRole": "AXTabGroup",
+    "AXSubrole": "AXUnknown",
+    "AXRoleDescription": "tab group",
+    "AXTitle": "Providers",
+    "AXValue": "<error -25212>",
+    "AXEnabled": true
+   },
+   {
+    "AXRole": "AXRadioButton",
+    "AXSubrole": "AXTabButton",
+    "AXRoleDescription": "tab",
+    "AXTitle": "Favorites",
+    "AXValue": false,
+    "AXEnabled": true
+   },
+   {
+    "AXRole": "AXRadioButton",
+    "AXSubrole": "AXTabButton",
+    "AXRoleDescription": "tab",
+    "AXTitle": "OpenRouter",
+    "AXValue": false,
+    "AXEnabled": true
+   },
+   {
+    "AXRole": "AXRadioButton",
+    "AXSubrole": "AXTabButton",
+    "AXRoleDescription": "tab",
+    "AXTitle": "OpenAI — not configured",
+    "AXValue": false,
+    "AXEnabled": false
+   },
+   {
+    "AXRole": "AXRadioButton",
+    "AXSubrole": "AXTabButton",
+    "AXRoleDescription": "tab",
+    "AXTitle": "ChatGPT",
+    "AXValue": false,
+    "AXEnabled": true
+   },
+   {
+    "AXRole": "AXRadioButton",
+    "AXSubrole": "AXTabButton",
+    "AXRoleDescription": "tab",
+    "AXTitle": "Anthropic",
+    "AXValue": false,
+    "AXEnabled": true
+   },
+   {
+    "AXRole": "AXRadioButton",
+    "AXSubrole": "AXTabButton",
+    "AXRoleDescription": "tab",
+    "AXTitle": "Groq",
+    "AXValue": false,
+    "AXEnabled": true
+   },
+   {
+    "AXRole": "AXRadioButton",
+    "AXSubrole": "AXTabButton",
+    "AXRoleDescription": "tab",
+    "AXTitle": "Google",
+    "AXValue": false,
+    "AXEnabled": true
+   },
+   {
+    "AXRole": "AXRadioButton",
+    "AXSubrole": "AXTabButton",
+    "AXRoleDescription": "tab",
+    "AXTitle": "Claude Code harness: its own agent loop with mcbench tools attached",
+    "AXValue": true,
+    "AXEnabled": true
+   },
+   {
+    "AXRole": "AXRadioButton",
+    "AXSubrole": "AXTabButton",
+    "AXRoleDescription": "tab",
+    "AXTitle": "Codex CLI harness: its own agent loop with mcbench tools attached — CLI not signed in",
+    "AXValue": false,
+    "AXEnabled": false
+   }
+  ]
+ },
+ {
+  "check": "a provider not connected is disabled and says why",
+  "ok": true,
+  "seen": {
+   "AXRole": "AXRadioButton",
+   "AXSubrole": "AXTabButton",
+   "AXRoleDescription": "tab",
+   "AXTitle": "OpenAI — not configured",
+   "AXValue": false,
+   "AXHelp": "<error -25212>",
+   "AXEnabled": false,
+   "AXFocused": false,
+   "AXPosition": [
+    158,
+    280
+   ],
+   "AXSize": [
+    31,
+    34
+   ]
+  }
+ },
+ {
+  "note": "the model list's children",
+  "seen": [
+   {
+    "AXRole": "AXStaticText",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "Claude Opus 5.5",
+    "AXHelp": "claude-opus-5-5",
+    "AXSelected": true
+   },
+   {
+    "AXRole": "AXCheckBox",
+    "AXSubrole": "AXToggle",
+    "AXTitle": "Favorite Claude Opus 5.5",
+    "AXHelp": "Add favorite"
+   },
+   {
+    "AXRole": "AXStaticText",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "Claude Haiku 5.5",
+    "AXHelp": "claude-haiku-5-5",
+    "AXSelected": false
+   },
+   {
+    "AXRole": "AXCheckBox",
+    "AXSubrole": "AXToggle",
+    "AXTitle": "Favorite Claude Haiku 5.5",
+    "AXHelp": "Add favorite"
+   }
+  ]
+ },
+ {
+  "check": "Claude Code's models are listed",
+  "ok": true,
+  "seen": [
+   "Claude Opus 5.5",
+   "Claude Haiku 5.5"
+  ]
+ },
+ {
+  "check": "typing searches every provider",
+  "ok": true,
+  "seen": [
+   "Gemini 3 Pro, OpenRouter",
+   "Gemini 3 Pro, Google"
+  ]
+ },
+ {
+  "check": "the failing catalogue is named with its provider",
+  "ok": true,
+  "seen": null
+ },
+ {
+  "check": "the slow catalogue comes once it answered",
+  "ok": true,
+  "seen": null
+ },
+ {
+  "check": "Escape closes it back to its trigger",
+  "ok": true,
+  "seen": [
+   "AXButton",
+   "Chat model: claude-opus-5-5"
+  ]
+ },
+ {
+  "check": "the search kept its text",
+  "ok": true,
+  "seen": "gemini"
+ },
+ {
+  "check": "Down goes to the first model",
+  "ok": true,
+  "seen": [
+   "AXStaticText",
+   "Claude Opus 5.5"
+  ]
+ },
+ {
+  "check": "Enter chooses it and closes",
+  "ok": true,
+  "seen": [
+   "AXButton",
+   "Chat model: claude-haiku-5-5"
+  ]
+ },
+ {
+  "note": "a star",
+  "seen": {
+   "AXRole": "AXCheckBox",
+   "AXSubrole": "AXToggle",
+   "AXRoleDescription": "toggle button",
+   "AXTitle": "Favorite Claude Opus 5.5",
+   "AXValue": false,
+   "AXHelp": "Add favorite"
+  }
+ },
+ {
+  "check": "a star's press toggles it (value or help changes)",
+  "ok": true,
+  "seen": [
+   false,
+   "Add favorite",
+   true,
+   "Remove favorite"
+  ]
+ },
+ {
+  "check": "a failing tab shows its error",
+  "ok": true,
+  "seen": null
+ },
+ {
+  "check": "the effort list opens on the current effort",
+  "ok": true,
+  "seen": [
+   "AXStaticText",
+   "medium"
+  ]
+ },
+ {
+  "note": "the effort list",
+  "seen": {
+   "AXRole": "AXList",
+   "AXSubrole": "AXUnknown",
+   "AXRoleDescription": "list",
+   "AXTitle": "Reasoning effort",
+   "AXValue": "<error -25212>",
+   "AXHelp": "<error -25212>",
+   "AXEnabled": true,
+   "AXFocused": false,
+   "AXPosition": [
+    278,
+    473
+   ],
+   "AXSize": [
+    174,
+    126
+   ]
+  }
+ },
+ {
+  "check": "Down moves to the next effort",
+  "ok": true,
+  "seen": [
+   "AXStaticText",
+   "high"
+  ]
+ },
+ {
+  "check": "Enter chooses it, focus back on the trigger",
+  "ok": true,
+  "seen": [
+   "AXButton",
+   "Reasoning effort: high"
+  ]
+ },
+ {
+  "check": "the slider has focus",
+  "ok": true,
+  "seen": {
+   "AXRole": "AXSlider",
+   "AXTitle": "Resolution",
+   "AXValue": "Standard",
+   "AXMinValue": 0,
+   "AXMaxValue": 3,
+   "AXHelp": "The model chooses the size."
+  }
+ },
+ {
+  "note": "the slider's attributes",
+  "seen": {
+   "_actions": [
+    "AXIncrement",
+    "AXDecrement"
+   ],
+   "_params": [
+    "AXUIElementsForSearchPredicate",
+    "AXRangeForLine",
+    "AXUIElementCountForSearchPredicate",
+    "AXAttributedStringForRange",
+    "AXBoundsForRange",
+    "AXStringForRange",
+    "AXStyleRangeForIndex",
+    "AXRangeForPosition",
+    "AXReplaceRangeWithText",
+    "AXRangeForIndex",
+    "AXCellForColumnAndRow",
+    "AXLineForIndex"
+   ],
+   "_path": "0.0.29.0",
+   "_settable": [
+    "AXFocused",
+    "AXValue"
+   ],
+   "AXChildren": "<0 items>",
+   "AXChildrenInNavigationOrder": "<0 items>",
+   "AXEnabled": true,
+   "AXFocused": true,
+   "AXFrame": [
+    21,
+    487,
+    214,
+    20
+   ],
+   "AXHelp": "The model chooses the size.",
+   "AXIdentifier": "<error -25212>",
+   "AXLinkedUIElements": "<error -25212>",
+   "AXMaxValue": 3,
+   "AXMinValue": 0,
+   "AXOrientation": "AXHorizontalOrientation",
+   "AXParent": "<AXWindow Resolution>",
+   "AXPlaceholderValue": "<error -25212>",
+   "AXPosition": [
+    21,
+    487
+   ],
+   "AXRequired": false,
+   "AXRole": "AXSlider",
+   "AXRoleDescription": "slider",
+   "AXSelectedChildren": "<error -25212>",
+   "AXSize": [
+    214,
+    20
+   ],
+   "AXSubrole": "AXUnknown",
+   "AXTitle": "Resolution",
+   "AXTopLevelUIElement": "<AXWindow Gallery · mcbench-lite>",
+   "AXValue": "Standard",
+   "AXWindow": "<AXWindow Gallery · mcbench-lite>"
+  }
+ },
+ {
+  "check": "Right steps it to High (2×)",
+  "ok": true,
+  "seen": "High (2×)"
+ },
+ {
+  "check": "AXIncrement steps it on",
+  "ok": false,
+  "seen": [
+   "{\"action\":\"AXIncrement\",\"AXError\":0,\"path\":\"0.0.29.0\",\"t\":\"1794931690.945\"}\n",
+   "High (2×)"
+  ]
+ },
+ {
+  "check": "AXDecrement steps it back",
+  "ok": true,
+  "seen": "High (2×)"
+ },
+ {
+  "check": "Escape closes it back to its trigger",
+  "ok": false,
+  "seen": [
+   "AXButton",
+   "Resolution: Standard"
+  ]
+ },
+ {
+  "check": "typing while the model picker is open goes to its search",
+  "ok": true,
+  "seen": "opus"
+ }
+]

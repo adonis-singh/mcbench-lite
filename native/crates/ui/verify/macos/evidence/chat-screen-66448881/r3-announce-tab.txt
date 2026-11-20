@@ -1,0 +1,25 @@
+== announcements since launch (observer started before the window):
+   (end of launch list)
+== (3) two identical sends in the lamp chat
+== (4) Tab order after three sends
+   Tab -> [('AXButton', 'New chat')]
+   Tab -> [('AXGroup', 'Redstone lamp with a lever')]
+   Tab -> [('AXGroup', 'claude-opus-5-5, Adding a third lamp now')]
+   Tab -> [('AXTextArea', 'Message')]
+   Tab -> [('AXButton', 'New chat')]
+   Tab -> [('AXGroup', 'Redstone lamp with a lever')]
+   Tab -> [('AXGroup', 'claude-opus-5-5, Adding a third lamp now')]
+== open Wheat farm, fail twice
+announcements during the sends and the chat switch:
+    021.220 50 'Adding a third lamp now. It goes two blocks east of the second one, on'
+    030.413 50 'Adding a third lamp now. It goes two blocks east of the second one, on'
+    038.767 50 'Adding a third lamp now. It goes two blocks east of the second one, on'
+    043.700 50 'Wheat farm'
+    048.051 90 'The provider refused the request: rate limited (a fixture error)'
+{"action":"opened chat","chat":"chat-lamp","title":"Redstone lamp with a lever"}
+{"action":"sent","text":"Add a door"}
+{"action":"sent","text":"Add a window"}
+{"action":"sent","text":"Add a roof"}
+{"action":"opened chat","chat":"chat-farm","title":"Wheat farm"}
+{"action":"sent","text":"Add a fence"}
+{"action":"sent","text":"Add a gate"}

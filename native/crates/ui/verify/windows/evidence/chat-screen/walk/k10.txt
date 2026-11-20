@@ -1,0 +1,2 @@
+start: Group name="claude-opus-5-5" lct="article" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=1 offscreen=0 ctl=1 content=1 rect=[276,695,1044x43] set=9/0 description="message" patterns=[LegacyIAccessible] [foreground "mcbench-lite — Redstone lamp with a lever"]
+key[0] down: Group name="claude-opus-5-5" lct="article" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=1 offscreen=0 ctl=1 content=1 rect=[276,695,1044x43] set=9/0 description="message" patterns=[LegacyIAccessible] [foreground "mcbench-lite — Redstone lamp with a lever"]

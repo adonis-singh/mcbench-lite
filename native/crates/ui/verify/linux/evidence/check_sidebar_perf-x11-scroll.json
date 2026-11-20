@@ -1,0 +1,37 @@
+{
+ "scenario": "scroll",
+ "backend": "x11",
+ "first_frame_ms": 384.939,
+ "key_to_paint_ms": null,
+ "scroll_to_paint_ms": {
+  "count": 189,
+  "mean": 13.923,
+  "p50": 14.305,
+  "p99": 16.47,
+  "worst": 16.703
+ },
+ "frame_work_ms": {
+  "count": 196,
+  "mean": 1.505,
+  "p50": 1.485,
+  "p99": 2.186,
+  "worst": 9.978
+ },
+ "load": [
+  "13.31",
+  "14.74",
+  "12.49"
+ ],
+ "scroll": {
+  "window_s": 6.03,
+  "frames": 188,
+  "cpu_percent": 60.5,
+  "frame_interval_ms": {
+   "count": 187,
+   "mean": 31.998,
+   "p50": 31.992,
+   "p99": 32.524,
+   "worst": 32.63
+  }
+ }
+}

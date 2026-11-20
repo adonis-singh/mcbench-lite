@@ -1,0 +1,45 @@
+== name~=Worked expand
+before: Button name="Worked · 2 steps…" lct="button" focus=0 set=0/9 patterns=[ExpandCollapse] expand=Collapsed
+after:  Button name="Worked · 2 steps…" lct="button" focus=1 set=0/9 patterns=[ExpandCollapse] expand=Expanded
+== name~=Built: expand
+before: Button name="Built: a lamp with a lever…" lct="button" focus=0 set=0/9 patterns=[ExpandCollapse] expand=Collapsed
+after:  Button name="Built: a lamp with a lever…" lct="button" focus=1 set=0/9 patterns=[ExpandCollapse] expand=Expanded
+== name~=Built: collapse
+before: Button name="Built: a lamp with a lever…" lct="button" focus=1 set=0/9 patterns=[ExpandCollapse] expand=Expanded
+after:  Button name="Built: a lamp with a lever…" lct="button" focus=1 set=0/9 patterns=[ExpandCollapse] expand=Collapsed
+== name~=Worked collapse
+before: Button name="Worked · 2 steps…" lct="button" focus=0 set=0/9 patterns=[ExpandCollapse] expand=Expanded
+after:  Button name="Worked · 2 steps…" lct="button" focus=1 set=0/9 patterns=[ExpandCollapse] expand=Collapsed
+== name~=Copy code invoke
+before: Button name="Copy code…" lct="button" focus=0 set=0/9 patterns=[Invoke]
+after:  Button name="Copy code…" lct="button" focus=1 set=0/9 patterns=[Invoke]
+== name~=the wiki page on lamps invoke
+before: Group name="claude-opus-5-5, A lamp on a lever\nThe lamp is built and wi…" lct="article" focus=0 set=3/9 patterns=[]
+uia-probe: invoke: the element does not offer pattern 10000
+exit=2 
+== name~=The two lamps invoke
+uia-probe: no element matches "name~=The two lamps" in mcbench-ui-dev
+exit=2 
+== link
+before: Hyperlink name="the wiki page on lamps…" lct="link" focus=0 set=0/9 patterns=[Invoke,Value] value="https://minecraft.wiki/w/Redstone_Lamp…" readonly=1
+after:  Hyperlink name="the wiki page on lamps…" lct="link" focus=1 set=0/9 patterns=[Invoke,Value] value="https://minecraft.wiki/w/Redstone_Lamp…" readonly=1
+== image
+before: Image name="The two lamps on their stone base, seen from the south-east…" lct="image" focus=0 set=0/9 patterns=[Invoke]
+after:  Image name="The two lamps on their stone base, seen from the south-east…" lct="image" focus=1 set=0/9 patterns=[Invoke]
+== chat row Invoke (Castle gate), then the lamp chat again
+before: ListItem name="Castle gate…" lct="list item" focus=0 set=2/3 patterns=[Invoke]
+after:  ListItem name="Castle gate…" lct="list item" focus=1 set=2/3 description="open" patterns=[Invoke]
+before: ListItem name="Redstone lamp with a lever…" lct="list item" focus=0 set=1/3 patterns=[Invoke]
+after:  ListItem name="Redstone lamp with a lever…" lct="list item" focus=1 set=1/3 description="open" patterns=[Invoke]
+== composer SetValue, Send Invoke, then Stop by key and act
+before: Edit name="Message…" lct="edit" focus=0 patterns=[Value,Text] value="…" readonly=0 text=""
+after:  Edit name="Message…" lct="edit" focus=1 patterns=[Value,Text] value="Build a tower…" readonly=0 text="Build a tower"
+before: Button name="Send…" lct="button" focus=0 patterns=[Invoke]
+uia-probe: no element matches "name=Send" in mcbench-ui-dev
+before: Edit name="Message…" lct="edit" focus=1 patterns=[Value,Text] value="…" readonly=0 text=""
+after:  Edit name="Message…" lct="edit" focus=1 patterns=[Value,Text] value="Second…" readonly=0 text="Second"
+before: Button name="Stop…" lct="button" focus=0 patterns=[Invoke]
+uia-probe: no element matches "name=Stop" in mcbench-ui-dev
+== New chat
+before: Button name="New chat…" lct="button" focus=0 patterns=[Invoke]
+after:  Button name="New chat…" lct="button" focus=0 patterns=[Invoke]

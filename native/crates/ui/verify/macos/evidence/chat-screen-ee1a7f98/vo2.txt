@@ -1,0 +1,17 @@
+== keyboard: Tab to the current message, then Up/Down (VoiceOver follows focus)
+Tab	New chat button 
+Tab	Redstone lamp with a lever group (1 of 3) 
+Tab (message)	claude-opus-5-5 article 
+(4 s later)	message, Yes: the base is still three by three, nine stone blocks, and nothing else moved. You are currently on a article, inside of a group. To interact with items in this group, press Control-Option-Shift-Down Arrow. To exit this group, press Control-Option-Shift-Up Arrow. 
+Up	You article 
+(4 s later)	message, Thanks. Is the base still three by three? You are currently on a article, inside of a group. To interact with items in this group, press Control-Option-Shift-Down Arrow. To exit this group, press Control-Option-Shift-Up Arrow. 
+Home	You article 
+(1.5 s later)	message, Build a redstone lamp that turns on with a lever, and explain what you placed. You are currently on a article, inside of a group. To interact with items in this group, press Control-Option-Shift-Down Arrow. To exit this group, press Control-Option-Shift-Up Arrow. 
+(8 s later)	message, Build a redstone lamp that turns on with a lever, and explain what you placed. You are currently on a article, inside of a group. To interact with items in this group, press Control-Option-Shift-Down Arrow. To exit this group, press Control-Option-Shift-Up Arrow. 
+focused message 0.0.2.0 You
+0.0.2.0 87
+0.0.2.1 4
+0.0.2.2 779
+== stop speech (Control) during a long description, then VO-Shift-Down into the message and read by sentence
+End	claude-opus-5-5 article 
+Control (stop)	Login Items, App Background Activity, Software from “Cirrus Labs, Inc.” can run in the background. You can manage background activity in Login Items & Extensions. group To open the notifications menu, press Control-Option-N. 

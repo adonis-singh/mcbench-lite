@@ -1,0 +1,4 @@
+{"action":"opened chat","chat":"chat-lamp","title":"Redstone lamp with a lever"}
+{"action":"toggled","key":"1:1:activity","open":true}
+{"action":"copied","text":"fn build(world: &mut World) {\n    world.fill((0, 0, 0), (2, 0, 2), \"stone\");\n    world.set((1, 1, 1), \"redstone_lamp\");\n    world.set((0, 1, 1), \"lever[face=floor,facing=west]\");\n}"}
+{"action":"link activated","url":"https://minecraft.wiki/w/Redstone_Lamp"}

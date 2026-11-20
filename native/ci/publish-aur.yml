@@ -1,0 +1,62 @@
+# A proposal, not a workflow: nothing runs this file. Copying it to
+# .github/workflows/publish-aur.yml in the public repository, which is the
+# owner's step (native/ci/README.md), would let the owner push the AUR
+# package mcbench-lite-bin for a published release by hand: it takes the
+# PKGBUILD and .SRCINFO that native/packaging/release.sh made in the release
+# workflow's run for the tag and pushes them to
+# ssh://aur@aur.archlinux.org/mcbench-lite-bin.git with the secret
+# AUR_SSH_KEY (the private key of the owner's AUR account, written to a
+# file for the one step that pushes and never printed). It never runs by
+# itself.
+name: publish-aur
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: The published release's tag, v<MAJOR.MINOR.PATCH>
+        required: true
+permissions:
+  contents: read
+jobs:
+  aur:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - id: run
+        name: The release workflow's successful run for the tag, and the release is published
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          [ "$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft)" = false ] || { echo "The release $TAG is not published: the AUR package installs from its assets."; exit 1; }
+          id=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow release.yml --branch "$TAG" --status success --limit 1 --json databaseId --jq '.[0].databaseId // empty')
+          [ -n "$id" ] || { echo "The release workflow has no successful run for $TAG."; exit 1; }
+          echo "id=$id" >> "$GITHUB_OUTPUT"
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: aur
+          path: ${{ runner.temp }}/aur
+          run-id: ${{ steps.run.outputs.id }}
+          github-token: ${{ github.token }}
+      - name: Push to the AUR, with the key in a file for this step
+        env:
+          AUR_SSH_KEY: ${{ secrets.AUR_SSH_KEY }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          ssh="$RUNNER_TEMP/ssh"
+          trap 'rm -rf "$ssh"' EXIT
+          (umask 077 && mkdir "$ssh" && printf '%s\n' "$AUR_SSH_KEY" > "$ssh/key")
+          unset AUR_SSH_KEY
+          # The AUR's Ed25519 host key, checked against the fingerprint
+          # https://aur.archlinux.org/ publishes.
+          ssh-keyscan -t ed25519 aur.archlinux.org > "$ssh/known_hosts" 2> /dev/null
+          [ "$(ssh-keygen -lf "$ssh/known_hosts" | awk '{ print $2 }')" = SHA256:RFzBCUItH9LZS0cKB5UE6ceAYhBD5C8GeOBip8Z11+4 ] || { echo "aur.archlinux.org's host key is not the one the AUR publishes."; exit 1; }
+          export GIT_SSH_COMMAND="ssh -i $ssh/key -o IdentitiesOnly=yes -o UserKnownHostsFile=$ssh/known_hosts -o StrictHostKeyChecking=yes"
+          git clone ssh://aur@aur.archlinux.org/mcbench-lite-bin.git "$RUNNER_TEMP/repo"
+          cp "$RUNNER_TEMP/aur/PKGBUILD" "$RUNNER_TEMP/aur/.SRCINFO" "$RUNNER_TEMP/repo/"
+          cd "$RUNNER_TEMP/repo"
+          git add PKGBUILD .SRCINFO
+          git -c user.name=mcbench-lite -c user.email=mcbench-lite@users.noreply.github.com commit -m "mcbench-lite-bin ${TAG#v}"
+          git push origin HEAD:master

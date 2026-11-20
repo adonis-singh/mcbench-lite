@@ -1,0 +1,56 @@
+[package]
+name = "mcbench-sandbox"
+description = "The bash tool's sandbox: one Linux root filesystem under bubblewrap on every platform"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+# The guest program for the macOS VM and the WSL2 distro (built static for
+# x86_64-unknown-linux-musl and aarch64-unknown-linux-musl), and the relay
+# inside Codex's box on Linux: the agent without the app's GPU and V8.
+[[bin]]
+name = "mcbench-sandbox-agent"
+path = "src/bin/mcbench-sandbox-agent.rs"
+
+[dependencies]
+mcbench-spawn.workspace = true
+async-trait.workspace = true
+tokio = { workspace = true, features = ["rt", "rt-multi-thread", "net", "io-util", "io-std", "process", "time", "sync", "macros", "fs"] }
+tokio-util.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+tar.workspace = true
+ruzstd.workspace = true
+mcbench-relay.workspace = true
+# The build child's sandbox: on Linux the user-namespace sentence and the
+# reading of bubblewrap's stderr that both use; on Windows the WSL2 distro's
+# name, user and wsl.exe.
+mcbench-build.workspace = true
+
+[target.'cfg(unix)'.dependencies]
+libc.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { workspace = true, features = ["Win32_Foundation", "Win32_Security", "Win32_Storage_FileSystem", "Win32_System_Com", "Win32_System_Registry", "Win32_System_Shutdown", "Win32_System_Threading", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2.workspace = true
+objc2-foundation = { workspace = true, features = ["std", "NSArray", "NSError", "NSFileHandle", "NSString", "NSURL", "NSObject"] }
+objc2-virtualization = { workspace = true, features = ["std", "block2", "dispatch2", "VZBootLoader", "VZLinuxBootLoader", "VZVirtualMachineConfiguration", "VZVirtualMachine", "VZDirectorySharingDeviceConfiguration", "VZVirtioFileSystemDeviceConfiguration", "VZDirectoryShare", "VZSingleDirectoryShare", "VZSharedDirectory", "VZNetworkDeviceConfiguration", "VZVirtioNetworkDeviceConfiguration", "VZNetworkDeviceAttachment", "VZNATNetworkDeviceAttachment", "VZSocketDeviceConfiguration", "VZVirtioSocketDeviceConfiguration", "VZSocketDevice", "VZVirtioSocketDevice", "VZVirtioSocketConnection", "VZSerialPortConfiguration", "VZVirtioConsoleDeviceSerialPortConfiguration", "VZSerialPortAttachment", "VZFileHandleSerialPortAttachment", "VZStorageDeviceConfiguration", "VZVirtioBlockDeviceConfiguration", "VZStorageDeviceAttachment", "VZDiskImageStorageDeviceAttachment", "VZEntropyDeviceConfiguration", "VZVirtioEntropyDeviceConfiguration", "VZPlatformConfiguration", "VZGenericPlatformConfiguration"] }
+block2.workspace = true
+dispatch2.workspace = true
+
+[target.'cfg(unix)'.dev-dependencies]
+libc.workspace = true
+
+[target.'cfg(windows)'.dev-dependencies]
+windows-sys = { workspace = true, features = ["Win32_NetworkManagement_IpHelper", "Win32_NetworkManagement_Ndis", "Win32_Networking_WinSock"] }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros", "test-util"] }
+
+[lints]
+workspace = true

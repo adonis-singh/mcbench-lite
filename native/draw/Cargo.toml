@@ -18,6 +18,8 @@ path = "src/main.rs"
 
 [dependencies]
 mcbench-renderer = { path = "../../renderer" }
+# The renderer's seam (the trait the core calls, the live view's types).
+mcbench-render = { path = "../crates/render" }
 wgpu = { version = "30.0.2", default-features = false, features = ["std", "wgsl", "parking_lot", "metal", "vulkan", "gles", "dx12"] }
 image = { version = "0.25.10", default-features = false, features = ["png", "jpeg"] }
 jpeg-encoder = "0.7.1"
@@ -50,10 +52,15 @@ ash = "0.38"
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.62", default-features = false, features = ["Win32_Graphics_Direct3D12", "Win32_Graphics_Dxgi_Common", "Win32_System_ProcessStatus", "Win32_System_Threading", "Win32_System_Memory"] }
 
+[dev-dependencies]
+# The engine, for the live view's tests: real tick patches of a lever and a lamp.
+mcbench-core = { path = "../../core" }
+
+# Not stripped, as the app's binaries are not (docs/native-app.md, after the
+# macOS size table): the symbols make a crash log readable.
 [profile.release]
 opt-level = 3
 debug = false
-strip = true
 
 [profile.test]
 opt-level = 2

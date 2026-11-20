@@ -1,0 +1,5 @@
+{"action":"opened chat","chat":"chat-lamp","title":"Redstone lamp with a lever"}
+{"action":"toggled","key":"1:1:activity","open":true}
+{"action":"toggled","key":"call-build","open":true}
+{"action":"toggled","key":"call-build","open":false}
+{"action":"toggled","key":"1:1:activity","open":false}

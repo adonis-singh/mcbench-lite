@@ -1,0 +1,8 @@
+none: clipboard=[GPUI Accessibility Demo region, Accessibility Demo, application, ]
+tab: clipboard=[Counter: 0, spin button, ]
+tab: clipboard=[Reset counter, button, ]
+tab: clipboard=[Enable feature, button, off, ]
+spc: clipboard=[Enable feature, button, on, ]
+shift-tab: clipboard=[Reset counter, button, ]
+insert-left: clipboard=[Counter: 0, spin button, ]
+insert-left: clipboard=[Accessibility Demo at level 2, ]

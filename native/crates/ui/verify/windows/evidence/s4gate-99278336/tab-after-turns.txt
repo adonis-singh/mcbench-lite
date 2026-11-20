@@ -1,0 +1,7 @@
+start: Edit name="Message" lct="edit" [fore [fore [fore [fore focus=1 [fore [fore [fore [foreground "mcbench-lite — Redstone lamp with a lever"]
+key[0] shift+tab: ListItem name="Castle gate" lct="list item" [fore [fore [fore [fore focus=1 [fore [fore [fore set=2/3 [foreground "mcbench-lite — Redstone l
+key[1] shift+tab: Button name="New chat" lct="button" [fore [fore [fore [fore focus=1 [fore [fore [fore [foreground "mcbench-lite — Redstone lamp with a lever
+key[2] shift+tab: Edit name="Message" lct="edit" [fore [fore [fore [fore focus=1 [fore [fore [fore [foreground "mcbench-lite — Redstone lamp with a lever"]
+key[3] tab: Button name="New chat" lct="button" [fore [fore [fore [fore focus=1 [fore [fore [fore [foreground "mcbench-lite — Redstone lamp with a lever"]
+key[4] tab: ListItem name="Castle gate" lct="list item" [fore [fore [fore [fore focus=1 [fore [fore [fore set=2/3 [foreground "mcbench-lite — Redstone lamp wi
+key[5] tab: Edit name="Message" lct="edit" [fore [fore [fore [fore focus=1 [fore [fore [fore [foreground "mcbench-lite — Redstone lamp with a lever"]

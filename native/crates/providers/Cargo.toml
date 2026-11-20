@@ -1,0 +1,48 @@
+[package]
+name = "mcbench-providers"
+description = "Model providers: API providers and the Claude Code and Codex CLIs with the tool bridge"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+mcbench-spawn.workspace = true
+async-trait.workspace = true
+tokio = { workspace = true, features = ["rt", "net", "process", "io-util", "io-std", "sync", "time", "macros", "fs"] }
+tokio-util.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+mcbench-json.workspace = true
+reqwest.workspace = true
+rustls.workspace = true
+webpki-roots.workspace = true
+icu_collator.workspace = true
+base64.workspace = true
+sha2.workspace = true
+getrandom.workspace = true
+flate2.workspace = true
+tar.workspace = true
+futures-util.workspace = true
+mcbench-relay.workspace = true
+mcbench-sandbox.workspace = true
+
+[target.'cfg(unix)'.dependencies]
+libc.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { workspace = true, features = ["Win32_Foundation", "Win32_Security", "Win32_System_JobObjects", "Win32_System_Threading"] }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros", "time", "test-util", "net", "process", "io-util", "sync"] }
+
+# The CLI harnesses run end to end against fake CLIs and the bridge's relay.
+# The relay is this test binary itself started as `<test> tool-bridge <socket>`,
+# so it has a main of its own (libtest would print to the relay's stdout).
+[[test]]
+name = "cli"
+harness = false
+
+[lints]
+workspace = true

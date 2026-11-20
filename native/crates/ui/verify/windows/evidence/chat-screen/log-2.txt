@@ -1,0 +1,3 @@
+{"action":"opened chat","chat":"chat-lamp","title":"Redstone lamp with a lever"}
+{"action":"opened chat","chat":"chat-gate","title":"Castle gate"}
+{"action":"new chat"}

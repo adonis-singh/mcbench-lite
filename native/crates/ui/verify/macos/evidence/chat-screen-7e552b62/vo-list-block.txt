@@ -1,0 +1,15 @@
+Tab (New chat)	Redstone lamp with a lever group (1 of 3) 
+VO-Right	Castle gate group (2 of 3) 
+VO-Shift-Down	In Castle gate group (2 of 3) content is empty 
+VO-Right	Wheat farm group (3 of 3) 
+VO-Right	Wheat farm group (3 of 3) 
+VO-Shift-Up	Out of Chats list 
+log while walking the list: []
+== a block: Tab to the message, Right, then wait for the hint
+Right	heading level 1 group 
+(3.5 s later)	A lamp on a lever You are currently on a group, inside of a article. To interact with items in this group, press Control-Option-Shift-Down Arrow. To exit this group, press Control-Option-Shift-Up Arrow. 
+Right	paragraph group 
+(3.5 s later)	The lamp is built and wired. It lights when the lever is on and goes dark when it is off; the old torch is gone. The block that does the work is a redstone_lamp, and the wiki page on lamps has the details. You are currently on a group, inside of a article. To interact with items in this group, press Control-Option-Shift-Down Arrow. To exit this group, press Control-Option-Shift-Up Arrow. 
+{'AXChildren': '<1 items>', 'AXHelp': 'The lamp is built and wired. It lights when the lever is on and goes dark when it is off; ', 'AXRole': 'AXGroup', 'AXRoleDescription': 'group', 'AXSubrole': 'AXApplicationGroup', 'AXTitle': 'paragraph'}
+VO-Shift-Down (into the block)	In paragraph group 4 items The lamp is built and wired. It lights when the lever is on and goes dark when it is off; the old torch is gone. The block that does the work is a  
+VO-Right	redstone_lamp, and  

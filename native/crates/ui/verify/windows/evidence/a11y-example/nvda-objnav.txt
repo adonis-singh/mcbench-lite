@@ -1,0 +1,22 @@
+Input: kb(desktop):NVDA+downArrow
+Input: kb(desktop):NVDA+numpad8
+Speaking ['GPUI Accessibility Demo', 'window']
+Input: kb(desktop):NVDA+numpad2
+Speaking ['System', 'collapsed', 'Space', '1 of 1']
+Input: kb(desktop):NVDA+numpad6
+Speaking ['Accessibility Demo', 'level 2']
+Input: kb(desktop):NVDA+numpad6
+Speaking ['Counter: 0', 'spin button', '0']
+Input: kb(desktop):NVDA+numpad6
+Speaking ['Reset counter', 'button']
+Input: kb(desktop):NVDA+numpad6
+Speaking ['Enable feature', 'toggle button', 'not pressed']
+Input: kb(desktop):NVDA+numpad6
+Speaking ['Enable feature']
+Input: kb(desktop):NVDA+numpad2
+Speaking ['No objects inside']
+Input: kb(desktop):NVDA+numpad6
+Speaking ['Tasks', 'list']
+Input: kb(desktop):NVDA+numpad6
+Speaking ['No next']
+Input: kb(desktop):NVDA+numpadPlus

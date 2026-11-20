@@ -1,0 +1,101 @@
+[
+ {
+  "note": "VoiceOver while the full turn runs (polled every 0.4 s)",
+  "seen": [
+   "Make it brighter"
+  ]
+ },
+ {
+  "check": "the working line is not announced every second",
+  "ok": true,
+  "seen": [
+   "Make it brighter"
+  ]
+ },
+ {
+  "note": "VO the current message",
+  "seen": "Notice, Tasks, 3 of 3\nLay the stone base, done\nPlace the lamp, done\nCheck it in Minecraft, done article"
+ },
+ {
+  "note": "VO Up",
+  "seen": "Notice, Warning: The model fell back to a smaller context window article"
+ },
+ {
+  "note": "VO Up",
+  "seen": "claude-opus-5-5, work article"
+ },
+ {
+  "note": "VO Right into the message",
+  "seen": "claude-opus-5-5, work article"
+ },
+ {
+  "note": "VO Right",
+  "seen": "You are currently on a article, inside of a group. To interact with items in this group, press Control-Option-Shift-Down Arrow. To exit this group, press Control-Option-Shift-Up Arrow."
+ },
+ {
+  "note": "VO Right",
+  "seen": "You are currently on a article, inside of a group. To interact with items in this group, press Control-Option-Shift-Down Arrow. To exit this group, press Control-Option-Shift-Up Arrow."
+ },
+ {
+  "note": "VO Right",
+  "seen": "You are currently on a article, inside of a group. To interact with items in this group, press Control-Option-Shift-Down Arrow. To exit this group, press Control-Option-Shift-Up Arrow."
+ },
+ {
+  "note": "VO Tab to its parts",
+  "seen": "Worked · 4 steps collapsed button"
+ },
+ {
+  "note": "VO Tab",
+  "seen": "Message edit text"
+ },
+ {
+  "note": "VO Tab",
+  "seen": "Attach file button"
+ },
+ {
+  "note": "VO Tab",
+  "seen": "Resolution: Standard collapsed button"
+ },
+ {
+  "note": "VO Enter on Settings",
+  "seen": "Settings dialog"
+ },
+ {
+  "note": "VO heard over 2 s",
+  "seen": [
+   "Settings dialog",
+   "You are currently on a dialog."
+  ]
+ },
+ {
+  "note": "VO Escape",
+  "seen": "Message edit text"
+ },
+ {
+  "note": "VO heard over 2 s",
+  "seen": [
+   "Message edit text",
+   "You are currently on a text area."
+  ]
+ },
+ {
+  "note": "VO Space on Edit and branch",
+  "seen": "Message edit text Insertion at end of text. Make it brighter"
+ },
+ {
+  "note": "VO heard over 2 s",
+  "seen": [
+   "Message edit text Insertion at end of text. Make it brighter"
+  ]
+ },
+ {
+  "note": "VO Escape cancels the edit",
+  "seen": "You are currently on a text area."
+ },
+ {
+  "note": "VO heard over 2 s",
+  "seen": [
+   "You are currently on a text area."
+  ]
+ }
+]

@@ -1,0 +1,98 @@
+[
+ {
+  "check": "panic: the process exits",
+  "ok": true,
+  "seen": null
+ },
+ {
+  "check": "panic: a crash log is written",
+  "ok": true,
+  "seen": "crash-1794936348-3227.log\ncrash-signals.log\n==> /tmp/s4/logs/crash-1794936348-3227.log <==\ncking::panic_with_hook\n   3: std::panicking::panic_handler::{closure#0}\n   4: std::sys::backtrace::__rust_end_short_backtrace::<std::panicking::panic_handler::{closure#0}, !>\n   5: __rustc::rust_begin_unwind\n   6: core::panicking::panic_fmt\n   7: std::sys::backtrace::__rust_begin_short_backtrace::<mcbench_ui_dev::crash_later::{closure#0}, ()>\n   8: <std::thread::lifecycle::spawn_unchecked<mcbench_ui_dev::crash_later::{closure#0}, ()>::{closure#1} as core::ops::function::FnOnce<()>>::call_once::{shim:vtab"
+ },
+ {
+  "check": "panic: no crash dialog",
+  "ok": true,
+  "seen": []
+ },
+ {
+  "check": "panic: nothing new in DiagnosticReports",
+  "ok": true,
+  "seen": []
+ },
+ {
+  "note": "panic: stdout and stderr",
+  "seen": "h-ui-dev/main.rs:338:24\npid: 3227\n\nbacktrace:\n   0: <backtrace::capture::Backtrace>::new\n   1: mcbench_ui::crash::install::{closure#1}\n   2: std::panicking::panic_with_hook\n   3: std::panicking::panic_handler::{closure#0}\n   4: std::sys::backtrace::__rust_end_short_backtrace::<std::panicking::panic_handler::{closure#0}, !>\n   5: __rustc::rust_begin_unwind\n   6: core::panicking::panic_fmt\n   7: std::sys::backtrace::__rust_begin_short_backtrace::<mcbench_ui_dev::crash_later::{closure#0}, ()>\n   8: <std::thread::lifecycle::spawn_unchecked<mcbench_ui_dev::crash_later::{closure#0}, ()>::{closure#1} as core::ops::function::FnOnce<()>>::call_once::{shim:vtable#0}\n   9: <std::sys::thread::unix::Thread>::new::thread_start\n  10: __pthread_cond_wait\n\ncrash log: /tmp/s4/logs/crash-1794936348-3227.log\n"
+ },
+ {
+  "check": "abort: the process exits",
+  "ok": true,
+  "seen": null
+ },
+ {
+  "check": "abort: a crash log is written",
+  "ok": true,
+  "seen": "crash-signals.log\nmcbench-lite 0.1.0 pid 3258: fatal SIGABRT\n"
+ },
+ {
+  "check": "abort: no crash dialog",
+  "ok": true,
+  "seen": []
+ },
+ {
+  "check": "abort: nothing new in DiagnosticReports",
+  "ok": true,
+  "seen": []
+ },
+ {
+  "note": "abort: stdout and stderr",
+  "seen": ""
+ },
+ {
+  "check": "segv: the process exits",
+  "ok": true,
+  "seen": null
+ },
+ {
+  "check": "segv: a crash log is written",
+  "ok": true,
+  "seen": "crash-signals.log\nmcbench-lite 0.1.0 pid 3289: fatal SIGSEGV\n"
+ },
+ {
+  "check": "segv: no crash dialog",
+  "ok": true,
+  "seen": []
+ },
+ {
+  "check": "segv: nothing new in DiagnosticReports",
+  "ok": true,
+  "seen": []
+ },
+ {
+  "note": "segv: stdout and stderr",
+  "seen": ""
+ },
+ {
+  "check": "objc: the process exits",
+  "ok": true,
+  "seen": null
+ },
+ {
+  "check": "objc: a crash log is written",
+  "ok": true,
+  "seen": "crash-signals.log\nmcbench-lite 0.1.0 pid 3320: fatal SIGABRT\n"
+ },
+ {
+  "check": "objc: no crash dialog",
+  "ok": true,
+  "seen": []
+ },
+ {
+  "check": "objc: nothing new in DiagnosticReports",
+  "ok": true,
+  "seen": []
+ },
+ {
+  "note": "objc: stdout and stderr",
+  "seen": "fatal runtime error: Rust cannot catch foreign exceptions, aborting\n"
+ }
+]

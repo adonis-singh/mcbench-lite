@@ -111,6 +111,15 @@ test('the block table holds Minecraft\'s fluids, render shapes and skipRendering
   assert.deepEqual(skipped(pane(['east']), pane([])), [DOWN, UP]);
   assert.deepEqual(skipped(pane([]), pane([])), [DOWN, UP]);
   assert.deepEqual(skipped(pane(['east']), id('minecraft:iron_bars', { west: 'true' })), [], 'a pane and bars are two blocks');
+  // Bars of two blocks of #minecraft:bars (iron and the coppers) hide the
+  // faces between them where both join, and only there (IronBarsBlock asks
+  // the tag, which a client has bound from its server).
+  const bars = (block, sides) => id(block, Object.fromEntries(['north', 'south', 'east', 'west'].map((side) => [side, String(sides.includes(side))])));
+  assert.deepEqual(skipped(bars('minecraft:iron_bars', ['east']), bars('minecraft:copper_bars', ['west'])), [EAST]);
+  assert.deepEqual(skipped(bars('minecraft:copper_bars', ['west']), bars('minecraft:waxed_oxidized_copper_bars', ['east'])), [WEST]);
+  assert.deepEqual(skipped(bars('minecraft:iron_bars', ['east']), bars('minecraft:copper_bars', [])), []);
+  assert.deepEqual(skipped(bars('minecraft:iron_bars', []), bars('minecraft:copper_bars', [])), [], 'bars of two blocks show the faces above and below');
+  assert.deepEqual(skipped(bars('minecraft:iron_bars', []), bars('minecraft:iron_bars', [])), [DOWN, UP]);
   // Water hides its faces toward every state that holds water, and nothing else.
   const water = id('minecraft:water', { level: '0' });
   const wetStair = id('minecraft:oak_stairs', { waterlogged: 'true' });

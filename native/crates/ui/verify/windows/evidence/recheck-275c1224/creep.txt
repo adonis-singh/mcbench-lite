@@ -1,0 +1,14 @@
+start 0 (no preferences yet):
+rect=[312,75,1296x859]
+after the drag: rect=[312,75,1096x859]
+"window":{"display":"78692035-3a04-52f3-a2bf-1133155ae828","x":320.0,"y":106.0,"width":1080.0,"height":820.0}
+start 1: rect=[312,75,1096x859]; 1 s after Alt+F4: processes, WerFault, task log: 0 0 exit=0  ; saved "x":320.0,"y":106.0
+start 2: rect=[312,75,1096x859]; 1 s after Alt+F4: processes, WerFault, task log: 0 0 exit=0  ; saved "x":320.0,"y":106.0
+start 3: rect=[312,75,1096x859]; 1 s after Alt+F4: processes, WerFault, task log: 0 0 exit=0  ; saved "x":320.0,"y":106.0
+start 4: rect=[312,75,1096x859]; 1 s after Alt+F4: processes, WerFault, task log: 0 0 exit=0  ; saved "x":320.0,"y":106.0
+start 5: rect=[312,75,1096x859]; 1 s after Alt+F4: processes, WerFault, task log: 0 0 exit=0  ; saved "x":320.0,"y":106.0
+start 6: rect=[312,75,1096x859]; 1 s after Alt+F4: processes, WerFault, task log: 0 0 exit=0  ; saved "x":320.0,"y":106.0
+start 7: rect=[312,75,1096x859]; 1 s after Alt+F4: processes, WerFault, task log: 0 0 exit=0  ; saved "x":320.0,"y":106.0
+start 8: rect=[312,75,1096x859]; 1 s after Alt+F4: processes, WerFault, task log: 0 0 exit=0  ; saved "x":320.0,"y":106.0
+start 9: rect=[312,75,1096x859]; 1 s after Alt+F4: processes, WerFault, task log: 0 0 exit=0  ; saved "x":320.0,"y":106.0
+start 10: rect=[312,75,1096x859]; 1 s after Alt+F4: processes, WerFault, task log: 0 0 exit=0  ; saved "x":320.0,"y":106.0

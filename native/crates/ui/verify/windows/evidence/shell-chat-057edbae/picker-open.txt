@@ -1,0 +1,17 @@
+model picker open: Enter on the focused trigger, then Escape, 6 times; trace binary:  14:29:06 up 3 days,  1:32,  4 users,  load average: 2.11, 2.83, 2.87
+gatewin-key key->draw 3.64 gpui-draw 1.15 to-renderer 0.00 encode 0.16 present 0.09 gpu 29.77 key->gpu-done 34.81
+gatewin-key key->draw 8.83 gpui-draw 1.64 to-renderer 0.00 encode 0.13 present 0.11 gpu 29.67 key->gpu-done 40.37
+gatewin-key key->draw 13.72 gpui-draw 1.60 to-renderer 0.00 encode 0.13 present 0.15 gpu 29.63 key->gpu-done 45.22
+gatewin-key key->draw 13.81 gpui-draw 12.12 to-renderer 0.00 encode 0.46 present 0.12 gpu 34.70 key->gpu-done 61.21
+gatewin-key key->draw 15.45 gpui-draw 2.77 to-renderer 0.00 encode 0.18 present 0.12 gpu 28.29 key->gpu-done 46.81
+gatewin-key key->draw 4.14 gpui-draw 2.73 to-renderer 0.00 encode 0.18 present 0.11 gpu 28.56 key->gpu-done 35.72
+gatewin-key key->draw 7.46 gpui-draw 2.50 to-renderer 0.00 encode 0.18 present 0.10 gpu 28.76 key->gpu-done 39.00
+gatewin-key key->draw 12.60 gpui-draw 2.65 to-renderer 0.00 encode 0.19 present 0.11 gpu 28.60 key->gpu-done 44.14
+gatewin-key key->draw 13.84 gpui-draw 2.52 to-renderer 0.00 encode 0.18 present 0.10 gpu 28.71 key->gpu-done 45.35
+gatewin-key key->draw 1.77 gpui-draw 3.12 to-renderer 0.00 encode 0.25 present 0.13 gpu 27.69 key->gpu-done 32.97
+gatewin-key key->draw 6.69 gpui-draw 2.85 to-renderer 0.00 encode 0.19 present 0.11 gpu 28.25 key->gpu-done 38.10
+gatewin-key key->draw 10.75 gpui-draw 2.91 to-renderer 0.00 encode 0.20 present 0.11 gpu 28.35 key->gpu-done 42.32
+gatewin-key key->draw 0.51 gpui-draw 2.63 to-renderer 0.00 encode 0.19 present 0.11 gpu 28.60 key->gpu-done 32.04
+gatewin-key key->draw 4.74 gpui-draw 2.84 to-renderer 0.00 encode 0.19 present 0.12 gpu 28.37 key->gpu-done 36.26
+gatewin-key key->draw 8.34 gpui-draw 2.78 to-renderer 0.00 encode 0.22 present 0.12 gpu 28.32 key->gpu-done 39.79
+ 14:29:23 up 3 days,  1:33,  4 users,  load average: 1.87, 2.74, 2.84

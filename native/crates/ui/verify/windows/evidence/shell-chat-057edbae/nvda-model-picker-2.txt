@@ -1,0 +1,25 @@
+Input: kb(desktop):escape
+Speaking [LangChangeCommand ('en'), 'Message', 'edit', CancellableSpeech (still valid), 'blank']
+Speaking [LangChangeCommand ('en'), 'Chat model: claude-opus-5-5', 'button', 'collapsed', 'claude-opus-5-5', CancellableSpeech (still valid)]
+Input: kb(desktop):enter
+Speaking [LangChangeCommand ('en'), 'expanded']
+Speaking [LangChangeCommand ('en'), 'Chat model', 'dialog', CancellableSpeech (still valid)]
+Speaking [LangChangeCommand ('en'), 'Search models', 'edit', 'Search models...', CancellableSpeech (still valid), 'blank']
+Input: kb(desktop):s
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en'), 's', EndUtteranceCommand(), CharacterModeCommand(False)]
+Input: kb(desktop):o
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en'), 'o', EndUtteranceCommand(), CharacterModeCommand(False)]
+Input: kb(desktop):n
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en'), 'n', EndUtteranceCommand(), CharacterModeCommand(False)]
+Input: kb(desktop):downArrow
+Speaking [LangChangeCommand ('en'), 'Chat model', 'list', CancellableSpeech (still valid)]
+Speaking [LangChangeCommand ('en'), 'Claude Sonnet 4.5, OpenRouter', 'not selected', 'anthropic/claude-sonnet-4.5', CancellableSpeech (still valid)]
+Input: kb(desktop):downArrow
+Input: kb(desktop):tab
+Speaking [LangChangeCommand ('en'), 'Favorite Claude Sonnet 4.5', 'toggle button', 'not pressed', 'Add favorite', CancellableSpeech (still valid)]
+Input: kb(desktop):enter
+Speaking [LangChangeCommand ('en'), 'pressed']
+Input: kb(desktop):shift+tab
+Speaking [LangChangeCommand ('en'), 'Claude Sonnet 4.5, OpenRouter', 'not selected', 'anthropic/claude-sonnet-4.5', CancellableSpeech (still valid)]
+Input: kb(desktop):enter
+Speaking [LangChangeCommand ('en'), 'Chat model: claude-sonnet-4.5', 'button', 'collapsed', 'anthropic/claude-sonnet-4.5', CancellableSpeech (still valid)]

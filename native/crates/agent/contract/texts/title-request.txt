@@ -1,0 +1,5 @@
+Name this chat from its first message, quoted below. Do not answer or carry out the message.
+
+<message>
+⟦message⟧
+</message>

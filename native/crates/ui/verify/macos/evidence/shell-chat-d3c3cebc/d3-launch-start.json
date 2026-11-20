@@ -1,0 +1,28 @@
+{
+ "pid": "1666",
+ "windows": [
+  {
+   "b": [
+    80,
+    55,
+    1280,
+    820
+   ],
+   "layer": 0,
+   "name": "Redstone lamp with a lever · mcbench-lite",
+   "owner": "mcbench-ui-dev",
+   "pid": 1666
+  }
+ ],
+ "front_before_click": {
+  "bundle": "",
+  "name": "mcbench-ui-dev",
+  "pid": 1666
+ },
+ "focus_before_click": {
+  "nodes": [],
+  "app": {
+   "error": ""
+  }
+ }
+}

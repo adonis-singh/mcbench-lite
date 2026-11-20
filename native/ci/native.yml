@@ -1,0 +1,50 @@
+# A proposal, not a workflow: nothing runs this file. CI on the public
+# repository is the owner's to enable; copying this to
+# .github/workflows/native.yml would build and test the workspace on GitHub's
+# free standard runners for all three platforms (docs/native-app.md, GitHub's
+# hosted runners). Day-to-day checks run on the two local machines with
+# native/check.sh.
+name: native
+on:
+  pull_request:
+    paths: ["native/**", "core/**", "renderer/**"]
+  push:
+    branches: [main]
+    paths: ["native/**", "core/**", "renderer/**"]
+jobs:
+  check:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [macos-15, macos-15-intel, ubuntu-24.04, ubuntu-24.04-arm, windows-2025, windows-11-arm]
+    runs-on: ${{ matrix.runner }}
+    defaults:
+      run:
+        working-directory: native
+    steps:
+      - uses: actions/checkout@v5
+      # The toolchain of native/rust-toolchain.toml.
+      - run: rustup toolchain install 1.99.1 --profile minimal --component clippy --component rustfmt
+      - run: cargo fmt --check
+      # The build child's own workspace (its own Cargo.lock), first: the main
+      # workspace's tests run its program (native/check.sh build_child_checks).
+      - run: cargo fmt --check
+        working-directory: native/build-child
+      - run: cargo clippy --all-targets --locked -- -D warnings
+        working-directory: native/build-child
+      - run: cargo test --locked
+        working-directory: native/build-child
+      # The drawing crate's own workspace (native/check.sh draw_checks).
+      - run: cargo fmt --check
+        working-directory: native/draw
+      - run: cargo clippy --all-targets --locked -- -D warnings
+        working-directory: native/draw
+      - run: cargo test --locked
+        working-directory: native/draw
+      - run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - run: cargo test --workspace --locked
+        env:
+          MCBENCH_BUILD_CHILD: ${{ github.workspace }}/native/build-child/target/debug/mcbench-build-child${{ runner.os == 'Windows' && '.exe' || '' }}
+      - run: cargo doc --workspace --no-deps --locked
+        env:
+          RUSTDOCFLAGS: -D warnings

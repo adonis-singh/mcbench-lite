@@ -1,0 +1,144 @@
+[
+ {
+  "note": "idle (EXPERIMENT_CVDISPLAYLINK=1): seconds until the screen and AX show an AXPress",
+  "seen": [
+   {
+    "from": "Show archived",
+    "screen_s": 0.1,
+    "ax_s": 0.2
+   },
+   {
+    "from": "Hide archived",
+    "screen_s": 0.1,
+    "ax_s": 0.2
+   },
+   {
+    "from": "Show archived",
+    "screen_s": 0.1,
+    "ax_s": 0.2
+   },
+   {
+    "from": "Hide archived",
+    "screen_s": 0.1,
+    "ax_s": 0.2
+   },
+   {
+    "from": "Show archived",
+    "screen_s": 0.1,
+    "ax_s": 0.2
+   },
+   {
+    "from": "Hide archived",
+    "screen_s": 0.1,
+    "ax_s": 0.2
+   }
+  ]
+ },
+ {
+  "check": "idle: every AXPress shows on the screen within 1 s",
+  "ok": true,
+  "seen": [
+   {
+    "from": "Show archived",
+    "screen_s": 0.1,
+    "ax_s": 0.2
+   },
+   {
+    "from": "Hide archived",
+    "screen_s": 0.1,
+    "ax_s": 0.2
+   },
+   {
+    "from": "Show archived",
+    "screen_s": 0.1,
+    "ax_s": 0.2
+   },
+   {
+    "from": "Hide archived",
+    "screen_s": 0.1,
+    "ax_s": 0.2
+   },
+   {
+    "from": "Show archived",
+    "screen_s": 0.1,
+    "ax_s": 0.2
+   },
+   {
+    "from": "Hide archived",
+    "screen_s": 0.1,
+    "ax_s": 0.2
+   }
+  ]
+ },
+ {
+  "note": "a chat running (EXPERIMENT_CVDISPLAYLINK=1): seconds until the screen and AX show an AXPress",
+  "seen": [
+   {
+    "from": "Show archived",
+    "screen_s": 0.1,
+    "ax_s": 0.2
+   },
+   {
+    "from": "Hide archived",
+    "screen_s": 0.1,
+    "ax_s": 0.2
+   },
+   {
+    "from": "Show archived",
+    "screen_s": 0.1,
+    "ax_s": 0.2
+   },
+   {
+    "from": "Hide archived",
+    "screen_s": 0.1,
+    "ax_s": 0.1
+   },
+   {
+    "from": "Show archived",
+    "screen_s": 0.1,
+    "ax_s": 0.2
+   },
+   {
+    "from": "Hide archived",
+    "screen_s": 0.1,
+    "ax_s": 0.2
+   }
+  ]
+ },
+ {
+  "check": "a chat running: every AXPress shows on the screen within 1 s",
+  "ok": true,
+  "seen": [
+   {
+    "from": "Show archived",
+    "screen_s": 0.1,
+    "ax_s": 0.2
+   },
+   {
+    "from": "Hide archived",
+    "screen_s": 0.1,
+    "ax_s": 0.2
+   },
+   {
+    "from": "Show archived",
+    "screen_s": 0.1,
+    "ax_s": 0.2
+   },
+   {
+    "from": "Hide archived",
+    "screen_s": 0.1,
+    "ax_s": 0.1
+   },
+   {
+    "from": "Show archived",
+    "screen_s": 0.1,
+    "ax_s": 0.2
+   },
+   {
+    "from": "Hide archived",
+    "screen_s": 0.1,
+    "ax_s": 0.2
+   }
+  ]
+ }
+]

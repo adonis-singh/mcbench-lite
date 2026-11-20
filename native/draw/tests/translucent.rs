@@ -7,7 +7,10 @@
 use mcbench_draw::assets::Level;
 use mcbench_draw::store::{octree_visits, sort_quads};
 
-const OVERWORLD: Level = Level { min_y: -64, height: 384 };
+const OVERWORLD: Level = Level {
+    min_y: -64,
+    height: 384,
+};
 
 enum Node {
     Branch(Box<Branch>),
@@ -32,27 +35,57 @@ impl Branch {
         let (x, y, z) = (d[0].abs(), d[1].abs(), d[2].abs());
         // XYZ, XZY, YXZ, YZX, ZXY, ZYX: (xShift, yShift, zShift).
         let shifts = if x > y && x > z {
-            if y > z { [4, 2, 1] } else { [4, 1, 2] }
+            if y > z {
+                [4, 2, 1]
+            } else {
+                [4, 1, 2]
+            }
         } else if y > x && y > z {
-            if x > z { [2, 4, 1] } else { [1, 4, 2] }
+            if x > z {
+                [2, 4, 1]
+            } else {
+                [1, 4, 2]
+            }
         } else if x > y {
             [2, 1, 4]
         } else {
             [1, 2, 4]
         };
-        Branch { min, max, centre, shifts, camera_negative: d.map(|v| v < 0), nodes: Default::default() }
+        Branch {
+            min,
+            max,
+            centre,
+            shifts,
+            camera_negative: d.map(|v| v < 0),
+            nodes: Default::default(),
+        }
     }
 
     fn add(&mut self, section: [i32; 3], camera_centre: [i32; 3]) {
         let negative = [0, 1, 2].map(|k| section[k] * 16 - self.centre[k] < 0);
-        let index: usize = (0..3).filter(|&k| negative[k] != self.camera_negative[k]).map(|k| self.shifts[k]).sum();
+        let index: usize = (0..3)
+            .filter(|&k| negative[k] != self.camera_negative[k])
+            .map(|k| self.shifts[k])
+            .sum();
         if self.max[0] - self.min[0] + 1 == 32 {
             self.nodes[index] = Some(Node::Leaf(section));
             return;
         }
         if self.nodes[index].is_none() {
-            let min = [0, 1, 2].map(|k| if negative[k] { self.min[k] } else { self.centre[k] });
-            let max = [0, 1, 2].map(|k| if negative[k] { self.centre[k] - 1 } else { self.max[k] });
+            let min = [0, 1, 2].map(|k| {
+                if negative[k] {
+                    self.min[k]
+                } else {
+                    self.centre[k]
+                }
+            });
+            let max = [0, 1, 2].map(|k| {
+                if negative[k] {
+                    self.centre[k] - 1
+                } else {
+                    self.max[k]
+                }
+            });
             self.nodes[index] = Some(Node::Branch(Box::new(Branch::new(min, max, camera_centre))));
         }
         match self.nodes[index].as_mut().unwrap() {
@@ -72,11 +105,20 @@ impl Branch {
 }
 
 // Octree.<init>(cameraSection, renderDistance, sectionsY, minY).
-fn minecraft_order(sections: &[[i32; 3]], camera_section: [i32; 3], distance: i32, level: Level) -> Vec<[i32; 3]> {
+fn minecraft_order(
+    sections: &[[i32; 3]],
+    camera_section: [i32; 3],
+    distance: i32,
+    level: Level,
+) -> Vec<[i32; 3]> {
     let size = ((2 * distance + 1) as u32).next_power_of_two() as i32;
     let origin = camera_section.map(|v| v * 16);
     let min_x = origin[0] - distance * 16;
-    let min_y = if size >= level.height / 16 { level.min_y } else { origin[1] - distance * 16 };
+    let min_y = if size >= level.height / 16 {
+        level.min_y
+    } else {
+        origin[1] - distance * 16
+    };
     let min_z = origin[2] - distance * 16;
     let min = [min_x, min_y, min_z];
     let max = min.map(|v| v + size * 16 - 1);
@@ -94,7 +136,10 @@ fn minecraft_order(sections: &[[i32; 3]], camera_section: [i32; 3], distance: i3
 struct Rng(u64);
 impl Rng {
     fn next(&mut self, n: i32) -> i32 {
-        self.0 = self.0.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+        self.0 = self
+            .0
+            .wrapping_mul(6364136223846793005)
+            .wrapping_add(1442695040888963407);
         ((self.0 >> 33) % n as u64) as i32
     }
 }
@@ -106,10 +151,18 @@ fn sections_are_visited_in_the_octrees_order() {
         // Sections of a world within 12 chunks of the camera (Minecraft's
         // default render distance), the camera anywhere near it.
         let mut sections: Vec<[i32; 3]> = Vec::new();
-        let camera = [rng.next(400) as f64 - 200.0 + 0.37, rng.next(300) as f64 - 40.0 + 0.61, rng.next(400) as f64 - 200.0 + 0.13];
+        let camera = [
+            rng.next(400) as f64 - 200.0 + 0.37,
+            rng.next(300) as f64 - 40.0 + 0.61,
+            rng.next(400) as f64 - 200.0 + 0.13,
+        ];
         let cam_section = camera.map(|v| (v.floor() as i32).div_euclid(16));
         for _ in 0..1 + rng.next(60) {
-            let s = [cam_section[0] + rng.next(25) - 12, rng.next(24) - 4, cam_section[2] + rng.next(25) - 12];
+            let s = [
+                cam_section[0] + rng.next(25) - 12,
+                rng.next(24) - 4,
+                cam_section[2] + rng.next(25) - 12,
+            ];
             if !sections.contains(&s) {
                 sections.push(s);
             }
@@ -118,7 +171,11 @@ fn sections_are_visited_in_the_octrees_order() {
         let mut ours: Vec<usize> = (0..sections.len()).collect();
         ours.sort_by_key(|&i| keys[i]);
         let ours: Vec<[i32; 3]> = ours.into_iter().map(|i| sections[i]).collect();
-        assert_eq!(ours, minecraft_order(&sections, cam_section, 12, OVERWORLD), "case {case}: camera {camera:?}");
+        assert_eq!(
+            ours,
+            minecraft_order(&sections, cam_section, 12, OVERWORLD),
+            "case {case}: camera {camera:?}"
+        );
     }
 }
 
@@ -139,12 +196,25 @@ fn quads_are_sorted_by_the_centroid_of_their_first_and_third_corners() {
     // of corners 0 and 2 (MeshData.unpackQuadCentroids) the first is
     // farther from a camera above corner 0's side; by the mean of all four
     // corners it would be nearer.
-    let quad = |x: f32, h: [f32; 4]| [[x, h[0], 0.0], [x, h[1], 1.0], [x + 1.0, h[2], 1.0], [x + 1.0, h[3], 0.0]];
+    let quad = |x: f32, h: [f32; 4]| {
+        [
+            [x, h[0], 0.0],
+            [x, h[1], 1.0],
+            [x + 1.0, h[2], 1.0],
+            [x + 1.0, h[3], 0.0],
+        ]
+    };
     let centroid = |q: [[f32; 3]; 4]| [0, 1, 2].map(|k| (q[0][k] + q[2][k]) / 2.0);
     let a = quad(0.0, [0.1, 0.95, 0.1, 0.95]);
     let b = quad(0.0, [0.5, 0.5, 0.5, 0.5]);
     let camera = [0.5, 3.0, 0.5];
     assert_eq!(sort_quads(camera, &[centroid(a), centroid(b)]), vec![0, 1]);
     // Equally far: in the buffer's order.
-    assert_eq!(sort_quads([0.5, 3.0, 0.5], &[[0.0, 0.0, 0.0], [1.0, 0.0, 1.0], [1.0, 0.0, 0.0]]), vec![0, 1, 2]);
+    assert_eq!(
+        sort_quads(
+            [0.5, 3.0, 0.5],
+            &[[0.0, 0.0, 0.0], [1.0, 0.0, 1.0], [1.0, 0.0, 0.0]]
+        ),
+        vec![0, 1, 2]
+    );
 }

@@ -1,0 +1,7 @@
+[
+ {
+  "check": "the part ran to its end (TypeError: 'NoneType' object is not subscriptable)",
+  "ok": false,
+  "seen": "Traceback (most recent call last):\n  File \"<home>", line 1480, in <module>\n    m.PARTS[name_](pt)\n    ~~~~~~~~~~~~~~^^^^\n  File \"<home>", line 1464, in p_shots\n    m.press(p, fold, settle=1.0)\n    ~~~~~~~^^^^^^^^^^^^^^^^^^^^^\n  File \"<home>", line 204, in press\n    n = visible(p, n) if n[\"path\"].startswith(\"0.0.8.\") else n\n                         ~^^^^^^^^\nTypeError: 'NoneType' object is not subscriptable\n"
+ }
+]

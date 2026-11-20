@@ -1,0 +1,63 @@
+== W3 notice Tab order: --refuse chat-lamp, send, Tab walk from the composer
+start: Edit name="Message"
+key[0] tab: Button name="Attach file"
+key[1] tab: Button name="Resolution: Standard"
+key[2] tab: Button name="Chat model: claude-opus-5-5"
+key[3] tab: Button name="Reasoning effort: medium"
+key[4] tab: Button name="Send message"
+key[5] tab: Button name="mcbuild"
+key[6] tab: Button name="New chat"
+key[7] tab: Button name="Collapse sidebar"
+key[8] tab: Edit name="Search chats"
+key[9] tab: Button name="Filter"
+key[10] tab: ListItem name="Redstone lamp with a lever, open"
+key[11] tab: Button name="Archive build"
+key[12] tab: Button name="Show archived"
+key[13] tab: Button name="Settings"
+key[14] tab: Button name="Dismiss error"
+key[15] tab: Group name="claude-opus-5-5, Yes: the base is still three by three, nine stone blocks, and nothin
+key[16] tab: Edit name="Message"
+key[17] tab: Button name="Attach file"
+exit=0 
+== W4 set sizes
+name="Standard"	set=1/7
+name="High (2×)"	set=2/7
+name="Very high (5×)"	set=3/7
+name="Maximum (10×)"	set=4/7
+name="Wheat field"	set=5/7
+name="Red barn"	set=6/7
+name="Favorites"	set=1/9
+name="OpenRouter"	set=2/9
+name="OpenAI — not configured"	set=3/9
+name="ChatGPT"	set=4/9
+name="Anthropic"	set=5/9
+name="Groq"	set=6/9
+name="Google"	set=7/9
+name="Claude Code harness: its own agent loop with mcbench tools attached"	set=8/9
+name="Codex CLI harness: its own agent loop with mcbench tools attached — CLI not signed in"	set=9/9
+name="Claude Opus 5.5"	set=1/2
+name="Claude Haiku 5.5"	set=2/2
+name="low"	set=1/3
+name="medium"	set=2/3
+name="high"	set=3/3
+Speaking ['Reasoning effort: medium', 'button', 'expanded']
+Input: kb(desktop):escape
+Input: kb(desktop):enter
+Input: kb(desktop):downArrow
+== W4 NVDA in the filter menu and the effort list
+Input: kb(desktop):enter
+Speaking ['Size', 'grouping']
+Speaking ['Standard', 'check box', 'not checked', 'Size: Standard', '1 of 7']
+Input: kb(desktop):downArrow
+Speaking ['High (2×)', 'check box', 'not checked', 'Size: High (2×)', '2 of 7']
+Input: kb(desktop):escape
+Speaking ['Filter', 'button', 'collapsed']
+Speaking ['Reasoning effort: medium', 'button', 'collapsed']
+Input: kb(desktop):enter
+Speaking ['expanded']
+Speaking ['Reasoning effort', 'list']
+Speaking ['medium', '2 of 3']
+Input: kb(desktop):downArrow
+Speaking ['high', 'not selected', '3 of 3']
+Input: kb(desktop):escape
+Speaking ['Reasoning effort: medium', 'button', 'collapsed']

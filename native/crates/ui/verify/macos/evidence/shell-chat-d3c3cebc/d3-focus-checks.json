@@ -1,0 +1,142 @@
+[
+ {
+  "check": "Dismiss error: focus on a real control, and Tab moves on",
+  "ok": true,
+  "seen": {
+   "focus": [
+    "AXTextArea",
+    "Message"
+   ],
+   "spoken": "Message edit text Insertion at beginning of text. One more",
+   "after Tab": [
+    "AXButton",
+    "Attach file"
+   ]
+  }
+ },
+ {
+  "check": "Dismiss error: VoiceOver does not re-read the window",
+  "ok": true,
+  "seen": "Message edit text Insertion at beginning of text. One more"
+ },
+ {
+  "check": "Archive build on the open chat: focus on a real control, and Tab moves on",
+  "ok": true,
+  "seen": {
+   "focus": [
+    "AXGroup",
+    "Castle gate, open"
+   ],
+   "spoken": "Castle gate, open group (2 of 2)",
+   "after Tab": [
+    "AXButton",
+    "Archive build"
+   ]
+  }
+ },
+ {
+  "check": "Archive build on the open chat: VoiceOver does not re-read the window",
+  "ok": true,
+  "seen": "Castle gate, open group (2 of 2)"
+ },
+ {
+  "check": "Delete permanently, twice: focus on a real control, and Tab moves on",
+  "ok": true,
+  "seen": {
+   "focus": [
+    "AXButton",
+    "Restore"
+   ],
+   "spoken": "Restore to the list and open it You are currently on a button, inside of a group. To click this button, press Control-Option-Space. To exit this group, press Control-Option-Shift-Up Arrow.",
+   "after Tab": [
+    "AXButton",
+    "Delete permanently"
+   ]
+  }
+ },
+ {
+  "check": "Delete permanently, twice: VoiceOver does not re-read the window",
+  "ok": true,
+  "seen": "Restore to the list and open it You are currently on a button, inside of a group. To click this button, press Control-Option-Space. To exit this group, press Control-Option-Shift-Up Arrow."
+ },
+ {
+  "check": "Cmd-2: focus on a real control, and Tab moves on",
+  "ok": true,
+  "seen": {
+   "focus": [
+    "AXButton",
+    "Show archived"
+   ],
+   "spoken": "Show archived collapsed button",
+   "after Tab": [
+    "AXButton",
+    "Prompts"
+   ]
+  }
+ },
+ {
+  "check": "Cmd-2: VoiceOver does not re-read the window",
+  "ok": true,
+  "seen": "Show archived collapsed button"
+ },
+ {
+  "check": "the palette closed with Escape: focus on a real control, and Tab moves on",
+  "ok": true,
+  "seen": {
+   "focus": [
+    "AXTextArea",
+    "Message"
+   ],
+   "spoken": "You are currently on a text area.",
+   "after Tab": [
+    "AXButton",
+    "Attach file"
+   ]
+  }
+ },
+ {
+  "check": "the palette closed with Escape: VoiceOver does not re-read the window",
+  "ok": true,
+  "seen": "You are currently on a text area."
+ },
+ {
+  "check": "the lightbox closed with Escape: focus on a real control, and Tab moves on",
+  "ok": true,
+  "seen": {
+   "focus": [
+    "AXImage",
+    "The two lamps on their stone base, seen from the south-east"
+   ],
+   "spoken": "The two lamps on their stone base, seen from the south-east image",
+   "after Tab": [
+    "AXLink",
+    "the lever page"
+   ]
+  }
+ },
+ {
+  "check": "the lightbox closed with Escape: VoiceOver does not re-read the window",
+  "ok": true,
+  "seen": "The two lamps on their stone base, seen from the south-east image"
+ },
+ {
+  "check": "Remove attachment: focus on a real control, and Tab moves on",
+  "ok": true,
+  "seen": {
+   "focus": [
+    "AXTextArea",
+    "Message"
+   ],
+   "spoken": "You are currently on a text area.",
+   "after Tab": [
+    "AXButton",
+    "Attach file"
+   ]
+  }
+ },
+ {
+  "check": "Remove attachment: VoiceOver does not re-read the window",
+  "ok": true,
+  "seen": "You are currently on a text area."
+ }
+]

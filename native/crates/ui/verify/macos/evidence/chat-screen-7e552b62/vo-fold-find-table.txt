@@ -1,0 +1,18 @@
+Tab (fold)	Worked · 2 steps collapsed button 
+VO-Space	You are currently on a button, inside of a article. To click this button, press Control-Option-Space. To exit this group, press Control-Option-Shift-Up Arrow. 
+Space	collapsed 
+VO-Left (away)	Worked · 2 steps collapsed button 
+VO-Right (back)	Worked · 2 steps collapsed button 
+== find commands and table
+VO-Home	You, message, Build a redstone lamp that turns on with a lever, and explain what you placed. article 
+VO-Cmd-H	heading level 1 A lamp on a lever 
+VO-Cmd-L	the wiki page on lamps link 
+VO-Cmd-X	A stone base, three by three 
+VO-Cmd-T	You are currently on a table, inside of a group. To enter this table, press Control-Option-Shift-Down Arrow. To exit this group, press Control-Option-Shift-Up Arrow. 
+VO-Shift-Down	In table Block column 1, row 1 
+VO-Right	Count column 2, row 1 
+VO-Down	9 
+VO-Left	Block stone 
+VO-Shift-Up	Out of table 
+== chat list walk
+VO-Home	table 

@@ -89,24 +89,115 @@ struct State {
 
 // The states, by state index (block by block, a block's states in order).
 fn states() -> Vec<State> {
-    let s = |name, flags, emission, light_block, faces, cull, block, tint, selection, full, layer, fluid_layer, render| State { name, flags, emission, light_block, faces, cull, block, tint, selection, full, layer, fluid_layer, render };
+    let s = |name,
+             flags,
+             emission,
+             light_block,
+             faces,
+             cull,
+             block,
+             tint,
+             selection,
+             full,
+             layer,
+             fluid_layer,
+             render| State {
+        name,
+        flags,
+        emission,
+        light_block,
+        faces,
+        cull,
+        block,
+        tint,
+        selection,
+        full,
+        layer,
+        fluid_layer,
+        render,
+    };
     let mut out = vec![
         s("minecraft:air", AIR, 0, 0, 0, 0, 0, 0, NONE, false, 0, 0, 0),
         s("test:stone", SHADES, 0, 15, 1, 1, 1, 0, 0, true, 0, 0, 1),
         s("test:glass", SHADES, 0, 0, 0, 2, 2, 0, 1, false, 2, 0, 2),
         s("test:lamp", SHADES, 15, 15, 1, 1, 3, 0, 2, true, 0, 0, 1),
         s("test:leaves", SHADES, 0, 1, 0, 0, 4, 1, 3, false, 1, 0, 3),
-        s("test:slab[type=bottom]", 0, 0, 0, 0, 3, 5, 0, 4, false, 0, 0, 4),
-        s("test:slab[type=top]", 0, 0, 0, 0, 4, 5, 0, 5, false, 0, 0, 5),
+        s(
+            "test:slab[type=bottom]",
+            0,
+            0,
+            0,
+            0,
+            3,
+            5,
+            0,
+            4,
+            false,
+            0,
+            0,
+            4,
+        ),
+        s(
+            "test:slab[type=top]",
+            0,
+            0,
+            0,
+            0,
+            4,
+            5,
+            0,
+            5,
+            false,
+            0,
+            0,
+            5,
+        ),
         s("test:torch", 0, 14, 0, 0, 0, 6, 0, 6, false, 1, 0, 6),
         s("test:sign", 0, 0, 0, 0, 0, 7, 0, 7, false, 0, 0, 6),
     ];
-    const LEVELS: [&str; 8] = ["test:water[level=0]", "test:water[level=1]", "test:water[level=2]", "test:water[level=3]", "test:water[level=4]", "test:water[level=5]", "test:water[level=6]", "test:water[level=7]"];
+    const LEVELS: [&str; 8] = [
+        "test:water[level=0]",
+        "test:water[level=1]",
+        "test:water[level=2]",
+        "test:water[level=3]",
+        "test:water[level=4]",
+        "test:water[level=5]",
+        "test:water[level=6]",
+        "test:water[level=7]",
+    ];
     for (level, name) in LEVELS.into_iter().enumerate() {
-        out.push(s(name, WATER, 0, 1, 0, 0, 8, 0, NONE, false, 0, 2, 7 + level as u16));
+        out.push(s(
+            name,
+            WATER,
+            0,
+            1,
+            0,
+            0,
+            8,
+            0,
+            NONE,
+            false,
+            0,
+            2,
+            7 + level as u16,
+        ));
     }
     out.push(s("test:lava", 0, 15, 1, 0, 0, 9, 0, NONE, false, 0, 0, 15));
-    out.push(s("test:wet_slab", WATERLOGGED, 0, 1, 0, 3, 10, 0, 4, false, 0, 2, 16));
+    out.push(s(
+        "test:wet_slab",
+        WATERLOGGED,
+        0,
+        1,
+        0,
+        3,
+        10,
+        0,
+        4,
+        false,
+        0,
+        2,
+        16,
+    ));
     out
 }
 
@@ -117,13 +208,13 @@ fn render_classes() -> Vec<(u8, u8, u8, f32, u8, u8)> {
     // fluid's full top below, 4 solid, 8 blocks motion, 16 solid render,
     // 64 water beside it drawn with the overlay.
     let mut out = vec![
-        (0, 0, 0, -1.0, 0, 0),          // air
-        (0, 0, 0, 1.0, 31, 0x3f),       // full cubes
-        (0, 0, 0, -1.0, 76, 0x3f),      // glass
-        (0, 0, 0, -1.0, 76, 0x3f),      // leaves
-        (0, 0, 0, 0.5, 12, 1),          // bottom slab
-        (0, 0, 0, -1.0, 13, 2),         // top slab
-        (0, 0, 0, -1.0, 0, 0),          // torch, sign
+        (0, 0, 0, -1.0, 0, 0),     // air
+        (0, 0, 0, 1.0, 31, 0x3f),  // full cubes
+        (0, 0, 0, -1.0, 76, 0x3f), // glass
+        (0, 0, 0, -1.0, 76, 0x3f), // leaves
+        (0, 0, 0, 0.5, 12, 1),     // bottom slab
+        (0, 0, 0, -1.0, 13, 2),    // top slab
+        (0, 0, 0, -1.0, 0, 0),     // torch, sign
     ];
     for level in 0..8u8 {
         out.push((1, 8 - level, 0, -1.0, 0, 0)); // water, its amount 8 less the level
@@ -135,7 +226,15 @@ fn render_classes() -> Vec<(u8, u8, u8, f32, u8, u8)> {
 
 // A cube's six faces from `lo` to `hi` (sixteenths), each culled toward its
 // own direction when `cull`, all with `texture`.
-fn element(out: &mut Out, lo: [f32; 3], hi: [f32; 3], emission: u32, texture: u32, tinted: bool, cull: [bool; 6]) {
+fn element(
+    out: &mut Out,
+    lo: [f32; 3],
+    hi: [f32; 3],
+    emission: u32,
+    texture: u32,
+    tinted: bool,
+    cull: [bool; 6],
+) {
     for v in lo.iter().chain(hi.iter()) {
         out.f32(*v);
     }
@@ -148,13 +247,28 @@ fn element(out: &mut Out, lo: [f32; 3], hi: [f32; 3], emission: u32, texture: u3
             2 | 3 => (0, 1),
             _ => (2, 1),
         };
-        let (u0, u1, v0, v1) = (lo[a] / 16.0, hi[a] / 16.0, 1.0 - hi[b] / 16.0, 1.0 - lo[b] / 16.0);
-        let (v0, v1) = if direction < 2 { (lo[b] / 16.0, hi[b] / 16.0) } else { (v0, v1) };
+        let (u0, u1, v0, v1) = (
+            lo[a] / 16.0,
+            hi[a] / 16.0,
+            1.0 - hi[b] / 16.0,
+            1.0 - lo[b] / 16.0,
+        );
+        let (v0, v1) = if direction < 2 {
+            (lo[b] / 16.0, hi[b] / 16.0)
+        } else {
+            (v0, v1)
+        };
         out.u8(direction);
         for v in [u0, v0, u0, v1, u1, v1, u1, v0] {
             out.f32(v);
         }
-        out.u32(texture).u8(tinted as u8).u8(if cull[direction as usize] { direction } else { 255 });
+        out.u32(texture)
+            .u8(tinted as u8)
+            .u8(if cull[direction as usize] {
+                direction
+            } else {
+                255
+            });
     }
 }
 
@@ -172,7 +286,12 @@ pub fn pack() -> Vec<u8> {
         ("test:slab", 5, "type", &["bottom", "top"]),
         ("test:torch", 7, "", &[]),
         ("test:sign", 8, "", &[]),
-        ("test:water", 9, "level", &["0", "1", "2", "3", "4", "5", "6", "7"]),
+        (
+            "test:water",
+            9,
+            "level",
+            &["0", "1", "2", "3", "4", "5", "6", "7"],
+        ),
         ("test:lava", 17, "", &[]),
         ("test:wet_slab", 18, "", &[]),
     ];
@@ -191,7 +310,17 @@ pub fn pack() -> Vec<u8> {
     let states = states();
     o.u32(states.len() as u32);
     for s in &states {
-        o.u8(s.flags).u8(0).u8(s.emission).u8(s.light_block).u8(0).u8(s.faces).u16(s.cull).u16(s.block).u32(s.tint).u32(s.selection).u16(s.render);
+        o.u8(s.flags)
+            .u8(0)
+            .u8(s.emission)
+            .u8(s.light_block)
+            .u8(0)
+            .u8(s.faces)
+            .u16(s.cull)
+            .u16(s.block)
+            .u32(s.tint)
+            .u32(s.selection)
+            .u16(s.render);
     }
     // Face sets: none, all full. Face shapes 0 empty, 1 full: light stops
     // between two faces when either is full.
@@ -203,7 +332,13 @@ pub fn pack() -> Vec<u8> {
     // top slab. Cull shape 1 is the full face; a face beside a full face is
     // hidden.
     o.u32(5);
-    for (shapes, row, column) in [([0u8; 6], 0u16, 0u16), ([1; 6], 0, 0), ([0; 6], 1, 1), ([1, 0, 0, 0, 0, 0], 0, 0), ([0, 1, 0, 0, 0, 0], 0, 0)] {
+    for (shapes, row, column) in [
+        ([0u8; 6], 0u16, 0u16),
+        ([1; 6], 0, 0),
+        ([0; 6], 1, 1),
+        ([1, 0, 0, 0, 0, 0], 0, 0),
+        ([0, 1, 0, 0, 0, 0], 0, 0),
+    ] {
         o.0.extend_from_slice(&shapes);
         o.u16(row).u16(column).u16(0);
     }
@@ -242,7 +377,9 @@ pub fn pack() -> Vec<u8> {
     // One direction table: no turn.
     o.u32(1);
     for i in 0..27i32 {
-        o.u8((i / 9 - 1) as i8 as u8).u8((i / 3 % 3 - 1) as i8 as u8).u8((i % 3 - 1) as i8 as u8);
+        o.u8((i / 9 - 1) as i8 as u8)
+            .u8((i / 3 % 3 - 1) as i8 as u8)
+            .u8((i % 3 - 1) as i8 as u8);
     }
     // Elements.
     let full = ([0.0, 0.0, 0.0], [16.0, 16.0, 16.0]);
@@ -252,9 +389,33 @@ pub fn pack() -> Vec<u8> {
     element(&mut o, full.0, full.1, 0, 2, false, [true; 6]);
     element(&mut o, full.0, full.1, 15, 3, false, [true; 6]);
     element(&mut o, full.0, full.1, 0, 4, true, [true; 6]);
-    element(&mut o, [0.0; 3], [16.0, 8.0, 16.0], 0, 5, false, [true, false, true, true, true, true]);
-    element(&mut o, [0.0, 8.0, 0.0], [16.0; 3], 0, 8, false, [false, true, true, true, true, true]);
-    element(&mut o, [7.0, 0.0, 7.0], [9.0, 10.0, 9.0], 14, 6, false, [true, false, false, false, false, false]);
+    element(
+        &mut o,
+        [0.0; 3],
+        [16.0, 8.0, 16.0],
+        0,
+        5,
+        false,
+        [true, false, true, true, true, true],
+    );
+    element(
+        &mut o,
+        [0.0, 8.0, 0.0],
+        [16.0; 3],
+        0,
+        8,
+        false,
+        [false, true, true, true, true, true],
+    );
+    element(
+        &mut o,
+        [7.0, 0.0, 7.0],
+        [9.0, 10.0, 9.0],
+        14,
+        6,
+        false,
+        [true, false, false, false, false, false],
+    );
     // Meshes: one element each, ambient occlusion but for the torch.
     o.u32(8);
     for e in 0..8u32 {
@@ -268,10 +429,20 @@ pub fn pack() -> Vec<u8> {
     o.u8(3).u32(0).u8(0).u8(0).u8(0);
     // Variant sets: stone picks between its two models by position; every
     // other state has one.
-    let sets: [&[(f64, u32)]; 8] = [&[(1.0, 0), (1.0, 1)], &[(1.0, 2)], &[(1.0, 3)], &[(1.0, 4)], &[(1.0, 5)], &[(1.0, 6)], &[(1.0, 7)], &[(1.0, 8)]];
+    let sets: [&[(f64, u32)]; 8] = [
+        &[(1.0, 0), (1.0, 1)],
+        &[(1.0, 2)],
+        &[(1.0, 3)],
+        &[(1.0, 4)],
+        &[(1.0, 5)],
+        &[(1.0, 6)],
+        &[(1.0, 7)],
+        &[(1.0, 8)],
+    ];
     o.u32(sets.len() as u32);
     for set in sets {
-        o.f64(set.iter().map(|(w, _)| w).sum()).u16(set.len() as u16);
+        o.f64(set.iter().map(|(w, _)| w).sum())
+            .u16(set.len() as u16);
         for (w, v) in set {
             o.f64(*w).u32(*v);
         }
@@ -284,7 +455,12 @@ pub fn pack() -> Vec<u8> {
     // The sign's quad: a board across the block, facing south, its corners
     // in blocks.
     o.u32(1);
-    for c in [[0.1f32, 0.3, 0.55], [0.9, 0.3, 0.55], [0.9, 0.9, 0.55], [0.1, 0.9, 0.55]] {
+    for c in [
+        [0.1f32, 0.3, 0.55],
+        [0.9, 0.3, 0.55],
+        [0.9, 0.9, 0.55],
+        [0.1, 0.9, 0.55],
+    ] {
         o.f32(c[0]).f32(c[1]).f32(c[2]);
     }
     for v in [0.0f32, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0] {
@@ -301,7 +477,7 @@ pub fn pack() -> Vec<u8> {
 
 // A texture's pixel at x, y: patterns of the project's own.
 fn texel(texture: usize, x: u32, y: u32) -> [u8; 4] {
-    let n = ((x * 7 + y * 13 + texture as u32 * 31) * 2654435761u32) >> 27;
+    let n = (x * 7 + y * 13 + texture as u32 * 31).wrapping_mul(2654435761u32) >> 27;
     let n = n as u8;
     match texture {
         0 => [118 + n, 118 + n, 122 + n, 255],
@@ -336,11 +512,22 @@ fn texel(texture: usize, x: u32, y: u32) -> [u8; 4] {
         7 => [150 + n, 110 + n, 60, 255],
         // Water (grey, tinted blue), half transparent; its flow in stripes.
         9 => [170 + n, 170 + n, 170 + n, 170],
-        10 => [if (x + y) % 4 < 2 { 200 } else { 150 } + n, 170 + n, 170 + n, 170],
+        10 => [
+            if (x + y) % 4 < 2 { 200 } else { 150 } + n,
+            170 + n,
+            170 + n,
+            170,
+        ],
         11 => [230, 100 + n * 2, 20, 255],
         12 => [if (x + y) % 4 < 2 { 250 } else { 200 }, 80 + n * 2, 20, 255],
         // The water overlay: grey, mostly opaque, with a light rim.
-        13 => if x == 0 || y == 0 || x == 15 || y == 15 { [230, 230, 230, 220] } else { [150 + n, 150 + n, 150 + n, 200] },
+        13 => {
+            if x == 0 || y == 0 || x == 15 || y == 15 {
+                [230, 230, 230, 220]
+            } else {
+                [150 + n, 150 + n, 150 + n, 200]
+            }
+        }
         _ => [90 + n, 90 + n, 140 + n, 255],
     }
 }
@@ -361,7 +548,9 @@ pub fn atlas() -> (Vec<u8>, String) {
         map.insert(name.to_string(), serde_json::json!([ox, oy, 16, 16]));
     }
     let mut png = Vec::new();
-    image::codecs::png::PngEncoder::new(&mut png).write_image_compat(&rgba, w, h).expect("a PNG");
+    image::codecs::png::PngEncoder::new(&mut png)
+        .write_image_compat(&rgba, w, h)
+        .expect("a PNG");
     (png, serde_json::to_string(&map).unwrap())
 }
 
@@ -381,7 +570,11 @@ fn table_and_layers() -> (String, String) {
     let mut table = String::new();
     let mut layers = String::from("layer\tsolid\t0\nlayer\tcutout\t0\nlayer\ttranslucent\t1\n");
     for s in states() {
-        table.push_str(&format!("{}\t0\t0\t{}\n", s.name, if s.full { 63 } else { 0 }));
+        table.push_str(&format!(
+            "{}\t0\t0\t{}\n",
+            s.name,
+            if s.full { 63 } else { 0 }
+        ));
         layers.push_str(&format!("{}\t{}\t{}\n", s.name, s.layer, s.fluid_layer));
     }
     // The table's three pair tables (not read by the facts).
@@ -416,7 +609,13 @@ fn blueprint_over(blocks: &[([i32; 3], u16)], used: &[u16]) -> Vec<u8> {
     out.extend_from_slice(&(palette.len() as i32).to_be_bytes());
     for s in palette {
         let (id, props) = match s.name.split_once('[') {
-            Some((id, rest)) => (id, rest.trim_end_matches(']').split(',').map(|p| p.split_once('=').unwrap()).collect::<Vec<_>>()),
+            Some((id, rest)) => (
+                id,
+                rest.trim_end_matches(']')
+                    .split(',')
+                    .map(|p| p.split_once('=').unwrap())
+                    .collect::<Vec<_>>(),
+            ),
             None => (s.name, Vec::new()),
         };
         out.extend_from_slice(&(id.len() as u16).to_be_bytes());
@@ -431,7 +630,9 @@ fn blueprint_over(blocks: &[([i32; 3], u16)], used: &[u16]) -> Vec<u8> {
     }
     let mut sections: std::collections::BTreeMap<[i32; 3], Vec<u8>> = Default::default();
     for (b, v) in blocks {
-        let cells = sections.entry(b.map(|c| c >> 4)).or_insert_with(|| vec![0; 8192]);
+        let cells = sections
+            .entry(b.map(|c| c >> 4))
+            .or_insert_with(|| vec![0; 8192]);
         let i = (((b[1] & 15) << 8) | ((b[2] & 15) << 4) | (b[0] & 15)) as usize;
         cells[i * 2..i * 2 + 2].copy_from_slice(&index(*v).to_be_bytes());
     }
@@ -481,7 +682,14 @@ pub fn world() -> Vec<([i32; 3], u16)> {
         }
     }
     b.push(([-6, y0 + 1, -6], 3));
-    for (x, y, z) in [(6, 1, -6), (7, 1, -6), (6, 2, -6), (6, 1, -7), (7, 2, -7), (5, 1, -5)] {
+    for (x, y, z) in [
+        (6, 1, -6),
+        (7, 1, -6),
+        (6, 2, -6),
+        (6, 1, -7),
+        (7, 2, -7),
+        (5, 1, -5),
+    ] {
         b.push(([x, y0 + y, z], 4));
     }
     for x in -3..=3 {
@@ -542,8 +750,11 @@ const CAPTURE: &str = r#"{"atlas":{"width":16,"height":16,"rects":{}},"version":
 fn client_jar() -> Vec<u8> {
     use std::io::Write;
     let mut zip = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
-    let options = zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored).last_modified_time(zip::DateTime::default());
-    zip.start_file("data/minecraft/dimension_type/overworld.json", options).unwrap();
+    let options = zip::write::SimpleFileOptions::default()
+        .compression_method(zip::CompressionMethod::Stored)
+        .last_modified_time(zip::DateTime::default());
+    zip.start_file("data/minecraft/dimension_type/overworld.json", options)
+        .unwrap();
     zip.write_all(br#"{"min_y":-64,"height":384}"#).unwrap();
     zip.finish().unwrap().into_inner()
 }
@@ -552,7 +763,10 @@ fn client_jar() -> Vec<u8> {
 pub fn files() -> Vec<(&'static str, Vec<u8>)> {
     let (png, map) = atlas();
     let (table, layers) = table_and_layers();
-    let textures: Vec<serde_json::Value> = TEXTURES.iter().map(|t| serde_json::json!({ "resourcePath": t })).collect();
+    let textures: Vec<serde_json::Value> = TEXTURES
+        .iter()
+        .map(|t| serde_json::json!({ "resourcePath": t }))
+        .collect();
     vec![
         ("pack.bin", pack()),
         ("textures.json", serde_json::to_vec(&textures).unwrap()),
@@ -577,6 +791,8 @@ pub fn paths(folder: &Path) -> crate::assets::Paths {
         render_layers: folder.join("render-layers.tsv"),
         entities: folder.join("entities.json"),
         client_jar: folder.join("client.jar"),
+        // The synthetic pack draws see_build's day alone.
+        night: None,
         software_vulkan: None,
     }
 }

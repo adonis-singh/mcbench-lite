@@ -1,0 +1,41 @@
+== before any turn
+start: Edit name="Message" lct="edit" focus=1 value="" readonly=0 text="" 
+key[0] shift+tab: Group name="claude-opus-5-5" lct="article" focus=1 set=9/9 description="message, Yes: the base is still three by three, nine stone b
+key[1] tab: Edit name="Message" lct="edit" focus=1 value="" readonly=0 text="" 
+== after one finished turn
+start: Edit name="Message" lct="edit" focus=1 value="" readonly=0 text="" 
+key[0] shift+tab: Group name="claude-opus-5-5" lct="article" focus=1 set=9/12 description="message, Yes: the base is still three by three, nine stone 
+key[1] shift+tab: ListItem name="Redstone lamp with a lever" lct="list item" focus=1 set=1/3 description="open" 
+key[2] tab: Group name="claude-opus-5-5" lct="article" focus=1 set=9/12 description="message, Yes: the base is still three by three, nine stone blocks
+key[3] tab: Edit name="Message" lct="edit" focus=1 value="" readonly=0 text="" 
+== after a turn stopped by Stop
+start: Edit name="Message" lct="edit" focus=1 value="" readonly=0 text="" 
+key[0] shift+tab: Group name="claude-opus-5-5" lct="article" focus=1 set=9/15 description="message, Yes: the base is still three by three, nine stone 
+key[1] shift+tab: ListItem name="Redstone lamp with a lever" lct="list item" focus=1 set=1/3 description="open" 
+key[2] tab: Group name="claude-opus-5-5" lct="article" focus=1 set=9/15 description="message, Yes: the base is still three by three, nine stone blocks
+key[3] tab: Edit name="Message" lct="edit" focus=1 value="" readonly=0 text="" 
+== after moving the list's current row without opening
+start: Edit name="Message" lct="edit" focus=1 value="" readonly=0 text="" 
+key[0] shift+tab: Group name="claude-opus-5-5" lct="article" focus=1 set=9/15 description="message, Yes: the base is still three by three, nine stone 
+key[1] shift+tab: ListItem name="Redstone lamp with a lever" lct="list item" focus=1 set=1/3 description="open" 
+key[2] down: ListItem name="Castle gate" lct="list item" focus=1 set=2/3 
+key[3] tab: Group name="claude-opus-5-5" lct="article" focus=1 set=9/15 description="message, Yes: the base is still three by three, nine stone blocks
+key[4] tab: Edit name="Message" lct="edit" focus=1 value="" readonly=0 text="" 
+== current message moved to the first, then a turn sent from the composer
+start: Edit name="Message" lct="edit" focus=1 value="" readonly=0 text="" 
+key[0] tab: Button name="New chat" lct="button" focus=1 
+key[1] home: Button name="New chat" lct="button" focus=1 
+key[2] down: Button name="New chat" lct="button" focus=1 
+key[3] tab: ListItem name="Castle gate" lct="list item" focus=1 set=2/3 
+start: Edit name="Message" lct="edit" focus=1 value="" readonly=0 text="" 
+key[0] shift+tab: ListItem name="Castle gate" lct="list item" focus=1 set=2/3 
+key[1] shift+tab: Button name="New chat" lct="button" focus=1 
+key[2] tab: ListItem name="Castle gate" lct="list item" focus=1 set=2/3 
+key[3] tab: Edit name="Message" lct="edit" focus=1 value="" readonly=0 text="" 
+    Group name="claude-opus-5-5" lct="article" id="" set=12/18 "message, Adding a third lamp now. It goe
+    Group name="You" lct="article" id="" set=13/18 "message, Second" patterns=[LegacyIAccess
+    Group name="claude-opus-5-5" lct="article" id="" set=14/18 "work" patterns=[LegacyIAccessible]
+    Group name="claude-opus-5-5" lct="article" id="" set=15/18 "message, Adding a third lamp now. It goe
+    Group name="You" lct="article" id="" set=16/18 "message, Third" patterns=[LegacyIAccessi
+    Group name="claude-opus-5-5" lct="article" id="" set=17/18 "work" patterns=[LegacyIAccessible]
+    Group name="claude-opus-5-5" lct="article" id="" set=18/18 "message, Adding a third lamp now. It goe

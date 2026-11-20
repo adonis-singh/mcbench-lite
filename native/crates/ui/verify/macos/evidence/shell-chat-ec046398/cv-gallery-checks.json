@@ -1,0 +1,436 @@
+[
+ {
+  "check": "Raised is an enabled button",
+  "ok": true,
+  "seen": {
+   "path": "0.0.0",
+   "AXRole": "AXButton",
+   "AXSubrole": "AXUnknown",
+   "AXRoleDescription": "button",
+   "AXTitle": "Raised",
+   "AXEnabled": true,
+   "AXFocused": false,
+   "AXPosition": [
+    24,
+    113
+   ],
+   "AXSize": [
+    69,
+    37
+   ],
+   "actions": [
+    "AXPress"
+   ]
+  }
+ },
+ {
+  "check": "Primary is an enabled button",
+  "ok": true,
+  "seen": {
+   "path": "0.0.2",
+   "AXRole": "AXButton",
+   "AXSubrole": "AXUnknown",
+   "AXRoleDescription": "button",
+   "AXTitle": "Primary",
+   "AXEnabled": true,
+   "AXFocused": false,
+   "AXPosition": [
+    241,
+    113
+   ],
+   "AXSize": [
+    75,
+    37
+   ],
+   "actions": [
+    "AXPress"
+   ]
+  }
+ },
+ {
+  "check": "Delete for good is an enabled button",
+  "ok": true,
+  "seen": {
+   "path": "0.0.4",
+   "AXRole": "AXButton",
+   "AXSubrole": "AXUnknown",
+   "AXRoleDescription": "button",
+   "AXTitle": "Delete for good",
+   "AXEnabled": true,
+   "AXFocused": false,
+   "AXPosition": [
+    469,
+    113
+   ],
+   "AXSize": [
+    123,
+    37
+   ],
+   "actions": [
+    "AXPress"
+   ]
+  }
+ },
+ {
+  "check": "Run bench is an enabled button",
+  "ok": true,
+  "seen": {
+   "path": "0.0.6",
+   "AXRole": "AXButton",
+   "AXSubrole": "AXUnknown",
+   "AXRoleDescription": "button",
+   "AXTitle": "Run bench",
+   "AXEnabled": true,
+   "AXFocused": false,
+   "AXPosition": [
+    24,
+    203
+   ],
+   "AXSize": [
+    91,
+    30
+   ],
+   "actions": [
+    "AXPress"
+   ]
+  }
+ },
+ {
+  "check": "Share is an enabled button",
+  "ok": true,
+  "seen": {
+   "path": "0.0.8",
+   "AXRole": "AXButton",
+   "AXSubrole": "AXUnknown",
+   "AXRoleDescription": "button",
+   "AXTitle": "Share",
+   "AXEnabled": true,
+   "AXFocused": false,
+   "AXPosition": [
+    283,
+    203
+   ],
+   "AXSize": [
+    83,
+    30
+   ],
+   "actions": [
+    "AXPress"
+   ]
+  }
+ },
+ {
+  "check": "New chat is an enabled button",
+  "ok": true,
+  "seen": {
+   "path": "0.0.11",
+   "AXRole": "AXButton",
+   "AXSubrole": "AXUnknown",
+   "AXRoleDescription": "button",
+   "AXTitle": "New chat",
+   "AXEnabled": true,
+   "AXFocused": false,
+   "AXPosition": [
+    24,
+    286.5
+   ],
+   "AXSize": [
+    32,
+    32
+   ],
+   "actions": [
+    "AXPress"
+   ]
+  }
+ },
+ {
+  "check": "Copy code is an enabled button",
+  "ok": true,
+  "seen": {
+   "path": "0.0.14",
+   "AXRole": "AXButton",
+   "AXSubrole": "AXUnknown",
+   "AXRoleDescription": "button",
+   "AXTitle": "Copy code",
+   "AXHelp": "Copy code",
+   "AXEnabled": true,
+   "AXFocused": false,
+   "AXPosition": [
+    147,
+    286.5
+   ],
+   "AXSize": [
+    32,
+    32
+   ],
+   "actions": [
+    "AXPress"
+   ]
+  }
+ },
+ {
+  "check": "Remove is an enabled button",
+  "ok": true,
+  "seen": {
+   "path": "0.0.10",
+   "AXRole": "AXButton",
+   "AXSubrole": "AXUnknown",
+   "AXRoleDescription": "button",
+   "AXTitle": "Remove",
+   "AXHelp": "Take the public page down",
+   "AXEnabled": true,
+   "AXFocused": false,
+   "AXPosition": [
+    506,
+    203
+   ],
+   "AXSize": [
+    96,
+    30
+   ],
+   "actions": [
+    "AXPress"
+   ]
+  }
+ },
+ {
+  "check": "Raised, disabled is not enabled",
+  "ok": true,
+  "seen": {
+   "path": "0.0.1",
+   "AXRole": "AXButton",
+   "AXSubrole": "AXUnknown",
+   "AXRoleDescription": "button",
+   "AXTitle": "Raised, disabled",
+   "AXEnabled": false,
+   "AXFocused": false,
+   "AXPosition": [
+    103,
+    113
+   ],
+   "AXSize": [
+    128,
+    37
+   ]
+  }
+ },
+ {
+  "check": "Primary, disabled is not enabled",
+  "ok": true,
+  "seen": {
+   "path": "0.0.3",
+   "AXRole": "AXButton",
+   "AXSubrole": "AXUnknown",
+   "AXRoleDescription": "button",
+   "AXTitle": "Primary, disabled",
+   "AXEnabled": false,
+   "AXFocused": false,
+   "AXPosition": [
+    326,
+    113
+   ],
+   "AXSize": [
+    133,
+    37
+   ]
+  }
+ },
+ {
+  "check": "Run bench, disabled is not enabled",
+  "ok": true,
+  "seen": {
+   "path": "0.0.7",
+   "AXRole": "AXButton",
+   "AXSubrole": "AXUnknown",
+   "AXRoleDescription": "button",
+   "AXTitle": "Run bench, disabled",
+   "AXEnabled": false,
+   "AXFocused": false,
+   "AXPosition": [
+    125,
+    203
+   ],
+   "AXSize": [
+    148,
+    30
+   ]
+  }
+ },
+ {
+  "check": "Settings, disabled is not enabled",
+  "ok": true,
+  "seen": {
+   "path": "0.0.13",
+   "AXRole": "AXButton",
+   "AXSubrole": "AXUnknown",
+   "AXRoleDescription": "button",
+   "AXTitle": "Settings, disabled",
+   "AXEnabled": false,
+   "AXFocused": false,
+   "AXPosition": [
+    108,
+    286.5
+   ],
+   "AXSize": [
+    32,
+    32
+   ]
+  }
+ },
+ {
+  "check": "a press reaches the button",
+  "ok": true,
+  "seen": null
+ },
+ {
+  "note": "the switch",
+  "seen": {
+   "AXRole": "AXCheckBox",
+   "AXSubrole": "AXSwitch",
+   "AXRoleDescription": "switch",
+   "AXTitle": "Show the grid",
+   "AXValue": true
+  }
+ },
+ {
+  "check": "the switch's press flips its value",
+  "ok": true,
+  "seen": [
+   true,
+   false
+  ]
+ },
+ {
+  "check": "Copy code keeps its name and says Copied as help",
+  "ok": true,
+  "seen": {
+   "AXRole": "AXButton",
+   "AXSubrole": "AXUnknown",
+   "AXRoleDescription": "button",
+   "AXTitle": "Copy code",
+   "AXValue": "<error -25212>",
+   "AXHelp": "Copied",
+   "AXEnabled": true,
+   "AXFocused": true,
+   "AXPosition": [
+    147,
+    286.5
+   ],
+   "AXSize": [
+    32,
+    32
+   ]
+  }
+ },
+ {
+  "check": "Copied goes after 1.2 s",
+  "ok": true,
+  "seen": "Copy code"
+ },
+ {
+  "check": "the confirm button asks first",
+  "ok": true,
+  "seen": null
+ },
+ {
+  "check": "after 4 s it is Remove again",
+  "ok": true,
+  "seen": null
+ },
+ {
+  "check": "the trigger opens its menu (AXMenu Effort)",
+  "ok": true,
+  "seen": {
+   "path": "0.0.31",
+   "AXRole": "AXMenu",
+   "AXSubrole": "AXUnknown",
+   "AXRoleDescription": "menu",
+   "AXTitle": "Effort",
+   "AXEnabled": true,
+   "AXFocused": false,
+   "AXPosition": [
+    8,
+    410
+   ],
+   "AXSize": [
+    190,
+    114
+   ]
+  }
+ },
+ {
+  "check": "focus is on the first item",
+  "ok": true,
+  "seen": [
+   "AXMenuItem",
+   "low"
+  ]
+ },
+ {
+  "note": "the menu items",
+  "seen": [
+   {
+    "AXRole": "AXMenuItem",
+    "AXTitle": "low",
+    "AXValue": false
+   },
+   {
+    "AXRole": "AXMenuItem",
+    "AXTitle": "medium",
+    "AXValue": true
+   },
+   {
+    "AXRole": "AXMenuItem",
+    "AXTitle": "high",
+    "AXValue": false
+   }
+  ]
+ },
+ {
+  "check": "Up from the first wraps to the last",
+  "ok": true,
+  "seen": [
+   "AXMenuItem",
+   "high"
+  ]
+ },
+ {
+  "check": "Escape closes it, focus back on its trigger",
+  "ok": true,
+  "seen": [
+   "AXButton",
+   "Effort: medium"
+  ]
+ },
+ {
+  "check": "no tooltip 250 ms into a hover",
+  "ok": true,
+  "seen": []
+ },
+ {
+  "check": "a tooltip (AXGroup / AXUserInterfaceTooltip) after 850 ms, its text its host's help",
+  "ok": true,
+  "seen": [
+   [
+    {
+     "path": "0.0.31",
+     "AXRole": "AXGroup",
+     "AXSubrole": "AXUserInterfaceTooltip",
+     "AXRoleDescription": "group",
+     "AXTitle": "Take the public page down",
+     "AXEnabled": true,
+     "AXFocused": false,
+     "AXPosition": [
+      431,
+      169
+     ],
+     "AXSize": [
+      169,
+      27.5
+     ]
+    }
+   ],
+   "Take the public page down"
+  ]
+ }
+]

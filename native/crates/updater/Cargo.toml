@@ -1,0 +1,55 @@
+[package]
+name = "mcbench-updater"
+description = "Install-route detection and the in-app updater with minisign verification"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[features]
+# The program mcbench-feed, which signs releases; the app does not link the
+# signer.
+feed = ["dep:minisign"]
+
+[[bin]]
+name = "mcbench-feed"
+path = "src/bin/mcbench-feed.rs"
+required-features = ["feed"]
+
+[[test]]
+name = "feed"
+path = "tests/feed.rs"
+required-features = ["feed"]
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+minisign-verify.workspace = true
+reqwest.workspace = true
+tokio = { workspace = true, features = ["macros", "rt", "time", "net"] }
+tokio-util.workspace = true
+tar.workspace = true
+flate2.workspace = true
+minisign = { workspace = true, optional = true }
+
+[target.'cfg(unix)'.dependencies]
+# The swap's one-step exchange (renameat2, renamex_np).
+libc.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+# DisplayVersion of the installer's uninstall entry.
+windows-sys = { workspace = true, features = ["Win32_Foundation", "Win32_System_Registry"] }
+
+[build-dependencies]
+minisign-verify.workspace = true
+
+[dev-dependencies]
+minisign.workspace = true
+mcbench-setup.workspace = true
+tempfile.workspace = true
+tokio = { workspace = true, features = ["rt", "macros", "net", "time", "test-util"] }
+
+[lints]
+workspace = true

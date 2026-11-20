@@ -1,0 +1,2 @@
+before: Button name="Worked · 2 steps" lct="button" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=1 rect=[296,191,1004x27] set=0/9 patterns=[ExpandCollapse,LegacyIAccessible] expand=Collapsed
+after:  Button name="Worked · 2 steps" lct="button" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=1 offscreen=0 ctl=1 content=1 rect=[296,191,1004x27] set=0/9 patterns=[ExpandCollapse,LegacyIAccessible] expand=Collapsed

@@ -1,0 +1,47 @@
+[
+ {
+  "check": "a drag from a cell runs on past the table",
+  "ok": true,
+  "detail": "'tone\\t9\\t0\\nredstone_lamp\\t1\\t15\\nlever\\t1\\t0\\nA lamp'"
+ },
+ {
+  "check": "the drag starts mid-paragraph",
+  "ok": true,
+  "detail": "'sign that says Pull me\\nThe program\\nfn build(world: &mut Worl'"
+ },
+ {
+  "check": "code is copied verbatim",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "the table row is tab-separated",
+  "ok": true,
+  "detail": "',facing=west]\");\\n}\\nBlocks used\\nBlock\\tCou'"
+ },
+ {
+  "check": "no selection drawn between the header cells' text",
+  "ok": true,
+  "detail": "0 selection pixels between x 306 and 832"
+ },
+ {
+  "check": "the selection is drawn on the selected text of the right-aligned cell",
+  "ok": true,
+  "detail": "8 pixels"
+ },
+ {
+  "check": "a double-click copies the word",
+  "ok": true,
+  "detail": "'Pull'"
+ },
+ {
+  "check": "a triple-click copies the block",
+  "ok": true,
+  "detail": "'Blocks used'"
+ },
+ {
+  "check": "a drag across messages copies both",
+  "ok": true,
+  "detail": "'Thanks. Is the base still three by three?\\nYes: the b'"
+ }
+]

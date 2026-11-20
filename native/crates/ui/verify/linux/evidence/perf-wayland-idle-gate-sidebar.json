@@ -1,0 +1,31 @@
+{
+ "scenario": "idle",
+ "backend": "wayland",
+ "first_frame_ms": 463.591,
+ "window_s": 20.0,
+ "frames_in_window": 16,
+ "cpu_percent": 5.9,
+ "key_to_paint_ms": null,
+ "frame_work_ms": {
+  "count": 29,
+  "mean": 5.346,
+  "p50": 3.728,
+  "p99": 32.075,
+  "worst": 32.075
+ },
+ "frame_interval_ms_in_window": {
+  "count": 15,
+  "mean": 499.87,
+  "p50": 500.1990000000005,
+  "p99": 500.78200000000015,
+  "worst": 501.28499999999985
+ },
+ "accessibility": true,
+ "scroll_to_paint_ms": null,
+ "rss_kb_at_end": 342964,
+ "load": [
+  "2.43",
+  "4.35",
+  "5.83"
+ ]
+}

@@ -1,0 +1,30 @@
+kind panic; process gone: True; WerFault seen in 0 of the polls; WerFault now: 0
+stderr and exit: mcbench-lite 0.1.0 panicked | thread: unnamed | message: a panic on purpose (--crash panic) | location: crates\ui\src\bin\mcbench-ui-dev\main.rs:292:24 | pid: 8008 |  | backtrace: |    0: <unknown> |    1: <unknown> |    2: <unknown> |    3: <unknown> |    4: <unknown> |    5: <unkn
+--- crash-1794923591-8008.log
+   9: <unknown>
+  10: BaseThreadInitThunk
+  11: RtlUserThreadStart
+
+--- crash-signals.log
+WER reports since start: 0
+Application log since start: 
+kind abort; process gone: True; WerFault seen in 0 of the polls; WerFault now: 0
+stderr and exit: exit=3 
+--- crash-signals.log
+mcbench-lite 0.1.0 pid 6232: abort (SIGABRT)
+WER reports since start: 0
+Application log since start: 
+kind segv; process gone: True; WerFault seen in 0 of the polls; WerFault now: 0
+stderr and exit: exit=-1073741819 
+--- crash-signals.log
+mcbench-lite 0.1.0 pid 6232: abort (SIGABRT)
+mcbench-lite 0.1.0 pid 7852: unhandled exception 0xc0000005
+WER reports since start: 0
+Application log since start: 
+kind fastfail; process gone: True; WerFault seen in 0 of the polls; WerFault now: 0
+stderr and exit: exit=-1073740791 
+--- crash-signals.log
+mcbench-lite 0.1.0 pid 6232: abort (SIGABRT)
+mcbench-lite 0.1.0 pid 7852: unhandled exception 0xc0000005
+WER reports since start: 0
+Application log since start: 

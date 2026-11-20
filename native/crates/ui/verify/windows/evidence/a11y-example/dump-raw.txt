@@ -1,0 +1,24 @@
+Window name="GPUI Accessibility Demo" lct="region" id="" class="Zed::Window" fw="AccessKit" enabled=1 kbfocusable=0 focus=0 offscreen=0 ctl=1 content=1 rel=[0,0,516x439] patterns=[Window,Transform,LegacyIAccessible]
+  TitleBar name="" lct="title bar" id="TitleBar" enabled=1 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=0 rel=[24,3,484x28] patterns=[Value,LegacyIAccessible] value="GPUI Accessibility Demo" readonly=0
+    MenuBar name="System" lct="menu bar" id="SystemMenuBar" enabled=1 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=0 rel=[8,8,22x22] accesskey="Alt+Space" patterns=[LegacyIAccessible]
+      MenuItem name="System" lct="menu item" id="" enabled=1 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=1 rel=[8,8,22x22] set=1/1 accesskey="Space" patterns=[ExpandCollapse,LegacyIAccessible] expand=Collapsed
+    Button name="Minimize" lct="button" id="Minimize-Restore" enabled=1 kbfocusable=0 focus=0 offscreen=0 ctl=1 content=0 rel=[369,1,47x30] patterns=[Invoke,LegacyIAccessible]
+    Button name="Maximize" lct="button" id="Maximize-Restore" enabled=1 kbfocusable=0 focus=0 offscreen=0 ctl=1 content=0 rel=[416,1,46x30] patterns=[Invoke,LegacyIAccessible]
+    Button name="Close" lct="button" id="Close" enabled=1 kbfocusable=0 focus=0 offscreen=0 ctl=1 content=0 rel=[462,1,47x30] patterns=[Invoke,LegacyIAccessible]
+  Pane name="Accessibility Demo" lct="application" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=1 rel=[8,31,500x400] patterns=[LegacyIAccessible]
+    Text name="Accessibility Demo" lct="heading" id="" fw="AccessKit" enabled=1 kbfocusable=0 focus=0 offscreen=0 ctl=1 content=1 rel=[24,47,468x32] level=2 patterns=[LegacyIAccessible]
+      Text name="Accessibility Demo" lct="text" id="" fw="AccessKit" enabled=1 kbfocusable=0 focus=0 offscreen=0 ctl=1 content=1 rel=[24,47,468x32] patterns=[LegacyIAccessible]
+    Spinner name="Counter: 0" lct="spin button" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=1 rel=[24,95,84x34] patterns=[RangeValue,LegacyIAccessible] range=0 min=0 max=0 step=0 readonly=0
+      Text name="Count: 0" lct="text" id="" fw="AccessKit" enabled=1 kbfocusable=0 focus=0 offscreen=0 ctl=1 content=1 rel=[36,99,60x26] patterns=[LegacyIAccessible]
+    Button name="Reset counter" lct="button" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=1 rel=[120,95,63x34] patterns=[Invoke,LegacyIAccessible]
+      Text name="Reset" lct="text" id="" fw="AccessKit" enabled=1 kbfocusable=0 focus=0 offscreen=0 ctl=1 content=1 rel=[132,99,39x26] patterns=[LegacyIAccessible]
+    Button name="Enable feature" lct="button" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=1 rel=[24,146,44x24] patterns=[Toggle,LegacyIAccessible] toggle=Off
+    Text name="Enable feature" lct="text" id="" fw="AccessKit" enabled=1 kbfocusable=0 focus=0 offscreen=0 ctl=1 content=1 rel=[76,145,102x26] patterns=[LegacyIAccessible]
+    List name="Tasks" lct="list" id="" fw="AccessKit" enabled=1 kbfocusable=0 focus=0 offscreen=0 ctl=1 content=1 rel=[24,187,468x110] patterns=[LegacyIAccessible]
+      ListItem name="Write code" lct="list item" id="" fw="AccessKit" enabled=1 kbfocusable=0 focus=0 offscreen=0 ctl=1 content=1 rel=[24,187,468x34] set=2/0 patterns=[LegacyIAccessible]
+        Text name="1. Write code" lct="text" id="" fw="AccessKit" enabled=1 kbfocusable=0 focus=0 offscreen=0 ctl=1 content=1 rel=[32,191,452x26] set=0/3 patterns=[LegacyIAccessible]
+      ListItem name="Run tests" lct="list item" id="" fw="AccessKit" enabled=1 kbfocusable=0 focus=0 offscreen=0 ctl=1 content=1 rel=[24,225,468x34] set=3/0 patterns=[LegacyIAccessible]
+        Text name="2. Run tests" lct="text" id="" fw="AccessKit" enabled=1 kbfocusable=0 focus=0 offscreen=0 ctl=1 content=1 rel=[32,229,452x26] set=0/3 patterns=[LegacyIAccessible]
+      ListItem name="Ship it" lct="list item" id="" fw="AccessKit" enabled=1 kbfocusable=0 focus=0 offscreen=0 ctl=1 content=1 rel=[24,263,468x34] set=4/0 patterns=[LegacyIAccessible]
+        Text name="3. Ship it" lct="text" id="" fw="AccessKit" enabled=1 kbfocusable=0 focus=0 offscreen=0 ctl=1 content=1 rel=[32,267,452x26] set=0/3 patterns=[LegacyIAccessible]
+elements: 23 (view raw)

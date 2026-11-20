@@ -1,0 +1,30 @@
+{
+ "preedit": {
+  "AXValue": "nihongo",
+  "AXSelectedTextRange": [
+   7,
+   0
+  ],
+  "AXNumberOfCharacters": 7
+ },
+ "committed": {
+  "AXValue": "",
+  "AXSelectedTextRange": [
+   0,
+   0
+  ],
+  "AXNumberOfCharacters": 0
+ },
+ "log": [
+  {
+   "action": "opened chat",
+   "chat": "chat-lamp",
+   "title": "Redstone lamp with a lever"
+  },
+  {
+   "action": "sent",
+   "text": "nihongo",
+   "files": 0
+  }
+ ]
+}

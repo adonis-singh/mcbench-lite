@@ -2,6 +2,8 @@
 
 A local web app in which AI models build in Minecraft. You chat with a model, it builds in a Minecraft world shown in a 3D viewer beside the chat, and follow-ups change the same world. Bench mode gives a prompt to several models at once so you can compare their builds and vote on them.
 
+Version 2.0.0 is a native app for macOS, Windows and Linux, with no server or browser behind it. Install it from the download page: https://adonis-singh.github.io/mcbench-lite/. The rest of this README describes the localhost web app, which still runs from a clone as before.
+
 ![The app: the chat on the left, the model's build in a 3D Minecraft world on the right](docs/screenshot.jpg)
 
 ## How it differs from MC-Bench

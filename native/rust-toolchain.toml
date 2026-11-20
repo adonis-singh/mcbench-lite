@@ -1,0 +1,7 @@
+# The Rust that builds the native app's workspace: the same release as
+# core/rust-toolchain.toml, which builds the engine. native/check.sh installs
+# it with clippy and rustfmt.
+[toolchain]
+channel = "1.99.1"
+components = ["clippy", "rustfmt"]
+profile = "minimal"

@@ -1,0 +1,8 @@
+Input: kb(desktop):control+b
+Input: kb(desktop):control+b
+Input: kb(desktop):control+shift+o
+Speaking [LangChangeCommand ('en'), 'A medieval market square']
+Input: kb(desktop):alt+leftArrow
+Speaking [LangChangeCommand ('en'), 'Redstone lamp with a lever']
+Input: kb(desktop):alt+rightArrow
+Speaking [LangChangeCommand ('en'), 'A desert canyon with a rope bridge']

@@ -1,0 +1,35 @@
+Speaking ['Desktop', 'list']
+Speaking ['Recycle Bin', 'not selected', '1 of 3']
+Speaking ['Accessibility Demo']
+Speaking ['GPUI Accessibility Demo', 'window']
+Speaking ['Accessibility Demo']
+Input: kb(desktop):tab
+Speaking ['Counter: 0', 'spin button', '0']
+Input: kb(desktop):tab
+Speaking ['Reset counter', 'button']
+Input: kb(desktop):tab
+Speaking ['Enable feature', 'toggle button', 'not pressed']
+Input: kb(desktop):space
+Speaking ['pressed']
+Input: kb(desktop):space
+Speaking ['not pressed']
+Input: kb(desktop):tab
+Speaking ['Counter: 0', 'spin button', '0']
+Input: kb(desktop):shift+tab
+Speaking ['Enable feature', 'toggle button', 'not pressed']
+Input: kb(desktop):NVDA+tab
+Speaking ['Enable feature', 'toggle button', 'focused', 'not pressed']
+Input: kb(desktop):NVDA+space
+Input: kb(desktop):control+home
+Input: kb(desktop):downArrow
+Input: kb(desktop):downArrow
+Input: kb(desktop):downArrow
+Input: kb(desktop):downArrow
+Input: kb(desktop):downArrow
+Input: kb(desktop):downArrow
+Input: kb(desktop):downArrow
+Input: kb(desktop):downArrow
+Input: kb(desktop):control+home
+Input: kb(desktop):h
+Input: kb(desktop):1
+Input: kb(desktop):NVDA+downArrow

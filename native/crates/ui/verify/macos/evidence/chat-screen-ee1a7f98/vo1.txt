@@ -1,0 +1,16 @@
+== top and chat list
+VO-Home	New chat button 
+VO-Right	Chats list 
+VO-Shift-Down	In Chats list Redstone lamp with a lever group (1 of 3) 
+VO-Right	Castle gate group (2 of 3) 
+VO-Right	Wheat farm group (3 of 3) 
+VO-Shift-Up	Out of Chats list 
+log after walking the list:
+{"action":"opened chat","chat":"chat-lamp","title":"Redstone lamp with a lever"}
+== conversation, VO-Right over messages (short wait, then long wait)
+VO-Right	Conversation group 
+VO-Shift-Down	In Conversation group 5 items claude-opus-5-5 article 
+VO-Right	You article 
+(3 s later)	message, Show me how it looks now. You are currently on a article, inside of a group. To interact with items in this group, press Control-Option-Shift-Down Arrow. To exit this group, press Control-Option-Shift-Up Arrow. 
+VO-Right	claude-opus-5-5 article 
+(3 s later)	message, Here is the view from the south-east after the change: Both lamps are lit. See the lever page if you want a different facing. You are currently on a article, inside of a group. To interact with items in this group, press Control-Option-Shift-Down Arrow. To exit this group, press Control-Option-Shift-Up Arrow. 

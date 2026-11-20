@@ -1,0 +1,12 @@
+Input: kb(desktop):b
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en'), 'b', EndUtteranceCommand(), CharacterModeCommand(False)]
+Input: kb(desktop):u
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en'), 'u', EndUtteranceCommand(), CharacterModeCommand(False)]
+Input: kb(desktop):i
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en'), 'i', EndUtteranceCommand(), CharacterModeCommand(False)]
+Input: kb(desktop):l
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en'), 'l', EndUtteranceCommand(), CharacterModeCommand(False)]
+Input: kb(desktop):d
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en'), 'd', EndUtteranceCommand(), CharacterModeCommand(False)]
+Input: kb(desktop):enter
+Speaking [LangChangeCommand ('en'), 'Adding a third lamp now. It goes two blocks east of the second one, on the same stone row, with its own lever.\nExtend the stone base by two blocks\nPlace the lamp and the lever\nTest both levers\nThe first two lamps stay as they are, so nothing you built before changes.']

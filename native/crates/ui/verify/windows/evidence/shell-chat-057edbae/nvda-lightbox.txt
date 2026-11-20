@@ -1,0 +1,17 @@
+Input: kb(desktop):shift+tab
+Speaking [LangChangeCommand ('en'), 'Conversation', 'grouping', CancellableSpeech (still valid)]
+Speaking [LangChangeCommand ('en'), 'claude-opus-5-5, Yes: the base is still three by three, nine stone blocks, and nothing else moved.', 'grouping', '9 of 9', CancellableSpeech (still valid)]
+Input: kb(desktop):upArrow
+Speaking [LangChangeCommand ('en'), 'You, Thanks. Is the base still three by three?', 'grouping', '8 of 9', CancellableSpeech (still valid)]
+Input: kb(desktop):upArrow
+Speaking [LangChangeCommand ('en'), 'claude-opus-5-5, Here is the view from the south-east after the change:\nimage, The two lamps on their stone base, seen from the south-east\nBoth lamps are lit. See the lever page if you want a different facing.', 'grouping', '7 of 9', CancellableSpeech (still valid)]
+Speaking [LangChangeCommand ('en'), 'image, The two lamps on their stone base, seen from the south-east', 'grouping', CancellableSpeech (still valid)]
+Speaking [LangChangeCommand ('en'), 'The two lamps on their stone base, seen from the south-east', 'graphic', CancellableSpeech (still valid)]
+Input: kb(desktop):enter
+Speaking [LangChangeCommand ('en'), 'Picture', 'dialog', CancellableSpeech (still valid)]
+Speaking [LangChangeCommand ('en'), 'Close', 'button', CancellableSpeech (still valid)]
+Input: kb(desktop):escape
+Speaking [LangChangeCommand ('en'), 'Conversation', 'grouping', CancellableSpeech (still valid)]
+Speaking [LangChangeCommand ('en'), 'claude-opus-5-5, Here is the view from the south-east after the change:\nimage, The two lamps on their stone base, seen from the south-east\nBoth lamps are lit. See the lever page if you want a different facing.', 'grouping', '7 of 9', CancellableSpeech (still valid)]
+Speaking [LangChangeCommand ('en'), 'image, The two lamps on their stone base, seen from the south-east', 'grouping', CancellableSpeech (still valid)]
+Speaking [LangChangeCommand ('en'), 'The two lamps on their stone base, seen from the south-east', 'graphic', CancellableSpeech (still valid)]

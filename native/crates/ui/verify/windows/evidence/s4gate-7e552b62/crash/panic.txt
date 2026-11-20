@@ -1,0 +1,10 @@
+kind panic; process gone: True; WerFault seen in 0 of the polls; WerFault now: 0
+stderr and exit: mcbench-lite 0.1.0 panicked | thread: unnamed | message: a panic on purpose (--crash panic) | location: crates\ui\src\bin\mcbench-ui-dev\main.rs:107:24 | pid: 1472 |  | backtrace: |    0: backtrace::backtrace::trace::<<backtrace::capture::Backtrace>::create::{closure#0}> |    1: <backtrace::capture::Backtrace>::new |    2: <backtrace::capture::Backtrace>::new |    3: mcbench_ui::r
+--- crash-1794890239-1472.log
+             at /rustc/58cf8f9c35b355199727627d07ae34a4e2846d67/library\std\src\sys\thread\windows.rs:58
+  12: BaseThreadInitThunk
+  13: RtlUserThreadStart
+
+--- crash-signals.log
+WER reports since start: 0
+Application log since start: 

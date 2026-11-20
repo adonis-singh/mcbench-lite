@@ -1,0 +1,11 @@
+Input: kb(desktop):control+2
+Speaking [LangChangeCommand ('en'), 'New bench · mcbench-lite', 'window', CancellableSpeech (still valid)]
+Input: kb(desktop):shift+tab
+Input: kb(desktop):shift+tab
+Input: kb(desktop):shift+tab
+Input: kb(desktop):shift+tab
+Input: kb(desktop):shift+tab
+Input: kb(desktop):shift+tab
+Input: kb(desktop):shift+tab
+Input: kb(desktop):shift+tab
+Input: kb(desktop):shift+tab

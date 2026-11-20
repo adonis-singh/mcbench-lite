@@ -1,0 +1,5 @@
+  Button name="New chat	rect=[346,98,48x48]
+        Image name="The two lamps on their s	rect=[447,449,630x231]
+          Hyperlink name="the lever page	rect=[658,695,132x34]
+  Edit name="Message	rect=[448,952,1498x84]
+  Button name="Send	rect=[1898,1045,48x48]

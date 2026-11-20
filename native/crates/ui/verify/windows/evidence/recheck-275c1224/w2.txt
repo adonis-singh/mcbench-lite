@@ -1,0 +1,13 @@
+== W2: fresh start, NVDA running, title-bar click at (700,52)
+Speaking ['Desktop', 'list']
+Speaking ['Recycle Bin', 'not selected', '1 of 3']
+Speaking ['Redstone lamp with a lever · mcbench-lite', 'window']
+Speaking ['Message', 'edit', 'blank']
+rows above the Conversation region:
+offscreen=1 rect=[276,-228,537x120]
+offscreen=1 rect=[350,-216,429x50]
+offscreen=1 rect=[352,-214,425x46]
+offscreen=0 rect=[276,-108,537x324]
+rect=[276,92,537x632]
+offscreen=1	rect=[318,-3,443x23]
+offscreen=1	rect=[318,26,443x23]

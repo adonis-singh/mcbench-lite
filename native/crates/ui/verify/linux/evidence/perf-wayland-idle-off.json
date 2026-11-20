@@ -1,0 +1,22 @@
+{
+ "scenario": "idle",
+ "backend": "wayland",
+ "first_frame_ms": 393.488,
+ "window_s": 20.0,
+ "frames_in_window": 39,
+ "cpu_percent": 8.85,
+ "key_to_paint_ms": null,
+ "frame_interval_ms_in_window": {
+  "count": 38,
+  "mean": 500.079,
+  "p50": 500.0659999999989,
+  "p99": 500.2620000000006,
+  "worst": 500.60499999999956
+ },
+ "accessibility": false,
+ "load": [
+  "11.19",
+  "13.63",
+  "11.80"
+ ]
+}

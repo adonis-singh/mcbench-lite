@@ -1,0 +1,8 @@
+start: Window name="GPUI Accessibility Demo" lct="region" id="" class="Zed::Window" fw="AccessKit" enabled=1 kbfocusable=0 focus=0 offscreen=0 ctl=1 content=1 patterns=[W
+key[0] tab: Window name="GPUI Accessibility Demo" lct="region" id="" class="Zed::Window" fw="AccessKit" enabled=1 kbfocusable=0 focus=0 offscreen=0 ctl=1 content=1 patter
+key[1] tab: Window name="GPUI Accessibility Demo" lct="region" id="" class="Zed::Window" fw="AccessKit" enabled=1 kbfocusable=0 focus=0 offscreen=0 ctl=1 content=1 patter
+key[2] tab: Window name="GPUI Accessibility Demo" lct="region" id="" class="Zed::Window" fw="AccessKit" enabled=1 kbfocusable=0 focus=0 offscreen=0 ctl=1 content=1 patter
+key[3] tab: Window name="GPUI Accessibility Demo" lct="region" id="" class="Zed::Window" fw="AccessKit" enabled=1 kbfocusable=0 focus=0 offscreen=0 ctl=1 content=1 patter
+key[4] shift+tab: Window name="GPUI Accessibility Demo" lct="region" id="" class="Zed::Window" fw="AccessKit" enabled=1 kbfocusable=0 focus=0 offscreen=0 ctl=1 content=1 
+key[5] shift+tab: Window name="GPUI Accessibility Demo" lct="region" id="" class="Zed::Window" fw="AccessKit" enabled=1 kbfocusable=0 focus=0 offscreen=0 ctl=1 content=1 
+key[6] space: Window name="GPUI Accessibility Demo" lct="region" id="" class="Zed::Window" fw="AccessKit" enabled=1 kbfocusable=0 focus=0 offscreen=0 ctl=1 content=1 patt

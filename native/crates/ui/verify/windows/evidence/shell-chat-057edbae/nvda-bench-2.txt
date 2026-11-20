@@ -1,0 +1,32 @@
+Speaking [LangChangeCommand ('en'), 'Leaderboard', 'button', CancellableSpeech (still valid)]
+Input: kb(desktop):tab
+Speaking [LangChangeCommand ('en'), 'Benches', 'list', CancellableSpeech (still valid)]
+Speaking [LangChangeCommand ('en'), 'Towers and a bridge', '1 of 1', CancellableSpeech (still valid)]
+Input: kb(desktop):tab
+Speaking [LangChangeCommand ('en'), 'Show models', 'button', 'collapsed', CancellableSpeech (still valid)]
+Input: kb(desktop):enter
+Speaking [LangChangeCommand ('en'), 'Hide models']
+Speaking [LangChangeCommand ('en'), 'expanded']
+Input: kb(desktop):downArrow
+Speaking [LangChangeCommand ('en'), 'Towers and a bridge models', 'list', CancellableSpeech (still valid)]
+Speaking [LangChangeCommand ('en'), 'Build A, Stopped or failed', '1 of 2', CancellableSpeech (still valid)]
+Input: kb(desktop):downArrow
+Speaking [LangChangeCommand ('en'), 'Build B', '2 of 2', CancellableSpeech (still valid)]
+Input: kb(desktop):downArrow
+Input: kb(desktop):upArrow
+Speaking [LangChangeCommand ('en'), 'Build A, Stopped or failed', '1 of 2', CancellableSpeech (still valid)]
+Input: kb(desktop):tab
+Speaking [LangChangeCommand ('en'), 'Show archived', 'button', 'collapsed', CancellableSpeech (still valid)]
+Input: kb(desktop):tab
+Speaking [LangChangeCommand ('en'), 'Prompts', 'button', 'expanded', CancellableSpeech (still valid)]
+Input: kb(desktop):tab
+Speaking [LangChangeCommand ('en'), 'Search prompts', 'button', CancellableSpeech (still valid)]
+Input: kb(desktop):tab
+Speaking [LangChangeCommand ('en'), 'Prompts', 'list', CancellableSpeech (still valid)]
+Speaking [LangChangeCommand ('en'), 'Wheat field', '1 of 2', CancellableSpeech (still valid)]
+Input: kb(desktop):tab
+Speaking [LangChangeCommand ('en'), 'Settings', 'button', CancellableSpeech (still valid)]
+Input: kb(desktop):tab
+Speaking [LangChangeCommand ('en'), 'mcbench', 'button', 'Switch to Build · 1 finished (Ctrl+1)', CancellableSpeech (still valid)]
+Input: kb(desktop):tab
+Speaking [LangChangeCommand ('en'), 'New bench', 'button', CancellableSpeech (still valid)]

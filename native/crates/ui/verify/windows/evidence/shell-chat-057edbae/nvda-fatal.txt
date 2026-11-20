@@ -1,0 +1,5 @@
+Speaking [LangChangeCommand ('en'), 'mcbench-lite — stopped', 'window', CancellableSpeech (still valid)]
+Speaking [LangChangeCommand ('en'), 'mcbench-lite stopped on an error: store-unreadable:disk-full', CancellableSpeech (still valid)]
+Speaking [LangChangeCommand ('en'), 'Quit', 'button', CancellableSpeech (still valid)]
+Input: kb(desktop):NVDA+tab
+Speaking [LangChangeCommand ('en'), 'Quit', 'button', 'focused']

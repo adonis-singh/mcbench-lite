@@ -1,0 +1,4 @@
+== W6 with gpui-pre-windows WARP detection (vendor 0x1414 device 0x8C), one chat running, active
+load:  18:35:46 up 3 days,  5:39,  4 users,  load average: 4.43, 4.30, 4.14
+mcbench-ui-dev: 94 ms CPU in 20,028 ms = 0.47% of one core; working set 60 MB
+whole window changes between 4 screenshots: [None, None, None]

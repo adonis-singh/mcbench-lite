@@ -1,0 +1,32 @@
+s4-gate 74e3c796, guest VM, VoiceOver on, hints off. The observer (guestctl observe) starts 0.3 s after the app, before its window; VoiceOver's last phrase is read every 0.5 s after each send (repeats folded).
+front: {"bundle":"","name":"mcbench-ui-dev","pid":720}
+== the same answer twice (lamp chat)
+   Add a door 
+   You are currently on a text area. 
+   Adding a third lamp now. It goes two blocks east of the second one, on the same stone row, with its own lever.
+   Add a window 
+   Adding a third lamp now. It goes two blocks east of the second one, on the same stone row, with its own lever.
+== Wheat farm: the error twice in a row
+   The provider refused the request: rate limited (a fixture error) 
+   You are currently on a text area. 
+   The provider refused the request: rate limited (a fixture error) 
+== observer: every announcement, and the status/alert values
+   value 180.357 0.0.5 'Adding a third lamp now. It goes two blocks east o'
+   ANNOUNCE 180.358 50 'Adding a third lamp now. It goes two blocks east of the second one, on'
+   value 185.140 0.0.5 'None'
+   value 190.889 0.0.5 'Adding a third lamp now. It goes two blocks east o'
+   ANNOUNCE 190.899 50 'Adding a third lamp now. It goes two blocks east of the second one, on'
+   value 192.794 0.0.5 'Wheat farm'
+   ANNOUNCE 192.795 50 'Wheat farm'
+   value 197.269 0.0.5 'None'
+   value 197.270 0.0.6 'The provider refused the request: rate limited (a '
+   ANNOUNCE 197.271 90 'The provider refused the request: rate limited (a fixture error)'
+   value 206.741 0.0.6 'None'
+   value 207.306 0.0.6 'The provider refused the request: rate limited (a '
+   ANNOUNCE 207.307 90 'The provider refused the request: rate limited (a fixture error)'
+{"action":"opened chat","chat":"chat-lamp","title":"Redstone lamp with a lever"}
+{"action":"sent","text":"Add a door"}
+{"action":"sent","text":"Add a window"}
+{"action":"opened chat","chat":"chat-farm","title":"Wheat farm"}
+{"action":"sent","text":"Add a fence"}
+{"action":"sent","text":"Add a gate"}

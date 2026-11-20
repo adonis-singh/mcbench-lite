@@ -1,0 +1,32 @@
+Speaking [LangChangeCommand ('en'), 'Desktop', 'list', CancellableSpeech (still valid)]
+Speaking [LangChangeCommand ('en'), 'Recycle Bin', 'not selected', '1 of 3', CancellableSpeech (still valid)]
+Speaking [LangChangeCommand ('en'), 'Arabic, right to left: مصباح رقم اثنين يعمل بالرافعة']
+Speaking [LangChangeCommand ('en'), 'Redstone lamp with a lever · mcbench-lite', 'window', CancellableSpeech (still valid)]
+Speaking [LangChangeCommand ('en'), 'Message', 'edit', CancellableSpeech (still valid), 'blank']
+Input: kb(desktop):shift+tab
+Speaking [LangChangeCommand ('en'), 'Conversation', 'grouping', CancellableSpeech (still valid)]
+Speaking [LangChangeCommand ('en'), 'claude-opus-5-5, Yes: the base is still three by three, nine stone blocks, and nothing else moved.', 'grouping', '9 of 9', CancellableSpeech (still valid)]
+Input: kb(desktop):home
+Speaking [LangChangeCommand ('en'), 'You, Build a redstone lamp that turns on with a lever, and explain what you placed.', 'grouping', '1 of 9', CancellableSpeech (still valid)]
+Input: kb(desktop):downArrow
+Speaking [LangChangeCommand ('en'), 'claude-opus-5-5, work', 'grouping', '2 of 9', CancellableSpeech (still valid)]
+Input: kb(desktop):tab
+Speaking [LangChangeCommand ('en'), 'Worked · 2 steps', 'button', 'collapsed', CancellableSpeech (still valid)]
+Input: kb(desktop):enter
+Speaking [LangChangeCommand ('en'), 'expanded']
+Input: kb(desktop):tab
+Speaking [LangChangeCommand ('en'), 'Reasoning', 'button', 'collapsed', CancellableSpeech (still valid)]
+Input: kb(desktop):tab
+Speaking [LangChangeCommand ('en'), 'Built: a lamp with a lever', 'button', 'collapsed', CancellableSpeech (still valid)]
+Input: kb(desktop):tab
+Speaking [LangChangeCommand ('en'), 'Ran command: ls -la /work', 'button', 'collapsed', CancellableSpeech (still valid)]
+Input: kb(desktop):enter
+Speaking [LangChangeCommand ('en'), 'expanded']
+Input: kb(desktop):tab
+Speaking [LangChangeCommand ('en'), 'Message', 'edit', CancellableSpeech (still valid), 'blank']
+Input: kb(desktop):tab
+Speaking [LangChangeCommand ('en'), 'Attach file', 'button', CancellableSpeech (still valid)]
+Input: kb(desktop):tab
+Speaking [LangChangeCommand ('en'), 'Resolution: Standard', 'button', 'collapsed', CancellableSpeech (still valid)]
+Input: kb(desktop):tab
+Speaking [LangChangeCommand ('en'), 'Chat model: claude-opus-5-5', 'button', 'collapsed', 'claude-opus-5-5', CancellableSpeech (still valid)]

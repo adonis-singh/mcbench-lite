@@ -1,0 +1,12 @@
+Window name="mcbench-lite — stopped" lct="region" id="" class="Zed::Window" fw="AccessKit" enabled=1 kbfocusable=0 focus=0 offscreen=0 ctl=1 content=1 rect=[32,21,1296x859] patterns=[Window,Transform,LegacyIAccessible]
+  TitleBar name="" lct="title bar" id="TitleBar" enabled=1 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=0 rect=[56,24,1264x28] patterns=[Value,LegacyIAccessible] value="mcbench-lite — stopped" readonly=0
+    MenuBar name="System" lct="menu bar" id="SystemMenuBar" enabled=1 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=0 rect=[40,29,22x22] accesskey="Alt+Space" patterns=[LegacyIAccessible]
+      MenuItem name="System" lct="menu item" id="" enabled=1 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=1 rect=[40,29,22x22] set=1/1 accesskey="Space" patterns=[Invoke,ExpandCollapse,LegacyIAccessible] expand=Collapsed
+    Button name="Minimize" lct="button" id="Minimize-Restore" enabled=1 kbfocusable=0 focus=0 offscreen=0 ctl=1 content=0 rect=[1181,22,47x30] patterns=[Invoke,LegacyIAccessible]
+    Button name="Maximize" lct="button" id="Maximize-Restore" enabled=1 kbfocusable=0 focus=0 offscreen=0 ctl=1 content=0 rect=[1228,22,46x30] patterns=[Invoke,LegacyIAccessible]
+    Button name="Close" lct="button" id="Close" enabled=1 kbfocusable=0 focus=0 offscreen=0 ctl=1 content=0 rect=[1274,22,47x30] patterns=[Invoke,LegacyIAccessible]
+  Text name="mcbench-lite stopped on an error: store-unreadable:disk-full" lct="alert" id="" fw="AccessKit" enabled=1 kbfocusable=0 focus=0 offscreen=0 ctl=1 content=1 rect=[518,379,324x166] patterns=[LegacyIAccessible]
+    Group name="" lct="group" id="" fw="AccessKit" enabled=1 kbfocusable=0 focus=0 offscreen=0 ctl=1 content=1 rect=[542,446,276x19] patterns=[Value,Text,LegacyIAccessible] value="store-unreadable:disk-full" readonly=1 text="store-unreadable:disk-ful
+    Button name="Quit" lct="button" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=1 offscreen=0 ctl=1 content=1 rect=[542,479,63x42] patterns=[Invoke,LegacyIAccessible]
+elements: 10 (view control)
+exit=0 

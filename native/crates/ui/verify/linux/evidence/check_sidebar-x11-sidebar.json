@@ -1,0 +1,217 @@
+[
+ {
+  "check": "the Build list names each row's status",
+  "ok": true,
+  "detail": "['Redstone lamp with a lever', 'Castle gate, Working', 'Wheat farm, Finished, not opened yet, Resolution: Very high (5×)']"
+ },
+ {
+  "check": "the list's rows have position and size",
+  "ok": true,
+  "detail": "[{'posinset': '1', 'setsize': '3'}, {'setsize': '3', 'posinset': '2'}, {'posinset': '3', 'setsize': '3'}]"
+ },
+ {
+  "check": "Down focuses list item Castle gate, Working",
+  "ok": true,
+  "detail": "list item 'Castle gate, Working'"
+ },
+ {
+  "check": "End focuses list item Wheat farm, Finished",
+  "ok": true,
+  "detail": "list item 'Wheat farm, Finished, not opened yet, Resolution: Very high (5×)'"
+ },
+ {
+  "check": "Home focuses list item Redstone lamp with a lever",
+  "ok": true,
+  "detail": "list item 'Redstone lamp with a lever'"
+ },
+ {
+  "check": "walking opened nothing",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "Down focuses list item Castle gate, Working",
+  "ok": true,
+  "detail": "list item 'Castle gate, Working'"
+ },
+ {
+  "check": "Space opens the focused row",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "Down focuses list item Wheat farm",
+  "ok": true,
+  "detail": "list item 'Wheat farm, Finished, not opened yet, Resolution: Very high (5×)'"
+ },
+ {
+  "check": "Enter opens the focused row",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "the open chat is marked seen",
+  "ok": true,
+  "detail": "['Redstone lamp with a lever', 'Castle gate, Working', 'Wheat farm, Resolution: Very high (5×)']"
+ },
+ {
+  "check": "Archive build archives the row",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "the open chat moves to the nearest row above",
+  "ok": true,
+  "detail": "Castle gate · mcbench-lite"
+ },
+ {
+  "check": "the running chat's archive button is disabled and says why",
+  "ok": true,
+  "detail": "button 'Archive build' 'Stop the running turn before archiving'"
+ },
+ {
+  "check": "Enter opens the archived section",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "the archived rows say the time left",
+  "ok": true,
+  "detail": "['Wheat farm, 7 days left', 'Old windmill, 5 days left']"
+ },
+ {
+  "check": "Space on Restore restores it and opens it",
+  "ok": true,
+  "detail": "Wheat farm · mcbench-lite"
+ },
+ {
+  "check": "the search narrows the list by its match",
+  "ok": true,
+  "detail": "['Castle gate, Working, …gate with a portcullis.']"
+ },
+ {
+  "check": "Escape clears the search",
+  "ok": true,
+  "detail": "['Redstone lamp with a lever', 'Castle gate, Working', 'Wheat farm, Resolution: Very high (5×)']"
+ },
+ {
+  "check": "the menu opens on its first value",
+  "ok": true,
+  "detail": "check menu item 'Standard'"
+ },
+ {
+  "check": "Up focuses check menu item claude-opus-5-5",
+  "ok": true,
+  "detail": "check menu item 'claude-opus-5-5'"
+ },
+ {
+  "check": "Down focuses check menu item Standard",
+  "ok": true,
+  "detail": "check menu item 'Standard'"
+ },
+ {
+  "check": "Escape gives focus back to the button",
+  "ok": true,
+  "detail": "button 'Filter'"
+ },
+ {
+  "check": "Down focuses check menu item High (2×)",
+  "ok": true,
+  "detail": "check menu item 'High (2×)'"
+ },
+ {
+  "check": "Down focuses check menu item Very high (5×)",
+  "ok": true,
+  "detail": "check menu item 'Very high (5×)'"
+ },
+ {
+  "check": "Space chooses a value and the menu stays",
+  "ok": true,
+  "detail": "check menu item 'Very high (5×)'"
+ },
+ {
+  "check": "the button says how many are chosen",
+  "ok": true,
+  "detail": "button 'Filter, 1 chosen'"
+ },
+ {
+  "check": "the list is narrowed",
+  "ok": true,
+  "detail": "['Wheat farm, Resolution: Very high (5×)']"
+ },
+ {
+  "check": "removing the last chip gives focus to the filter button",
+  "ok": true,
+  "detail": "button 'Filter'"
+ },
+ {
+  "check": "no filter: every row",
+  "ok": true,
+  "detail": "['Redstone lamp with a lever', 'Castle gate, Working', 'Wheat farm, Resolution: Very high (5×)']"
+ },
+ {
+  "check": "Ctrl+K opens the palette",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "its field has focus",
+  "ok": true,
+  "detail": "entry 'Search everything'"
+ },
+ {
+  "check": "the core's builds are listed",
+  "ok": true,
+  "detail": "['Castle gate, Build a castle gate with a portcullis.']"
+ },
+ {
+  "check": "Enter runs the highlighted item",
+  "ok": true,
+  "detail": "Castle gate · mcbench-lite"
+ },
+ {
+  "check": "and closes the palette",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "Escape closes the palette",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "Ctrl+2 shows the bench list",
+  "ok": true,
+  "detail": "['Towers and a bridge']"
+ },
+ {
+  "check": "Tab focuses button Show models",
+  "ok": true,
+  "detail": "button 'Show models'"
+ },
+ {
+  "check": "Enter opens the fold",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "the bench's models by their letters",
+  "ok": true,
+  "detail": "['Build A, Stopped or failed', 'Build B']"
+ },
+ {
+  "check": "Down focuses list item Build A, Stopped or failed",
+  "ok": true,
+  "detail": "list item 'Build A, Stopped or failed'"
+ },
+ {
+  "check": "Enter opens a model's chat",
+  "ok": true,
+  "detail": "[{'action': 'opened', 'place': '/bench/bench-towers/member-b'}]"
+ },
+ {
+  "check": "the prompts' titles below",
+  "ok": true,
+  "detail": "['Wheat field', 'Two towers']"
+ }
+]

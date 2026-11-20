@@ -1,0 +1,12 @@
+[
+ {
+  "check": "the push's failure is said, with Try again",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "Try again publishes anew",
+  "ok": true,
+  "detail": ""
+ }
+]

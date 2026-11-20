@@ -1,0 +1,92 @@
+[
+ {
+  "path": "0",
+  "role": "AXWindow",
+  "title": "mcbench-lite — Redstone lamp with a lever",
+  "actions": [
+   "AXRaise"
+  ]
+ },
+ {
+  "path": "0.0.0",
+  "role": "AXButton",
+  "title": "New chat",
+  "actions": [
+   "AXPress"
+  ]
+ },
+ {
+  "path": "0.0.1.0",
+  "role": "AXGroup",
+  "title": "Redstone lamp with a lever",
+  "actions": [
+   "AXPress"
+  ]
+ },
+ {
+  "path": "0.0.1.1",
+  "role": "AXGroup",
+  "title": "Castle gate",
+  "actions": [
+   "AXPress"
+  ]
+ },
+ {
+  "path": "0.0.1.2",
+  "role": "AXGroup",
+  "title": "Wheat farm",
+  "actions": [
+   "AXPress"
+  ]
+ },
+ {
+  "path": "0.0.2.3.1.0",
+  "role": "AXImage",
+  "title": "The two lamps on their stone base, seen from the south-east",
+  "actions": [
+   "AXPress"
+  ]
+ },
+ {
+  "path": "0.0.2.3.2.0.1",
+  "role": "AXLink",
+  "title": "the lever page",
+  "actions": [
+   "AXPress"
+  ]
+ },
+ {
+  "path": "0.0.4",
+  "role": "AXButton",
+  "title": "Send",
+  "actions": [
+   "AXPress"
+  ]
+ },
+ {
+  "path": "0.1",
+  "role": "AXButton",
+  "title": "<error -25212>",
+  "actions": [
+   "AXPress"
+  ]
+ },
+ {
+  "path": "0.2",
+  "role": "AXButton",
+  "title": "<error -25212>",
+  "actions": [
+   "AXPress",
+   "AXZoomWindow",
+   "AXShowMenu"
+  ]
+ },
+ {
+  "path": "0.3",
+  "role": "AXButton",
+  "title": "<error -25212>",
+  "actions": [
+   "AXPress"
+  ]
+ }
+]

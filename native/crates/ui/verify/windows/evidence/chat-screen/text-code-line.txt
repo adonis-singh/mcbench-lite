@@ -1,0 +1,10 @@
+element: Text name="Code, rust" lct="text" id="" fw="AccessKit" enabled=1 kbfocusable=0 focus=0 offscreen=0 ctl=1 content=1 rect=[307,772,922x100] set=0/9 patterns=[Value,Text,LegacyIAccessible] value="fn build(world: &mut World) {\n    world.fill((0, 0, 0), (2, 0, 2), \"stone\");\n    world.set((1, 1, 1), \"redstone_lamp\");\n    world.set((0, 1, 1), \"lever[face=floor,facing=west]\");\n}" readonly=1 text="fn build(world: &mut World) {\n    world.fill((0, 0, 0), (2, 0, 2), \"stone\");\n    world.set((1, 1, 1), \"redstone_lamp\");\n    world.set((0, 1, 1), \"lever[face=floor,facing=west]\");\n}"
+document: "fn build(world: &mut World) {\n    world.fill((0, 0, 0), (2, 0, 2), \"stone\");\n    world.set((1, 1, 1), \"redstone_lamp\");\n    world.set((0, 1, 1), \"lever[face=floor,facing=west]\");\n}" (180 UTF-16 units)
+supported selection: 0
+line[0] = "fn build(world: &mut World) {\n"
+line[1] = "    world.fill((0, 0, 0), (2, 0, 2), \"stone\");\n"
+line[2] = "    world.set((1, 1, 1), \"redstone_lamp\");\n"
+line[3] = "    world.set((0, 1, 1), \"lever[face=floor,facing=west]\");\n"
+line[4] = "}"
+line count: 5
+caret: no TextPattern2

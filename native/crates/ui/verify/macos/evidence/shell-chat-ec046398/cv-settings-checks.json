@@ -1,0 +1,76 @@
+[
+ {
+  "check": "Settings opens as a dialog named Settings",
+  "ok": true,
+  "seen": [
+   {
+    "AXRole": "AXWindow",
+    "AXSubrole": "AXDialog",
+    "AXRoleDescription": "dialog",
+    "AXTitle": "Settings",
+    "AXValue": "<error -25212>",
+    "AXHelp": "<error -25212>",
+    "AXEnabled": true,
+    "AXFocused": true,
+    "AXPosition": [
+     400,
+     269
+    ],
+    "AXSize": [
+     640,
+     420
+    ]
+   }
+  ]
+ },
+ {
+  "check": "it has focus",
+  "ok": true,
+  "seen": [
+   "AXWindow",
+   "Settings"
+  ]
+ },
+ {
+  "check": "no history entry (the title is the place's)",
+  "ok": true,
+  "seen": "Redstone lamp with a lever · mcbench-lite"
+ },
+ {
+  "check": "Escape closes it",
+  "ok": true,
+  "seen": null
+ },
+ {
+  "check": "focus goes to the composer",
+  "ok": true,
+  "seen": [
+   "AXTextArea",
+   "Message"
+  ]
+ },
+ {
+  "check": "a missing picture is named Picture <n>, <the core's sentence>",
+  "ok": true,
+  "seen": [
+   {
+    "AXRole": "AXImage",
+    "AXSubrole": "AXUnknown",
+    "AXRoleDescription": "image",
+    "AXTitle": "Picture 1, Image not found",
+    "AXValue": "<error -25212>",
+    "AXHelp": "<error -25212>",
+    "AXEnabled": true,
+    "AXFocused": false,
+    "AXPosition": [
+     336,
+     630
+    ],
+    "AXSize": [
+     119,
+     44.5
+    ]
+   }
+  ]
+ }
+]

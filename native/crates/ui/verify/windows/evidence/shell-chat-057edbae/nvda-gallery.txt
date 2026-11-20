@@ -1,0 +1,13 @@
+Speaking [LangChangeCommand ('en'), 'Show the grid', 'toggle button', 'pressed', CancellableSpeech (still valid)]
+Input: kb(desktop):space
+Speaking [LangChangeCommand ('en'), 'not pressed']
+Input: kb(desktop):tab
+Speaking [LangChangeCommand ('en'), 'Effort: medium', 'button', 'collapsed', 'How hard the model thinks', CancellableSpeech (still valid)]
+Input: kb(desktop):tab
+Speaking [LangChangeCommand ('en'), 'Near weekly limit', 'Resets at 3:40 PM', CancellableSpeech (still valid)]
+Input: kb(desktop):tab
+Speaking [LangChangeCommand ('en'), '84% of context · 840k of 1M tokens', 'progress bar', '84%', CancellableSpeech (still valid)]
+Input: kb(desktop):tab
+Speaking [LangChangeCommand ('en'), 'Resolution: Standard', 'button', 'collapsed', CancellableSpeech (still valid)]
+Speaking [LangChangeCommand ('en'), 'Copy code', 'button', CancellableSpeech (still valid)]
+Input: kb(desktop):enter

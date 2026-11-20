@@ -1,0 +1,17 @@
+[
+ {
+  "check": "a library that cannot be read says so",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "Try again is offered",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "Try again reads the library",
+  "ok": true,
+  "detail": ""
+ }
+]

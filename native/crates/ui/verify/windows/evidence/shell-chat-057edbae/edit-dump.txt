@@ -1,0 +1,4 @@
+  StatusBar name="Editing a message: sending it starts a new branch" lct="status" id="" fw="AccessKit" enabled=1 kbfocusable=0 focus=0 offscreen=0 ctl=1 content=1 rect=[290,712,509x24] patterns=[LegacyIAccessible]
+    Button name="Cancel edit" lct="button" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=1 rect=[754,712,41x24] patterns=[Invoke,LegacyIAccessible]
+  Edit name="Message" lct="edit" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=1 offscreen=0 ctl=1 content=1 rect=[299,753,491x56] patterns=[Value,Text,LegacyIAccessible] value="Thanks. Is the base still three by three?" read
+  StatusBar name="" lct="status" id="" fw="AccessKit" enabled=1 kbfocusable=0 focus=0 offscreen=0 ctl=1 content=1 rect=[40,52,1x1] live=1 patterns=[LegacyIAccessible]

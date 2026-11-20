@@ -1,0 +1,6 @@
+   0.019 focus | Button name="Show Hidden Icons" lct="button" id="SystemTrayIcon" class="SystemTray.NormalButton" fw="XAML" enabled=1 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=1 rect=[1666,1032,32x48] patterns=[Invoke,ScrollItem,LegacyIAccessible]
+recording events of mcbench-ui-dev for 12 s
+   1.305 property HasKeyboardFocus=true | Edit name="Message" lct="edit" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=1 offscreen=0 ctl=1 content=1 rect=[299,753,491x56] patterns=[Value,Text,LegacyIAccessible] value="" readonly=0 text=""
+   1.315 focus | Edit name="Message" lct="edit" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=1 offscreen=0 ctl=1 content=1 rect=[299,753,491x56] patterns=[Value,Text,LegacyIAccessible] value="" readonly=0 text=""
+recording done
+exit=0 

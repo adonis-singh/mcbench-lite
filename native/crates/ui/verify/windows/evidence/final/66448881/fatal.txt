@@ -1,0 +1,7 @@
+fatal screen, NVDA running before launch, after title-bar click: UIA Button name="Quit" lct="button" focus=1 
+Speaking ['mcbench-lite — stopped', 'window']
+Speaking ['mcbench-lite stopped on an error']
+Speaking ['Quit', 'button']
+Input: kb(desktop):NVDA+tab
+Speaking ['Quit', 'button', 'focused']
+processes after Enter on Quit: 0

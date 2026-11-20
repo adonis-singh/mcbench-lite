@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>mcbench-lite</title>
+<meta name="description" content="Install mcbench-lite, an app in which AI models build in Minecraft 1.21.10, on macOS, Windows or Linux.">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="icon" href="icon-32.png" type="image/png" sizes="32x32">
+<style>
+:root {
+  color-scheme: light dark;
+  --bg: #f4f3ef;
+  --text: #1b1d21;
+  --muted: #5d6068;
+  --box: #ffffff;
+  --line: #d8d5cc;
+  --code-bg: #1e232c;
+  --code-text: #eef0f2;
+  --accent: #19803f;
+  --accent-text: #ffffff;
+  --tab-on: #1b1d21;
+  --tab-on-text: #ffffff;
+  --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "DejaVu Sans Mono", "Liberation Mono", monospace;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, Cantarell, "Noto Sans", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #14171c;
+    --text: #e9e7e2;
+    --muted: #a3a6ad;
+    --box: #1c2027;
+    --line: #333944;
+    --code-bg: #0c0e12;
+    --code-text: #eef0f2;
+    --accent: #3ecf6b;
+    --accent-text: #0b1a10;
+    --tab-on: #e9e7e2;
+    --tab-on-text: #14171c;
+  }
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.55 var(--sans);
+}
+a { color: inherit; text-underline-offset: 2px; }
+a:hover { color: var(--accent); }
+.wrap { max-width: 1080px; margin: 0 auto; padding: 0 16px; }
+header.top { padding: 40px 0 8px; }
+.brand { display: flex; align-items: center; gap: 12px; margin: 0; font-size: 1.2rem; font-weight: 650; letter-spacing: -0.01em; }
+.brand svg { width: 40px; height: 40px; flex: none; }
+.lede { margin: 10px 0 0; color: var(--muted); max-width: 62ch; }
+nav.systems { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 28px 0 0; }
+nav.systems span { color: var(--muted); margin-right: 4px; font-size: 0.95rem; }
+nav.systems a {
+  text-decoration: none; padding: 5px 14px; border: 1px solid var(--line); border-radius: 999px;
+  font-size: 0.95rem; background: var(--box);
+}
+nav.systems a[aria-current="true"] { background: var(--tab-on); color: var(--tab-on-text); border-color: var(--tab-on); }
+main { padding: 8px 0 24px; }
+section.platform { margin: 24px 0 0; }
+.js-picked section.platform:not(.picked) { display: none; }
+.box { background: var(--box); border: 1px solid var(--line); border-radius: 14px; padding: 24px; }
+.box > h2 { margin: 0 0 16px; font-size: 1.15rem; font-weight: 650; }
+h3 { margin: 26px 0 8px; font-size: 1rem; font-weight: 650; }
+p { margin: 8px 0; }
+.help { color: var(--muted); margin: 10px 0 0; }
+code { font-family: var(--mono); font-size: 0.92em; }
+p code, li code { background: color-mix(in srgb, var(--line) 45%, transparent); padding: 1px 5px; border-radius: 5px; overflow-wrap: anywhere; }
+.cmd {
+  display: flex; align-items: flex-start; gap: 12px;
+  background: var(--code-bg); color: var(--code-text); border-radius: 10px; padding: 16px 16px 16px 20px;
+}
+.cmd pre {
+  flex: 1; min-width: 0; margin: 0; font-family: var(--mono); white-space: pre-wrap; word-break: break-all;
+  font-size: 1rem; line-height: 1.5;
+}
+.cmd.main pre { font-size: 1.25rem; line-height: 1.45; }
+.cmd .copy {
+  flex: none; font: 600 0.9rem var(--sans); color: var(--code-bg); background: var(--code-text);
+  border: 0; border-radius: 7px; padding: 7px 14px; cursor: pointer;
+}
+.cmd.main .copy { margin-top: 1px; }
+.cmd .copy:focus-visible, nav.systems a:focus-visible, .button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.button {
+  display: inline-block; text-decoration: none; background: var(--accent); color: var(--accent-text);
+  font-size: 1.3rem; font-weight: 650; padding: 14px 26px; border-radius: 10px;
+}
+.button:hover { color: var(--accent-text); filter: brightness(1.08); }
+.alt { margin: 12px 0 0; }
+.small { font-size: 0.95rem; }
+.facts { margin: 22px 0 0; border-top: 1px solid var(--line); padding-top: 14px; }
+.facts h3 { margin-top: 10px; }
+/* Linux tabs: radio buttons, so they work without JavaScript. */
+.tabs > input { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; }
+.tablist { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 16px; }
+.tablist label {
+  cursor: pointer; padding: 6px 14px; border: 1px solid var(--line); border-radius: 8px; font-size: 0.95rem; user-select: none;
+}
+.panel { display: none; }
+#d-deb:checked ~ .tablist label[for="d-deb"], #d-rpm:checked ~ .tablist label[for="d-rpm"],
+#d-aur:checked ~ .tablist label[for="d-aur"], #d-sh:checked ~ .tablist label[for="d-sh"] {
+  background: var(--tab-on); color: var(--tab-on-text); border-color: var(--tab-on);
+}
+#d-deb:focus-visible ~ .tablist label[for="d-deb"], #d-rpm:focus-visible ~ .tablist label[for="d-rpm"],
+#d-aur:focus-visible ~ .tablist label[for="d-aur"], #d-sh:focus-visible ~ .tablist label[for="d-sh"] {
+  outline: 3px solid var(--accent); outline-offset: 2px;
+}
+#d-deb:checked ~ #p-deb, #d-rpm:checked ~ #p-rpm, #d-aur:checked ~ #p-aur, #d-sh:checked ~ #p-sh { display: block; }
+footer { border-top: 1px solid var(--line); margin-top: 40px; padding: 20px 0 40px; color: var(--muted); font-size: 0.92rem; }
+footer p { margin: 6px 0; }
+footer .links a { margin-right: 18px; display: inline-block; }
+@media (max-width: 600px) {
+  header.top { padding-top: 24px; }
+  .box { padding: 18px 16px; border-radius: 12px; }
+  .cmd { flex-direction: column; gap: 10px; padding: 14px; }
+  .cmd.main pre { font-size: 1.1rem; }
+  .cmd .copy { align-self: flex-end; }
+  .button { font-size: 1.1rem; padding: 12px 20px; display: block; text-align: center; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="top">
+  <h1 class="brand">
+    <svg viewBox="0 0 1024 1024" aria-hidden="true"><rect x="32" y="32" width="960" height="960" rx="208" fill="#1e232c"/><g transform="translate(64 64) scale(14)" fill="none"><defs><filter id="g" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="2.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><path d="M32 8V32M32 32 52.78 44M32 32 11.22 44" stroke="#f5f5f5" stroke-width="2.4" stroke-linecap="round" opacity=".32"/><g filter="url(#g)" stroke="#0b3d1c" stroke-width=".7" stroke-linejoin="round"><path d="M22.47 26.5 32 32V43L22.47 37.5Z" fill="#3ecf6b"/><path d="M41.53 26.5 32 32V43L41.53 37.5Z" fill="#229a4b"/><path d="M32 21 41.53 26.5 32 32 22.47 26.5Z" fill="#7df0a0"/></g><path d="M32 8 52.78 20V44L32 56 11.22 44V20ZM52.78 20 32 32 11.22 20M32 32V56" stroke="#f5f5f5" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></g></svg>
+    mcbench-lite
+  </h1>
+  <p class="lede">An app in which AI models build in Minecraft 1.21.10. It runs on macOS, Windows and Linux, and keeps your chats and worlds on your computer.</p>
+  <nav class="systems" aria-label="Systems">
+    <span>Install on</span>
+    <a href="#macos" data-os="macos">macOS</a>
+    <a href="#windows" data-os="windows">Windows</a>
+    <a href="#linux" data-os="linux">Linux</a>
+  </nav>
+</header>
+
+<main>
+<section class="platform" id="macos">
+  <div class="box">
+    <h2>Install on macOS</h2>
+    <div class="cmd main"><pre>curl -fsSL https://adonis-singh.github.io/mcbench-lite/install.sh | sh</pre></div>
+    <p class="help">Paste into Terminal. About a minute.</p>
+    <div class="facts">
+      <p>The app goes to the Applications folder in your home folder and starts. It updates itself: it downloads and checks each new version in the background and switches to it the next time it starts.</p>
+      <h3>Uninstall</h3>
+      <div class="cmd"><pre>curl -fsSL https://adonis-singh.github.io/mcbench-lite/install.sh | sh -s -- --uninstall</pre></div>
+      <p class="small">This removes the app, what macOS keeps for it, <code>~/.cache/mcbench</code> and the app's leftover temporary folders. The data folder <code>~/Library/Application Support/mcbench-lite</code>, with your chats, worlds and settings, stays, and so do Claude Code's transcripts of the app's chats and the Codex sign-in file <code>~/.codex/auth.json</code>, which are yours; the uninstall prints where each one is.</p>
+    </div>
+  </div>
+</section>
+
+<section class="platform" id="windows">
+  <div class="box">
+    <h2>Install on Windows</h2>
+    <div class="cmd main"><pre>irm https://adonis-singh.github.io/mcbench-lite/install.ps1 | iex</pre></div>
+    <p class="help">Paste into PowerShell. About a minute.</p>
+    <div class="facts">
+      <p>The app is installed for your account only, with no administrator, and starts. On the first run it asks once for an administrator's approval to set up WSL, which the model's bash shell and the build tool run in, and on most computers Windows then needs one restart. On a computer where WSL already works, nothing is asked.</p>
+      <p>It updates itself: it downloads and checks each new version in the background and switches to it the next time it starts.</p>
+      <h3>Or download the installer</h3>
+      <p><a class="button" href="https://github.com/adonis-singh/mcbench-lite/releases/latest/download/mcbench-lite-setup-x64.exe">Download installer (.exe)</a></p>
+      <p class="small">The same installer the command runs. It is not signed, so Windows warns twice on this route: Edge holds the download back as one that "isn't commonly downloaded" until you choose to keep it, and when you open the file Windows says "Windows protected your PC", where More info shows Run anyway.</p>
+      <h3>Uninstall</h3>
+      <p class="small">Settings &gt; Apps &gt; Installed apps &gt; mcbench-lite &gt; Uninstall, or in PowerShell:</p>
+      <div class="cmd"><pre>&amp; "$env:LOCALAPPDATA\Programs\mcbench-lite\uninstall.exe"</pre></div>
+      <p class="small">This removes the app, its own WSL distribution <code>mcbench-lite</code> (which holds nothing of yours), its cache folder and its leftover temporary folders. The data folder <code>%LOCALAPPDATA%\mcbench-lite</code>, with your chats, worlds and settings, stays, and so do Claude Code's transcripts of the app's chats and the Codex sign-in file <code>.codex\auth.json</code> in your user folder, which are yours.</p>
+    </div>
+  </div>
+</section>
+
+<section class="platform" id="linux">
+  <div class="box">
+    <h2>Install on Linux</h2>
+    <div class="tabs">
+      <input type="radio" name="distro" id="d-deb" checked>
+      <input type="radio" name="distro" id="d-rpm">
+      <input type="radio" name="distro" id="d-aur">
+      <input type="radio" name="distro" id="d-sh">
+      <div class="tablist">
+        <label for="d-deb">Ubuntu/Debian</label>
+        <label for="d-rpm">Fedora</label>
+        <label for="d-aur">Arch</label>
+        <label for="d-sh">Other Linux</label>
+      </div>
+
+      <div class="panel" id="p-deb">
+        <div class="cmd main"><pre>wget -qO /tmp/mcbench-lite.deb https://github.com/adonis-singh/mcbench-lite/releases/latest/download/mcbench-lite_$(dpkg --print-architecture).deb &amp;&amp; sudo apt install -y /tmp/mcbench-lite.deb</pre></div>
+        <p class="help">Updates arrive with your system updates.</p>
+        <p class="alt small">Download .deb: <a href="https://github.com/adonis-singh/mcbench-lite/releases/latest/download/mcbench-lite_amd64.deb">amd64</a>, <a href="https://github.com/adonis-singh/mcbench-lite/releases/latest/download/mcbench-lite_arm64.deb">arm64</a></p>
+        <p class="small">On Ubuntu 23.10 and later, use the .deb: it loads the AppArmor profile the model's bash and build need.</p>
+        <h3>Uninstall</h3>
+        <div class="cmd"><pre>sudo apt remove mcbench-lite</pre></div>
+        <h3>Or the script or the AppImage</h3>
+        <p class="small">Both are under Other Linux. On Ubuntu 23.10 and later they need Ubuntu's AppArmor profile for bwrap, or the model's bash and build do not work: the script asks to install it with sudo, and for the AppImage install it with:</p>
+        <div class="cmd"><pre>(cd "$(mktemp -d)" &amp;&amp; apt-get download apparmor-profiles &amp;&amp; dpkg-deb -x apparmor-profiles_*.deb . &amp;&amp; sudo install -m 0644 usr/share/apparmor/extra-profiles/bwrap-userns-restrict /etc/apparmor.d/bwrap-userns-restrict &amp;&amp; sudo apparmor_parser -r /etc/apparmor.d/bwrap-userns-restrict)</pre></div>
+      </div>
+
+      <div class="panel" id="p-rpm">
+        <div class="cmd main"><pre>sudo dnf install -y https://github.com/adonis-singh/mcbench-lite/releases/latest/download/mcbench-lite.$(uname -m).rpm</pre></div>
+        <p class="help">Updates arrive with your system updates.</p>
+        <p class="alt small">Download .rpm: <a href="https://github.com/adonis-singh/mcbench-lite/releases/latest/download/mcbench-lite.x86_64.rpm">x86_64</a>, <a href="https://github.com/adonis-singh/mcbench-lite/releases/latest/download/mcbench-lite.aarch64.rpm">aarch64</a></p>
+        <h3>Uninstall</h3>
+        <div class="cmd"><pre>sudo dnf remove mcbench-lite</pre></div>
+      </div>
+
+      <div class="panel" id="p-aur">
+        <div class="cmd main"><pre>yay -S mcbench-lite-bin</pre></div>
+        <p class="small">or <code>paru -S mcbench-lite-bin</code></p>
+        <p class="help">Updates arrive with your AUR helper.</p>
+        <p class="alt small">Without an AUR helper:</p>
+        <div class="cmd"><pre>git clone https://aur.archlinux.org/mcbench-lite-bin.git &amp;&amp; cd mcbench-lite-bin &amp;&amp; makepkg -si</pre></div>
+        <h3>Uninstall</h3>
+        <div class="cmd"><pre>sudo pacman -R mcbench-lite-bin</pre></div>
+      </div>
+
+      <div class="panel" id="p-sh">
+        <div class="cmd main"><pre>curl -fsSL https://adonis-singh.github.io/mcbench-lite/install.sh | sh</pre></div>
+        <p class="help">Installs into your home folder. Needs bubblewrap. No sudo, except on Ubuntu 23.10 and later, where it asks to install Ubuntu's AppArmor profile for bwrap with sudo.</p>
+        <p class="alt small">Download AppImage: <a href="https://github.com/adonis-singh/mcbench-lite/releases/latest/download/mcbench-lite-x86_64.AppImage">x86_64</a>, <a href="https://github.com/adonis-singh/mcbench-lite/releases/latest/download/mcbench-lite-aarch64.AppImage">aarch64</a>. Make it executable with <code>chmod +x</code> and run it; it updates itself.</p>
+        <p class="small">The script needs a glibc system on x86_64 or aarch64 and refuses musl systems such as Alpine. The app it installs updates itself.</p>
+        <h3>Uninstall</h3>
+        <div class="cmd"><pre>curl -fsSL https://adonis-singh.github.io/mcbench-lite/install.sh | sh -s -- --uninstall</pre></div>
+        <p class="small">This removes the app, its link in <code>~/.local/bin</code>, its menu entry and icon, <code>~/.cache/mcbench</code> and the app's leftover temporary folders, and prints where the files it keeps are. An AppImage is removed by deleting the file.</p>
+      </div>
+    </div>
+    <div class="facts">
+      <p class="small">The model's bash shell runs under bubblewrap (the package is called bubblewrap on every distribution).</p>
+      <p class="small">Every uninstall keeps the data folder <code>~/.local/share/mcbench-lite</code> (or <code>$XDG_DATA_HOME/mcbench-lite</code>), with your chats, worlds and settings, and Claude Code's transcripts of the app's chats and the Codex sign-in file <code>~/.codex/auth.json</code>, which are yours. A package's removal also leaves <code>~/.cache/mcbench</code>, which you can delete.</p>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <p class="links">
+    <a href="https://github.com/adonis-singh/mcbench-lite">Source code</a>
+    <a href="https://github.com/adonis-singh/mcbench-lite/blob/main/LICENSE">Licence</a>
+    <a href="https://github.com/adonis-singh/mcbench-lite/releases">All releases</a>
+    <!-- The release script fills this address from native/sandbox-assets.lock: the sources sit beside the Linux base and root filesystem's own release. -->
+    <a href="<sources address>">Sources of the GPL software in the download</a>
+  </p>
+  <p>On first start the app downloads the Minecraft textures it draws with from Mojang's servers.</p>
+  <p>mcbench-lite is not an official Minecraft product and is not approved by or associated with Mojang or Microsoft.</p>
+</footer>
+</div>
+
+<script>
+(function () {
+  var root = document.documentElement;
+
+  // Copy buttons exist only with JavaScript; without it every command is plain selectable text.
+  document.querySelectorAll(".cmd").forEach(function (box) {
+    var pre = box.querySelector("pre");
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "copy";
+    b.textContent = "Copy";
+    b.addEventListener("click", function () {
+      navigator.clipboard.writeText(pre.textContent).then(function () {
+        b.textContent = "Copied";
+      }, function () {
+        b.textContent = "Select and copy";
+      });
+      setTimeout(function () { b.textContent = "Copy"; }, 2000);
+    });
+    box.appendChild(b);
+  });
+
+  var links = document.querySelectorAll("nav.systems a");
+  function pick(os) {
+    root.classList.add("js-picked");
+    document.querySelectorAll("section.platform").forEach(function (s) {
+      s.classList.toggle("picked", s.id === os);
+    });
+    links.forEach(function (a) {
+      a.setAttribute("aria-current", a.dataset.os === os ? "true" : "false");
+    });
+  }
+  links.forEach(function (a) {
+    a.addEventListener("click", function (e) {
+      e.preventDefault();
+      pick(a.dataset.os);
+      history.replaceState(null, "", "#" + a.dataset.os);
+    });
+  });
+
+  var ua = navigator.userAgent;
+  if (/Fedora/.test(ua)) document.getElementById("d-rpm").checked = true;
+
+  // The system comes from the user agent string, which every browser sends.
+  var os = /Windows NT/.test(ua) ? "windows"
+    : /iPhone|iPad|Android/.test(ua) ? null
+    : /Macintosh/.test(ua) ? "macos"
+    : /Linux|X11|CrOS/.test(ua) ? "linux"
+    : null;
+  var hash = location.hash.slice(1);
+  if (hash === "macos" || hash === "windows" || hash === "linux") os = hash;
+  if (os) pick(os);
+})();
+</script>
+</body>
+</html>

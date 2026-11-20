@@ -29,6 +29,38 @@ use std::path::PathBuf;
 static ALLOCATOR: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
 fn main() {
+    // On Linux, glibc's malloc in one arena, its mmap threshold fixed at
+    // its starting 128 KiB (a block that large is mapped on its own and
+    // returned to the system when freed) and its trim threshold at the
+    // 64 MiB its dynamic one reaches. With an arena a thread, malloc_trim
+    // leaves the free memory at the top of every other thread's arena, and
+    // how much of the meshing's freed memory lands there depends on which
+    // threads ran when: after a million block world on adipc at load 40 to
+    // 50, resident 361 to 583 MB, about 45 MB of it in use by malloc; with
+    // this, 260 to 297 MB, and the peak while meshing it 899 to 1,025 MB
+    // against 826 to 1,226. Meshing that world took a median of 193 ms
+    // against 210 with glibc's defaults (alternated, load 30 to 35); one
+    // arena with the dynamic thresholds took 325 against 274.
+    #[cfg(target_os = "linux")]
+    // SAFETY: before any other thread exists; mallopt only sets malloc's
+    // parameters.
+    unsafe {
+        assert_eq!(
+            libc::mallopt(libc::M_ARENA_MAX, 1),
+            1,
+            "mallopt(M_ARENA_MAX)"
+        );
+        assert_eq!(
+            libc::mallopt(libc::M_TRIM_THRESHOLD, 64 << 20),
+            1,
+            "mallopt(M_TRIM_THRESHOLD)"
+        );
+        assert_eq!(
+            libc::mallopt(libc::M_MMAP_THRESHOLD, 128 << 10),
+            1,
+            "mallopt(M_MMAP_THRESHOLD)"
+        );
+    }
     let args: Vec<String> = std::env::args().skip(1).collect();
     let result = match args.first().map(String::as_str) {
         Some("serve") if args.len() == 1 => serve::run(),
@@ -44,18 +76,31 @@ fn main() {
 }
 
 fn option(args: &[String], name: &str) -> Option<String> {
-    args.iter().position(|a| a == name).and_then(|i| args.get(i + 1)).cloned()
+    args.iter()
+        .position(|a| a == name)
+        .and_then(|i| args.get(i + 1))
+        .cloned()
 }
 
 fn shot(args: &[String]) -> Result<(), String> {
-    let [data, build, out, ..] = args else { return Err("usage: mcbench-draw shot <data> <build> <out> [--repeat N] [--software] [--software-vulkan <lib>] [--phases]".into()) };
-    let repeat: usize = option(args, "--repeat").map(|r| r.parse().map_err(|_| "--repeat N")).transpose()?.unwrap_or(0);
-    let choice = Choice { software: args.iter().any(|a| a == "--software"), software_vulkan: option(args, "--software-vulkan").map(PathBuf::from) };
+    let [data, build, out, ..] = args else {
+        return Err("usage: mcbench-draw shot <data> <build> <out> [--repeat N] [--software] [--software-vulkan <lib>] [--phases]".into());
+    };
+    let repeat: usize = option(args, "--repeat")
+        .map(|r| r.parse().map_err(|_| "--repeat N"))
+        .transpose()?
+        .unwrap_or(0);
+    let choice = Choice {
+        software: args.iter().any(|a| a == "--software"),
+        software_vulkan: option(args, "--software-vulkan").map(PathBuf::from),
+    };
     // The first pictures' work submitted one part at a time, each timed.
     let phases = args.iter().any(|a| a == "--phases");
     let (build, out) = (PathBuf::from(build), PathBuf::from(out));
     std::fs::create_dir_all(&out).map_err(|e| e.to_string())?;
-    let job: Value = serde_json::from_slice(&std::fs::read(build.join("job.json")).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
+    let job: Value =
+        serde_json::from_slice(&std::fs::read(build.join("job.json")).map_err(|e| e.to_string())?)
+            .map_err(|e| e.to_string())?;
     let t_start = mcbench_draw::now_ms();
     let t = mcbench_draw::now_ms();
     let gpu = Gpu::open(&choice)?;
@@ -63,7 +108,12 @@ fn shot(args: &[String]) -> Result<(), String> {
     let report = gpu.report();
     let t = mcbench_draw::now_ms();
     // A data folder of today's bake, or a JSON file of hello's assets.
-    let paths: Paths = if data.ends_with(".json") { serde_json::from_slice(&std::fs::read(data).map_err(|e| format!("{data}: {e}"))?).map_err(|e| format!("{data}: {e}"))? } else { Paths::of_data(&PathBuf::from(data))? };
+    let paths: Paths = if data.ends_with(".json") {
+        serde_json::from_slice(&std::fs::read(data).map_err(|e| format!("{data}: {e}"))?)
+            .map_err(|e| format!("{data}: {e}"))?
+    } else {
+        Paths::of_data(&PathBuf::from(data))?
+    };
     let assets = Assets::load(&paths)?;
     let assets_ms = mcbench_draw::now_ms() - t;
     let t = mcbench_draw::now_ms();
@@ -75,32 +125,58 @@ fn shot(args: &[String]) -> Result<(), String> {
         Ok(bytes) => serde_json::from_slice(&bytes).map_err(|e| e.to_string())?,
         Err(_) => Vec::new(),
     };
-    let kept = Kept { blueprint: std::fs::read(build.join("blueprint.bin")).map_err(|e| e.to_string())?, y_offset: job["yOffset"].as_i64().ok_or("job.json has no yOffset")? as i32, entities, used: 0 };
+    let kept = Kept {
+        blueprint: std::fs::read(build.join("blueprint.bin")).map_err(|e| e.to_string())?,
+        y_offset: job["yOffset"].as_i64().ok_or("job.json has no yOffset")? as i32,
+        entities,
+        used: 0,
+    };
     let shots: Vec<(Shot, u32)> = job["shots"]
         .as_array()
         .ok_or("job.json has no shots")?
         .iter()
         .map(|s| {
-            let shot = Shot { width: s["width"].as_u64().unwrap_or(0) as u32, height: s["height"].as_u64().unwrap_or(0) as u32, camera: serde_json::from_value(s["camera"].clone()).map_err(|e| e.to_string())?, clip: serde_json::from_value(s["clip"].clone()).map_err(|e| e.to_string())?, grid: serde_json::from_value(s["grid"].clone()).map_err(|e| e.to_string())?, _described: None, _tick: None };
+            let shot = Shot {
+                width: s["width"].as_u64().unwrap_or(0) as u32,
+                height: s["height"].as_u64().unwrap_or(0) as u32,
+                camera: serde_json::from_value(s["camera"].clone()).map_err(|e| e.to_string())?,
+                clip: serde_json::from_value(s["clip"].clone()).map_err(|e| e.to_string())?,
+                grid: serde_json::from_value(s["grid"].clone()).map_err(|e| e.to_string())?,
+                _described: None,
+                _tick: None,
+            };
             Ok((shot, s["supersample"].as_u64().unwrap_or(2) as u32))
         })
         .collect::<Result<_, String>>()?;
-    let mut scenes: std::collections::HashMap<Option<store::Clip>, (store::Scene, store::SceneTimes)> = Default::default();
-    let draw = |i: usize, write: bool, scenes: &mut std::collections::HashMap<Option<store::Clip>, (store::Scene, store::SceneTimes)>| -> Result<Value, String> {
+    let mut scenes: std::collections::HashMap<
+        Option<store::Clip>,
+        (store::Scene, store::SceneTimes),
+    > = Default::default();
+    let draw = |i: usize,
+                write: bool,
+                scenes: &mut std::collections::HashMap<
+        Option<store::Clip>,
+        (store::Scene, store::SceneTimes),
+    >|
+     -> Result<Value, String> {
         let (shot, ss) = &shots[i];
         let t0 = mcbench_draw::now_ms();
         let mut scene_ms = 0.0;
         if let std::collections::hash_map::Entry::Vacant(slot) = scenes.entry(shot.clip) {
-            let made = store::make_scene(&assets, &gpu, &kept, shot.clip, &mut || {}).map_err(|e| format!("{e:?}"))?;
+            let made = store::make_scene(&assets, &gpu, &kept, shot.clip, &mut |_| {})
+                .map_err(|e| format!("{e:?}"))?;
             scene_ms = made.1.total;
             slot.insert(made);
         }
         let (scene, _) = &scenes[&shot.clip];
         let (rgba, times, phases) = if phases && write {
-            let (rgba, phases) = store::draw_shot_phases(&assets, &gpu, &renderer, scene, shot, *ss).map_err(|e| format!("{e:?}"))?;
+            let (rgba, phases) =
+                store::draw_shot_phases(&assets, &gpu, &renderer, scene, shot, *ss)
+                    .map_err(|e| format!("{e:?}"))?;
             (rgba, Default::default(), Some(phases))
         } else {
-            let (rgba, times) = store::draw_shot(&assets, &gpu, &renderer, scene, shot, *ss).map_err(|e| format!("{e:?}"))?;
+            let (rgba, times) = store::draw_shot(&assets, &gpu, &renderer, scene, shot, *ss)
+                .map_err(|e| format!("{e:?}"))?;
             (rgba, times, None)
         };
         let t = mcbench_draw::now_ms();
@@ -111,10 +187,19 @@ fn shot(args: &[String]) -> Result<(), String> {
         let bytes = picture::jpeg(&rgb, shot.width, shot.height, 90)?;
         let encode_ms = mcbench_draw::now_ms() - t;
         if write {
-            image::save_buffer(out.join(format!("{i}.png")), &png.unwrap(), shot.width, shot.height, image::ExtendedColorType::Rgba8).map_err(|e| e.to_string())?;
+            image::save_buffer(
+                out.join(format!("{i}.png")),
+                &png.unwrap(),
+                shot.width,
+                shot.height,
+                image::ExtendedColorType::Rgba8,
+            )
+            .map_err(|e| e.to_string())?;
             std::fs::write(out.join(format!("{i}.jpg")), &bytes).map_err(|e| e.to_string())?;
         }
-        Ok(json!({ "shot": i, "phases": phases.map(|p| p.into_iter().map(|(k, v)| (k.to_string(), json!(v))).collect::<serde_json::Map<String, Value>>()), "scene": round2(scene_ms), "draw": round2(times.draw_ms), "readback": round2(times.readback_ms), "grid": round2(grid_ms), "encode": round2(encode_ms), "total": round2(mcbench_draw::now_ms() - t0), "bytes": bytes.len() }))
+        Ok(
+            json!({ "shot": i, "phases": phases.map(|p| p.into_iter().map(|(k, v)| (k.to_string(), json!(v))).collect::<serde_json::Map<String, Value>>()), "scene": round2(scene_ms), "draw": round2(times.draw_ms), "readback": round2(times.readback_ms), "grid": round2(grid_ms), "encode": round2(encode_ms), "total": round2(mcbench_draw::now_ms() - t0), "bytes": bytes.len() }),
+        )
     };
     let mut cold = Vec::new();
     for i in 0..shots.len() {
@@ -135,14 +220,23 @@ fn shot(args: &[String]) -> Result<(), String> {
         "scene": first,
         "cold": cold, "cold_ms": round2(cold_ms), "warm": warm,
     });
-    std::fs::write(out.join("times.json"), serde_json::to_string_pretty(&report).unwrap()).map_err(|e| e.to_string())?;
+    std::fs::write(
+        out.join("times.json"),
+        serde_json::to_string_pretty(&report).unwrap(),
+    )
+    .map_err(|e| e.to_string())?;
     println!("{}", serde_json::to_string(&json!({ "adapter": report["adapter"]["name"], "cold_ms": report["cold_ms"], "scene": report["scene"], "cold": report["cold"] })).unwrap());
     Ok(())
 }
 
 fn compare(args: &[String]) -> Result<(), String> {
-    let [a, b] = args else { return Err("usage: mcbench-draw compare <a> <b>".into()) };
-    let (a, b) = (Image::open(&PathBuf::from(a))?, Image::open(&PathBuf::from(b))?);
+    let [a, b] = args else {
+        return Err("usage: mcbench-draw compare <a> <b>".into());
+    };
+    let (a, b) = (
+        Image::open(&PathBuf::from(a))?,
+        Image::open(&PathBuf::from(b))?,
+    );
     let stats = colour(&a, &b, None)?;
     println!("{}", serde_json::to_string(&json!({ "stats": stats, "same": stats.same(), "acrossBackends": stats.across_backends(), "acrossBackendsJpeg": stats.across_backends_jpeg() })).unwrap());
     Ok(())

@@ -1,0 +1,8 @@
+Speaking ['Desktop', 'list']
+Speaking ['Recycle Bin', 'not selected', '1 of 3']
+Speaking ['mcbench-lite — stopped']
+Input: kb(desktop):NVDA+tab
+Speaking ['Recycle Bin', 'list item', '1 of 3']
+Input: kb(desktop):NVDA+b
+Speaking [CallbackCommand(name=say-all:next), 'Program Manager']
+Input: kb(desktop):enter

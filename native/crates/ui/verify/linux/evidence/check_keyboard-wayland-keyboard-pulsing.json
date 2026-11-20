@@ -1,0 +1,327 @@
+[
+ {
+  "check": "the composer has focus at start",
+  "ok": true,
+  "detail": "entry 'Message'"
+ },
+ {
+  "check": "Tab focuses button mcbuild",
+  "ok": true,
+  "detail": "button 'mcbuild'"
+ },
+ {
+  "check": "Tab focuses button New chat",
+  "ok": true,
+  "detail": "button 'New chat'"
+ },
+ {
+  "check": "Tab focuses button Collapse sidebar",
+  "ok": true,
+  "detail": "button 'Collapse sidebar'"
+ },
+ {
+  "check": "Tab focuses entry Search chats",
+  "ok": true,
+  "detail": "entry 'Search chats'"
+ },
+ {
+  "check": "Tab focuses button Filter",
+  "ok": true,
+  "detail": "button 'Filter'"
+ },
+ {
+  "check": "Tab focuses list item Redstone lamp with a lever",
+  "ok": true,
+  "detail": "list item 'Redstone lamp with a lever'"
+ },
+ {
+  "check": "Tab focuses button Archive build",
+  "ok": true,
+  "detail": "button 'Archive build'"
+ },
+ {
+  "check": "Tab focuses button Show archived",
+  "ok": true,
+  "detail": "button 'Show archived'"
+ },
+ {
+  "check": "Tab focuses button Settings",
+  "ok": true,
+  "detail": "button 'Settings'"
+ },
+ {
+  "check": "Tab focuses article claude-opus-5-5,",
+  "ok": true,
+  "detail": "article 'claude-opus-5-5, Yes: the base is still three by three, nine stone blocks, and nothing else moved.'"
+ },
+ {
+  "check": "Tab focuses entry Message",
+  "ok": true,
+  "detail": "entry 'Message'"
+ },
+ {
+  "check": "Tab focuses button Send",
+  "ok": true,
+  "detail": "button 'Send'"
+ },
+ {
+  "check": "shift+Tab focuses entry Message",
+  "ok": true,
+  "detail": "entry 'Message'"
+ },
+ {
+  "check": "shift+Tab focuses article claude-opus-5-5,",
+  "ok": true,
+  "detail": "article 'claude-opus-5-5, Yes: the base is still three by three, nine stone blocks, and nothing else moved.'"
+ },
+ {
+  "check": "shift+Tab focuses button Settings",
+  "ok": true,
+  "detail": "button 'Settings'"
+ },
+ {
+  "check": "shift+Tab focuses button Show archived",
+  "ok": true,
+  "detail": "button 'Show archived'"
+ },
+ {
+  "check": "shift+Tab focuses button Archive build",
+  "ok": true,
+  "detail": "button 'Archive build'"
+ },
+ {
+  "check": "shift+Tab focuses list item Redstone lamp with a lever",
+  "ok": true,
+  "detail": "list item 'Redstone lamp with a lever'"
+ },
+ {
+  "check": "shift+Tab focuses button Filter",
+  "ok": true,
+  "detail": "button 'Filter'"
+ },
+ {
+  "check": "shift+Tab focuses entry Search chats",
+  "ok": true,
+  "detail": "entry 'Search chats'"
+ },
+ {
+  "check": "shift+Tab focuses button Collapse sidebar",
+  "ok": true,
+  "detail": "button 'Collapse sidebar'"
+ },
+ {
+  "check": "shift+Tab focuses button New chat",
+  "ok": true,
+  "detail": "button 'New chat'"
+ },
+ {
+  "check": "Tab focuses button Collapse sidebar",
+  "ok": true,
+  "detail": "button 'Collapse sidebar'"
+ },
+ {
+  "check": "Tab focuses entry Search chats",
+  "ok": true,
+  "detail": "entry 'Search chats'"
+ },
+ {
+  "check": "Tab focuses button Filter",
+  "ok": true,
+  "detail": "button 'Filter'"
+ },
+ {
+  "check": "Tab focuses list item Redstone lamp with a lever",
+  "ok": true,
+  "detail": "list item 'Redstone lamp with a lever'"
+ },
+ {
+  "check": "Down focuses list item Castle gate",
+  "ok": true,
+  "detail": "list item 'Castle gate, Working'"
+ },
+ {
+  "check": "End focuses list item Wheat farm, Finished, not opened yet",
+  "ok": true,
+  "detail": "list item 'Wheat farm, Finished, not opened yet, Resolution: Very high (5×)'"
+ },
+ {
+  "check": "Home focuses list item Redstone lamp with a lever",
+  "ok": true,
+  "detail": "list item 'Redstone lamp with a lever'"
+ },
+ {
+  "check": "Down focuses list item Castle gate",
+  "ok": true,
+  "detail": "list item 'Castle gate, Working'"
+ },
+ {
+  "check": "Enter opens the chat",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "Up focuses list item Redstone lamp with a lever",
+  "ok": true,
+  "detail": "list item 'Redstone lamp with a lever'"
+ },
+ {
+  "check": "Tab focuses button Archive build",
+  "ok": true,
+  "detail": "button 'Archive build'"
+ },
+ {
+  "check": "Tab focuses button Show archived",
+  "ok": true,
+  "detail": "button 'Show archived'"
+ },
+ {
+  "check": "Tab focuses button Settings",
+  "ok": true,
+  "detail": "button 'Settings'"
+ },
+ {
+  "check": "Tab focuses article claude-opus-5-5,",
+  "ok": true,
+  "detail": "article 'claude-opus-5-5, Yes: the base is still three by three, nine stone blocks, and nothing else moved.'"
+ },
+ {
+  "check": "Home focuses article You,",
+  "ok": true,
+  "detail": "article 'You, Build a redstone lamp that turns on with a lever, and explain what you placed.'"
+ },
+ {
+  "check": "Down focuses article claude-opus-5-5,",
+  "ok": true,
+  "detail": "article 'claude-opus-5-5, work'"
+ },
+ {
+  "check": "Page_Down focuses article",
+  "ok": true,
+  "detail": "article 'claude-opus-5-5, Here is the view from the south-east after the change:\\nimage, The two lamps on their stone base, seen from the south-east\\nBoth lamps are lit. See the lever page if you want a different facing.'"
+ },
+ {
+  "check": "Page_Up focuses article claude-opus-5-5,",
+  "ok": true,
+  "detail": "article 'claude-opus-5-5, work'"
+ },
+ {
+  "check": "End focuses article claude-opus-5-5,",
+  "ok": true,
+  "detail": "article 'claude-opus-5-5, Yes: the base is still three by three, nine stone blocks, and nothing else moved.'"
+ },
+ {
+  "check": "Down focuses article claude-opus-5-5,",
+  "ok": true,
+  "detail": "article 'claude-opus-5-5, work'"
+ },
+ {
+  "check": "Tab focuses button Worked",
+  "ok": true,
+  "detail": "button 'Worked · 2 steps'"
+ },
+ {
+  "check": "Enter opens the fold",
+  "ok": true,
+  "detail": "button 'Worked · 2 steps'"
+ },
+ {
+  "check": "Tab focuses button Reasoning",
+  "ok": true,
+  "detail": "button 'Reasoning'"
+ },
+ {
+  "check": "Tab focuses button Built: a lamp with a lever",
+  "ok": true,
+  "detail": "button 'Built: a lamp with a lever'"
+ },
+ {
+  "check": "Space opens the tool row",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "Tab focuses button Ran command: ls -la /work",
+  "ok": true,
+  "detail": "button 'Ran command: ls -la /work'"
+ },
+ {
+  "check": "Down focuses article claude-opus-5-5,",
+  "ok": true,
+  "detail": "article 'claude-opus-5-5, A lamp on a lever\\nThe lamp is built and wired. It lights when the lever is on and goes dark when it is off; the old torch is gone. The block that does the work is a redstone_lamp, and the wiki page on lamps has the details.\\nWhat was placed\\nA stone base, three by three\\nThe lamp on top\\npowered from below\\nwith a lever on its west side\\nA sign that says Pull me\\nThe program\\ncode, rust, 5 lines\\nBlocks used\\ntable, 4 rows, 3 columns\\nA lamp only needs power from one side: the lever powers the block it sits on, and that block powers the lamp.\\nThat is all. Pull the lever to test it.'"
+ },
+ {
+  "check": "Tab focuses link the wiki page on lamps",
+  "ok": true,
+  "detail": "link 'the wiki page on lamps'"
+ },
+ {
+  "check": "Enter activates the link",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "Tab focuses button Copy code",
+  "ok": true,
+  "detail": "button 'Copy code'"
+ },
+ {
+  "check": "Space activates Copy code",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "Copy code reached the clipboard",
+  "ok": true,
+  "detail": "fn build(world: &mut World) {\n"
+ },
+ {
+  "check": "Ctrl+A, Ctrl+C copies the whole transcript",
+  "ok": true,
+  "detail": "1756 characters: 'Build a redstone lamp that turns on with' ... 'ne stone blocks, and nothing else moved.'"
+ },
+ {
+  "check": "a table copies as tab-separated rows",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "code copies verbatim",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "Tab focuses entry Message",
+  "ok": true,
+  "detail": "entry 'Message'"
+ },
+ {
+  "check": "Shift+Enter makes a new line",
+  "ok": true,
+  "detail": "'one\\ntwo'"
+ },
+ {
+  "check": "Enter sends",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "Stop appears while streaming",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "Escape while streaming stops nothing",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "Tab focuses button Stop",
+  "ok": true,
+  "detail": "button 'Stop'"
+ },
+ {
+  "check": "Enter on Stop stops the turn",
+  "ok": true,
+  "detail": ""
+ }
+]

@@ -1,0 +1,8 @@
+    Group name="claude-opus-5-5" lct="article" id="" set=11/18 "work" patterns=[LegacyIAccessi
+    Group name="claude-opus-5-5" lct="article" id="" set=12/18 "message, Adding a third lamp n
+    Group name="You" lct="article" id="" set=13/18 "message, Turn Two" patterns=[L
+    Group name="claude-opus-5-5" lct="article" id="" set=14/18 "work" patterns=[LegacyIAccessi
+    Group name="claude-opus-5-5" lct="article" id="" set=15/18 "message, Adding a third lamp n
+    Group name="You" lct="article" id="" set=16/18 "message, Turn Three" patterns=
+    Group name="claude-opus-5-5" lct="article" id="" set=17/18 "work" patterns=[LegacyIAccessi
+    Group name="claude-opus-5-5" lct="article" id="" set=18/18 "message, Adding a third lamp n

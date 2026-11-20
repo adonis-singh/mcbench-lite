@@ -1,0 +1,8 @@
+composer, Microsoft Japanese IME, typed nihongo:
+value="にほんご"
+after Space and Enter:
+value="日本語"
+palette, Microsoft Japanese IME, typed nihongo:
+value="にほんご"
+after Space and Enter:
+name="Search everything" name="Search everything" value="日本語" 

@@ -1,0 +1,3 @@
+ 14:14:40 up 3 days,  1:18,  4 users,  load average: 1.80, 2.61, 2.89
+pid 8056: visible window after 62.3 ms, first drawn pixels after 167.1 ms
+ 14:16:46 up 3 days,  1:20,  4 users,  load average: 1.60, 2.40, 2.79

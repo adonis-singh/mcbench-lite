@@ -1,0 +1,379 @@
+[
+ {
+  "check": "the mode switcher's name and help",
+  "ok": true,
+  "seen": {
+   "AXRole": "AXButton",
+   "AXSubrole": "AXUnknown",
+   "AXRoleDescription": "button",
+   "AXTitle": "mcbuild",
+   "AXValue": "<error -25212>",
+   "AXHelp": "Switch to Bench (⌘2)",
+   "AXEnabled": true,
+   "AXFocused": false,
+   "AXPosition": [
+    130,
+    103
+   ],
+   "AXSize": [
+    77,
+    18
+   ]
+  }
+ },
+ {
+  "check": "Cmd-2 switches to Bench (the switcher says mcbench)",
+  "ok": true,
+  "seen": [
+   "mcbench-ui-dev",
+   "New bench · mcbench-lite",
+   null,
+   "mcbench",
+   "New bench",
+   "Collapse sidebar"
+  ]
+ },
+ {
+  "check": "the bench list is an AXList named Benches",
+  "ok": true,
+  "seen": {
+   "path": "0.0.6",
+   "AXRole": "AXList",
+   "AXSubrole": "AXUnknown",
+   "AXRoleDescription": "list",
+   "AXTitle": "Benches",
+   "AXEnabled": true,
+   "AXFocused": false,
+   "AXPosition": [
+    89,
+    224
+   ],
+   "AXSize": [
+    217,
+    44
+   ]
+  }
+ },
+ {
+  "check": "its benches",
+  "ok": true,
+  "seen": [
+   "Towers and a bridge"
+  ]
+ },
+ {
+  "note": "Bench's sidebar",
+  "seen": [
+   {
+    "path": "0.0.0",
+    "AXRole": "AXButton",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "mcbench",
+    "AXHelp": "Switch to Build · 1 finished (⌘1)"
+   },
+   {
+    "path": "0.0.1",
+    "AXRole": "AXButton",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "New bench"
+   },
+   {
+    "path": "0.0.2",
+    "AXRole": "AXButton",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "Collapse sidebar"
+   },
+   {
+    "path": "0.0.3",
+    "AXRole": "AXTextField",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "Search benches"
+   },
+   {
+    "path": "0.0.4",
+    "AXRole": "AXButton",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "Filter",
+    "AXHelp": "Filter"
+   },
+   {
+    "path": "0.0.5",
+    "AXRole": "AXButton",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "Leaderboard"
+   },
+   {
+    "path": "0.0.6",
+    "AXRole": "AXList",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "Benches"
+   },
+   {
+    "path": "0.0.6.0",
+    "AXRole": "AXGroup",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "Towers and a bridge"
+   },
+   {
+    "path": "0.0.6.0.0",
+    "AXRole": "AXButton",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "Show models"
+   },
+   {
+    "path": "0.0.6.0.1",
+    "AXRole": "AXButton",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "Archive bench",
+    "AXHelp": "Archive bench (it can be restored for 7 days)"
+   },
+   {
+    "path": "0.0.7",
+    "AXRole": "AXButton",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "Show archived"
+   },
+   {
+    "path": "0.0.8",
+    "AXRole": "AXButton",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "Prompts"
+   },
+   {
+    "path": "0.0.9",
+    "AXRole": "AXButton",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "Search prompts"
+   },
+   {
+    "path": "0.0.10",
+    "AXRole": "AXList",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "Prompts"
+   },
+   {
+    "path": "0.0.10.0",
+    "AXRole": "AXGroup",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "Wheat field"
+   },
+   {
+    "path": "0.0.10.1",
+    "AXRole": "AXGroup",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "Two towers"
+   },
+   {
+    "path": "0.0.11",
+    "AXRole": "AXButton",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "Settings"
+   },
+   {
+    "path": "0.0.12",
+    "AXRole": "AXGroup",
+    "AXSubrole": "AXLandmarkRegion",
+    "AXTitle": "New bench"
+   },
+   {
+    "path": "0.0.13",
+    "AXRole": "AXGroup",
+    "AXSubrole": "AXApplicationStatus"
+   },
+   {
+    "path": "0.0.14",
+    "AXRole": "AXGroup",
+    "AXSubrole": "AXApplicationAlert"
+   }
+  ]
+ },
+ {
+  "check": "Tab from the bench reaches Show models",
+  "ok": true,
+  "seen": [
+   "AXButton",
+   "Show models"
+  ]
+ },
+ {
+  "check": "Show models is collapsed",
+  "ok": true,
+  "seen": {
+   "path": "0.0.6.0.0",
+   "AXRole": "AXButton",
+   "AXSubrole": "AXUnknown",
+   "AXRoleDescription": "button",
+   "AXTitle": "Show models",
+   "AXEnabled": true,
+   "AXFocused": true,
+   "AXExpanded": false,
+   "AXPosition": [
+    93,
+    234
+   ],
+   "AXSize": [
+    24,
+    24
+   ],
+   "actions": [
+    "AXPress"
+   ]
+  }
+ },
+ {
+  "check": "Enter opens the fold (Hide models, expanded)",
+  "ok": true,
+  "seen": {
+   "path": "0.0.6.0.0",
+   "AXRole": "AXButton",
+   "AXSubrole": "AXUnknown",
+   "AXRoleDescription": "button",
+   "AXTitle": "Hide models",
+   "AXEnabled": true,
+   "AXFocused": true,
+   "AXExpanded": true,
+   "AXPosition": [
+    93,
+    234
+   ],
+   "AXSize": [
+    24,
+    24
+   ],
+   "actions": [
+    "AXPress"
+   ]
+  }
+ },
+ {
+  "check": "the bench's models by their letters",
+  "ok": true,
+  "seen": [
+   "Build A, Stopped or failed",
+   "Build B"
+  ]
+ },
+ {
+  "check": "opening the fold opened no bench",
+  "ok": true,
+  "seen": [
+   {
+    "action": "opened chat",
+    "chat": "chat-lamp",
+    "title": "Redstone lamp with a lever"
+   },
+   {
+    "action": "opened",
+    "place": "/bench"
+   },
+   {
+    "action": "toggled",
+    "bench": "bench-towers",
+    "open": true
+   }
+  ]
+ },
+ {
+  "check": "Down walks into the open bench's models",
+  "ok": true,
+  "seen": [
+   "AXGroup",
+   "Build A, Stopped or failed"
+  ]
+ },
+ {
+  "check": "Down to Build B",
+  "ok": true,
+  "seen": [
+   "AXGroup",
+   "Build B"
+  ]
+ },
+ {
+  "check": "Up back to the bench",
+  "ok": true,
+  "seen": [
+   "AXGroup",
+   "Towers and a bridge"
+  ]
+ },
+ {
+  "check": "walking opened nothing",
+  "ok": true,
+  "seen": []
+ },
+ {
+  "check": "Enter opens a model's chat",
+  "ok": true,
+  "seen": [
+   {
+    "action": "opened",
+    "place": "/bench"
+   },
+   {
+    "action": "opened",
+    "place": "/bench/bench-towers/member-b"
+   }
+  ]
+ },
+ {
+  "check": "the Leaderboard row is a button",
+  "ok": true,
+  "seen": {
+   "path": "0.0.5",
+   "AXRole": "AXButton",
+   "AXSubrole": "AXUnknown",
+   "AXRoleDescription": "button",
+   "AXTitle": "Leaderboard",
+   "AXEnabled": true,
+   "AXFocused": false,
+   "AXPosition": [
+    89,
+    181
+   ],
+   "AXSize": [
+    217,
+    35
+   ],
+   "actions": [
+    "AXPress"
+   ]
+  }
+ },
+ {
+  "check": "the prompts' titles below",
+  "ok": true,
+  "seen": [
+   "Wheat field",
+   "Two towers"
+  ]
+ },
+ {
+  "check": "the prompts' fold is a button with its expanded state",
+  "ok": true,
+  "seen": {
+   "AXRole": "AXButton",
+   "AXSubrole": "AXUnknown",
+   "AXRoleDescription": "button",
+   "AXTitle": "Prompts",
+   "AXValue": "<error -25212>",
+   "AXHelp": "<error -25212>",
+   "AXEnabled": true,
+   "AXFocused": false,
+   "AXExpanded": true,
+   "AXPosition": [
+    93,
+    391
+   ],
+   "AXSize": [
+    85,
+    32
+   ]
+  }
+ },
+ {
+  "check": "Cmd-1 back to Build",
+  "ok": true,
+  "seen": null
+ }
+]

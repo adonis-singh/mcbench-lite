@@ -1,0 +1,27 @@
+Speaking ['Desktop', 'list']
+Speaking ['Recycle Bin', 'not selected', '1 of 3']
+Speaking ['mcbench-lite — Redstone lamp with a lever', 'window']
+Speaking ['Message', 'edit', 'blank']
+Input: kb(desktop):enter
+Speaking ['Adding a third lamp now. It goes two blocks east of the second one, on the same stone row, with its own lever.\nExtend the stone base by two blocks\nPlace the lamp and the lever\nTest both levers\nThe first two lamps stay as they are, so nothing you built before changes.']
+Input: kb(desktop):enter
+Speaking ['Adding a third lamp now. It goes two blocks east of the second one, on the same stone row, with its own lever.\nExtend the stone base by two blocks\nPlace the lamp and the lever\nTest both levers\nThe first two lamps stay as they are, so nothing you built before changes.']
+Input: kb(desktop):shift+tab
+Speaking ['Conversation', 'grouping']
+Speaking ['claude-opus-5-5, Adding a third lamp now. It goes two blocks east of the second one, on the same stone row, with its own lever.\nExtend the stone base by two blocks\nPlace the lamp and the lever\nTest both levers\nThe first two lamps stay as they are, so nothing you built before changes.', 'grouping', '15 of 15']
+Input: kb(desktop):shift+tab
+Speaking ['Chats', 'list']
+Speaking ['Redstone lamp with a lever', 'open', '1 of 3']
+Input: kb(desktop):end
+Speaking ['Wheat farm', '3 of 3']
+Input: kb(desktop):enter
+Speaking ['Wheat farm']
+Input: kb(desktop):tab
+Speaking ['Conversation', 'grouping']
+Speaking ['claude-opus-5-5, Done: a nine by nine field with one water block in the centre.', 'grouping', '2 of 2']
+Input: kb(desktop):tab
+Speaking ['Message', 'edit', 'blank']
+Input: kb(desktop):enter
+Speaking ['The provider refused the request: rate limited (a fixture error)']
+Input: kb(desktop):enter
+Speaking ['The provider refused the request: rate limited (a fixture error)']

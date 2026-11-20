@@ -1,0 +1,6 @@
+load: load average: 24.22, 15.31, 11.95
+pid 9164: visible window after 77.4 ms, first drawn pixels after 224.1 ms
+load: load average: 11.19, 13.63, 11.80
+pid 496: visible window after 75.6 ms, first drawn pixels after 168.3 ms
+load: load average: 9.25, 12.14, 11.48
+pid 1668: visible window after 87.3 ms, first drawn pixels after 218.2 ms

@@ -1,0 +1,10 @@
+{"changeCount":2,"string":"built the adder in three parts and tested each one. The carry chain runs along the north side, the sum bits come out on the south side, and the display sits above them. See the redstone wiki page for the full-adder layout I used.\nWhat was built\nFour full adders, each 5 x 4 x 3 blocks, spaced 6 blocks apart so the carries do not cross.\nA decoder from 5 bits to two digits.\nTwo seven-segment digits made of minecraft:redstone_lamp.\nInputs are levers at (0, 65, 0) to (0, 65, 14).\nEvery repeater is set to 1 tick, facing its output.\nThe whole build is 2,184 blocks.","types":["public.utf8-plain-text","NSStringPboardType"]}
+{"changeCount":4,"string":"built the adder in three parts and tested each one. The carry chain runs along the north side, the sum bits come out on the south side, and the display sits above them. See the redstone wiki page for the full-adder layout I used","types":["public.utf8-plain-text","NSStringPboardType"]}
+{"changeCount":5,"string":null,"types":[]}
+{"changeCount":7,"string":"Text in other scripts\nJapanese: レッドストーン回路は入力から出力まで4ティックかかります。日本語の文章を正しく表示できますか。 Chinese: 这个加法器使用了四个全加器，进位链沿着北侧运行。 Korean: 레드스톤 램프 일곱 개로 숫자 하나를 표시합니다. Arabic: هذا النص يجب أن يظهر من اليمين إلى اليسار مع تشكيل الحروف المتصلة. Hindi: यह वाक्य देवनागरी लिपि में संयुक्ताक्षरों के साथ दिखना चाहिए। Emoji: 🧱 🔴 ⚡ 👩🏽‍💻 🇯
+{"changeCount":9,"string":"Largest","types":["public.utf8-plain-text","NSStringPboardType"]}
+565
+e adder in three parts and tested each one.
+The carry chain runs along the north side, the sum bits come out on the south side, and the display sits above them.
+806 ui-gpui
+no crash reports

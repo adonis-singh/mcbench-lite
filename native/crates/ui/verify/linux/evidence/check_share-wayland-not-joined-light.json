@@ -1,0 +1,12 @@
+[
+ {
+  "check": "the core's sentence as a failed publish",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "with Try again",
+  "ok": true,
+  "detail": ""
+ }
+]

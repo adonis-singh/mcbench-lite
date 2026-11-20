@@ -1,0 +1,7 @@
+element: Edit name="Message" lct="edit" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=1 offscreen=0 ctl=1 content=1 rect=[299,755,998x56] patterns=[Value,Text,LegacyIAccessible] value="Hellotower" readonly=0 text="Hellotower"
+document: "Hellotower" (10 UTF-16 units)
+supported selection: 1
+word[0] = "Hellotower"
+word count: 1
+selection[0] = 8..10 "er"
+caret: no TextPattern2

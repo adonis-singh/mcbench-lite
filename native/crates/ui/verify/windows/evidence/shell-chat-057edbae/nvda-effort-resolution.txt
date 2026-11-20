@@ -1,0 +1,25 @@
+Speaking [LangChangeCommand ('en'), 'Reasoning effort: medium', 'button', 'collapsed', CancellableSpeech (still valid)]
+Input: kb(desktop):enter
+Speaking [LangChangeCommand ('en'), 'expanded']
+Speaking [LangChangeCommand ('en'), 'Reasoning effort', 'list', CancellableSpeech (still valid)]
+Speaking [LangChangeCommand ('en'), 'medium', CancellableSpeech (still valid)]
+Input: kb(desktop):downArrow
+Speaking [LangChangeCommand ('en'), 'high', 'not selected', CancellableSpeech (still valid)]
+Input: kb(desktop):downArrow
+Speaking [LangChangeCommand ('en'), 'low', 'not selected', CancellableSpeech (still valid)]
+Input: kb(desktop):enter
+Speaking [LangChangeCommand ('en'), 'Reasoning effort: low', 'button', 'collapsed', CancellableSpeech (still valid)]
+Speaking [LangChangeCommand ('en'), 'Resolution: Standard', 'button', 'collapsed', CancellableSpeech (still valid)]
+Input: kb(desktop):enter
+Speaking [LangChangeCommand ('en'), 'expanded']
+Speaking [LangChangeCommand ('en'), 'Resolution', 'dialog', CancellableSpeech (still valid)]
+Speaking [LangChangeCommand ('en'), 'Resolution', 'slider', 'Standard', 'The model chooses the size.', CancellableSpeech (still valid)]
+Input: kb(desktop):rightArrow
+Speaking [LangChangeCommand ('en'), 'High (2×)']
+Input: kb(desktop):rightArrow
+Speaking [LangChangeCommand ('en'), 'Very high (5×)']
+Speaking [LangChangeCommand ('en'), 'High (2×)']
+Input: kb(desktop):home
+Speaking [LangChangeCommand ('en'), 'Standard']
+Input: kb(desktop):escape
+Speaking [LangChangeCommand ('en'), 'Resolution: Standard', 'button', 'collapsed', CancellableSpeech (still valid)]

@@ -1,0 +1,18 @@
+element: DataItem name="" lct="item" id="" fw="AccessKit" enabled=1 kbfocusable=0 focus=0 offscreen=0 ctl=1 content=1 rect=[307,989,294x23] set=0/9 patterns=[Value,Text,LegacyIAccessible] value="redstone_lamp" readonly=1 text="redstone_lamp"
+document: "redstone_lamp" (13 UTF-16 units)
+supported selection: 0
+char[0] = "r"
+char[1] = "e"
+char[2] = "d"
+char[3] = "s"
+char[4] = "t"
+char[5] = "o"
+char[6] = "n"
+char[7] = "e"
+char[8] = "_"
+char[9] = "l"
+char[10] = "a"
+char[11] = "m"
+char[12] = "p"
+char count: 13
+caret: no TextPattern2

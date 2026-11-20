@@ -10,7 +10,12 @@
 use windows::Win32::Graphics::Direct3D12 as d3d;
 use windows::Win32::Graphics::Dxgi::Common as dxgi;
 
-pub fn quads_buffer(gpu: &crate::gpu::Gpu, size: u64, label: &str, fill: crate::gpu::Fill) -> wgpu::Buffer {
+pub fn quads_buffer(
+    gpu: &crate::gpu::Gpu,
+    size: u64,
+    label: &str,
+    fill: crate::gpu::Fill,
+) -> wgpu::Buffer {
     // SAFETY: the device is Direct3D 12 (checked by the caller); the raw
     // device is only used to create one resource here.
     let hal = unsafe { gpu.device.as_hal::<wgpu::hal::api::Dx12>() }.expect("a Direct3D 12 device");
@@ -30,13 +35,26 @@ pub fn quads_buffer(gpu: &crate::gpu::Gpu, size: u64, label: &str, fill: crate::
         DepthOrArraySize: 1,
         MipLevels: 1,
         Format: dxgi::DXGI_FORMAT_UNKNOWN,
-        SampleDesc: dxgi::DXGI_SAMPLE_DESC { Count: 1, Quality: 0 },
+        SampleDesc: dxgi::DXGI_SAMPLE_DESC {
+            Count: 1,
+            Quality: 0,
+        },
         Layout: d3d::D3D12_TEXTURE_LAYOUT_ROW_MAJOR,
         Flags: d3d::D3D12_RESOURCE_FLAG_NONE,
     };
     let mut resource: Option<d3d::ID3D12Resource> = None;
     // SAFETY: valid descriptions, an out pointer to an Option of the interface.
-    unsafe { raw.CreateCommittedResource(&heap, d3d::D3D12_HEAP_FLAG_NONE, &desc, d3d::D3D12_RESOURCE_STATE_COMMON, None, &mut resource) }.expect("a committed buffer in cached memory");
+    unsafe {
+        raw.CreateCommittedResource(
+            &heap,
+            d3d::D3D12_HEAP_FLAG_NONE,
+            &desc,
+            d3d::D3D12_RESOURCE_STATE_COMMON,
+            None,
+            &mut resource,
+        )
+    }
+    .expect("a committed buffer in cached memory");
     let resource = resource.expect("CreateCommittedResource gives the resource");
     let mut pointer = std::ptr::null_mut();
     // SAFETY: subresource 0 of a buffer in a CPU-visible heap.
@@ -51,5 +69,15 @@ pub fn quads_buffer(gpu: &crate::gpu::Gpu, size: u64, label: &str, fill: crate::
     // SAFETY: a buffer resource of `size` bytes on this device.
     let hal_buffer = unsafe { wgpu::hal::dx12::Device::buffer_from_raw(resource, size) };
     // SAFETY: the hal buffer was made on this device, as the descriptor says.
-    unsafe { gpu.device.create_buffer_from_hal::<wgpu::hal::api::Dx12>(hal_buffer, &wgpu::BufferDescriptor { label: Some(label), size, usage: crate::gpu::QUADS, mapped_at_creation: false }) }
+    unsafe {
+        gpu.device.create_buffer_from_hal::<wgpu::hal::api::Dx12>(
+            hal_buffer,
+            &wgpu::BufferDescriptor {
+                label: Some(label),
+                size,
+                usage: crate::gpu::QUADS,
+                mapped_at_creation: false,
+            },
+        )
+    }
 }

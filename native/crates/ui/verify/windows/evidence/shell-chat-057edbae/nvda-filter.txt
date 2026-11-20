@@ -1,0 +1,24 @@
+Input: kb(desktop):control+1
+Speaking [LangChangeCommand ('en'), 'New chat']
+Speaking [LangChangeCommand ('en'), 'Filter', 'button', 'collapsed', CancellableSpeech (still valid)]
+Input: kb(desktop):enter
+Speaking [LangChangeCommand ('en'), 'Size', 'grouping', CancellableSpeech (still valid)]
+Speaking [LangChangeCommand ('en'), 'Standard', 'check box', 'not checked', 'Size: Standard', CancellableSpeech (still valid)]
+Input: kb(desktop):downArrow
+Speaking [LangChangeCommand ('en'), 'High (2×)', 'check box', 'not checked', 'Size: High (2×)', CancellableSpeech (still valid)]
+Input: kb(desktop):downArrow
+Speaking [LangChangeCommand ('en'), 'Very high (5×)', 'check box', 'not checked', 'Size: Very high (5×)', CancellableSpeech (still valid)]
+Input: kb(desktop):downArrow
+Speaking [LangChangeCommand ('en'), 'Maximum (10×)', 'check box', 'not checked', 'Size: Maximum (10×)', CancellableSpeech (still valid)]
+Input: kb(desktop):downArrow
+Speaking [LangChangeCommand ('en'), 'Prompt', 'grouping', CancellableSpeech (still valid)]
+Speaking [LangChangeCommand ('en'), 'Wheat field', 'check box', 'not checked', 'Prompt: Wheat field', CancellableSpeech (still valid)]
+Input: kb(desktop):escape
+Speaking [LangChangeCommand ('en'), 'Filter', 'button', 'collapsed', CancellableSpeech (still valid)]
+Input: kb(desktop):tab
+Speaking [LangChangeCommand ('en'), 'Chats', 'list', CancellableSpeech (still valid)]
+Speaking [LangChangeCommand ('en'), 'Redstone lamp with a lever', 'open', '1 of 3', CancellableSpeech (still valid)]
+Input: kb(desktop):tab
+Speaking [LangChangeCommand ('en'), 'Archive build', 'button', 'Archive build (it can be restored for 7 days)', CancellableSpeech (still valid)]
+Input: kb(desktop):enter
+Speaking [LangChangeCommand ('en'), 'Castle gate · mcbench-lite', 'window', CancellableSpeech (still valid)]

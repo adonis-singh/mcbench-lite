@@ -1,0 +1,38 @@
+{"actions":[{"description":"increment","name":"AXIncrement"},{"description":"decrement","name":"AXDecrement"},{"description":"press","name":"AXPress"}],"path":"0.0.0.1"}
+    Counter: 0 0
+{"action":"AXIncrement","AXError":0,"path":"0.0.0.1","t":"1794878372.107"}
+    Counter: 1 1
+{"action":"AXIncrement","AXError":0,"path":"0.0.0.1","t":"1794878372.944"}
+    Counter: 2 2
+{"action":"AXDecrement","AXError":0,"path":"0.0.0.1","t":"1794878374.500"}
+    Counter: 1 1
+{"action":"AXPress","AXError":0,"path":"0.0.0.1","t":"1794878375.344"}
+    Counter: 2 2
+{"action":"AXPress","AXError":0,"path":"0.0.0.2","t":"1794878375.915"}
+    Counter: 2 2
+{"action":"AXPress","AXError":0,"path":"0.0.0.3","t":"1794878376.490"}
+    Enable feature False
+{"attr":"AXFocused","AXError":0,"path":"0.0.0.2","t":"1794878377.064"}
+{"actions":["AXRaise"],"AXFocused":true,"AXPosition":[470,265],"AXRole":"AXWindow","AXRoleDescription":"standard window","AXSize":[500,428],"AXSubrole":"AXStandardWindow","AXTitle":"GPUI Accessibility Demo","depth":0,"path":"0","t":"1794878377.541"}
+{"actions":["AXRaise"],"AXFocused":true,"AXPosition":[470,265],"AXRole":"AXWindow","AXRoleDescription":"standard window","AXSize":[500,428],"AXSubrole":"AXStandardWindow","AXTitle":"GPUI Accessibility Demo","depth":0,"path":"0","t":"1794878378.301"}
+{"registered":{"AXAnnouncementRequested":0,"AXCreated":0,"AXElementBusyChanged":0,"AXExpandedChanged":0,"AXFocusedUIElementChanged":0,"AXFocusedWindowChanged":0,"AXInvalidStatusChanged":0,"AXLayoutChanged":0,"AXLiveRegionChanged":0,"AXLiveRegionCreated":0,"AXLoadComplete":0,"AXMainWindowChanged":0,"AXMenuClosed":0,"AXMenuOpened":0,"AXRowCollapsed":0,"AXRowCountChanged":0,"AXRowExpanded":0,"AXSelectedCellsChanged":0,"AXSelectedChildrenChanged":0,"AXSelectedRowsChanged":0,"AXSelectedTextChanged":0,"AXTitleChanged":0,"AXUIElementDestroyed":0,"AXValueChanged":0,"AXWindowCreated":0,"AXWindowDeminiaturized":0,"AXWindowMiniaturized":0,"AXWindowMoved":0,"AXWindowResized":0},"t":"1794878369.627"}
+{"info":{},"label":"Counter: 1","note":"AXTitleChanged","path":"0.0.0.1","role":"AXIncrementor","t":"1794878372.122","value":1}
+{"info":{},"label":"Counter: 1","note":"AXValueChanged","path":"0.0.0.1","role":"AXIncrementor","t":"1794878372.126","value":1}
+{"info":{},"note":"AXValueChanged","path":"0.0.0.1.0","role":"AXStaticText","t":"1794878372.127","value":"Count: 1"}
+{"info":{},"label":"Counter: 2","note":"AXTitleChanged","path":"0.0.0.1","role":"AXIncrementor","t":"1794878372.950","value":2}
+{"info":{},"label":"Counter: 2","note":"AXValueChanged","path":"0.0.0.1","role":"AXIncrementor","t":"1794878372.964","value":2}
+{"info":{},"note":"AXValueChanged","path":"0.0.0.1.0","role":"AXStaticText","t":"1794878372.967","value":"Count: 2"}
+{"info":{},"label":"Counter: 1","note":"AXTitleChanged","path":"0.0.0.1","role":"AXIncrementor","t":"1794878374.517","value":1}
+{"info":{},"label":"Counter: 1","note":"AXValueChanged","path":"0.0.0.1","role":"AXIncrementor","t":"1794878374.523","value":1}
+{"info":{},"note":"AXValueChanged","path":"0.0.0.1.0","role":"AXStaticText","t":"1794878374.532","value":"Count: 1"}
+{"info":{},"note":"AXValueChanged","path":"0.0.0.1.0","role":"AXStaticText","t":"1794878375.349","value":"Count: 2"}
+{"info":{},"label":"Counter: 2","note":"AXTitleChanged","path":"0.0.0.1","role":"AXIncrementor","t":"1794878375.354","value":2}
+{"info":{},"label":"Counter: 2","note":"AXValueChanged","path":"0.0.0.1","role":"AXIncrementor","t":"1794878375.356","value":2}
+{"info":{},"label":"Counter: 2","note":"AXFocusedUIElementChanged","path":"0.0.0.1","role":"AXIncrementor","t":"1794878375.357","value":2}
+{"info":{},"label":"Enable feature","note":"AXValueChanged","path":"0.0.0.3","role":"AXCheckBox","t":"1794878377.854","value":true}
+{"info":{},"note":"AXValueChanged","path":"0.0.0.1.0","role":"AXStaticText","t":"1794878377.887","value":"Count: 0"}
+{"info":{},"label":"Counter: 0","note":"AXTitleChanged","path":"0.0.0.1","role":"AXIncrementor","t":"1794878377.889","value":0}
+{"info":{},"label":"Counter: 0","note":"AXValueChanged","path":"0.0.0.1","role":"AXIncrementor","t":"1794878377.891","value":0}
+{"info":{},"label":"Reset counter","note":"AXFocusedUIElementChanged","path":"0.0.0.2","role":"AXButton","t":"1794878377.894"}
+{"info":{},"label":"Enable feature","note":"AXFocusedUIElementChanged","path":"0.0.0.3","role":"AXCheckBox","t":"1794878377.897","value":true}
+{"end":true,"t":"1794878381.714"}

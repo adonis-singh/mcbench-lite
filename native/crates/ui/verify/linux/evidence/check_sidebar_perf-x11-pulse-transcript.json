@@ -1,0 +1,31 @@
+{
+ "scenario": "pulse",
+ "backend": "x11",
+ "first_frame_ms": 467.663,
+ "key_to_paint_ms": null,
+ "scroll_to_paint_ms": null,
+ "frame_work_ms": {
+  "count": 513,
+  "mean": 0.369,
+  "p50": 0.303,
+  "p99": 0.914,
+  "worst": 10.737
+ },
+ "load": [
+  "11.24",
+  "7.81",
+  "7.63"
+ ],
+ "pulse": {
+  "window_s": 20.0,
+  "frames": 417,
+  "cpu_percent": 38.55,
+  "frame_interval_ms": {
+   "count": 416,
+   "mean": 47.962,
+   "p50": 47.997,
+   "p99": 64.062,
+   "worst": 79.982
+  }
+ }
+}

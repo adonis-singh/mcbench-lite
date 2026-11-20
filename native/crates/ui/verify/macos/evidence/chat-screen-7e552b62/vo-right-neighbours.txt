@@ -1,0 +1,10 @@
+VO-Right	claude-opus-5-5, work article 
+VO-Right	claude-opus-5-5, message, A lamp on a lever The lamp is built and wired. It lights when the lever is on and goes dark when it is off; the old torch is gone. The block that does the work is a redstone_lamp, and the wiki page on lamps has the details. What was placed A stone base, three by three The lamp on top powered from below with a lever on its west side A sign that says Pull me The program fn build(world: &mut World) {     world.fill((0, 0, 0), (2, 0, 2), "stone");     world.set((1, 1, 1), "redstone_lamp");     world.set((0, 1, 1), "lever[face=floor,facing=west]"); } Blocks used Block, Count, Light stone, 9, 0 redstone_lamp, 1, 15 lever, 1, 0 A lamp only needs power from one side: the lever powers the block it sits on, and that block powers the lamp. That is all. Pull the lever to test it. article 
+VO-Right	You, message, Put a label on the second lamp in English, Arabic, Hebrew, Japanese and Chinese. article 
+tree after 3 VO-Right:
+    0.0.2.0 You, message, Build a redstone lamp that turn  [236, 132]
+    0.0.2.1 claude-opus-5-5, work  [236, 198.5]
+    0.0.2.2 claude-opus-5-5, message, A lamp on a lever
+T  [236, 245]
+    0.0.2.3 You, message, Put a label on the second lamp  focused [236, 1036]
+keyboard focus: ['You, message, Put a label on the second ']

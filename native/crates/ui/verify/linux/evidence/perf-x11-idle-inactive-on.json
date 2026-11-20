@@ -1,0 +1,29 @@
+{
+ "scenario": "idle-inactive",
+ "backend": "x11",
+ "first_frame_ms": 624.461,
+ "window_s": 20.0,
+ "frames_in_window": 0,
+ "cpu_percent": 0.9,
+ "key_to_paint_ms": null,
+ "frame_work_ms": {
+  "count": 15,
+  "mean": 4.886,
+  "p50": 1.115,
+  "p99": 33.994,
+  "worst": 33.994
+ },
+ "frame_interval_ms_in_window": {
+  "count": 0,
+  "mean": null,
+  "p50": null,
+  "p99": null,
+  "worst": null
+ },
+ "accessibility": true,
+ "load": [
+  "53.55",
+  "43.60",
+  "29.95"
+ ]
+}

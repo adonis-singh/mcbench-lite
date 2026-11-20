@@ -1,0 +1,887 @@
+[
+ {
+  "check": "text nodes found",
+  "ok": true,
+  "detail": "26 nodes with the Text interface"
+ },
+ {
+  "check": "every kind of text node",
+  "ok": true,
+  "detail": "{'heading': 4, 'paragraph': 9, 'static': 1, 'column header': 3, 'table cell': 9}"
+ },
+ {
+  "check": "heading 'A lamp on a lever': by character",
+  "ok": true,
+  "detail": "17 of 17"
+ },
+ {
+  "check": "heading 'A lamp on a lever': first word",
+  "ok": true,
+  "detail": "'A ' [0, 2)"
+ },
+ {
+  "check": "heading 'A lamp on a lever': first line",
+  "ok": true,
+  "detail": "'A lamp on a lever'"
+ },
+ {
+  "check": "heading 'A lamp on a lever': character extents",
+  "ok": true,
+  "detail": "char 0 258,-100 10x23 in 258,-100 940x23"
+ },
+ {
+  "check": "heading 'A lamp on a lever': range extents",
+  "ok": true,
+  "detail": "258,-100 116x23"
+ },
+ {
+  "check": "heading 'A lamp on a lever': offset at the first character's point",
+  "ok": true,
+  "detail": "0"
+ },
+ {
+  "check": "paragraph 'The lamp is built and wired. I': by character",
+  "ok": true,
+  "detail": "205 of 205"
+ },
+ {
+  "check": "paragraph 'The lamp is built and wired. I': first word",
+  "ok": true,
+  "detail": "'The ' [0, 4)"
+ },
+ {
+  "check": "paragraph 'The lamp is built and wired. I': first line",
+  "ok": true,
+  "detail": "'The lamp is built and wired. It lights w'"
+ },
+ {
+  "check": "paragraph 'The lamp is built and wired. I': character extents",
+  "ok": true,
+  "detail": "char 0 258,-69 9x23 in 258,-69 940x46"
+ },
+ {
+  "check": "paragraph 'The lamp is built and wired. I': range extents",
+  "ok": true,
+  "detail": "258,-69 935x46"
+ },
+ {
+  "check": "paragraph 'The lamp is built and wired. I': offset at the first character's point",
+  "ok": true,
+  "detail": "0"
+ },
+ {
+  "check": "heading 'What was placed': by character",
+  "ok": true,
+  "detail": "15 of 15"
+ },
+ {
+  "check": "heading 'What was placed': first word",
+  "ok": true,
+  "detail": "'What ' [0, 5)"
+ },
+ {
+  "check": "heading 'What was placed': first line",
+  "ok": true,
+  "detail": "'What was placed'"
+ },
+ {
+  "check": "heading 'What was placed': character extents",
+  "ok": true,
+  "detail": "char 0 258,-9 14x23 in 258,-9 940x23"
+ },
+ {
+  "check": "heading 'What was placed': range extents",
+  "ok": true,
+  "detail": "258,-9 116x23"
+ },
+ {
+  "check": "heading 'What was placed': offset at the first character's point",
+  "ok": true,
+  "detail": "0"
+ },
+ {
+  "check": "paragraph 'A stone base, three by three': by character",
+  "ok": true,
+  "detail": "28 of 28"
+ },
+ {
+  "check": "paragraph 'A stone base, three by three': first word",
+  "ok": true,
+  "detail": "'A ' [0, 2)"
+ },
+ {
+  "check": "paragraph 'A stone base, three by three': first line",
+  "ok": true,
+  "detail": "'A stone base, three by three'"
+ },
+ {
+  "check": "paragraph 'A stone base, three by three': character extents",
+  "ok": true,
+  "detail": "char 0 278,32 9x23 in 278,32 920x23"
+ },
+ {
+  "check": "paragraph 'A stone base, three by three': range extents",
+  "ok": true,
+  "detail": "278,32 186x23"
+ },
+ {
+  "check": "paragraph 'A stone base, three by three': offset at the first character's point",
+  "ok": true,
+  "detail": "0"
+ },
+ {
+  "check": "paragraph 'The lamp on top': by character",
+  "ok": true,
+  "detail": "15 of 15"
+ },
+ {
+  "check": "paragraph 'The lamp on top': first word",
+  "ok": true,
+  "detail": "'The ' [0, 4)"
+ },
+ {
+  "check": "paragraph 'The lamp on top': first line",
+  "ok": true,
+  "detail": "'The lamp on top'"
+ },
+ {
+  "check": "paragraph 'The lamp on top': character extents",
+  "ok": true,
+  "detail": "char 0 278,61 9x23 in 278,61 920x23"
+ },
+ {
+  "check": "paragraph 'The lamp on top': range extents",
+  "ok": true,
+  "detail": "278,61 107x23"
+ },
+ {
+  "check": "paragraph 'The lamp on top': offset at the first character's point",
+  "ok": true,
+  "detail": "0"
+ },
+ {
+  "check": "paragraph 'powered from below': by character",
+  "ok": true,
+  "detail": "18 of 18"
+ },
+ {
+  "check": "paragraph 'powered from below': first word",
+  "ok": true,
+  "detail": "'powered ' [0, 8)"
+ },
+ {
+  "check": "paragraph 'powered from below': first line",
+  "ok": true,
+  "detail": "'powered from below'"
+ },
+ {
+  "check": "paragraph 'powered from below': character extents",
+  "ok": true,
+  "detail": "char 0 298,94 8x23 in 298,94 900x23"
+ },
+ {
+  "check": "paragraph 'powered from below': range extents",
+  "ok": true,
+  "detail": "298,94 136x23"
+ },
+ {
+  "check": "paragraph 'powered from below': offset at the first character's point",
+  "ok": true,
+  "detail": "0"
+ },
+ {
+  "check": "paragraph 'with a lever on its west side': by character",
+  "ok": true,
+  "detail": "29 of 29"
+ },
+ {
+  "check": "paragraph 'with a lever on its west side': first word",
+  "ok": true,
+  "detail": "'with ' [0, 5)"
+ },
+ {
+  "check": "paragraph 'with a lever on its west side': first line",
+  "ok": true,
+  "detail": "'with a lever on its west side'"
+ },
+ {
+  "check": "paragraph 'with a lever on its west side': character extents",
+  "ok": true,
+  "detail": "char 0 298,123 11x23 in 298,123 900x23"
+ },
+ {
+  "check": "paragraph 'with a lever on its west side': range extents",
+  "ok": true,
+  "detail": "298,123 182x23"
+ },
+ {
+  "check": "paragraph 'with a lever on its west side': offset at the first character's point",
+  "ok": true,
+  "detail": "0"
+ },
+ {
+  "check": "paragraph 'A sign that says Pull me': by character",
+  "ok": true,
+  "detail": "24 of 24"
+ },
+ {
+  "check": "paragraph 'A sign that says Pull me': first word",
+  "ok": true,
+  "detail": "'A ' [0, 2)"
+ },
+ {
+  "check": "paragraph 'A sign that says Pull me': first line",
+  "ok": true,
+  "detail": "'A sign that says Pull me'"
+ },
+ {
+  "check": "paragraph 'A sign that says Pull me': character extents",
+  "ok": true,
+  "detail": "char 0 278,162 9x23 in 278,162 920x23"
+ },
+ {
+  "check": "paragraph 'A sign that says Pull me': range extents",
+  "ok": true,
+  "detail": "278,162 157x23"
+ },
+ {
+  "check": "paragraph 'A sign that says Pull me': offset at the first character's point",
+  "ok": true,
+  "detail": "0"
+ },
+ {
+  "check": "heading 'The program': by character",
+  "ok": true,
+  "detail": "11 of 11"
+ },
+ {
+  "check": "heading 'The program': first word",
+  "ok": true,
+  "detail": "'The ' [0, 4)"
+ },
+ {
+  "check": "heading 'The program': first line",
+  "ok": true,
+  "detail": "'The program'"
+ },
+ {
+  "check": "heading 'The program': character extents",
+  "ok": true,
+  "detail": "char 0 258,209 9x23 in 258,209 940x23"
+ },
+ {
+  "check": "heading 'The program': range extents",
+  "ok": true,
+  "detail": "258,209 87x23"
+ },
+ {
+  "check": "heading 'The program': offset at the first character's point",
+  "ok": true,
+  "detail": "0"
+ },
+ {
+  "check": "static 'fn build(world: &mut World) {\\n': by character",
+  "ok": true,
+  "detail": "180 of 180"
+ },
+ {
+  "check": "static 'fn build(world: &mut World) {\\n': first word",
+  "ok": true,
+  "detail": "'fn ' [0, 3)"
+ },
+ {
+  "check": "static 'fn build(world: &mut World) {\\n': first line",
+  "ok": true,
+  "detail": "'fn build(world: &mut World) {\\n'"
+ },
+ {
+  "check": "static 'fn build(world: &mut World) {\\n': character extents",
+  "ok": true,
+  "detail": "char 0 269,278 7x20 in 269,278 918x100"
+ },
+ {
+  "check": "static 'fn build(world: &mut World) {\\n': range extents",
+  "ok": true,
+  "detail": "269,278 417x100"
+ },
+ {
+  "check": "static 'fn build(world: &mut World) {\\n': offset at the first character's point",
+  "ok": true,
+  "detail": "0"
+ },
+ {
+  "check": "heading 'Blocks used': by character",
+  "ok": true,
+  "detail": "11 of 11"
+ },
+ {
+  "check": "heading 'Blocks used': first word",
+  "ok": true,
+  "detail": "'Blocks ' [0, 7)"
+ },
+ {
+  "check": "heading 'Blocks used': first line",
+  "ok": true,
+  "detail": "'Blocks used'"
+ },
+ {
+  "check": "heading 'Blocks used': character extents",
+  "ok": true,
+  "detail": "char 0 258,407 9x23 in 258,407 940x23"
+ },
+ {
+  "check": "heading 'Blocks used': range extents",
+  "ok": true,
+  "detail": "258,407 82x23"
+ },
+ {
+  "check": "heading 'Blocks used': offset at the first character's point",
+  "ok": true,
+  "detail": "0"
+ },
+ {
+  "check": "column header 'Block': by character",
+  "ok": true,
+  "detail": "5 of 5"
+ },
+ {
+  "check": "column header 'Block': first word",
+  "ok": true,
+  "detail": "'Block' [0, 5)"
+ },
+ {
+  "check": "column header 'Block': first line",
+  "ok": true,
+  "detail": "'Block'"
+ },
+ {
+  "check": "column header 'Block': character extents",
+  "ok": true,
+  "detail": "char 0 269,449 9x23 in 269,449 293x23"
+ },
+ {
+  "check": "column header 'Block': range extents",
+  "ok": true,
+  "detail": "269,449 37x23"
+ },
+ {
+  "check": "column header 'Block': offset at the first character's point",
+  "ok": true,
+  "detail": "0"
+ },
+ {
+  "check": "column header 'Count': by character",
+  "ok": true,
+  "detail": "5 of 5"
+ },
+ {
+  "check": "column header 'Count': first word",
+  "ok": true,
+  "detail": "'Count' [0, 5)"
+ },
+ {
+  "check": "column header 'Count': first line",
+  "ok": true,
+  "detail": "'Count'"
+ },
+ {
+  "check": "column header 'Count': character extents",
+  "ok": true,
+  "detail": "char 0 832,449 10x23 in 582,449 292x23"
+ },
+ {
+  "check": "column header 'Count': range extents",
+  "ok": true,
+  "detail": "832,449 41x23"
+ },
+ {
+  "check": "column header 'Count': offset at the first character's point",
+  "ok": true,
+  "detail": "0"
+ },
+ {
+  "check": "column header 'Light': by character",
+  "ok": true,
+  "detail": "5 of 5"
+ },
+ {
+  "check": "column header 'Light': first word",
+  "ok": true,
+  "detail": "'Light' [0, 5)"
+ },
+ {
+  "check": "column header 'Light': first line",
+  "ok": true,
+  "detail": "'Light'"
+ },
+ {
+  "check": "column header 'Light': character extents",
+  "ok": true,
+  "detail": "char 0 1023,449 7x23 in 894,449 293x23"
+ },
+ {
+  "check": "column header 'Light': range extents",
+  "ok": true,
+  "detail": "1023,449 33x23"
+ },
+ {
+  "check": "column header 'Light': offset at the first character's point",
+  "ok": true,
+  "detail": "0"
+ },
+ {
+  "check": "table cell 'stone': by character",
+  "ok": true,
+  "detail": "5 of 5"
+ },
+ {
+  "check": "table cell 'stone': first word",
+  "ok": true,
+  "detail": "'stone' [0, 5)"
+ },
+ {
+  "check": "table cell 'stone': first line",
+  "ok": true,
+  "detail": "'stone'"
+ },
+ {
+  "check": "table cell 'stone': character extents",
+  "ok": true,
+  "detail": "char 0 269,481 7x23 in 269,481 293x23"
+ },
+ {
+  "check": "table cell 'stone': range extents",
+  "ok": true,
+  "detail": "269,481 36x23"
+ },
+ {
+  "check": "table cell 'stone': offset at the first character's point",
+  "ok": true,
+  "detail": "0"
+ },
+ {
+  "check": "table cell '9': by character",
+  "ok": true,
+  "detail": "1 of 1"
+ },
+ {
+  "check": "table cell '9': first word",
+  "ok": true,
+  "detail": "'9' [0, 1)"
+ },
+ {
+  "check": "table cell '9': first line",
+  "ok": true,
+  "detail": "'9'"
+ },
+ {
+  "check": "table cell '9': character extents",
+  "ok": true,
+  "detail": "char 0 865,481 8x23 in 582,481 292x23"
+ },
+ {
+  "check": "table cell '9': range extents",
+  "ok": true,
+  "detail": "865,481 8x23"
+ },
+ {
+  "check": "table cell '9': offset at the first character's point",
+  "ok": true,
+  "detail": "0"
+ },
+ {
+  "check": "table cell '0': by character",
+  "ok": true,
+  "detail": "1 of 1"
+ },
+ {
+  "check": "table cell '0': first word",
+  "ok": true,
+  "detail": "'0' [0, 1)"
+ },
+ {
+  "check": "table cell '0': first line",
+  "ok": true,
+  "detail": "'0'"
+ },
+ {
+  "check": "table cell '0': character extents",
+  "ok": true,
+  "detail": "char 0 1036,481 8x23 in 894,481 293x23"
+ },
+ {
+  "check": "table cell '0': range extents",
+  "ok": true,
+  "detail": "1036,481 8x23"
+ },
+ {
+  "check": "table cell '0': offset at the first character's point",
+  "ok": true,
+  "detail": "0"
+ },
+ {
+  "check": "table cell 'redstone_lamp': by character",
+  "ok": true,
+  "detail": "13 of 13"
+ },
+ {
+  "check": "table cell 'redstone_lamp': first word",
+  "ok": true,
+  "detail": "'redstone_lamp' [0, 13)"
+ },
+ {
+  "check": "table cell 'redstone_lamp': first line",
+  "ok": true,
+  "detail": "'redstone_lamp'"
+ },
+ {
+  "check": "table cell 'redstone_lamp': character extents",
+  "ok": true,
+  "detail": "char 0 269,513 5x23 in 269,513 293x23"
+ },
+ {
+  "check": "table cell 'redstone_lamp': range extents",
+  "ok": true,
+  "detail": "269,513 97x23"
+ },
+ {
+  "check": "table cell 'redstone_lamp': offset at the first character's point",
+  "ok": true,
+  "detail": "0"
+ },
+ {
+  "check": "table cell '1': by character",
+  "ok": true,
+  "detail": "1 of 1"
+ },
+ {
+  "check": "table cell '1': first word",
+  "ok": true,
+  "detail": "'1' [0, 1)"
+ },
+ {
+  "check": "table cell '1': first line",
+  "ok": true,
+  "detail": "'1'"
+ },
+ {
+  "check": "table cell '1': character extents",
+  "ok": true,
+  "detail": "char 0 868,513 5x23 in 582,513 292x23"
+ },
+ {
+  "check": "table cell '1': range extents",
+  "ok": true,
+  "detail": "868,513 5x23"
+ },
+ {
+  "check": "table cell '1': offset at the first character's point",
+  "ok": true,
+  "detail": "0"
+ },
+ {
+  "check": "table cell '15': by character",
+  "ok": true,
+  "detail": "2 of 2"
+ },
+ {
+  "check": "table cell '15': first word",
+  "ok": true,
+  "detail": "'15' [0, 2)"
+ },
+ {
+  "check": "table cell '15': first line",
+  "ok": true,
+  "detail": "'15'"
+ },
+ {
+  "check": "table cell '15': character extents",
+  "ok": true,
+  "detail": "char 0 1033,513 5x23 in 894,513 293x23"
+ },
+ {
+  "check": "table cell '15': range extents",
+  "ok": true,
+  "detail": "1033,513 14x23"
+ },
+ {
+  "check": "table cell '15': offset at the first character's point",
+  "ok": true,
+  "detail": "0"
+ },
+ {
+  "check": "table cell 'lever': by character",
+  "ok": true,
+  "detail": "5 of 5"
+ },
+ {
+  "check": "table cell 'lever': first word",
+  "ok": true,
+  "detail": "'lever' [0, 5)"
+ },
+ {
+  "check": "table cell 'lever': first line",
+  "ok": true,
+  "detail": "'lever'"
+ },
+ {
+  "check": "table cell 'lever': character extents",
+  "ok": true,
+  "detail": "char 0 269,545 3x23 in 269,545 293x23"
+ },
+ {
+  "check": "table cell 'lever': range extents",
+  "ok": true,
+  "detail": "269,545 32x23"
+ },
+ {
+  "check": "table cell 'lever': offset at the first character's point",
+  "ok": true,
+  "detail": "0"
+ },
+ {
+  "check": "table cell '1': by character",
+  "ok": true,
+  "detail": "1 of 1"
+ },
+ {
+  "check": "table cell '1': first word",
+  "ok": true,
+  "detail": "'1' [0, 1)"
+ },
+ {
+  "check": "table cell '1': first line",
+  "ok": true,
+  "detail": "'1'"
+ },
+ {
+  "check": "table cell '1': character extents",
+  "ok": true,
+  "detail": "char 0 868,545 5x23 in 582,545 292x23"
+ },
+ {
+  "check": "table cell '1': range extents",
+  "ok": true,
+  "detail": "868,545 5x23"
+ },
+ {
+  "check": "table cell '1': offset at the first character's point",
+  "ok": true,
+  "detail": "0"
+ },
+ {
+  "check": "table cell '0': by character",
+  "ok": true,
+  "detail": "1 of 1"
+ },
+ {
+  "check": "table cell '0': first word",
+  "ok": true,
+  "detail": "'0' [0, 1)"
+ },
+ {
+  "check": "table cell '0': first line",
+  "ok": true,
+  "detail": "'0'"
+ },
+ {
+  "check": "table cell '0': character extents",
+  "ok": true,
+  "detail": "char 0 1036,545 8x23 in 894,545 293x23"
+ },
+ {
+  "check": "table cell '0': range extents",
+  "ok": true,
+  "detail": "1036,545 8x23"
+ },
+ {
+  "check": "table cell '0': offset at the first character's point",
+  "ok": true,
+  "detail": "0"
+ },
+ {
+  "check": "paragraph 'A lamp only needs power from o': by character",
+  "ok": true,
+  "detail": "109 of 109"
+ },
+ {
+  "check": "paragraph 'A lamp only needs power from o': first word",
+  "ok": true,
+  "detail": "'A ' [0, 2)"
+ },
+ {
+  "check": "paragraph 'A lamp only needs power from o': first line",
+  "ok": true,
+  "detail": "'A lamp only needs power from one side: t'"
+ },
+ {
+  "check": "paragraph 'A lamp only needs power from o': character extents",
+  "ok": true,
+  "detail": "char 0 272,589 9x23 in 272,589 926x23"
+ },
+ {
+  "check": "paragraph 'A lamp only needs power from o': range extents",
+  "ok": true,
+  "detail": "272,589 725x23"
+ },
+ {
+  "check": "paragraph 'A lamp only needs power from o': offset at the first character's point",
+  "ok": true,
+  "detail": "0"
+ },
+ {
+  "check": "paragraph 'That is all. Pull the lever to': by character",
+  "ok": true,
+  "detail": "39 of 39"
+ },
+ {
+  "check": "paragraph 'That is all. Pull the lever to': first word",
+  "ok": true,
+  "detail": "'That ' [0, 5)"
+ },
+ {
+  "check": "paragraph 'That is all. Pull the lever to': first line",
+  "ok": true,
+  "detail": "'That is all. Pull the lever to test it.'"
+ },
+ {
+  "check": "paragraph 'That is all. Pull the lever to': character extents",
+  "ok": true,
+  "detail": "char 0 258,643 9x23 in 258,643 940x23"
+ },
+ {
+  "check": "paragraph 'That is all. Pull the lever to': range extents",
+  "ok": true,
+  "detail": "258,643 219x23"
+ },
+ {
+  "check": "paragraph 'That is all. Pull the lever to': offset at the first character's point",
+  "ok": true,
+  "detail": "0"
+ },
+ {
+  "check": "paragraph 'Put a label on the second lamp': by character",
+  "ok": true,
+  "detail": "80 of 80"
+ },
+ {
+  "check": "paragraph 'Put a label on the second lamp': first word",
+  "ok": true,
+  "detail": "'Put ' [0, 4)"
+ },
+ {
+  "check": "paragraph 'Put a label on the second lamp': first line",
+  "ok": true,
+  "detail": "'Put a label on the second lamp in Englis'"
+ },
+ {
+  "check": "paragraph 'Put a label on the second lamp': character extents",
+  "ok": true,
+  "detail": "char 0 699,700 8x23 in 699,700 545x23"
+ },
+ {
+  "check": "paragraph 'Put a label on the second lamp': range extents",
+  "ok": true,
+  "detail": "699,700 544x23"
+ },
+ {
+  "check": "paragraph 'Put a label on the second lamp': offset at the first character's point",
+  "ok": true,
+  "detail": "0"
+ },
+ {
+  "check": "the table offers Table",
+  "ok": true,
+  "detail": "['Accessible', 'Component', 'Table']"
+ },
+ {
+  "check": "rows and columns",
+  "ok": true,
+  "detail": "4 x 3"
+ },
+ {
+  "check": "the cell at row 0, column 0 is a column header",
+  "ok": true,
+  "detail": "column header"
+ },
+ {
+  "check": "the cell at row 1, column 1 offers TableCell",
+  "ok": true,
+  "detail": "['Accessible', 'Component', 'TableCell', 'Text']"
+ },
+ {
+  "check": "its position is row 1, column 1",
+  "ok": true,
+  "detail": "(1, row=1, column=1)"
+ },
+ {
+  "check": "its span",
+  "ok": true,
+  "detail": "(row=1, column=1, row_span=1, column_span=1)"
+ },
+ {
+  "check": "its column header is the header over column 1",
+  "ok": true,
+  "detail": "['Count'] / Count"
+ },
+ {
+  "check": "the cell's table is the table",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "index and back",
+  "ok": true,
+  "detail": "4"
+ },
+ {
+  "check": "cell text",
+  "ok": true,
+  "detail": "'9'"
+ },
+ {
+  "check": "the composer has focus",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "typed text",
+  "ok": true,
+  "detail": "hello world"
+ },
+ {
+  "check": "caret after typing",
+  "ok": true,
+  "detail": "11"
+ },
+ {
+  "check": "caret after Left",
+  "ok": true,
+  "detail": "10"
+ },
+ {
+  "check": "caret set through AT-SPI",
+  "ok": true,
+  "detail": "5"
+ },
+ {
+  "check": "selection set through AT-SPI",
+  "ok": true,
+  "detail": "[(0, 5)]"
+ },
+ {
+  "check": "composer character extents",
+  "ok": true,
+  "detail": "269,711 8x20"
+ },
+ {
+  "check": "composer offers EditableText",
+  "ok": true,
+  "detail": "['Accessible', 'Component', 'EditableText', 'Text']"
+ },
+ {
+  "check": "text set through EditableText",
+  "ok": true,
+  "detail": "set through AT-SPI"
+ }
+]

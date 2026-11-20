@@ -167,7 +167,9 @@ impl Camera {
     pub fn check(&self) -> Result<(), String> {
         match (&self.fov, &self.ortho) {
             (Some(_), None) | (None, Some(_)) => Ok(()),
-            _ => Err("A shot's camera has a fov (perspective) or an ortho box, one of the two".into()),
+            _ => Err(
+                "A shot's camera has a fov (perspective) or an ortho box, one of the two".into(),
+            ),
         }
     }
 
@@ -176,15 +178,38 @@ impl Camera {
         let eye = [0, 1, 2].map(|i| self.focus[i] - f[i] * self.focus_dist);
         let rot = multiply(&rotate_x(self.pitch), &rotate_y(self.yaw));
         let view = multiply(&rot, &translate([-eye[0], -eye[1], -eye[2]]));
-        let persp = |fov: f64| perspective(fov * std::f64::consts::PI / 180.0, aspect, 0.1, MAX_CAMERA_DISTANCE);
+        let persp = |fov: f64| {
+            perspective(
+                fov * std::f64::consts::PI / 180.0,
+                aspect,
+                0.1,
+                MAX_CAMERA_DISTANCE,
+            )
+        };
         let (proj, sky_proj) = match &self.ortho {
-            Some(o) => (ortho(-o.half_width, o.half_width, -o.half_height, o.half_height, o.near, o.far), persp(70.0)),
+            Some(o) => (
+                ortho(
+                    -o.half_width,
+                    o.half_width,
+                    -o.half_height,
+                    o.half_height,
+                    o.near,
+                    o.far,
+                ),
+                persp(70.0),
+            ),
             None => {
                 let p = persp(self.fov.expect("checked: a perspective camera has a fov"));
                 (p, p)
             }
         };
-        Frame { view, proj, sky_unproject: invert(&multiply(&sky_proj, &rot)), ortho: self.ortho.is_some(), eye }
+        Frame {
+            view,
+            proj,
+            sky_unproject: invert(&multiply(&sky_proj, &rot)),
+            ortho: self.ortho.is_some(),
+            eye,
+        }
     }
 }
 

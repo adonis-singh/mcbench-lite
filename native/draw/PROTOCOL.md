@@ -212,19 +212,37 @@ a hardware adapter and 805,306,368 (768 MiB) on a software one, whose
 scenes on a hardware adapter, 2 and 3 on a software one. `hello`'s
 `limits` give `worldsKept`, `scenesKept` and `memoryLimit`.
 
-What the bound counts (src/memory.rs, `held`): the process's memory as the
-system charges it (Linux: VmRSS; Windows: the working set; macOS: the
-physical footprint, which holds the GPU's memory on Apple's GPUs), except,
-on macOS, what Metal holds that it gives back by itself: the purgeable
-memory it caches (the footprint's purgeable non-volatile ledger, which
-Metal marks volatile, out of the footprint, about 1.5 s after its last
-use) and graphics memory beyond what the device's live resources hold
-(the graphics ledger less MTLDevice.currentAllocatedSize). Freed memory is
-given back to the system (glibc's malloc_trim, mimalloc's collect on every
-thread, HeapCompact) before the process is counted over the limit.
+What the bound counts (src/store.rs, `Store::counted`): the bytes of what
+the helper keeps, by their sizes in memory, the GPU's memory where it is
+the process's, and an overhead. Kept on the CPU are each world's blueprint
+and entities and each scene's tiles, translucent order, entities and lit
+world. On a discrete GPU, whose memory is its own, only what is read back
+into the process is counted of the GPU's (the picture targets'
+readbacks). On every other adapter (a software adapter's memory is the
+process's heap, an integrated GPU's the machine's, Apple's footprint
+holds it) the GPU's memory is counted as the device reports it: the blocks
+Vulkan's and Direct3D 12's allocator has reserved (memory freed inside a
+block stays the device's until the whole block is) or Metal's allocated
+size; on GL, whose driver allocates each resource on its own, as the
+resources' sizes. The overhead is the process's memory less what the count
+holds (src/memory.rs, `held`: Linux VmRSS; Windows the working set; macOS
+the physical footprint less what Metal gives back by itself): measured
+when `hello` has made the device and the pipelines, and then once, for the
+helper's life, after the first reply that drew a picture, when the driver
+has made what it keeps for drawing (a pool of host memory on an RTX 5090,
+SwiftShader's own memory); until that first draw the count uses the
+`hello` figure. Otherwise the process's memory is read only to give freed
+memory back (glibc's
+malloc_trim, mimalloc's collect on every thread, HeapCompact) when the
+process holds more than the limit, never to choose what is kept: the
+same requests keep the same worlds and scenes on any load. On Linux
+glibc's malloc runs in one arena (src/main.rs): with an arena a thread,
+malloc_trim cannot give back the free memory at the top of the other
+threads' arenas, and how much of it there is depends on which threads
+ran when.
 
 What it keeps: each world's blueprint and entities, each scene's quads on
-the GPU (100 bytes a quad), what a scene keeps of its tiles on the CPU, the
+the GPU (108 bytes a quad), what a scene keeps of its tiles on the CPU, the
 lit world of the newest whole-world scene (an edit's base), and the picture
 targets of the two picture sizes drawn last (making them again costs every
 request tens of milliseconds: a 2184 x 1640 shot at supersample 2 keeps
@@ -238,20 +256,20 @@ scene alone passes the limit is drawn, then let go: the next `shots`
 meshes it again from its kept blueprint). Worlds (their blueprints and
 entities, small) are bounded by their count. It does so before it
 allocates: as a `world` request's scene grows (after each buffer of its
-quads), and when a `shots` request starts, counting the picture targets
-the shots will make; and after a reply, once no request waits: no reply
-waits for memory to be given back, and no request for the trim after the
-one before (the trim takes milliseconds: 0 to 5 ms in `tests/serve.rs`).
-A `world` request's own scene is kept for the shots that follow even when
-it alone passes the limit.
+quads, counting the scene so far), and when a `shots` request starts,
+counting the picture targets the shots will make; and after every reply
+(counts only: 0.1 to 3 µs on adipc). Freed memory is given back once no
+request waits: no reply waits for memory to be given back, and no request
+for the giving back after the one before (16 to 80 µs on adipc, a
+malloc_trim of about 10 ms where the process is over the limit). A `world` request's own scene
+is kept for the shots that follow even when it alone passes the limit.
 
-So once the trim after a `shots` request has run, the process holds at
-most the limit by the bound's count, or, where what the request needs
-alone passes it, its baseline (the assets and the driver: 60 MB on
-SwiftShader, 110 MB on the M3, 210 MB on an RTX 5090) and the kept
-blueprints; `tests/serve.rs` holds VmRSS to the limit plus 32 MiB. On the
-M3 the footprint passes the limit by what Metal still caches until it
-gives that back, within 2 s of the reply. During a request the process
+So after a `shots` request, the process holds at most the limit by the
+bound's count, or, where what the request needs alone passes it, its
+overhead and the kept blueprints; `tests/serve.rs` holds VmRSS to the
+limit plus 32 MiB once freed memory is given back. On the M3 the
+footprint passes the limit by what Metal still caches until it gives that
+back, within 2 s of the reply. During a request the process
 holds at most the larger of the limit and what the request itself needs
 (its scene's quads where the GPU's memory is the process's, its world's
 blocks and light, its picture targets), plus the meshing in flight (a tile

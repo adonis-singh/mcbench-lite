@@ -1,0 +1,13 @@
+{
+ "front": {
+  "bundle": "",
+  "name": "mcbench-ui-dev",
+  "pid": 1666
+ },
+ "focus": {
+  "nodes": [],
+  "app": {
+   "error": ""
+  }
+ }
+}

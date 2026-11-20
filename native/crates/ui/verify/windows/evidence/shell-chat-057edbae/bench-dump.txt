@@ -1,0 +1,29 @@
+Window name="New bench · mcbench-lite" lct="region" id="" class="Zed::Window" fw="AccessKit" enabled=1 kbfocusable=1 focus=1 offscreen=0 ctl=1 content=1 rect=[32,21,1296x859] patterns=[Window,Transform,LegacyIAccessible]
+  TitleBar name="" lct="title bar" id="TitleBar" enabled=1 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=0 rect=[56,24,1264x28] patterns=[Value,LegacyIAccessible] value="New bench · mcbench-lite" readonly=0
+    MenuBar name="System" lct="menu bar" id="SystemMenuBar" enabled=1 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=0 rect=[40,29,22x22] accesskey="Alt+Space" patterns=[LegacyIAccessible]
+      MenuItem name="System" lct="menu item" id="" enabled=1 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=1 rect=[40,29,22x22] set=1/1 accesskey="Space" patterns=[Invoke,ExpandCollapse,LegacyIAccessible] expand=Collapsed
+    Button name="Minimize" lct="button" id="Minimize-Restore" enabled=1 kbfocusable=0 focus=0 offscreen=0 ctl=1 content=0 rect=[1181,22,47x30] patterns=[Invoke,LegacyIAccessible]
+    Button name="Maximize" lct="button" id="Maximize-Restore" enabled=1 kbfocusable=0 focus=0 offscreen=0 ctl=1 content=0 rect=[1228,22,46x30] patterns=[Invoke,LegacyIAccessible]
+    Button name="Close" lct="button" id="Close" enabled=1 kbfocusable=0 focus=0 offscreen=0 ctl=1 content=0 rect=[1274,22,47x30] patterns=[Invoke,LegacyIAccessible]
+  Button name="mcbench" lct="button" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=1 rect=[90,72,81x18] description="Switch to Build · 1 finished (Ctrl+1)" patterns=[Invoke,LegacyIAccessible]
+  Button name="New bench" lct="button" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=1 rect=[198,65,32x32] patterns=[Invoke,LegacyIAccessible]
+  Button name="Collapse sidebar" lct="button" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=1 rect=[230,65,32x32] patterns=[Invoke,LegacyIAccessible]
+  Edit name="Search benches" lct="edit" id="" help="Search" fw="AccessKit" enabled=1 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=1 rect=[92,116,126x20] patterns=[Value,Text,LegacyIAccessible] value="" readonly=0 text=""
+  Button name="Filter" lct="button" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=1 rect=[232,110,32x32] description="Filter" patterns=[ExpandCollapse,LegacyIAccessible] expand=Collapsed
+  Button name="Leaderboard" lct="button" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=1 rect=[49,150,217x35] patterns=[Invoke,LegacyIAccessible]
+  List name="Benches" lct="list" id="" fw="AccessKit" enabled=1 kbfocusable=0 focus=0 offscreen=0 ctl=1 content=1 rect=[49,193,217x44] patterns=[LegacyIAccessible]
+    ListItem name="Towers and a bridge" lct="list item" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=1 rect=[49,196,217x38] set=1/1 patterns=[Invoke,LegacyIAccessible]
+      Button name="Show models" lct="button" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=1 rect=[53,203,24x24] set=0/1 patterns=[ExpandCollapse,LegacyIAccessible] expand=Collapsed
+      Button name="Archive bench" lct="button" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=1 rect=[234,201,28x28] set=0/1 description="Archive bench (it can be restored for 7 days)" patterns=[Invoke,LegacyIAccessible]
+  Button name="Show archived" lct="button" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=1 rect=[53,249,120x32] patterns=[ExpandCollapse,LegacyIAccessible] expand=Collapsed
+  Button name="Prompts" lct="button" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=1 rect=[53,295,84x32] patterns=[ExpandCollapse,LegacyIAccessible] expand=Expanded
+  Button name="Search prompts" lct="button" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=1 rect=[234,297,28x28] patterns=[Invoke,LegacyIAccessible]
+  List name="Prompts" lct="list" id="" fw="AccessKit" enabled=1 kbfocusable=0 focus=0 offscreen=0 ctl=1 content=1 rect=[49,327,217x90] patterns=[LegacyIAccessible]
+    ListItem name="Wheat field" lct="list item" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=1 rect=[56,334,203x37] set=1/2 patterns=[Invoke,LegacyIAccessible]
+    ListItem name="Two towers" lct="list item" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=1 rect=[56,373,203x37] set=2/2 patterns=[Invoke,LegacyIAccessible]
+  Button name="Settings" lct="button" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=1 rect=[51,831,32x32] patterns=[Invoke,LegacyIAccessible]
+  Group name="New bench" lct="region" id="" fw="AccessKit" enabled=1 kbfocusable=0 focus=0 offscreen=0 ctl=1 content=1 rect=[276,104,537x768] patterns=[LegacyIAccessible]
+  StatusBar name="Castle gate" lct="status" id="" fw="AccessKit" enabled=1 kbfocusable=0 focus=0 offscreen=0 ctl=1 content=1 rect=[40,52,1x1] live=1 patterns=[Value,LegacyIAccessible] value="Castle gate" readonly=1
+  Text name="" lct="alert" id="" fw="AccessKit" enabled=1 kbfocusable=0 focus=0 offscreen=0 ctl=1 content=1 rect=[40,52,1x1] live=2 patterns=[LegacyIAccessible]
+elements: 27 (view control)
+exit=0 

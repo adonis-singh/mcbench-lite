@@ -1,0 +1,16 @@
+vo off
+{"bundle":"","name":"a11y-demo","pid":791}
+{"actions":["AXRaise"],"AXFocused":true,"AXPosition":[470,265],"AXRole":"AXWindow","AXRoleDescription":"standard window"
+791 a11y-demo
+<error -25212>
+0
+Retired
+SFA-CloudServices.json_2026-11-17-010201_Manageds-Virtual-Machine.diag
+SFA-ckks.json_2026-11-17-010211_Manageds-Virtual-Machine.diag
+SFA-local.json_2026-11-17-010214_Manageds-Virtual-Machine.diag
+SFA-networking.json_2026-11-17-010158_Manageds-Virtual-Machine.diag
+SFA-pcs.json_2026-11-17-010213_Manageds-Virtual-Machine.diag
+SFA-rootNetworking.json_2026-11-17-010159_Manageds-Virtual-Machine.diag
+SFA-sos.json_2026-11-17-010213_Manageds-Virtual-Machine.diag
+SFA-swtransparency.json_2026-11-17-010155_Manageds-Virtual-Machine.diag
+proactive_event_tracker-com_apple_Trial-com_apple_triald_2026-11-17-012254_Manageds-Virtual-Machine.diag

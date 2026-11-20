@@ -1,0 +1,2 @@
+before: Button name="Enable feature" lct="button" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=1 rect=[726,443,44x24] patterns=[Toggle,LegacyIAccessible] toggle=Off
+after:  Button name="Enable feature" lct="button" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=1 rect=[726,443,44x24] patterns=[Toggle,LegacyIAccessible] toggle=On

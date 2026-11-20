@@ -1,0 +1,6 @@
+drag from cell Block to That is all:
+'Block\tCount\tLight\nstone\t9\t0\nredstone_lamp\t1\t15\nlever\t1\t0\nA lamp only needs power from one side: the lever powers the block it sits on, and that block powers the lamp.\nThat is all. '
+double-click on The (heading The program):
+'program'
+triple-click on the quote:
+'A lamp only needs power from one side: the lever powers the block it sits on, and that block powers the lamp.'

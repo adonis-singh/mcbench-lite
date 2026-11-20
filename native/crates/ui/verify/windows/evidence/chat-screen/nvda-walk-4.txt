@@ -1,0 +1,181 @@
+Speaking ['Desktop', 'list']
+Speaking ['Recycle Bin', 'not selected', '1 of 3']
+Speaking ['mcbench-lite — Redstone lamp with a lever', 'window']
+Speaking ['Message', 'edit', 'blank']
+Input: kb(desktop):tab
+Speaking ['New chat', 'button']
+Input: kb(desktop):tab
+Speaking ['Chats', 'list']
+Speaking ['Redstone lamp with a lever']
+Input: kb(desktop):tab
+Speaking ['Conversation', 'grouping']
+Speaking ['claude-opus-5-5', 'grouping', 'message']
+Input: kb(desktop):upArrow
+Speaking ['You', 'grouping', 'message']
+Input: kb(desktop):upArrow
+Speaking ['claude-opus-5-5', 'grouping', 'message']
+Input: kb(desktop):home
+Speaking ['You', 'grouping', 'message']
+Input: kb(desktop):downArrow
+Speaking ['claude-opus-5-5', 'grouping', 'work']
+Input: kb(desktop):downArrow
+Speaking ['claude-opus-5-5', 'grouping', 'message']
+Input: kb(desktop):downArrow
+Speaking ['You', 'grouping', 'message']
+Input: kb(desktop):tab
+Speaking ['Message', 'edit', 'blank']
+Input: kb(desktop):tab
+Speaking ['New chat', 'button']
+Input: kb(desktop):tab
+Speaking ['Chats', 'list']
+Speaking ['Redstone lamp with a lever']
+Input: kb(desktop):tab
+Speaking ['Conversation', 'grouping']
+Speaking ['You', 'grouping', 'message']
+Input: kb(desktop):tab
+Speaking ['Message', 'edit', 'blank']
+Input: kb(desktop):enter
+Input: kb(desktop):tab
+Speaking ['New chat', 'button']
+Input: kb(desktop):tab
+Speaking ['Chats', 'list']
+Speaking ['Redstone lamp with a lever']
+Input: kb(desktop):enter
+Input: kb(desktop):shift+tab
+Speaking ['New chat', 'button']
+Input: kb(desktop):enter
+Speaking ['Message', 'edit', 'Add a cat', 'blank']
+Input: kb(desktop):shift+b
+Speaking ['English (not supported)', CharacterModeCommand(True), 'B', EndUtteranceCommand(), CharacterModeCommand(False)]
+Input: kb(desktop):u
+Speaking [CharacterModeCommand(True), 'u', EndUtteranceCommand(), CharacterModeCommand(False)]
+Input: kb(desktop):i
+Speaking [CharacterModeCommand(True), 'i', EndUtteranceCommand(), CharacterModeCommand(False)]
+Input: kb(desktop):l
+Speaking [CharacterModeCommand(True), 'l', EndUtteranceCommand(), CharacterModeCommand(False)]
+Input: kb(desktop):d
+Speaking [CharacterModeCommand(True), 'd', EndUtteranceCommand(), CharacterModeCommand(False)]
+Input: kb(desktop):space
+Speaking ['space', EndUtteranceCommand()]
+Input: kb(desktop):a
+Speaking [CharacterModeCommand(True), 'a', EndUtteranceCommand(), CharacterModeCommand(False)]
+Input: kb(desktop):space
+Speaking ['space', EndUtteranceCommand()]
+Input: kb(desktop):t
+Speaking [CharacterModeCommand(True), 't', EndUtteranceCommand(), CharacterModeCommand(False)]
+Input: kb(desktop):o
+Speaking [CharacterModeCommand(True), 'o', EndUtteranceCommand(), CharacterModeCommand(False)]
+Input: kb(desktop):w
+Speaking [CharacterModeCommand(True), 'w', EndUtteranceCommand(), CharacterModeCommand(False)]
+Input: kb(desktop):e
+Speaking [CharacterModeCommand(True), 'e', EndUtteranceCommand(), CharacterModeCommand(False)]
+Input: kb(desktop):r
+Speaking [CharacterModeCommand(True), 'r', EndUtteranceCommand(), CharacterModeCommand(False)]
+Input: kb(desktop):enter
+Input: kb(desktop):tab
+Speaking ['Stop', 'button']
+Input: kb(desktop):tab
+Speaking ['New chat', 'button']
+Input: kb(desktop):enter
+Speaking ['Message', 'edit', 'Add a cat', 'blank']
+Input: kb(desktop):shift+tab
+Speaking ['Conversation', 'grouping']
+Input: kb(desktop):NVDA+tab
+Speaking ['Conversation', 'grouping', 'focused']
+Input: kb(desktop):shift+a
+Input: kb(desktop):d
+Input: kb(desktop):d
+Input: kb(desktop):space
+Input: kb(desktop):a
+Input: kb(desktop):space
+Input: kb(desktop):l
+Input: kb(desktop):a
+Input: kb(desktop):m
+Input: kb(desktop):p
+Input: kb(desktop):enter
+Input: kb(desktop):shift+s
+Input: kb(desktop):e
+Input: kb(desktop):c
+Input: kb(desktop):o
+Input: kb(desktop):n
+Input: kb(desktop):d
+Input: kb(desktop):enter
+Input: kb(desktop):tab
+Speaking ['Message', 'edit', 'Add a cat', 'blank']
+Input: kb(desktop):enter
+Input: kb(desktop):shift+tab
+Speaking ['Conversation', 'grouping']
+Input: kb(desktop):NVDA+numpad2
+Speaking ['No objects inside']
+Input: kb(desktop):NVDA+numpad6
+Speaking ['Message', 'edit', 'Add a cat', 'blank']
+Input: kb(desktop):NVDA+numpad6
+Speaking ['Send', 'button', 'unavailable']
+Input: kb(desktop):NVDA+numpad6
+Speaking ['status bar']
+Input: kb(desktop):NVDA+numpad6
+Speaking ['No next']
+Input: kb(desktop):NVDA+numpad6
+Speaking ['No next']
+Speaking ['Build a tower']
+Speaking ['Chats', 'list']
+Speaking ['Build a tower', 'not selected']
+Speaking ['selected']
+Speaking ['Message', 'edit', 'blank']
+Input: kb(desktop):shift+a
+Speaking [CharacterModeCommand(True), 'A', EndUtteranceCommand(), CharacterModeCommand(False)]
+Input: kb(desktop):d
+Speaking [CharacterModeCommand(True), 'd', EndUtteranceCommand(), CharacterModeCommand(False)]
+Input: kb(desktop):d
+Speaking [CharacterModeCommand(True), 'd', EndUtteranceCommand(), CharacterModeCommand(False)]
+Input: kb(desktop):space
+Speaking ['space', EndUtteranceCommand()]
+Input: kb(desktop):a
+Speaking [CharacterModeCommand(True), 'a', EndUtteranceCommand(), CharacterModeCommand(False)]
+Input: kb(desktop):space
+Speaking ['space', EndUtteranceCommand()]
+Input: kb(desktop):l
+Speaking [CharacterModeCommand(True), 'l', EndUtteranceCommand(), CharacterModeCommand(False)]
+Input: kb(desktop):a
+Speaking [CharacterModeCommand(True), 'a', EndUtteranceCommand(), CharacterModeCommand(False)]
+Input: kb(desktop):m
+Speaking [CharacterModeCommand(True), 'm', EndUtteranceCommand(), CharacterModeCommand(False)]
+Input: kb(desktop):p
+Speaking [CharacterModeCommand(True), 'p', EndUtteranceCommand(), CharacterModeCommand(False)]
+Input: kb(desktop):enter
+Speaking ['Adding a **third lamp** now. It goes two blocks east of the second one, on the same stone row, with its own lever.\n\n1. Extend the stone base by two blocks\n2. Place the lamp and the lever\n3. Test both levers\n\nThe first two lamps stay as they are, so nothing you built before changes.\n']
+Input: kb(desktop):shift+s
+Speaking [CharacterModeCommand(True), 'S', EndUtteranceCommand(), CharacterModeCommand(False)]
+Input: kb(desktop):e
+Speaking [CharacterModeCommand(True), 'e', EndUtteranceCommand(), CharacterModeCommand(False)]
+Input: kb(desktop):c
+Speaking [CharacterModeCommand(True), 'c', EndUtteranceCommand(), CharacterModeCommand(False)]
+Input: kb(desktop):o
+Speaking [CharacterModeCommand(True), 'o', EndUtteranceCommand(), CharacterModeCommand(False)]
+Input: kb(desktop):n
+Speaking [CharacterModeCommand(True), 'n', EndUtteranceCommand(), CharacterModeCommand(False)]
+Input: kb(desktop):d
+Speaking [CharacterModeCommand(True), 'd', EndUtteranceCommand(), CharacterModeCommand(False)]
+Input: kb(desktop):enter
+Input: kb(desktop):tab
+Speaking ['Stop', 'button']
+Input: kb(desktop):enter
+Speaking ['Message', 'edit', 'blank']
+Speaking ['Adding a **third lamp** now. ']
+Input: kb(desktop):shift+tab
+Speaking ['Conversation', 'grouping']
+Speaking ['claude-opus-5-5', 'grouping', 'message']
+Input: kb(desktop):NVDA+numpad2
+Speaking ['list']
+Input: kb(desktop):NVDA+numpad6
+Speaking ['No next']
+Input: kb(desktop):NVDA+numpad6
+Speaking ['No next']
+Input: kb(desktop):NVDA+numpad6
+Speaking ['No next']
+Input: kb(desktop):NVDA+numpad6
+Speaking ['No next']
+Input: kb(desktop):NVDA+numpad6
+Speaking ['No next']
+Input: kb(desktop):NVDA+numpad6
+Speaking ['No next']

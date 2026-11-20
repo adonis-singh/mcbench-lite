@@ -1,0 +1,41 @@
+[package]
+name = "mcbench-build"
+description = "Build programs: today's JavaScript in a single-use sandboxed V8 child"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+mcbench-spawn.workspace = true
+async-trait.workspace = true
+tokio = { workspace = true, features = ["process", "io-util", "time", "sync", "rt", "macros"] }
+tokio-util.workspace = true
+mcbench-world.workspace = true
+mcbench-json.workspace = true
+serde_json.workspace = true
+libc.workspace = true
+sha2.workspace = true
+
+[target.'cfg(target_os = "linux")'.dependencies]
+seccompiler.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { workspace = true, features = ["Win32_Foundation", "Win32_Security", "Win32_System_JobObjects", "Win32_System_Registry", "Win32_System_SystemInformation", "Win32_System_Threading"] }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros", "net"] }
+flate2.workspace = true
+sha2.workspace = true
+regex.workspace = true
+
+# Its own main: the test binary is also the confinement probe and the forged
+# children, selected by an environment variable (tests/child/main.rs).
+[[test]]
+name = "child"
+path = "tests/child/main.rs"
+harness = false
+
+[lints]
+workspace = true

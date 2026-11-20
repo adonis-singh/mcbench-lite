@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.adonis_singh.mcbench_lite</id>
+  <name>mcbench-lite</name>
+  <summary>AI models build in Minecraft</summary>
+  <metadata_license>MIT</metadata_license>
+  <project_license>MIT</project_license>
+  <developer id="io.github.adonis_singh">
+    <name>adonis-singh</name>
+  </developer>
+  <description>
+    <p>mcbench-lite is a desktop app in which AI models build in Minecraft 1.21.10. A model writes build programs, tests its redstone in Minecraft's own engine and looks at pictures of what it built.</p>
+  </description>
+  <launchable type="desktop-id">mcbench-lite.desktop</launchable>
+  <url type="homepage">https://adonis-singh.github.io/mcbench-lite/</url>
+  <url type="vcs-browser">https://github.com/adonis-singh/mcbench-lite</url>
+  <content_rating type="oars-1.1"/>
+</component>

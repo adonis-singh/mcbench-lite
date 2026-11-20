@@ -1,0 +1,18 @@
+scroll: 300 wheel clicks down, 30 ms apart, trace binary, rate lines of the 14 s around it:  14:27:08 up 3 days,  1:30,  4 users,  load average: 3.07, 2.85, 2.86
+bash: line 1: bc: command not found
+scroll took  s
+gatewin-rate frames/s 62 presents/s 0
+gatewin-rate frames/s 63 presents/s 0
+gatewin-rate frames/s 62 presents/s 0
+gatewin-rate frames/s 62 presents/s 1
+gatewin-rate frames/s 32 presents/s 32
+gatewin-rate frames/s 32 presents/s 32
+gatewin-rate frames/s 31 presents/s 31
+gatewin-rate frames/s 32 presents/s 32
+gatewin-rate frames/s 31 presents/s 32
+gatewin-rate frames/s 32 presents/s 31
+gatewin-rate frames/s 32 presents/s 32
+gatewin-rate frames/s 31 presents/s 31
+gatewin-rate frames/s 32 presents/s 32
+gatewin-rate frames/s 49 presents/s 3
+ 14:27:19 up 3 days,  1:31,  4 users,  load average: 3.31, 2.91, 2.88

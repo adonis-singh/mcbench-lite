@@ -1,0 +1,188 @@
+[
+ {
+  "note": "VO focus the current row (Tab, then read)",
+  "seen": "Filter collapsed button"
+ },
+ {
+  "note": "VO Tab to the row",
+  "seen": "Redstone lamp with a lever, open group (1 of 3)"
+ },
+ {
+  "note": "VO Down",
+  "seen": "Castle gate, Working group (2 of 3)"
+ },
+ {
+  "note": "VO Down",
+  "seen": "Wheat farm, Finished, not opened yet, Resolution: Very high (5×) group (3 of 3)"
+ },
+ {
+  "note": "VO Home",
+  "seen": "Redstone lamp with a lever, open group (1 of 3)"
+ },
+ {
+  "note": "VO VO-Down in the list",
+  "seen": "Castle gate, Working group (2 of 3)"
+ },
+ {
+  "note": "VO VO-Down",
+  "seen": "Wheat farm, Finished, not opened yet, Resolution: Very high (5×) group (3 of 3)"
+ },
+ {
+  "check": "walking the list with VoiceOver opened nothing",
+  "ok": false,
+  "seen": [
+   {
+    "action": "opened chat",
+    "chat": "chat-lamp",
+    "title": "Redstone lamp with a lever"
+   }
+  ]
+ },
+ {
+  "check": "a running row is spoken with its status",
+  "ok": true,
+  "seen": [
+   "Filter collapsed button",
+   "Redstone lamp with a lever, open group (1 of 3)",
+   "Castle gate, Working group (2 of 3)",
+   "Wheat farm, Finished, not opened yet, Resolution: Very high (5×) group (3 of 3)",
+   "Redstone lamp with a lever, open group (1 of 3)",
+   "Castle gate, Working group (2 of 3)",
+   "Wheat farm, Finished, not opened yet, Resolution: Very high (5×) group (3 of 3)"
+  ]
+ },
+ {
+  "check": "an unseen row is spoken with Finished, not opened yet",
+  "ok": true,
+  "seen": [
+   "Filter collapsed button",
+   "Redstone lamp with a lever, open group (1 of 3)",
+   "Castle gate, Working group (2 of 3)",
+   "Wheat farm, Finished, not opened yet, Resolution: Very high (5×) group (3 of 3)",
+   "Redstone lamp with a lever, open group (1 of 3)",
+   "Castle gate, Working group (2 of 3)",
+   "Wheat farm, Finished, not opened yet, Resolution: Very high (5×) group (3 of 3)"
+  ]
+ },
+ {
+  "note": "VO heard over 2 s",
+  "seen": [
+   "Redstone lamp with a lever"
+  ]
+ },
+ {
+  "note": "VO Down in the palette",
+  "seen": "Castle gate"
+ },
+ {
+  "note": "VO heard over 2 s",
+  "seen": [
+   "You are currently on a text field, inside of a dialog. To enter text in this field, type."
+  ]
+ },
+ {
+  "note": "VO Down",
+  "seen": "Wheat farm"
+ },
+ {
+  "note": "VO heard over 2 s",
+  "seen": [
+   "Wheat farm"
+  ]
+ },
+ {
+  "check": "the palette's highlight is spoken as it moves",
+  "ok": true,
+  "seen": [
+   [
+    "Redstone lamp with a lever"
+   ],
+   "Castle gate",
+   [
+    "You are currently on a text field, inside of a dialog. To enter text in this field, type."
+   ],
+   "Wheat farm",
+   [
+    "Wheat farm"
+   ]
+  ]
+ },
+ {
+  "note": "VO read Filter (VO-F3 is not used: Tab back and forth)",
+  "seen": "Search chats Search edit text"
+ },
+ {
+  "note": "VO Tab to Filter",
+  "seen": "Filter collapsed button"
+ },
+ {
+  "note": "VO Enter opens the menu",
+  "seen": "Size: Standard You are currently on a menu item. To choose this menu item, press Control-Option-Space. To close this menu, press Escape. To exit this group, press Control-Option-Shift-Up Arrow."
+ },
+ {
+  "note": "VO Down",
+  "seen": "High (2×)"
+ },
+ {
+  "note": "VO Space chooses",
+  "seen": "Size: High (2×) You are currently on a menu item. To choose this menu item, press Control-Option-Space. To close this menu, press Escape. To exit this group, press Control-Option-Shift-Up Arrow."
+ },
+ {
+  "note": "VO Escape",
+  "seen": "Filter, 1 chosen collapsed button"
+ },
+ {
+  "note": "VO Shift-Tab and Tab to Show archived",
+  "seen": "Archive build button"
+ },
+ {
+  "note": "VO Tab",
+  "seen": "Show archived collapsed button"
+ },
+ {
+  "note": "VO Enter opens it",
+  "seen": "expanded"
+ },
+ {
+  "note": "VO Tab to Restore",
+  "seen": "Restore button"
+ },
+ {
+  "note": "VO Tab to Delete permanently",
+  "seen": "Delete permanently button"
+ },
+ {
+  "note": "VO Space arms it",
+  "seen": "Delete for good"
+ },
+ {
+  "note": "VO heard over 5 s",
+  "seen": [
+   "Click again to delete it for good You are currently on a button, inside of a group. To click this button, press Control-Option-Space. To exit this group, press Control-Option-Shift-Up Arrow."
+  ]
+ },
+ {
+  "note": "VO Shift-Tab, Tab to the bench",
+  "seen": "Leaderboard button"
+ },
+ {
+  "note": "VO Tab",
+  "seen": "Towers and a bridge group (1 of 1)"
+ },
+ {
+  "note": "VO Tab to Show models",
+  "seen": "Show models collapsed button"
+ },
+ {
+  "note": "VO Enter opens the fold",
+  "seen": "expanded"
+ },
+ {
+  "note": "VO VO-Space toggles it",
+  "seen": "You are currently on a button, inside of a group. To click this button, press Control-Option-Space. To exit this group, press Control-Option-Shift-Up Arrow."
+ },
+ {
+  "note": "VO VO-Space again",
+  "seen": "expanded"
+ }
+]

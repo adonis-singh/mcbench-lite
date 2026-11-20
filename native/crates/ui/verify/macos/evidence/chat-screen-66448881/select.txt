@@ -1,0 +1,4 @@
+drag from cell (273,658) to below the table (458,799):
+'Japanese: 二番目のランプはレバーで点きます\nChinese: 第二盏灯由拉杆控制\nEach sign line holds at most fifteen characters, so the longer lines wrap onto a second sign.'
+double-click at 284 316: 'lamp'
+triple-click: 'A lamp only needs power from one side: the lever powers the block it sits on, and that block powers the lamp.'

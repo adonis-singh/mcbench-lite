@@ -1,0 +1,8 @@
+element: Edit name="Message" lct="edit" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=1 offscreen=0 ctl=1 content=1 rect=[49,807,413x36] patterns=[Value,Text,LegacyIAccessible] value="Hello brave new world. Second sentence here" readonly=0 text="Hello brave new world. Second sentence here"
+document: "Hello brave new world. Second sentence here" (43 UTF-16 units)
+supported selection: 1
+char[0] = "H"
+char[1] = "e"
+char[2] = "l"
+char[3] = "l"
+char[4] = "o"

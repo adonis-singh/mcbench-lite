@@ -1,0 +1,37 @@
+Speaking [LangChangeCommand ('en'), 'Four hundred messages · mcbench-lite', 'window', CancellableSpeech (still valid)]
+Speaking [LangChangeCommand ('en'), 'Message', 'edit', CancellableSpeech (still valid), 'blank']
+Speaking [LangChangeCommand ('en'), 'Desktop', 'list', CancellableSpeech (still valid)]
+Speaking [LangChangeCommand ('en'), 'Recycle Bin', 'not selected', '1 of 3', CancellableSpeech (still valid)]
+Speaking [LangChangeCommand ('en'), 'Arabic, right to left: مصباح رقم اثنين يعمل بالرافعة']
+Speaking [LangChangeCommand ('en'), 'Redstone lamp with a lever · mcbench-lite', 'window', CancellableSpeech (still valid)]
+Speaking [LangChangeCommand ('en'), 'Message', 'edit', CancellableSpeech (still valid), 'blank']
+Input: kb(desktop):control+k
+Speaking [LangChangeCommand ('en'), 'Search everything', 'dialog', CancellableSpeech (still valid)]
+Speaking [LangChangeCommand ('en'), 'Search everything', 'edit', 'Search builds, benches, prompts and settings', CancellableSpeech (still valid), 'blank']
+Speaking [LangChangeCommand ('en'), 'Redstone lamp with a lever']
+Input: kb(desktop):downArrow
+Speaking [LangChangeCommand ('en'), 'blank']
+Speaking [LangChangeCommand ('en'), 'Castle gate']
+Input: kb(desktop):downArrow
+Speaking [LangChangeCommand ('en'), 'blank']
+Speaking [LangChangeCommand ('en'), 'Wheat farm']
+Input: kb(desktop):downArrow
+Speaking [LangChangeCommand ('en'), 'blank']
+Speaking [LangChangeCommand ('en'), 'Towers and a bridge']
+Input: kb(desktop):upArrow
+Speaking [LangChangeCommand ('en'), 'blank']
+Speaking [LangChangeCommand ('en'), 'Wheat farm']
+Input: kb(desktop):g
+Speaking [LangChangeCommand ('en'), 'English (not supported)', CharacterModeCommand(True), 'g', EndUtteranceCommand(), CharacterModeCommand(False)]
+Speaking [LangChangeCommand ('en'), 'Two towers']
+Input: kb(desktop):a
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en'), 'a', EndUtteranceCommand(), CharacterModeCommand(False)]
+Input: kb(desktop):t
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en'), 't', EndUtteranceCommand(), CharacterModeCommand(False)]
+Speaking [LangChangeCommand ('en'), 'Castle gate']
+Input: kb(desktop):e
+Speaking [CharacterModeCommand(True), LangChangeCommand ('en'), 'e', EndUtteranceCommand(), CharacterModeCommand(False)]
+Input: kb(desktop):downArrow
+Speaking [LangChangeCommand ('en'), 'gate']
+Input: kb(desktop):escape
+Speaking [LangChangeCommand ('en'), 'Message', 'edit', CancellableSpeech (still valid), 'blank']

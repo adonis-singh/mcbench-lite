@@ -1,0 +1,773 @@
+[
+ {
+  "key": "tab",
+  "focus": {
+   "nodes": [
+    {
+     "path": "0.0.0",
+     "AXRole": "AXButton",
+     "AXSubrole": "AXUnknown",
+     "AXTitle": "New chat"
+    }
+   ],
+   "app": {
+    "path": "0.0.0",
+    "AXRole": "AXButton",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "New chat"
+   }
+  },
+  "log": [],
+  "shot": "01-tab-tab.png"
+ },
+ {
+  "key": "tab",
+  "focus": {
+   "nodes": [
+    {
+     "path": "0.0.1.0",
+     "AXRole": "AXGroup",
+     "AXSubrole": "AXUnknown",
+     "AXTitle": "Redstone lamp with a lever"
+    }
+   ],
+   "app": {
+    "path": "0.0.1.0",
+    "AXRole": "AXGroup",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "Redstone lamp with a lever"
+   }
+  },
+  "log": [],
+  "shot": "02-tab-tab.png"
+ },
+ {
+  "key": "tab",
+  "focus": {
+   "nodes": [
+    {
+     "path": "0.0.2",
+     "AXRole": "AXGroup",
+     "AXSubrole": "AXLandmarkRegion",
+     "AXTitle": "Conversation"
+    }
+   ],
+   "app": {
+    "path": "0.0.2",
+    "AXRole": "AXGroup",
+    "AXSubrole": "AXLandmarkRegion",
+    "AXTitle": "Conversation"
+   }
+  },
+  "log": [],
+  "shot": "03-tab-tab.png"
+ },
+ {
+  "key": "tab",
+  "focus": {
+   "nodes": [
+    {
+     "path": "0.0.3",
+     "AXRole": "AXTextArea",
+     "AXSubrole": "AXUnknown",
+     "AXTitle": "Message"
+    }
+   ],
+   "app": {
+    "path": "0.0.3",
+    "AXRole": "AXTextArea",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "Message"
+   }
+  },
+  "log": [],
+  "shot": "04-tab-tab.png"
+ },
+ {
+  "key": "tab",
+  "focus": {
+   "nodes": [
+    {
+     "path": "0.0.0",
+     "AXRole": "AXButton",
+     "AXSubrole": "AXUnknown",
+     "AXTitle": "New chat"
+    }
+   ],
+   "app": {
+    "path": "0.0.0",
+    "AXRole": "AXButton",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "New chat"
+   }
+  },
+  "log": [],
+  "shot": "05-tab-tab.png"
+ },
+ {
+  "key": "tab",
+  "focus": {
+   "nodes": [
+    {
+     "path": "0.0.1.0",
+     "AXRole": "AXGroup",
+     "AXSubrole": "AXUnknown",
+     "AXTitle": "Redstone lamp with a lever"
+    }
+   ],
+   "app": {
+    "path": "0.0.1.0",
+    "AXRole": "AXGroup",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "Redstone lamp with a lever"
+   }
+  },
+  "log": [],
+  "shot": "06-tab-tab.png"
+ },
+ {
+  "key": "tab",
+  "focus": {
+   "nodes": [
+    {
+     "path": "0.0.2",
+     "AXRole": "AXGroup",
+     "AXSubrole": "AXLandmarkRegion",
+     "AXTitle": "Conversation"
+    }
+   ],
+   "app": {
+    "path": "0.0.2",
+    "AXRole": "AXGroup",
+    "AXSubrole": "AXLandmarkRegion",
+    "AXTitle": "Conversation"
+   }
+  },
+  "log": [],
+  "shot": "07-tab-tab.png"
+ },
+ {
+  "key": "tab",
+  "focus": {
+   "nodes": [
+    {
+     "path": "0.0.3",
+     "AXRole": "AXTextArea",
+     "AXSubrole": "AXUnknown",
+     "AXTitle": "Message"
+    }
+   ],
+   "app": {
+    "path": "0.0.3",
+    "AXRole": "AXTextArea",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "Message"
+   }
+  },
+  "log": [],
+  "shot": "08-tab-tab.png"
+ },
+ {
+  "key": "tab",
+  "focus": {
+   "nodes": [
+    {
+     "path": "0.0.0",
+     "AXRole": "AXButton",
+     "AXSubrole": "AXUnknown",
+     "AXTitle": "New chat"
+    }
+   ],
+   "app": {
+    "path": "0.0.0",
+    "AXRole": "AXButton",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "New chat"
+   }
+  },
+  "log": [],
+  "shot": "09-tab-tab.png"
+ },
+ {
+  "key": "tab:shift",
+  "focus": {
+   "nodes": [
+    {
+     "path": "0.0.3",
+     "AXRole": "AXTextArea",
+     "AXSubrole": "AXUnknown",
+     "AXTitle": "Message"
+    }
+   ],
+   "app": {
+    "path": "0.0.3",
+    "AXRole": "AXTextArea",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "Message"
+   }
+  },
+  "log": [],
+  "shot": "10-tab-tab_shift.png"
+ },
+ {
+  "key": "tab:shift",
+  "focus": {
+   "nodes": [
+    {
+     "path": "0.0.2",
+     "AXRole": "AXGroup",
+     "AXSubrole": "AXLandmarkRegion",
+     "AXTitle": "Conversation"
+    }
+   ],
+   "app": {
+    "path": "0.0.2",
+    "AXRole": "AXGroup",
+    "AXSubrole": "AXLandmarkRegion",
+    "AXTitle": "Conversation"
+   }
+  },
+  "log": [],
+  "shot": "11-tab-tab_shift.png"
+ },
+ {
+  "key": "tab:shift",
+  "focus": {
+   "nodes": [
+    {
+     "path": "0.0.1.0",
+     "AXRole": "AXGroup",
+     "AXSubrole": "AXUnknown",
+     "AXTitle": "Redstone lamp with a lever"
+    }
+   ],
+   "app": {
+    "path": "0.0.1.0",
+    "AXRole": "AXGroup",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "Redstone lamp with a lever"
+   }
+  },
+  "log": [],
+  "shot": "12-tab-tab_shift.png"
+ },
+ {
+  "key": "tab:shift",
+  "focus": {
+   "nodes": [
+    {
+     "path": "0.0.0",
+     "AXRole": "AXButton",
+     "AXSubrole": "AXUnknown",
+     "AXTitle": "New chat"
+    }
+   ],
+   "app": {
+    "path": "0.0.0",
+    "AXRole": "AXButton",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "New chat"
+   }
+  },
+  "log": [],
+  "shot": "13-tab-tab_shift.png"
+ },
+ {
+  "key": "tab:shift",
+  "focus": {
+   "nodes": [
+    {
+     "path": "0.0.3",
+     "AXRole": "AXTextArea",
+     "AXSubrole": "AXUnknown",
+     "AXTitle": "Message"
+    }
+   ],
+   "app": {
+    "path": "0.0.3",
+    "AXRole": "AXTextArea",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "Message"
+   }
+  },
+  "log": [],
+  "shot": "14-tab-tab_shift.png"
+ },
+ {
+  "key": "tab:shift",
+  "focus": {
+   "nodes": [
+    {
+     "path": "0.0.2",
+     "AXRole": "AXGroup",
+     "AXSubrole": "AXLandmarkRegion",
+     "AXTitle": "Conversation"
+    }
+   ],
+   "app": {
+    "path": "0.0.2",
+    "AXRole": "AXGroup",
+    "AXSubrole": "AXLandmarkRegion",
+    "AXTitle": "Conversation"
+   }
+  },
+  "log": [],
+  "shot": "15-tab-tab_shift.png"
+ },
+ {
+  "key": "tab:shift",
+  "focus": {
+   "nodes": [
+    {
+     "path": "0.0.1.0",
+     "AXRole": "AXGroup",
+     "AXSubrole": "AXUnknown",
+     "AXTitle": "Redstone lamp with a lever"
+    }
+   ],
+   "app": {
+    "path": "0.0.1.0",
+    "AXRole": "AXGroup",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "Redstone lamp with a lever"
+   }
+  },
+  "log": [],
+  "shot": "16-tab-tab_shift.png"
+ },
+ {
+  "key": "tab:shift",
+  "focus": {
+   "nodes": [
+    {
+     "path": "0.0.0",
+     "AXRole": "AXButton",
+     "AXSubrole": "AXUnknown",
+     "AXTitle": "New chat"
+    }
+   ],
+   "app": {
+    "path": "0.0.0",
+    "AXRole": "AXButton",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "New chat"
+   }
+  },
+  "log": [],
+  "shot": "17-tab-tab_shift.png"
+ },
+ {
+  "key": "tab:shift",
+  "focus": {
+   "nodes": [
+    {
+     "path": "0.0.3",
+     "AXRole": "AXTextArea",
+     "AXSubrole": "AXUnknown",
+     "AXTitle": "Message"
+    }
+   ],
+   "app": {
+    "path": "0.0.3",
+    "AXRole": "AXTextArea",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "Message"
+   }
+  },
+  "log": [],
+  "shot": "18-tab-tab_shift.png"
+ },
+ {
+  "key": "tab",
+  "focus": {
+   "nodes": [
+    {
+     "path": "0.0.0",
+     "AXRole": "AXButton",
+     "AXSubrole": "AXUnknown",
+     "AXTitle": "New chat"
+    }
+   ],
+   "app": {
+    "path": "0.0.0",
+    "AXRole": "AXButton",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "New chat"
+   }
+  },
+  "log": [],
+  "shot": "19-to-list-tab.png"
+ },
+ {
+  "key": "tab",
+  "focus": {
+   "nodes": [
+    {
+     "path": "0.0.1.0",
+     "AXRole": "AXGroup",
+     "AXSubrole": "AXUnknown",
+     "AXTitle": "Redstone lamp with a lever"
+    }
+   ],
+   "app": {
+    "path": "0.0.1.0",
+    "AXRole": "AXGroup",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "Redstone lamp with a lever"
+   }
+  },
+  "log": [],
+  "shot": "20-to-list-tab.png"
+ },
+ {
+  "key": "down",
+  "focus": {
+   "nodes": [
+    {
+     "path": "0.0.1.1",
+     "AXRole": "AXGroup",
+     "AXSubrole": "AXUnknown",
+     "AXTitle": "Castle gate"
+    }
+   ],
+   "app": {
+    "path": "0.0.1.1",
+    "AXRole": "AXGroup",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "Castle gate"
+   }
+  },
+  "log": [],
+  "shot": "21-list-down.png"
+ },
+ {
+  "key": "up",
+  "focus": {
+   "nodes": [
+    {
+     "path": "0.0.1.0",
+     "AXRole": "AXGroup",
+     "AXSubrole": "AXUnknown",
+     "AXTitle": "Redstone lamp with a lever"
+    }
+   ],
+   "app": {
+    "path": "0.0.1.0",
+    "AXRole": "AXGroup",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "Redstone lamp with a lever"
+   }
+  },
+  "log": [],
+  "shot": "22-list-up.png"
+ },
+ {
+  "key": "end",
+  "focus": {
+   "nodes": [
+    {
+     "path": "0.0.1.2",
+     "AXRole": "AXGroup",
+     "AXSubrole": "AXUnknown",
+     "AXTitle": "Wheat farm"
+    }
+   ],
+   "app": {
+    "path": "0.0.1.2",
+    "AXRole": "AXGroup",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "Wheat farm"
+   }
+  },
+  "log": [],
+  "shot": "23-list-end.png"
+ },
+ {
+  "key": "home",
+  "focus": {
+   "nodes": [
+    {
+     "path": "0.0.1.0",
+     "AXRole": "AXGroup",
+     "AXSubrole": "AXUnknown",
+     "AXTitle": "Redstone lamp with a lever"
+    }
+   ],
+   "app": {
+    "path": "0.0.1.0",
+    "AXRole": "AXGroup",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "Redstone lamp with a lever"
+   }
+  },
+  "log": [],
+  "shot": "24-list-home.png"
+ },
+ {
+  "key": "return",
+  "focus": {
+   "nodes": [
+    {
+     "path": "0.0.1.0",
+     "AXRole": "AXGroup",
+     "AXSubrole": "AXUnknown",
+     "AXTitle": "Redstone lamp with a lever"
+    }
+   ],
+   "app": {
+    "path": "0.0.1.0",
+    "AXRole": "AXGroup",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "Redstone lamp with a lever"
+   }
+  },
+  "log": [
+   {
+    "action": "opened chat",
+    "chat": "chat-lamp",
+    "title": "Redstone lamp with a lever"
+   }
+  ],
+  "shot": "25-list-return.png"
+ },
+ {
+  "key": "tab",
+  "focus": {
+   "nodes": [
+    {
+     "path": "0.0.2.5",
+     "AXRole": "AXGroup",
+     "AXSubrole": "AXDocumentArticle",
+     "AXTitle": "claude-opus-5-5, message, Yes: the base is still three by three, nine stone blocks, and nothing else moved."
+    }
+   ],
+   "app": {
+    "path": "0.0.2.5",
+    "AXRole": "AXGroup",
+    "AXSubrole": "AXDocumentArticle",
+    "AXTitle": "claude-opus-5-5, message, Yes: the base is still three by three, nine stone blocks, and nothing else moved."
+   }
+  },
+  "log": [],
+  "shot": "26-transcript-tab.png"
+ },
+ {
+  "key": "up",
+  "focus": {
+   "nodes": [
+    {
+     "path": "0.0.2.4",
+     "AXRole": "AXGroup",
+     "AXSubrole": "AXDocumentArticle",
+     "AXTitle": "You, message, Thanks. Is the base still three by three?"
+    }
+   ],
+   "app": {
+    "path": "0.0.2.4",
+    "AXRole": "AXGroup",
+    "AXSubrole": "AXDocumentArticle",
+    "AXTitle": "You, message, Thanks. Is the base still three by three?"
+   }
+  },
+  "log": [],
+  "shot": "27-transcript-up.png"
+ },
+ {
+  "key": "up",
+  "focus": {
+   "nodes": [
+    {
+     "path": "0.0.2.3",
+     "AXRole": "AXGroup",
+     "AXSubrole": "AXDocumentArticle",
+     "AXTitle": "claude-opus-5-5, message, Here is the view from the south-east after the change:\nBoth lamps are lit. See the lever page if you want a different facing."
+    }
+   ],
+   "app": {
+    "path": "0.0.2.3",
+    "AXRole": "AXGroup",
+    "AXSubrole": "AXDocumentArticle",
+    "AXTitle": "claude-opus-5-5, message, Here is the view from the south-east after the change:\nBoth lamps are lit. See the lever page if you want a different facing."
+   }
+  },
+  "log": [],
+  "shot": "28-transcript-up.png"
+ },
+ {
+  "key": "down",
+  "focus": {
+   "nodes": [
+    {
+     "path": "0.0.2.4",
+     "AXRole": "AXGroup",
+     "AXSubrole": "AXDocumentArticle",
+     "AXTitle": "You, message, Thanks. Is the base still three by three?"
+    }
+   ],
+   "app": {
+    "path": "0.0.2.4",
+    "AXRole": "AXGroup",
+    "AXSubrole": "AXDocumentArticle",
+    "AXTitle": "You, message, Thanks. Is the base still three by three?"
+   }
+  },
+  "log": [],
+  "shot": "29-transcript-down.png"
+ },
+ {
+  "key": "home",
+  "focus": {
+   "nodes": [
+    {
+     "path": "0.0.2.0",
+     "AXRole": "AXGroup",
+     "AXSubrole": "AXDocumentArticle",
+     "AXTitle": "You, message, Build a redstone lamp that turns on with a lever, and explain what you placed."
+    }
+   ],
+   "app": {
+    "path": "0.0.2.0",
+    "AXRole": "AXGroup",
+    "AXSubrole": "AXDocumentArticle",
+    "AXTitle": "You, message, Build a redstone lamp that turns on with a lever, and explain what you placed."
+   }
+  },
+  "log": [],
+  "shot": "30-transcript-home.png"
+ },
+ {
+  "key": "end",
+  "focus": {
+   "nodes": [
+    {
+     "path": "0.0.2.5",
+     "AXRole": "AXGroup",
+     "AXSubrole": "AXDocumentArticle",
+     "AXTitle": "claude-opus-5-5, message, Yes: the base is still three by three, nine stone blocks, and nothing else moved."
+    }
+   ],
+   "app": {
+    "path": "0.0.2.5",
+    "AXRole": "AXGroup",
+    "AXSubrole": "AXDocumentArticle",
+    "AXTitle": "claude-opus-5-5, message, Yes: the base is still three by three, nine stone blocks, and nothing else moved."
+   }
+  },
+  "log": [],
+  "shot": "31-transcript-end.png"
+ },
+ {
+  "key": "pageup",
+  "focus": {
+   "nodes": [
+    {
+     "path": "0.0.2.1",
+     "AXRole": "AXGroup",
+     "AXSubrole": "AXDocumentArticle",
+     "AXTitle": "You, message, Put a label on the second lamp in English, Arabic, Hebrew, Japanese and Chinese."
+    }
+   ],
+   "app": {
+    "path": "0.0.2.1",
+    "AXRole": "AXGroup",
+    "AXSubrole": "AXDocumentArticle",
+    "AXTitle": "You, message, Put a label on the second lamp in English, Arabic, Hebrew, Japanese and Chinese."
+   }
+  },
+  "log": [],
+  "shot": "32-transcript-pageup.png"
+ },
+ {
+  "key": "pagedown",
+  "focus": {
+   "nodes": [
+    {
+     "path": "0.0.2.5",
+     "AXRole": "AXGroup",
+     "AXSubrole": "AXDocumentArticle",
+     "AXTitle": "claude-opus-5-5, message, Yes: the base is still three by three, nine stone blocks, and nothing else moved."
+    }
+   ],
+   "app": {
+    "path": "0.0.2.5",
+    "AXRole": "AXGroup",
+    "AXSubrole": "AXDocumentArticle",
+    "AXTitle": "claude-opus-5-5, message, Yes: the base is still three by three, nine stone blocks, and nothing else moved."
+   }
+  },
+  "log": [],
+  "shot": "33-transcript-pagedown.png"
+ },
+ {
+  "key": "return",
+  "focus": {
+   "nodes": [
+    {
+     "path": "0.0.2.5",
+     "AXRole": "AXGroup",
+     "AXSubrole": "AXDocumentArticle",
+     "AXTitle": "claude-opus-5-5, message, Yes: the base is still three by three, nine stone blocks, and nothing else moved."
+    }
+   ],
+   "app": {
+    "path": "0.0.2.5",
+    "AXRole": "AXGroup",
+    "AXSubrole": "AXDocumentArticle",
+    "AXTitle": "claude-opus-5-5, message, Yes: the base is still three by three, nine stone blocks, and nothing else moved."
+   }
+  },
+  "log": [],
+  "shot": "34-transcript-return.png"
+ },
+ {
+  "key": "a:cmd",
+  "focus": {
+   "nodes": [
+    {
+     "path": "0.0.2.5",
+     "AXRole": "AXGroup",
+     "AXSubrole": "AXDocumentArticle",
+     "AXTitle": "claude-opus-5-5, message, Yes: the base is still three by three, nine stone blocks, and nothing else moved."
+    }
+   ],
+   "app": {
+    "path": "0.0.2.5",
+    "AXRole": "AXGroup",
+    "AXSubrole": "AXDocumentArticle",
+    "AXTitle": "claude-opus-5-5, message, Yes: the base is still three by three, nine stone blocks, and nothing else moved."
+   }
+  },
+  "log": [
+   {
+    "action": "selected all"
+   }
+  ],
+  "shot": "35-transcript-a_cmd.png"
+ },
+ {
+  "key": "c:cmd",
+  "focus": {
+   "nodes": [
+    {
+     "path": "0.0.2.5",
+     "AXRole": "AXGroup",
+     "AXSubrole": "AXDocumentArticle",
+     "AXTitle": "claude-opus-5-5, message, Yes: the base is still three by three, nine stone blocks, and nothing else moved."
+    }
+   ],
+   "app": {
+    "path": "0.0.2.5",
+    "AXRole": "AXGroup",
+    "AXSubrole": "AXDocumentArticle",
+    "AXTitle": "claude-opus-5-5, message, Yes: the base is still three by three, nine stone blocks, and nothing else moved."
+   }
+  },
+  "log": [
+   {
+    "action": "copied",
+    "text": "Build a redstone lamp that turns on with a lever, and explain what you placed.\nA lamp on a lever\nThe lamp is built and wired. It lights when the lever is on and goes dark when it is off; the old torch is gone. The block that does the work is a redstone_lamp, and the wiki page on lamps has the details.\nWhat was placed\nA stone base, three by three\nThe lamp on top\npowered from below\nwith a lever on its west side\nA sign that says Pull me\nThe program\nfn build(world: &mut World) {\n    world.fill((0, 0, 0), (2, 0, 2), \"stone\");\n    world.set((1, 1, 1), \"redstone_lamp\");\n    world.set((0, 1, 1), \"lever[face=floor,facing=west]\");\n}\nBlocks used\nBlock\tCount\tLight\nstone\t9\t0\nredstone_lamp\t1\t15\nlever\t1\t0\nA lamp only needs power from one side: the lever powers the block it sits on, and that block powers the lamp.\nThat is all. Pull the lever to test it.\nPut a label on the second lamp in English, Arabic, Hebrew, Japanese and Chinese.\nLabels in three scripts\nThe sign above the second lamp now reads in each language you asked for:\nEnglish: Lamp two\nArabic, right to left: مصباح رقم اثنين يعمل بالرافعة\nHebrew, right to left: מנורה שנייה עם ידית\nJapanese: 二番目のランプはレバーで点きます\nChinese: 第二盏灯由拉杆控制\nEach sign line holds at most fifteen characters, so the longer lines wrap onto a second sign.\nShow me how it looks now.\nHere is the view from the south-east after the change:\nBoth lamps are lit. See the lever page if you want a different facing.\nThanks. Is the base still three by three?\nYes: the base is still three by three, nine stone blocks, and nothing else moved."
+   }
+  ],
+  "shot": "36-transcript-c_cmd.png"
+ }
+]

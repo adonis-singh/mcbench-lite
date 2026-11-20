@@ -1,0 +1,4 @@
+{"step": 0, "keys": "4 ctrl,alt,cmd", "phrase": "Heading not found"}
+{"step": 1, "keys": "48", "phrase": "Enable feature off switch"}
+{"step": 2, "keys": "48", "phrase": "0 Counter: 0 stepper"}
+{"step": 3, "keys": "37 ctrl,alt,shift,fn", "phrase": "You are currently on a stepper, inside of a group. To begin interacting with this stepper, press Control-Option-Shift-Down Arrow. To exit this group, press Control-Option-Shift-Up Arrow."}

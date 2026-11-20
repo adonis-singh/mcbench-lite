@@ -1,6 +1,12 @@
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.Registry;
+import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.server.packs.PackType;
+import net.minecraft.server.packs.repository.ServerPacksSource;
+import net.minecraft.server.packs.resources.MultiPackResourceManager;
+import net.minecraft.tags.TagLoader;
 import net.minecraft.world.level.EmptyBlockGetter;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.RenderShape;
@@ -91,10 +97,14 @@ import java.util.stream.IntStream;
 // block's own description id (a wall banner's is its standing banner's)
 // looked up in the language Minecraft loads from its jar's en_us.json, the
 // same file as the client jar's.
+// Every answer is asked with Minecraft's tags bound (bindTags): a client
+// asks skipRendering with the tags its server sent, and IronBarsBlock's
+// asks BlockTags.BARS (iron bars beside copper bars).
 public class McbenchBlockTable {
   public static void main(String[] args) throws Exception {
     net.minecraft.SharedConstants.tryDetectVersion();
     net.minecraft.server.Bootstrap.bootStrap();
+    bindTags();
     Path target = Path.of(args[0]);
     Path partial = target.resolveSibling(target.getFileName() + ".part");
     Map<String, Integer> numbers = new LinkedHashMap<>();
@@ -326,6 +336,20 @@ public class McbenchBlockTable {
         for (int mask : masks.get(r)) line.append(',').append(mask);
       }
       return line.toString();
+    }
+  }
+
+  // The tags of Minecraft's static registries, bound as a server binds them
+  // for a new world: WorldLoader.load loads them with
+  // TagLoader.loadTagsForExistingRegistries over RegistryLayer.STATIC
+  // (RegistryAccess.fromRegistryOfRegistries(BuiltInRegistries.REGISTRY)),
+  // and ReloadableServerResources.updateStaticRegistryTags applies them.
+  // The packs are the vanilla data pack: a new world's other packs (the
+  // engine's world pack, minecraft-dimension.js) hold no tags of these
+  // registries. Bootstrap.bootStrap binds every tag empty.
+  static void bindTags() {
+    try (MultiPackResourceManager resources = new MultiPackResourceManager(PackType.SERVER_DATA, List.of(ServerPacksSource.createVanillaPackSource()))) {
+      TagLoader.loadTagsForExistingRegistries(resources, RegistryAccess.fromRegistryOfRegistries(BuiltInRegistries.REGISTRY)).forEach(Registry.PendingTags::apply);
     }
   }
 

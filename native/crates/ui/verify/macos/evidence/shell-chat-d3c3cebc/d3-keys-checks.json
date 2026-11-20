@@ -1,0 +1,80 @@
+[
+ {
+  "check": "Cmd-2: Bench",
+  "ok": true,
+  "seen": null
+ },
+ {
+  "check": "Cmd-1: Build",
+  "ok": true,
+  "seen": null
+ },
+ {
+  "check": "Cmd-Shift-O: a new chat",
+  "ok": true,
+  "seen": "New build · mcbench-lite"
+ },
+ {
+  "check": "Cmd-B hides the sidebar (Open sidebar in the pane header)",
+  "ok": true,
+  "seen": null
+ },
+ {
+  "check": "Cmd-B shows it again",
+  "ok": true,
+  "seen": null
+ },
+ {
+  "check": "Cmd-[ goes back and Cmd-] forward through the places opened",
+  "ok": true,
+  "seen": [
+   "Castle gate · mcbench-lite",
+   "New build · mcbench-lite",
+   "Redstone lamp with a lever · mcbench-lite",
+   "New build · mcbench-lite",
+   "Castle gate · mcbench-lite"
+  ]
+ },
+ {
+  "check": "Escape closes the palette, then Settings, then cancels the edit",
+  "ok": true,
+  "seen": [
+   [
+    true,
+    true,
+    true
+   ],
+   [
+    false,
+    true,
+    true
+   ],
+   [
+    false,
+    false,
+    true
+   ],
+   [
+    false,
+    false,
+    false
+   ]
+  ]
+ },
+ {
+  "check": "typing on a button goes to the composer",
+  "ok": true,
+  "seen": [
+   "hello",
+   [
+    "AXTextArea",
+    "Message"
+   ]
+  ]
+ },
+ {
+  "check": "typing with the palette open goes to its field",
+  "ok": true,
+  "seen": "gate"
+ }
+]

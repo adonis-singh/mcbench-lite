@@ -1,0 +1,12 @@
+Input: kb(desktop):downArrow
+Speaking ['claude-opus-5-5, A lamp on a lever\nThe lamp is built and wired. It lights when the lever is on and goes dark when it is off; the old torch is gone. The block that does the work is a redsto
+Input: kb(desktop):NVDA+numpad6
+Speaking ['You, Put a label on the second lamp in English, Arabic, Hebrew, Japanese and Chinese.', 'grouping', '4 of 9']
+Input: kb(desktop):NVDA+numpad6
+Speaking ['No next']
+Input: kb(desktop):NVDA+numpad4
+Speaking ['claude-opus-5-5, A lamp on a lever\nThe lamp is built and wired. It lights when the lever is on and goes dark when it is off; the old torch is gone. The block that does the work is a redsto
+Input: kb(desktop):NVDA+numpad4
+Speaking ['claude-opus-5-5, work', 'grouping', '2 of 9']
+Input: kb(desktop):NVDA+numpad4
+Speaking ['No previous']

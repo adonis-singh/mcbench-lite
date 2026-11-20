@@ -1,0 +1,2 @@
+front: {"bundle":"","name":"mcbench-ui-dev","pid":695}
+{"focusedNodes":[{"AXEnabled":true,"AXFocused":true,"AXInsertionPointLineNumber":0,"AXNumberOfCharacters":0,"AXPosition":[259,761],"AXRequired":false,"AXRole":"AXTextArea","AXRoleDescription":"text en

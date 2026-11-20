@@ -1,0 +1,20 @@
+== name~=Built: invoke
+before: Button name="Built: a lamp with a lever" lct="button" focus=0 set=0/9 patterns=[ExpandCollapse] expand=Collapsed
+
+thread 'main' (9568) panicked at src\main.rs:501:103:
+called `Result::unwrap()` on an `Err` value: Error { code: HRESULT(0x00000000), message: "The operation completed successfully." }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+exit=101 
+== name=Copy code invoke
+before: Button name="Copy code" lct="button" focus=0 set=0/9 patterns=[Invoke]
+after:  Button name="Copy code" lct="button" focus=1 set=0/9 patterns=[Invoke]
+== name=the wiki page on lamps invoke
+before: Hyperlink name="the wiki page on lamps" lct="link" focus=0 set=0/9 patterns=[Invoke,Value] value="https://minecraft.wiki/w/Redstone_Lamp" readonly=1
+after:  Hyperlink name="the wiki page on lamps" lct="link" focus=1 set=0/9 patterns=[Invoke,Value] value="https://minecraft.wiki/w/Redstone_Lamp" readonly=1
+== name~=The two lamps invoke
+uia-probe: no element matches "name~=The two lamps" in mcbench-ui-dev
+exit=2 
+== name~=Built: collapse
+before: Button name="Built: a lamp with a lever" lct="button" focus=0 set=0/9 patterns=[ExpandCollapse] expand=Collapsed
+uia-probe: collapse failed: 0x80131509
+exit=2 

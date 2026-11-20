@@ -1,0 +1,4 @@
+  Window name="Picture" lct="dialog" id="" fw="AccessKit" enabled=1 kbfocusable=0 focus=0 offscreen=0 ctl=1 content=1 rect=[40,52,1280x820] patterns=[Invoke,Window,LegacyIAccessible]
+    Image name="Picture" lct="image" id="" fw="AccessKit" enabled=1 kbfocusable=0 focus=0 offscreen=0 ctl=1 content=1 rect=[559,386,242x152] patterns=[LegacyIAccessible]
+    Button name="Close" lct="button" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=1 offscreen=0 ctl=1 content=1 rect=[1272,68,32x32] patterns=[Invoke,LegacyIAccessible]
+elements: 78 (view control)

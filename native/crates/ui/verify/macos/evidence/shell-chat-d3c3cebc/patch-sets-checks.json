@@ -1,0 +1,178 @@
+[
+ {
+  "note": "VO filter menu Down",
+  "seen": "High (2×)"
+ },
+ {
+  "note": "VO filter menu Down",
+  "seen": "Very high (5×)"
+ },
+ {
+  "note": "VO filter menu Down",
+  "seen": "Maximum (10×)"
+ },
+ {
+  "check": "the filter menu's items are spoken with n of m",
+  "ok": false,
+  "seen": [
+   "High (2×)",
+   "Very high (5×)",
+   "Maximum (10×)"
+  ]
+ },
+ {
+  "note": "VO effort Down",
+  "seen": "high text (3 of 3)"
+ },
+ {
+  "note": "VO effort Down",
+  "seen": "low text (1 of 3)"
+ },
+ {
+  "check": "the effort list's options are spoken with n of m",
+  "ok": true,
+  "seen": [
+   "high text (3 of 3)",
+   "low text (1 of 3)"
+  ]
+ },
+ {
+  "note": "VO model list Down",
+  "seen": "Claude Opus 5.5 claude-opus-5-5 (1 of 4)"
+ },
+ {
+  "note": "VO model list Down",
+  "seen": "Claude Haiku 5.5 claude-haiku-5-5 (3 of 4)"
+ },
+ {
+  "check": "the model list's options are spoken with n of m",
+  "ok": true,
+  "seen": [
+   "Claude Opus 5.5 claude-opus-5-5 (1 of 4)",
+   "Claude Haiku 5.5 claude-haiku-5-5 (3 of 4)"
+  ]
+ },
+ {
+  "note": "VO rail Tab and Shift-Tab",
+  "seen": "Reasoning effort: medium collapsed button"
+ },
+ {
+  "note": "VO rail Tab and Shift-Tab",
+  "seen": "Favorites tab, 1 of 9"
+ },
+ {
+  "note": "VO rail Down",
+  "seen": "Favorites tab, 1 of 9"
+ },
+ {
+  "note": "VO rail Down",
+  "seen": "You are currently on a tab, 1 of 9, inside of a tab group. To select this option, press Control-Option-Space."
+ },
+ {
+  "check": "a provider tab is spoken with n of m",
+  "ok": true,
+  "seen": [
+   "Reasoning effort: medium collapsed button",
+   "Favorites tab, 1 of 9",
+   "Favorites tab, 1 of 9",
+   "You are currently on a tab, 1 of 9, inside of a tab group. To select this option, press Control-Option-Space."
+  ]
+ },
+ {
+  "check": "the palette shows the search's failure line",
+  "ok": true,
+  "seen": [
+   "Search failed: the index could not be read (a fixture error)"
+  ]
+ },
+ {
+  "note": "VoiceOver on the failure",
+  "seen": [
+   "gate"
+  ]
+ },
+ {
+  "check": "the sidebar shows the search's failure line",
+  "ok": true,
+  "seen": [
+   "Search failed: the index could not be read (a fixture error)"
+  ]
+ },
+ {
+  "note": "the Tab order with a notice",
+  "seen": [
+   [
+    "AXButton",
+    "Attach file"
+   ],
+   [
+    "AXButton",
+    "Resolution: Very high (5×)"
+   ],
+   [
+    "AXButton",
+    "Chat model: claude-opus-5-5"
+   ],
+   [
+    "AXButton",
+    "Reasoning effort: medium"
+   ],
+   [
+    "AXButton",
+    "Send message"
+   ],
+   [
+    "AXButton",
+    "mcbuild"
+   ],
+   [
+    "AXButton",
+    "New chat"
+   ],
+   [
+    "AXButton",
+    "Collapse sidebar"
+   ],
+   [
+    "AXTextField",
+    "Search chats"
+   ],
+   [
+    "AXButton",
+    "Filter"
+   ],
+   [
+    "AXGroup",
+    "Wheat farm, open, Resolution: Very high (5×)"
+   ],
+   [
+    "AXButton",
+    "Archive build"
+   ],
+   [
+    "AXButton",
+    "Show archived"
+   ],
+   [
+    "AXButton",
+    "Settings"
+   ],
+   [
+    "AXButton",
+    "Dismiss error"
+   ],
+   [
+    "AXGroup",
+    "claude-opus-5-5, Done: a nine by nine field with one water block in the centre."
+   ]
+  ]
+ },
+ {
+  "check": "Dismiss error comes before the transcript's current message",
+  "ok": true,
+  "seen": [
+   14,
+   15
+  ]
+ }
+]

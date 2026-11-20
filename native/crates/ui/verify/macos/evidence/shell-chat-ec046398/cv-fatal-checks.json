@@ -1,0 +1,61 @@
+[
+ {
+  "check": "the alert's name holds the message",
+  "ok": true,
+  "seen": [
+   {
+    "AXRole": "AXGroup",
+    "AXSubrole": "AXApplicationAlert",
+    "AXRoleDescription": "group",
+    "AXTitle": "mcbench-lite stopped on an error: The engine could not start: a test message",
+    "AXValue": "<error -25212>",
+    "AXHelp": "<error -25212>",
+    "AXEnabled": true,
+    "AXFocused": false,
+    "AXPosition": [
+     453.5,
+     371
+    ],
+    "AXSize": [
+     373,
+     166
+    ]
+   }
+  ]
+ },
+ {
+  "check": "Quit has focus",
+  "ok": true,
+  "seen": [
+   "AXButton",
+   "Quit"
+  ]
+ },
+ {
+  "note": "VoiceOver after activating the fatal window",
+  "seen": [
+   "You are currently on a button, inside of a group. To click this button, press Control-Option-Space. To exit this group, press Control-Option-Shift-Up Arrow."
+  ]
+ },
+ {
+  "note": "VO VO-Right",
+  "seen": "Quit button"
+ },
+ {
+  "note": "VO-Right",
+  "seen": "Quit button"
+ },
+ {
+  "note": "VO VO-Left",
+  "seen": "The engine could not start: a test message"
+ },
+ {
+  "note": "VO-Left",
+  "seen": "The engine could not start: a test message"
+ },
+ {
+  "check": "Return quits",
+  "ok": true,
+  "seen": null
+ }
+]

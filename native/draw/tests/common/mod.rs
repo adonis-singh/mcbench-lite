@@ -16,7 +16,11 @@ pub fn data(test: &str) -> Option<PathBuf> {
         }
         Some(folder) => {
             let folder = PathBuf::from(folder);
-            assert!(folder.join("minecraft-live/bluemap").is_dir(), "MCBENCH_DRAW_DATA={} holds no bake (minecraft-live/bluemap)", folder.display());
+            assert!(
+                folder.join("minecraft-live/bluemap").is_dir(),
+                "MCBENCH_DRAW_DATA={} holds no bake (minecraft-live/bluemap)",
+                folder.display()
+            );
             Some(folder)
         }
     }
@@ -31,7 +35,10 @@ pub fn crate_dir() -> PathBuf {
 // library MCBENCH_DRAW_SWIFTSHADER names: what the server passes as
 // softwareVulkan; Linux x86_64 runs give it).
 pub fn choice() -> mcbench_draw::gpu::Choice {
-    mcbench_draw::gpu::Choice { software: software(), software_vulkan: software_vulkan() }
+    mcbench_draw::gpu::Choice {
+        software: software(),
+        software_vulkan: software_vulkan(),
+    }
 }
 
 pub fn software() -> bool {
@@ -43,7 +50,11 @@ pub fn software_vulkan() -> Option<PathBuf> {
         return None;
     }
     let path = PathBuf::from(std::env::var_os("MCBENCH_DRAW_SWIFTSHADER")?);
-    assert!(path.is_file(), "MCBENCH_DRAW_SWIFTSHADER={} is not a file", path.display());
+    assert!(
+        path.is_file(),
+        "MCBENCH_DRAW_SWIFTSHADER={} is not a file",
+        path.display()
+    );
     Some(path)
 }
 
@@ -64,7 +75,14 @@ pub fn blueprint(blocks: &[(&str, [i32; 3])]) -> Vec<u8> {
     out.extend_from_slice(&(names.len() as i32).to_be_bytes());
     for n in &names {
         let (id, props) = match n.split_once('[') {
-            Some((id, rest)) => (id, rest.trim_end_matches(']').split(',').filter(|p| !p.is_empty()).map(|p| p.split_once('=').unwrap()).collect::<Vec<_>>()),
+            Some((id, rest)) => (
+                id,
+                rest.trim_end_matches(']')
+                    .split(',')
+                    .filter(|p| !p.is_empty())
+                    .map(|p| p.split_once('=').unwrap())
+                    .collect::<Vec<_>>(),
+            ),
             None => (*n, Vec::new()),
         };
         utf(&mut out, id);
@@ -77,7 +95,9 @@ pub fn blueprint(blocks: &[(&str, [i32; 3])]) -> Vec<u8> {
     let mut sections: std::collections::BTreeMap<[i32; 3], Vec<u8>> = Default::default();
     for (n, b) in blocks {
         let v = names.iter().position(|x| x == n).unwrap() as u16;
-        let cells = sections.entry(b.map(|c| c >> 4)).or_insert_with(|| vec![0; 8192]);
+        let cells = sections
+            .entry(b.map(|c| c >> 4))
+            .or_insert_with(|| vec![0; 8192]);
         let i = (((b[1] & 15) << 8) | ((b[2] & 15) << 4) | (b[0] & 15)) as usize;
         cells[i * 2..i * 2 + 2].copy_from_slice(&v.to_be_bytes());
     }

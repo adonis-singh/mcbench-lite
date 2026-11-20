@@ -1,0 +1,18 @@
+[package]
+name = "mcbench-json"
+description = "JavaScript's JSON.stringify and JSON.parse from Rust, for JSON a model or Node reads"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+serde.workspace = true
+# float_roundtrip: numbers are parsed to the nearest double, as JSON.parse
+# parses them (serde_json's default parser can be a unit in the last place off).
+serde_json = { workspace = true, features = ["float_roundtrip"] }
+zmij.workspace = true
+
+[lints]
+workspace = true

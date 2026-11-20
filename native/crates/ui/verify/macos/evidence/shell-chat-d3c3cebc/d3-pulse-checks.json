@@ -1,0 +1,34 @@
+[
+ {
+  "check": "the dot moves while the window is active",
+  "ok": true,
+  "seen": [
+   "b597aafa",
+   "6932ace5",
+   "0173fb70",
+   "ec473c42",
+   "03412ad8",
+   "6e53b7b2",
+   "5118f55f",
+   "5118f55f"
+  ]
+ },
+ {
+  "note": "front after clicking the desktop",
+  "seen": "{\"bundle\":\"com.apple.finder\",\"name\":\"Finder\",\"pid\":363}"
+ },
+ {
+  "check": "the dot rests while the window is inactive",
+  "ok": true,
+  "seen": [
+   "b5887d4e",
+   "b5887d4e",
+   "b5887d4e",
+   "b5887d4e",
+   "b5887d4e",
+   "b5887d4e",
+   "b5887d4e",
+   "b5887d4e"
+  ]
+ }
+]

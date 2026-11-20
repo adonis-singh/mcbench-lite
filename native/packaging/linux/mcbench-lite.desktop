@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=mcbench-lite
+Comment=AI models build in Minecraft
+Exec=mcbench-lite
+Icon=mcbench-lite
+Terminal=false
+Categories=Development;
+Keywords=Minecraft;AI;benchmark;redstone;
+StartupWMClass=mcbench-lite

@@ -1,0 +1,13 @@
+sh: line 2:   637 Terminated: 15          /usr/local/rig/mcbench-ui-dev --log /tmp/w.log > /tmp/w.out 2>&1
+front at launch: {"bundle":"","name":"mcbench-ui-dev","pid":687}
+    Cmd-M fullscreen False minimized True
+{"active":true,"policy":0}
+front: {"bundle":"","name":"mcbench-ui-dev","pid":687}
+    Ctrl-Cmd-F fullscreen True minimized False
+front: {"bundle":"","name":"mcbench-ui-dev","pid":687}
+    Ctrl-Cmd-F again fullscreen False minimized False
+front: {"bundle":"","name":"mcbench-ui-dev","pid":687}
+Cmd-W: process gone
+front at second launch: {"bundle":"","name":"mcbench-ui-dev","pid":742}
+Cmd-Q: process gone
+no DiagnosticReports entry

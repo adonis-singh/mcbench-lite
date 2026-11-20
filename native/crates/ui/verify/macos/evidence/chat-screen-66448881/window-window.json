@@ -1,0 +1,74 @@
+{
+ "menus": [
+  "Apple",
+  "mcbench-ui-dev",
+  "Window"
+ ],
+ "cmd-m": [
+  {
+   "AXTitle": "mcbench-lite — Redstone lamp with a lever",
+   "minimized": true,
+   "fullscreen": false,
+   "AXPosition": [
+    0,
+    30
+   ],
+   "AXSize": [
+    1280,
+    848
+   ]
+  }
+ ],
+ "restored": [
+  {
+   "AXTitle": "mcbench-lite — Redstone lamp with a lever",
+   "minimized": false,
+   "fullscreen": false,
+   "AXPosition": [
+    0,
+    30
+   ],
+   "AXSize": [
+    1280,
+    848
+   ]
+  }
+ ],
+ "ctrl-cmd-f": [
+  {
+   "AXTitle": "mcbench-lite — Redstone lamp with a lever",
+   "minimized": false,
+   "fullscreen": true,
+   "AXPosition": [
+    0,
+    0
+   ],
+   "AXSize": [
+    1440,
+    900
+   ]
+  }
+ ],
+ "ctrl-cmd-f again": [
+  {
+   "AXTitle": "mcbench-lite — Redstone lamp with a lever",
+   "minimized": false,
+   "fullscreen": false,
+   "AXPosition": [
+    0,
+    30
+   ],
+   "AXSize": [
+    1280,
+    848
+   ]
+  }
+ ],
+ "cmd-w": {
+  "windows": [],
+  "alive": false
+ },
+ "cmd-q alive after": false,
+ "DiagnosticReports": "none",
+ "crash logs": "none"
+}

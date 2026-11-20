@@ -1,0 +1,8 @@
+start: Pane name="Accessibility Demo" lct="application" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=1 offscreen=0 ctl=1 content=1 patterns=[LegacyIAccessible] [foreground "GPUI Accessibility Demo"]
+key[0] tab: Spinner name="Counter: 0" lct="spin button" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=1 offscreen=0 ctl=1 content=1 patterns=[RangeValue,LegacyIAccessible] range=0 min=0 max=0 step=0 readonly=0 [foreground "GP
+key[1] tab: Button name="Reset counter" lct="button" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=1 offscreen=0 ctl=1 content=1 patterns=[Invoke,LegacyIAccessible] [foreground "GPUI Accessibility Demo"]
+key[2] tab: Button name="Enable feature" lct="button" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=1 offscreen=0 ctl=1 content=1 patterns=[Toggle,LegacyIAccessible] toggle=Off [foreground "GPUI Accessibility Demo"]
+key[3] tab: Spinner name="Counter: 0" lct="spin button" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=1 offscreen=0 ctl=1 content=1 patterns=[RangeValue,LegacyIAccessible] range=0 min=0 max=0 step=0 readonly=0 [foreground "GP
+key[4] shift+tab: Button name="Enable feature" lct="button" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=1 offscreen=0 ctl=1 content=1 patterns=[Toggle,LegacyIAccessible] toggle=Off [foreground "GPUI Accessibility Demo"]
+key[5] shift+tab: Button name="Reset counter" lct="button" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=1 offscreen=0 ctl=1 content=1 patterns=[Invoke,LegacyIAccessible] [foreground "GPUI Accessibility Demo"]
+key[6] space: Button name="Reset counter" lct="button" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=1 offscreen=0 ctl=1 content=1 patterns=[Invoke,LegacyIAccessible] [foreground "GPUI Accessibility Demo"]

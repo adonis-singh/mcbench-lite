@@ -1,0 +1,42 @@
+Speaking ['mcbench-lite — Redstone lamp with a lever', 'window']
+Speaking ['Conversation', 'grouping']
+Speaking ['claude-opus-5-5', 'grouping', 'message, A lamp on a lever\nThe lamp is built and wired. It lights when the lever is on and goes dark when it is off; the old torch is gone. The block that does the work is a redstone_lamp, and the wiki page on lamps has the details.\nWhat was placed\nA stone base, three by three\nThe lamp on top\npowered from below\nwith a lever on its west side\nA sign that says Pull me\nThe program\nfn build(world: &mut World) {\n    world.fill((0, 0, 0), (2, 0, 2), "stone");\n    world.set((1, 1, 1), "redstone_lamp");\n    world.set((0, 1, 1), "lever[face=floor,facing=west]");\n}\nBlocks used\nBlock, Count, Light\nstone, 9, 0\nredstone_lamp, 1, 15\nlever, 1, 0\nA lamp only needs power from one side: the lever powers the block it sits on, and that block powers the lamp.\nThat is all. Pull the lever to test it.', '3 of 9']
+Speaking ['table, 4 rows', 'grouping', 'Block, Count, Light\nstone, 9, 0\nredstone_lamp, 1, 15\nlever, 1, 0']
+Speaking ['Message', 'edit', 'blank']
+Input: kb(desktop):shift+tab
+Speaking ['Conversation', 'grouping']
+Speaking ['claude-opus-5-5', 'grouping', 'message, A lamp on a lever\nThe lamp is built and wired. It lights when the lever is on and goes dark when it is off; the old torch is gone. The block that does the work is a redstone_lamp, and the wiki page on lamps has the details.\nWhat was placed\nA stone base, three by three\nThe lamp on top\npowered from below\nwith a lever on its west side\nA sign that says Pull me\nThe program\nfn build(world: &mut World) {\n    world.fill((0, 0, 0), (2, 0, 2), "stone");\n    world.set((1, 1, 1), "redstone_lamp");\n    world.set((0, 1, 1), "lever[face=floor,facing=west]");\n}\nBlocks used\nBlock, Count, Light\nstone, 9, 0\nredstone_lamp, 1, 15\nlever, 1, 0\nA lamp only needs power from one side: the lever powers the block it sits on, and that block powers the lamp.\nThat is all. Pull the lever to test it.', '3 of 9']
+Speaking ['code, rust', 'grouping', 'fn build(world: &mut World) {\n    world.fill((0, 0, 0), (2, 0, 2), "stone");\n    world.set((1, 1, 1), "redstone_lamp");\n    world.set((0, 1, 1), "lever[face=floor,facing=west]");\n}']
+Speaking ['Copy code', 'button']
+Input: kb(desktop):home
+Speaking ['You', 'grouping', 'message, Build a redstone lamp that turns on with a lever, and explain what you placed.', '1 of 9']
+Input: kb(desktop):downArrow
+Speaking ['claude-opus-5-5', 'grouping', 'work', '2 of 9']
+Input: kb(desktop):downArrow
+Speaking ['claude-opus-5-5', 'grouping', 'message, A lamp on a lever\nThe lamp is built and wired. It lights when the lever is on and goes dark when it is off; the old torch is gone. The block that does the work is a redstone_lamp, and the wiki page on lamps has the details.\nWhat was placed\nA stone base, three by three\nThe lamp on top\npowered from below\nwith a lever on its west side\nA sign that says Pull me\nThe program\nfn build(world: &mut World) {\n    world.fill((0, 0, 0), (2, 0, 2), "stone");\n    world.set((1, 1, 1), "redstone_lamp");\n    world.set((0, 1, 1), "lever[face=floor,facing=west]");\n}\nBlocks used\nBlock, Count, Light\nstone, 9, 0\nredstone_lamp, 1, 15\nlever, 1, 0\nA lamp only needs power from one side: the lever powers the block it sits on, and that block powers the lamp.\nThat is all. Pull the lever to test it.', '3 of 9']
+Input: kb(desktop):rightArrow
+Speaking ['heading level 1', 'grouping', 'A lamp on a lever']
+Input: kb(desktop):rightArrow
+Speaking ['paragraph', 'grouping', 'The lamp is built and wired. It lights when the lever is on and goes dark when it is off; the old torch is gone. The block that does the work is a redstone_lamp, and the wiki page on lamps has the details.']
+Input: kb(desktop):rightArrow
+Speaking ['heading level 2', 'grouping', 'What was placed']
+Input: kb(desktop):rightArrow
+Speaking ['list, 3 items', 'grouping', 'A stone base, three by three\nThe lamp on top\npowered from below\nwith a lever on its west side\nA sign that says Pull me']
+Input: kb(desktop):rightArrow
+Speaking ['heading level 2', 'grouping', 'The program']
+Input: kb(desktop):rightArrow
+Speaking ['code, rust', 'grouping', 'fn build(world: &mut World) {\n    world.fill((0, 0, 0), (2, 0, 2), "stone");\n    world.set((1, 1, 1), "redstone_lamp");\n    world.set((0, 1, 1), "lever[face=floor,facing=west]");\n}']
+Input: kb(desktop):rightArrow
+Speaking ['heading level 2', 'grouping', 'Blocks used']
+Input: kb(desktop):rightArrow
+Speaking ['table, 4 rows', 'grouping', 'Block, Count, Light\nstone, 9, 0\nredstone_lamp, 1, 15\nlever, 1, 0']
+Input: kb(desktop):NVDA+numpad2
+Speaking ['table']
+Input: kb(desktop):NVDA+numpad2
+Speaking ['data item']
+Input: kb(desktop):NVDA+numpad2
+Speaking ['data item', 'Block', 'row 1', 'column 1']
+Input: kb(desktop):NVDA+numpad6
+Speaking ['data item', 'Count', 'column 2']
+Input: kb(desktop):control+alt+rightArrow
+Input: kb(desktop):control+alt+downArrow

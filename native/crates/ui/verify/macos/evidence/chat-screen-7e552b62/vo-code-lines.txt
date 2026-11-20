@@ -1,0 +1,10 @@
+Down	claude-opus-5-5, work article 
+Down (long answer)	claude-opus-5-5, message, A lamp on a lever The lamp is built and wired. It lights when the lever is on and goes dark when it is off; the old torch is gone. The block that does the work is a redstone_lamp, and the wiki page on lamps has the details. What was placed A stone base, three by three The lamp on top powered from below with a lever on its west side A sign that says Pull me The program fn build(world: &mut World) {     world.fill((0, 0, 0), (2, 0, 2), "stone");     world.set((1, 1, 1), "redstone_lamp");     world.set((0, 1, 1), "lever[face=floor,facing=west]"); } Blocks used Block, Count, Light stone, 9, 0 redstone_lamp, 1, 15 lever, 1, 0 A lamp only needs power from one side: the lever powers the block it sits on, and that block powers the lamp. That is all. Pull the lever to test it. article 
+focus	code, rust group 
+VO-Shift-Down (code block)	In code, rust group 2 items Copy code button 
+VO-Right	Code, rust group 
+VO-Shift-Down (the code)	In Code, rust group 5 items fn build(world: &mut World) {  
+VO-Right (next line)	    world.fill((0, 0, 0), (2, 0, 2), "stone");  
+VO-Right (next line)	    world.set((1, 1, 1), "redstone_lamp");  
+VO-Right (next line)	    world.set((0, 1, 1), "lever[face=floor,facing=west]");  
+0.0.2.1.5.1 AXGroup AXCodeStyleGroup 'fn build(world: &mut World) {\n    world.fill((0, 0, 0), (2, '

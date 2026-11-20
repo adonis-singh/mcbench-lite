@@ -1,0 +1,8 @@
+Speaking [LangChangeCommand ('en'), 'Attach file Attach file']
+Speaking [LangChangeCommand ('en'), 'Attach file', 'button', CancellableSpeech (still valid)]
+Speaking [LangChangeCommand ('en'), 'Open', 'dialog', 'File name:', CancellableSpeech (still valid)]
+Speaking [LangChangeCommand ('en'), 'File name:', 'combo box', 'collapsed', CancellableSpeech (still valid)]
+Speaking [LangChangeCommand ('en'), 'edit', 'Alt+', CharacterModeCommand(True), 'n', CharacterModeCommand(False), CancellableSpeech (still valid), 'blank']
+Input: kb(desktop):escape
+Speaking [LangChangeCommand ('en'), 'Redstone lamp with a lever · mcbench-lite', 'window', CancellableSpeech (still valid)]
+Speaking [LangChangeCommand ('en'), 'Attach file', 'button', CancellableSpeech (still valid)]

@@ -1,0 +1,17 @@
+fold 0.0.2.1.0
+expanded False
+{"action":"AXPress","AXError":0,"path":"0.0.2.1.3","t":"1794888021.979"}
+{"action":"AXPress","AXError":0,"path":"0.0.2.1.5","t":"1794888022.682"}
+0.0.2.1 AXGroup AXDocumentArticle 'claude-opus-5-5, work, I will place a stone base first, then' 'None' None None
+0.0.2.1.0 AXButton AXUnknown 'Worked · 2 steps' 'None' True ['AXPress']
+0.0.2.1.1 AXButton AXUnknown 'Reasoning' 'None' False ['AXPress']
+0.0.2.1.2 AXStaticText AXUnknown 'None' 'I will place a stone base first, then the lamp and its lever' None None
+0.0.2.1.3 AXButton AXUnknown 'Built: a lamp with a lever' 'None' True ['AXPress']
+0.0.2.1.4 AXGroup AXApplicationGroup 'Built: a lamp with a lever, code' 'None' None None
+0.0.2.1.4.0 AXGroup AXCodeStyleGroup 'Code' 'world.fill((0, 0, 0), (2, 0, 2), "stone");\nworld.set((1, 1, ' None None
+0.0.2.1.5 AXButton AXUnknown 'Ran command: ls -la /work' 'None' True ['AXPress']
+0.0.2.1.6 AXGroup AXApplicationGroup 'Ran command: ls -la /work, code' 'None' None None
+0.0.2.1.6.0 AXGroup AXCodeStyleGroup 'Code' 'ls -la /work\necho done' None None
+0.0.2.1.7 AXGroup AXApplicationGroup 'Ran command: ls -la /work, output' 'None' None None
+0.0.2.1.7.0 AXGroup AXCodeStyleGroup 'Output' 'total 8\ndrwxr-xr-x 2 work work 4096 Nov 17 10:02 .\n-rw-r--r-' None None
+== block quotes anywhere in the tree:

@@ -1,0 +1,77 @@
+[
+ {
+  "check": "Orca runs",
+  "ok": true,
+  "detail": "exit None"
+ },
+ {
+  "check": "Orca's log records utterances",
+  "ok": true,
+  "detail": "55 utterances"
+ },
+ {
+  "check": "Orca says 'New chat'",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "Orca says 'Redstone lamp with a lever'",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "Orca says 'Message'",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "Orca says 'claude-opus-5-5'",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "Orca says 'Worked'",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "Orca says 'You, Build a redstone lamp that turns on with a lever'",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "Orca says 'heading level 1'",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "Orca says 'A lamp on a lever'",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "Orca says 'heading level 2'",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "Orca says 'What was placed'",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "Orca says 'paragraph'",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "Orca says 'The lamp is built and wired'",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "each message and block is read once",
+  "ok": true,
+  "detail": "11 blocks; read twice: []"
+ }
+]

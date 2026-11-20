@@ -1,0 +1,167 @@
+[
+ {
+  "check": "Chat model: claude-opus-5-5 is a button",
+  "ok": true,
+  "detail": "1"
+ },
+ {
+  "check": "Resolution: Standard is a button",
+  "ok": true,
+  "detail": "1"
+ },
+ {
+  "check": "Reasoning effort: medium is a button",
+  "ok": true,
+  "detail": "1"
+ },
+ {
+  "check": "the context meter is a level bar named by its tip",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "the limit chip is named by its text",
+  "ok": true,
+  "detail": "[\"label 'Near weekly limit'\"]"
+ },
+ {
+  "check": "the trigger is collapsed",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "it opens a dialog named Chat model",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "the trigger is expanded",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "focus is in the search",
+  "ok": true,
+  "detail": "entry 'Search models'"
+ },
+ {
+  "check": "the rail has every provider but QwenCloud (off) and Cursor",
+  "ok": true,
+  "detail": "['Favorites', 'OpenRouter', 'OpenAI — not configured', 'ChatGPT', 'Anthropic', 'Groq', 'Google', 'Claude Code harness: its own agent loop with mcbench tools attached', 'Codex CLI harness: its own agent loop with mcbench tools attached — CLI not signed in']"
+ },
+ {
+  "check": "a provider not connected is disabled and says why",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "the chosen model's provider is the tab shown",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "its models are listed",
+  "ok": true,
+  "detail": "['Claude Opus 5.5', 'Claude Haiku 5.5']"
+ },
+ {
+  "check": "typing searches every usable provider",
+  "ok": true,
+  "detail": "['Gemini 3 Pro, OpenRouter', 'Gemini 2.5 Flash, OpenRouter', 'Gemini 3 Pro, Google', 'Gemini 2.5 Flash, Google']"
+ },
+ {
+  "check": "the failing catalogue is named with its provider",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "the slow catalogue (Google, 1.2 s, asked at start) is listed once it answered",
+  "ok": true,
+  "detail": "['Gemini 3 Pro, OpenRouter', 'Gemini 2.5 Flash, OpenRouter', 'Gemini 3 Pro, Google', 'Gemini 2.5 Flash, Google']"
+ },
+ {
+  "check": "Escape closes it",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "focus is back on its trigger",
+  "ok": true,
+  "detail": "button 'Chat model: claude-opus-5-5'"
+ },
+ {
+  "check": "Enter on the trigger opens it again",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "the search kept its text",
+  "ok": true,
+  "detail": "gemini"
+ },
+ {
+  "check": "Down goes to the first model",
+  "ok": true,
+  "detail": "list item 'Claude Opus 5.5'"
+ },
+ {
+  "check": "Enter chooses it and closes",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "the trigger shows it",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "it is remembered as the last model",
+  "ok": true,
+  "detail": "[{'action': 'remembered', 'model': ['claude-code', 'claude-haiku-5-5']}]"
+ },
+ {
+  "check": "a star's press toggles it",
+  "ok": true,
+  "detail": "False -> True"
+ },
+ {
+  "check": "a failing tab shows its error",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "the effort list opens on the current effort",
+  "ok": true,
+  "detail": "list item 'medium'"
+ },
+ {
+  "check": "Down moves to the next effort",
+  "ok": true,
+  "detail": "list item 'high'"
+ },
+ {
+  "check": "Enter chooses it",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "the slider has focus",
+  "ok": true,
+  "detail": "slider 'Resolution'"
+ },
+ {
+  "check": "Right steps it to High",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "the slider's value is the stop's place",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "check": "Escape closes it back to its trigger",
+  "ok": true,
+  "detail": "button 'Resolution: High (2×)'"
+ }
+]

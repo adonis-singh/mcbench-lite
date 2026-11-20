@@ -1,0 +1,14 @@
+fatal screen Space on Quit: process gone
+== panic: exit 101; stderr: ::crash_later::{closure#0}, ()>::{closure#1} as core::ops::function::FnOnce<()>>::call_once::{shim:vtable#0}   10: <std::sys::thread::unix::Thread>::new::thread_start   11: __pthread_cond_wait  crash log: <TMPDIR> 
+   crash log: crash-1794886855-2763.log crash-signals.log  mcbench-lite 0.1.0 panicked thread: unnamed message: a panic on purpose (--crash panic) location: crates/ui/src/bin/mcbench-ui-dev/main.rs:107:24 pid: 2763  backtrace:    0: <backtrace::capture::Backtrace>::create    1: <backtrace::capture::Backtrace>::new    2: mcbench_ui::crash::install::{closure#
+   windows with a crash dialog: 
+== abort: exit 134; stderr: 
+   crash log: crash-signals.log  mcbench-lite 0.1.0 pid 2788: fatal SIGABRT 
+   windows with a crash dialog: 
+== segv: exit 139; stderr: 
+   crash log: crash-signals.log  mcbench-lite 0.1.0 pid 2813: fatal SIGSEGV 
+   windows with a crash dialog: 
+== objc: exit 134; stderr: fatal runtime error: Rust cannot catch foreign exceptions, aborting 
+   crash log: crash-signals.log  mcbench-lite 0.1.0 pid 2837: fatal SIGABRT 
+   windows with a crash dialog: 
+new DiagnosticReports: 

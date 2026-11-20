@@ -1,0 +1,29 @@
+{
+ "scenario": "blink",
+ "backend": "x11",
+ "first_frame_ms": 617.026,
+ "window_s": 8.0,
+ "frames_in_window": 16,
+ "cpu_percent": 4.625,
+ "key_to_paint_ms": null,
+ "frame_work_ms": {
+  "count": 31,
+  "mean": 2.912,
+  "p50": 0.947,
+  "p99": 36.502,
+  "worst": 36.502
+ },
+ "frame_interval_ms_in_window": {
+  "count": 15,
+  "mean": 500.275,
+  "p50": 496.03799999999956,
+  "p99": 512.0390000000007,
+  "worst": 512.0580000000009
+ },
+ "accessibility": true,
+ "load": [
+  "52.28",
+  "44.92",
+  "31.19"
+ ]
+}

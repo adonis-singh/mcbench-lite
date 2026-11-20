@@ -1,0 +1,519 @@
+# A proposal, not a workflow: nothing runs this file. Copying it to
+# .github/workflows/release.yml in the public repository, which is the
+# owner's step (native/ci/README.md), would build, package, test and
+# assemble a release of the native app on GitHub's free standard runners
+# whenever a tag v<MAJOR.MINOR.PATCH> is pushed, or when started by hand,
+# and would end with a DRAFT GitHub release holding the assets. It never
+# publishes: only the owner publishes the draft. Every job calls the scripts
+# under native/ that are run on the local machines first
+# (native/packaging/README.md).
+#
+# A trial run: a tag trial-<anything> runs every job as a release would,
+# except that the tag need not equal the workspace's version, the sandbox
+# assets need not be published yet (their lock's url may be
+# not-published-yet), and the last job makes no draft release. It is for a
+# first run with staging keys as the two secrets (native/ci/README.md, A
+# trial run). In a private repository, trial or not, ARM Linux is left out
+# (not built, packaged or assembled): set when its build made an instrumented
+# build that needed more memory than a private repository's runner has; it
+# now builds with no profile, which has not been run on such a runner.
+#
+# Secrets, each written to a file for the one step that needs it and never
+# printed: MINISIGN_KEY (the updater's minisign secret key, the whole
+# minisign.key file) and REPO_GPG_KEY (the armoured OpenPGP secret key, with
+# no passphrase, that signs the apt and dnf repositories and the RPMs).
+name: release
+on:
+  push:
+    tags: ["v*", "trial-*"]
+  workflow_dispatch:
+permissions:
+  contents: read
+env:
+  # The address of latest.json that every build compiles in.
+  MCBENCH_UPDATE_FEED: https://github.com/adonis-singh/mcbench-lite/releases/latest/download/latest.json
+jobs:
+  version:
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      linux: ${{ steps.targets.outputs.linux }}
+      only: ${{ steps.targets.outputs.only }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: The updater's public key is tracked
+        run: |
+          [ -f native/packaging/update-key.pub ] || { echo "native/packaging/update-key.pub does not exist: the owner generates the updater's key pair once and commits its public key there (native/packaging/README.md)."; exit 1; }
+      - id: version
+        name: The tag equals the workspace's version
+        run: |
+          version=$(awk '/^\[workspace.package\]/ { p = 1; next } /^\[/ { p = 0 } p && $1 == "version" { gsub(/"/, "", $3); print $3 }' native/Cargo.toml)
+          child=$(awk '/^\[package\]/ { p = 1; next } /^\[/ { p = 0 } p && $1 == "version" { gsub(/"/, "", $3); print $3 }' native/build-child/Cargo.toml)
+          [ "$child" = "$version" ] || { echo "native/build-child/Cargo.toml has $child and the workspace has $version: run native/packaging/set-version.sh."; exit 1; }
+          if [ "$GITHUB_REF_TYPE" = tag ] && [ "${GITHUB_REF_NAME#trial-}" = "$GITHUB_REF_NAME" ]; then
+            [ "$GITHUB_REF_NAME" = "v$version" ] || { echo "The tag is $GITHUB_REF_NAME and the workspace's version is $version."; exit 1; }
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      # The Linux targets, as the build-linux and package-linux matrices, and
+      # release.sh's platforms. A private repository leaves ARM Linux out:
+      # set when its build made an instrumented build, which needed more
+      # memory than a private repository's runner has; its build with no
+      # profile has not been run there (native/ci/README.md, A trial run).
+      - id: targets
+        name: The Linux targets
+        env:
+          PRIVATE: ${{ github.event.repository.private }}
+        run: |
+          x64='{"runner":"ubuntu-24.04","arch":"x86_64"}'
+          arm='{"runner":"ubuntu-24.04-arm","arch":"aarch64"}'
+          if [ "$PRIVATE" = false ]; then
+            echo "linux=[$x64,$arm]" >> "$GITHUB_OUTPUT"
+            echo "only=" >> "$GITHUB_OUTPUT"
+          else
+            echo "linux=[$x64]" >> "$GITHUB_OUTPUT"
+            echo "only=--only macos-aarch64 macos-x86_64 linux-x86_64 windows-x86_64" >> "$GITHUB_OUTPUT"
+          fi
+      - name: The sandbox assets are published
+        if: ${{ !startsWith(github.ref_name, 'trial-') }}
+        run: |
+          [ "$(awk -F'\t' '$1 == "url" { print $2 }' native/sandbox-assets.lock)" != not-published-yet ] || { echo "native/sandbox-assets.lock's url is not-published-yet: the app downloads its shell's files by that lock, so the sandbox assets' release is published and its lock committed before an app release (native/packaging/README.md)."; exit 1; }
+
+  # The Minecraft data bundle, regenerated from Minecraft's own jars and
+  # required to be native/minecraft-data.lock's byte for byte. x86_64,
+  # because the shipped blocks.txt's COS_TAB line is x86_64 HotSpot's.
+  data:
+    needs: version
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+      - run: rustup toolchain install 1.99.1 --profile minimal
+      - name: zstd 1.5.7, the version the lock records
+        run: |
+          cd "$RUNNER_TEMP"
+          curl -fsSL -o zstd.tar.gz https://github.com/facebook/zstd/releases/download/v1.5.7/zstd-1.5.7.tar.gz
+          echo "eb33e51f49a15e023950cd7825ca74a4a2b43db8354825ac24fc1b7ee09e6fa3  zstd.tar.gz" | sha256sum -c --quiet -
+          tar -xzf zstd.tar.gz
+          make -s -C zstd-1.5.7 -j4 zstd
+          mkdir -p bin && cp zstd-1.5.7/zstd bin/
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+      - name: Temurin 25.0.5+8, the JDK server/tools.js pins
+        run: |
+          cd "$RUNNER_TEMP"
+          curl -fsSL -o jdk.tar.gz https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25.0.5%2B8/OpenJDK25U-jdk_x64_linux_hotspot_25.0.5_8.tar.gz
+          echo "68982529869257d0ee6b824ec5aa270ff8b118bb438670da0b97ebdab178d7fb  jdk.tar.gz" | sha256sum -c --quiet -
+          tar -xzf jdk.tar.gz
+      # cache.js reads the pinned tools' list in server/tools.js, which loads
+      # the repository's npm dependencies.
+      - run: npm ci --ignore-scripts
+      - name: The extractor's cache, the regenerate-and-compare test and the COS_TAB check
+        run: |
+          zstd -V
+          jdk="$RUNNER_TEMP/jdk-25.0.5+8"
+          node native/tools/extract/cache.js . "$RUNNER_TEMP/cache" "$jdk"
+          native/tools/extract/regenerate.sh . "$RUNNER_TEMP/cache" "$jdk" "$RUNNER_TEMP/regenerate"
+          native/tools/extract/costab.sh "$RUNNER_TEMP/cache" "$jdk" "$RUNNER_TEMP/regenerate/bundle/files/blocks.txt"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: minecraft-data
+          path: ${{ runner.temp }}/regenerate/bundle/minecraft-data-1.21.10.tar.zst
+          if-no-files-found: error
+
+  # The guest bases rebuilt and compared with native/sandbox-assets.lock,
+  # so a changed agent source or guest recipe is caught before a release
+  # (native/packaging/sandbox-assets.md, Checking). The app downloads every
+  # sandbox asset itself, so no payload holds one.
+  # The guest bases rebuilt and compared with the lock, and the Linux build
+  # child that the Windows payload carries checked to load in the x86_64
+  # guest base (every library it needs is in the base's userland).
+  sandbox:
+    needs: [version, build-linux]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: linux-payload-x86_64
+          path: ${{ runner.temp }}/linux-payload
+      - run: |
+          rustup toolchain install 1.99.1 --profile minimal
+          rustup target add --toolchain 1.99.1 x86_64-unknown-linux-musl aarch64-unknown-linux-musl
+          mkdir "$RUNNER_TEMP/linux" && tar -xf "$RUNNER_TEMP/linux-payload/linux-payload-x86_64.tar" -C "$RUNNER_TEMP/linux" ./mcbench-build-child
+      - run: native/packaging/sandbox-assets.sh check . "$RUNNER_TEMP/assets" --child "$RUNNER_TEMP/linux/mcbench-build-child"
+        env:
+          CARGO_TARGET_DIR: ${{ runner.temp }}/target
+
+  # The updater's release program, for the package and assembly jobs.
+  feed:
+    needs: version
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: rustup toolchain install 1.99.1 --profile minimal
+      # mcbench-feed signs the feed and needs no updater compiled in: the
+      # workflow's MCBENCH_UPDATE_FEED without a key file is refused by the
+      # updater's build script, so it is unset for this one build.
+      - run: env -u MCBENCH_UPDATE_FEED cargo build --release --locked -p mcbench-updater --features feed --bin mcbench-feed
+        working-directory: native
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: mcbench-feed
+          path: native/target/release/mcbench-feed
+          if-no-files-found: error
+
+  # One app per architecture, built, bundled, signed ad hoc and archived
+  # by macos.sh; the archive is the asset install.sh and the updater read.
+  build-macos:
+    needs: data
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { runner: macos-15, target: aarch64-apple-darwin, arch: aarch64 }
+          - { runner: macos-15-intel, target: x86_64-apple-darwin, arch: x86_64 }
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: minecraft-data
+          path: ${{ runner.temp }}/data
+      - run: rustup toolchain install 1.99.1 --profile minimal
+      - run: native/packaging/build/macos.sh . ${{ matrix.target }} "$RUNNER_TEMP/out"
+        env:
+          MCBENCH_DATA_BUNDLE: ${{ runner.temp }}/data/minecraft-data-1.21.10.tar.zst
+          MCBENCH_UPDATE_KEY_FILE: ${{ github.workspace }}/native/packaging/update-key.pub
+          CARGO_TARGET_DIR: ${{ runner.temp }}/target
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: assets-macos-${{ matrix.arch }}
+          path: ${{ runner.temp }}/out/mcbench-lite-macos-${{ matrix.arch }}.tar.gz
+          if-no-files-found: error
+
+  build-linux:
+    needs: [version, data]
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.version.outputs.linux) }}
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: minecraft-data
+          path: ${{ runner.temp }}/data
+      # The container gets as many CPUs as the runner has (two on a private
+      # repository's standard runner, four on a public one's) and the
+      # runner's memory less 1 GiB. A target with no pinned profile (ARM)
+      # builds with no profile and no instrumented build
+      # (native/packaging/build/pgo.md, The three cases); that build's
+      # mcbench-lite rustc peaked at 4.5 GiB on x86_64 (adipc, 2026-11-20).
+      - run: |
+          mem=$(( $(awk '/^MemTotal:/ {print $2}' /proc/meminfo) / 1024 / 1024 - 1 ))
+          CARGO_BUILD_JOBS=$(nproc) MCBENCH_BUILD_MEMORY=${mem}g native/packaging/build/linux.sh . ${{ matrix.arch }} "$RUNNER_TEMP/payload"
+        env:
+          MCBENCH_DATA_BUNDLE: ${{ runner.temp }}/data/minecraft-data-1.21.10.tar.zst
+          MCBENCH_UPDATE_KEY_FILE: ${{ github.workspace }}/native/packaging/update-key.pub
+      - run: tar -cf "$RUNNER_TEMP/linux-payload-${{ matrix.arch }}.tar" -C "$RUNNER_TEMP/payload" .
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: linux-payload-${{ matrix.arch }}
+          path: ${{ runner.temp }}/linux-payload-${{ matrix.arch }}.tar
+          if-no-files-found: error
+
+  # The Windows payload also holds the Linux x86_64 build child, which runs
+  # in the app's WSL distro.
+  build-windows:
+    needs: [data, build-linux]
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: minecraft-data
+          path: ${{ runner.temp }}/data
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: linux-payload-x86_64
+          path: ${{ runner.temp }}/linux-payload
+      # Windows' own tar: Git's reads D:\a\... as a host, or with
+      # --force-local cannot open it as -C.
+      - name: The Linux build child of the payload
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory "$env:RUNNER_TEMP\linux" | Out-Null
+          & "$env:SystemRoot\System32\tar.exe" -xf "$env:RUNNER_TEMP\linux-payload\linux-payload-x86_64.tar" -C "$env:RUNNER_TEMP\linux" ./mcbench-build-child
+          if ($LASTEXITCODE) { exit 1 }
+      - run: rustup toolchain install 1.99.1 --profile minimal
+      - shell: powershell
+        # mcbench-lite.exe is built with the engine's pinned profile
+        # (native/packaging/build/pgo/x86_64-pc-windows-msvc.profdata; native/packaging/build/pgo.md).
+        run: .\native\packaging\build\windows.ps1 -Repository $PWD -LinuxFiles "$env:RUNNER_TEMP\linux" -Out "$env:RUNNER_TEMP\payload"
+        env:
+          MCBENCH_DATA_BUNDLE: ${{ runner.temp }}\data\minecraft-data-1.21.10.tar.zst
+          MCBENCH_UPDATE_KEY_FILE: ${{ github.workspace }}\native\packaging\update-key.pub
+          CARGO_TARGET_DIR: ${{ runner.temp }}\target
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: windows-payload-x64
+          path: ${{ runner.temp }}/payload
+          if-no-files-found: error
+
+  # The Linux archive, .deb, .rpm and AppImage of each architecture, on its
+  # own runner (appimagetool runs natively).
+  package-linux:
+    needs: [version, build-linux]
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.version.outputs.linux) }}
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: linux-payload-${{ matrix.arch }}
+          path: ${{ runner.temp }}/artifact
+      - run: mkdir "$RUNNER_TEMP/payload" && tar -xf "$RUNNER_TEMP/artifact/linux-payload-${{ matrix.arch }}.tar" -C "$RUNNER_TEMP/payload"
+      - name: Package, with the repository key in a file for this step
+        env:
+          REPO_GPG_KEY: ${{ secrets.REPO_GPG_KEY }}
+        run: |
+          key="$RUNNER_TEMP/keys/repo.asc"
+          trap 'rm -rf "$RUNNER_TEMP/keys"' EXIT
+          (umask 077 && mkdir "$RUNNER_TEMP/keys" && printf '%s\n' "$REPO_GPG_KEY" > "$key")
+          unset REPO_GPG_KEY
+          export MCBENCH_LITE_SIGNING_KEY="$key"
+          version=${{ needs.version.outputs.version }}
+          for step in archive deb rpm appimage; do
+            native/packaging/linux/$step.sh "$RUNNER_TEMP/payload" "$version" ${{ matrix.arch }} "$RUNNER_TEMP/out"
+          done
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: assets-linux-${{ matrix.arch }}
+          path: ${{ runner.temp }}/out
+          if-no-files-found: error
+
+  # The NSIS installer (made on Linux by installer.sh, in its pinned
+  # container) and the updater's archive of the Windows x64 payload.
+  package-windows:
+    needs: [version, build-windows, feed]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: windows-payload-x64
+          path: ${{ runner.temp }}/payload
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: mcbench-feed
+          path: ${{ runner.temp }}/bin
+      - run: |
+          chmod 755 "$RUNNER_TEMP/bin/mcbench-feed" "$RUNNER_TEMP/payload/mcbench-lite.exe" "$RUNNER_TEMP/payload/mcbench-build-child"
+          native/packaging/windows/installer.sh "$RUNNER_TEMP/payload" ${{ needs.version.outputs.version }} "$RUNNER_TEMP/out"
+          "$RUNNER_TEMP/bin/mcbench-feed" pack "$RUNNER_TEMP/payload" "$RUNNER_TEMP/out/mcbench-lite-windows-x86_64.tar.gz"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: assets-windows-x64
+          path: ${{ runner.temp }}/out
+          if-no-files-found: error
+
+  # The rollback build (docs/native-app.md, The rollback build: the
+  # extractor run on the user's machine with a bundled Java runtime). It
+  # does not gate the release.
+  rollback:
+    needs: version
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: |
+          if [ ! -f native/packaging/build/rollback.sh ]; then
+            echo "The rollback build is not built yet: native/packaging/build/rollback.sh does not exist."
+            exit 0
+          fi
+          native/packaging/build/rollback.sh . "$RUNNER_TEMP/rollback"
+
+  assemble:
+    needs: [version, feed, build-macos, package-linux, package-windows]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: assets-*
+          path: ${{ runner.temp }}/inputs
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: mcbench-feed
+          path: ${{ runner.temp }}/bin
+      - name: release.sh, with the keys in files for this step
+        env:
+          MINISIGN_KEY: ${{ secrets.MINISIGN_KEY }}
+          REPO_GPG_KEY: ${{ secrets.REPO_GPG_KEY }}
+        run: |
+          chmod 755 "$RUNNER_TEMP/bin/mcbench-feed"
+          export PATH="$RUNNER_TEMP/bin:$PATH"
+          keys="$RUNNER_TEMP/keys"
+          trap 'gpgconf --homedir "$keys/gnupg" --kill all 2> /dev/null; rm -rf "$keys"' EXIT
+          (umask 077 && mkdir -p "$keys/gnupg" && printf '%s\n' "$MINISIGN_KEY" > "$keys/minisign.key")
+          printf '%s\n' "$REPO_GPG_KEY" | gpg --homedir "$keys/gnupg" --batch --quiet --import
+          unset MINISIGN_KEY REPO_GPG_KEY
+          export GNUPGHOME="$keys/gnupg" MCBENCH_SIGNING_KEY_FILE="$keys/minisign.key"
+          MCBENCH_REPO_KEY=$(gpg --batch --list-secret-keys --with-colons | awk -F: '$1 == "fpr" { print $10; exit }')
+          export MCBENCH_REPO_KEY
+          native/packaging/release.sh "$RUNNER_TEMP/inputs" ${{ needs.version.outputs.version }} "$RUNNER_TEMP/out" ${{ needs.version.outputs.only }}
+      - run: tar -cf "$RUNNER_TEMP/release.tar" -C "$RUNNER_TEMP/out" release
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release
+          path: ${{ runner.temp }}/release.tar
+          if-no-files-found: error
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: site
+          path: ${{ runner.temp }}/out/site
+          if-no-files-found: error
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: aur
+          path: ${{ runner.temp }}/out/release/aur
+          include-hidden-files: true
+          if-no-files-found: error
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: winget
+          path: ${{ runner.temp }}/out/release/winget
+          if-no-files-found: error
+
+  # The Linux clean-machine tests as native/packaging/linux/README.md runs
+  # them: stage.sh makes every Linux package of the x86_64 payload with the
+  # staging server's addresses and a staging key, twice (this version and
+  # the next patch, for the upgrade), and machine.sh installs, starts,
+  # upgrades and removes each route in fresh containers.
+  # stage.sh's release.sh signs with keys made here for the test (an OpenPGP
+  # key and a minisign key): the machine tests check the repositories' and
+  # packages' signatures, never latest.json's, so the minisign key need not be
+  # the one compiled into the payload.
+  test-linux:
+    needs: [version, feed, build-linux]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: linux-payload-x86_64
+          path: ${{ runner.temp }}/artifact
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: mcbench-feed
+          path: ${{ runner.temp }}/bin
+      # The runner is Ubuntu 24.04, whose AppArmor keeps unprivileged user
+      # namespaces from bubblewrap in the test containers (machine.sh).
+      - name: Unprivileged user namespaces for the test containers
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+      - run: |
+          version=${{ needs.version.outputs.version }}
+          next="${version%.*}.$((${version##*.} + 1))"
+          t=native/packaging/test/linux
+          mkdir "$RUNNER_TEMP/payload" && tar -xf "$RUNNER_TEMP/artifact/linux-payload-x86_64.tar" -C "$RUNNER_TEMP/payload"
+          chmod 755 "$RUNNER_TEMP/bin/mcbench-feed"
+          export PATH="$RUNNER_TEMP/bin:$PATH"
+          $t/staging-key.sh "$RUNNER_TEMP/staging.asc"
+          mcbench-feed keygen "$RUNNER_TEMP/minisign" >/dev/null
+          export GNUPGHOME="$RUNNER_TEMP/gnupg"
+          (umask 077 && mkdir -p "$GNUPGHOME")
+          gpg --batch --quiet --import "$RUNNER_TEMP/staging.asc"
+          MCBENCH_REPO_KEY=$(gpg --batch --list-secret-keys --with-colons | awk -F: '$1 == "fpr" { print $10; exit }')
+          export MCBENCH_REPO_KEY MCBENCH_SIGNING_KEY_FILE="$RUNNER_TEMP/minisign/minisign.key"
+          export MCBENCH_LITE_SIGNING_KEY="$RUNNER_TEMP/staging.asc" MCBENCH_INSTALL_SH=native/site/install.sh
+          staging="$RUNNER_TEMP/staging"
+          $t/stage.sh "$RUNNER_TEMP/payload" "$version" "$staging"
+          $t/stage.sh "$RUNNER_TEMP/payload" "$next" "$staging"
+          $t/serve.sh start "$staging"
+          trap '$t/serve.sh stop' EXIT
+          results="$RUNNER_TEMP/results"
+          $t/machine.sh debian-12 apt "$staging" "$version" "$next" "$results"
+          $t/machine.sh ubuntu-24.04 apt "$staging" "$version" "$next" "$results"
+          $t/machine.sh fedora dnf "$staging" "$version" "$next" "$results"
+          $t/machine.sh arch aur "$staging" "$version" "$results"
+          $t/machine.sh debian-13 script "$staging" "$version" "$results"
+          $t/machine.sh debian-13 appimage "$staging" "$version" "$results"
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: test-linux
+          path: ${{ runner.temp }}/results
+
+  # A silent per-user install and removal of the x64 installer with the
+  # Windows test's own steps.
+  test-windows:
+    needs: assemble
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release
+          path: ${{ runner.temp }}/artifact
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: windows-payload-x64
+          path: ${{ runner.temp }}/payload
+      - shell: powershell
+        run: |
+          & "$env:SystemRoot\System32\tar.exe" -xf "$env:RUNNER_TEMP\artifact\release.tar" -C "$env:RUNNER_TEMP"
+          if ($LASTEXITCODE) { exit 1 }
+          New-Item -ItemType Directory -Force C:\mcb\results | Out-Null
+          Get-ChildItem "$env:RUNNER_TEMP\payload" | ForEach-Object { "{0}  {1}" -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower(), $_.Name } | Set-Content C:\mcb\expect.txt
+          .\native\packaging\test\windows\guest\vm-test.ps1 install "$env:RUNNER_TEMP\release\mcbench-lite-setup-x64.exe" C:\mcb\expect.txt
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          # The app is not started here, so a person's data folder is made by
+          # hand: the uninstall must keep it and the file in it.
+          New-Item -ItemType Directory -Force "$env:LOCALAPPDATA\mcbench-lite" | Out-Null
+          Set-Content "$env:LOCALAPPDATA\mcbench-lite\a-person-s-file.txt" 'kept by the uninstall'
+          .\native\packaging\test\windows\guest\vm-test.ps1 uninstall
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          if (-not (Test-Path "$env:LOCALAPPDATA\mcbench-lite\a-person-s-file.txt")) { Write-Output 'the uninstall removed a file from the data folder'; exit 1 }
+
+  # install.sh, the page's macOS command, against the assembled release
+  # served on this runner's 127.0.0.1 (native/packaging/test/macos/release-install.sh).
+  test-macos:
+    needs: assemble
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release
+          path: ${{ runner.temp }}/artifact
+      - run: |
+          tar -xf "$RUNNER_TEMP/artifact/release.tar" -C "$RUNNER_TEMP"
+          native/packaging/test/macos/release-install.sh "$RUNNER_TEMP/release" "$RUNNER_TEMP/macos-test" 3190
+
+  # The draft release: the only job that may write to the repository. The
+  # owner reads it and publishes it, or deletes it.
+  draft:
+    needs: [version, sandbox, assemble, test-linux, test-windows, test-macos]
+    if: ${{ !startsWith(github.ref_name, 'trial-') }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release
+          path: ${{ runner.temp }}/artifact
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=${{ needs.version.outputs.version }}
+          tar -xf "$RUNNER_TEMP/artifact/release.tar" -C "$RUNNER_TEMP"
+          # The files directly in release/ are the assets; aur/ and winget/ are not.
+          find "$RUNNER_TEMP/release" -maxdepth 1 -type f -print0 | sort -z |
+            xargs -0 gh release create "v$version" --draft --target "$GITHUB_SHA" \
+              --title "mcbench-lite $version" --notes-file native/packaging/RELEASE-NOTES.md

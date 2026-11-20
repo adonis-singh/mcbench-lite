@@ -1,0 +1,12 @@
+# pane agent, 2026-11-18, adipc: verify/linux/all.sh's pane block on the dev binary of s4-pane after ebc6e08a (the cover's Preparing the live world, a double click in player mode)
+ok      player mode stands beside the build
+ok      a click takes the pointer (the lock): [{'action': 'pointer', 'captured': True, 'yaw': -90.0}]
+ok      the look follows relative motion past the window's edge (2000 px moved, more than the window's width): yaw turned 300.0 degrees
+ok      Escape frees the pointer first: [{'action': 'pointer', 'captured': True, 'yaw': -90.0}, {'action': 'pointer', 'captured': False}]
+ok      player mode stays after that Escape
+ok      a second click takes it again: [{'action': 'pointer', 'captured': True, 'yaw': 210.00001525878906}]
+ok      the seat has no keyboard now (sway's capabilities have no keyboard bit): [1]
+ok      the window losing focus frees the pointer: [{'action': 'pointer', 'captured': True, 'yaw': 210.00001525878906}, {'action': 'pointer', 'captured': False}]; sway's focused window and foot running: ('foot', True)
+ok      locked again before quitting: [{'action': 'pointer', 'captured': True, 'yaw': 210.00001525878906}]
+ok      quitting while locked ends the app within a second: 0.09 s
+10 of 10 passed

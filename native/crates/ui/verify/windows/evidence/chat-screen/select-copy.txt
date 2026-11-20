@@ -1,0 +1,4 @@
+double-click 'sign': clipboard=[sign]
+triple-click paragraph: clipboard=[Each sign line holds at most fifteen characters, so the longer lines wrap onto a second sign.]
+drag across messages: clipboard=[Here is the view from the south-east after the change:
+ctrl-a ctrl-c: clipboard=[Build a redstone lamp that turns on with a lever, and explain what you placed.

@@ -1,0 +1,8 @@
+D one chat running (--running chat-gate), composer focused, trace binary (C:\winvm\gui\132035-494.log):  14:21:00 up 3 days,  1:24,  4 users,  load average: 4.11, 3.11, 2.99
+20 s: 387 presents (1226 frame callbacks), CPU 37,391 ms = 186.69% of one core
+D one chat running, plain binary:  14:21:53 up 3 days,  1:25,  4 users,  load average: 2.75, 2.94, 2.94
+mcbench-ui-dev: 37,797 ms CPU in 20,027 ms = 188.73% of one core; working set 61 MB
+D' one chat running, window inactive, plain binary:  14:22:20 up 3 days,  1:26,  4 users,  load average: 1.97, 2.74, 2.87
+mcbench-ui-dev: 40,516 ms CPU in 20,022 ms = 202.35% of one core; working set 61 MB
+A composer focused idle, plain binary:  14:23:12 up 3 days,  1:27,  4 users,  load average: 1.77, 2.57, 2.81
+mcbench-ui-dev: 63 ms CPU in 20,025 ms = 0.31% of one core; working set 58 MB

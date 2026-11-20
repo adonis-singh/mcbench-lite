@@ -1,0 +1,6 @@
+== launch 1 (NVDA running first, window not activated)
+Speaking ['Desktop', 'list']
+Speaking ['Recycle Bin', 'not selected', '1 of 3']
+== launch 2 (NVDA running first, window not activated)
+Speaking ['Desktop', 'list']
+Speaking ['Recycle Bin', 'not selected', '1 of 3']

@@ -1,0 +1,8 @@
+element: Text name="Code" lct="text" id="" fw="AccessKit" enabled=1 kbfocusable=0 focus=0 offscreen=0 ctl=1 content=1 rect=[324,315,976x54] set=0/9 patterns=[Value,Text,LegacyIAccessible] value="world.fill((0, 0, 0), (2, 0, 2), \"stone\");\nworld.set((1, 1, 1), \"redstone_lamp\");\nworld.set((0, 1, 1), \"lever[face=floor,facing=west]\");" readonly=1 text="world.fill((0, 0, 0), (2, 0, 2), \"stone\");\nworld.set((1, 1, 1), \"redstone_lamp\");\nworld.set((0, 1, 1), \"lever[face=floor,facing=west]\");"
+document: "world.fill((0, 0, 0), (2, 0, 2), \"stone\");\nworld.set((1, 1, 1), \"redstone_lamp\");\nworld.set((0, 1, 1), \"lever[face=floor,facing=west]\");" (136 UTF-16 units)
+supported selection: 0
+line[0] = "world.fill((0, 0, 0), (2, 0, 2), \"stone\");\n"
+line[1] = "world.set((1, 1, 1), \"redstone_lamp\");\n"
+line[2] = "world.set((0, 1, 1), \"lever[face=floor,facing=west]\");"
+line count: 3
+caret: no TextPattern2

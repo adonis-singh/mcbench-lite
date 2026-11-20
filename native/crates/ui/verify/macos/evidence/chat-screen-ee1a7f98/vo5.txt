@@ -1,0 +1,26 @@
+== the fold
+Tab (to the fold)	Worked · 2 steps collapsed button 
+focused 0.0.2.1.0
+AXExpanded False actions ['AXPress']
+VO-Space (expand)	 
+(1.5 s later)	You are currently on a button, inside of a article. To click this button, press Control-Option-Space. To exit this group, press Control-Option-Shift-Up Arrow. 
+AXExpanded True
+Space (collapse)	You are currently on a button, inside of a article. To click this button, press Control-Option-Space. To exit this group, press Control-Option-Shift-Up Arrow. 
+(1.5 s later)	You are currently on a button, inside of a article. To click this button, press Control-Option-Space. To exit this group, press Control-Option-Shift-Up Arrow. 
+AXExpanded False
+after AXPress AXExpanded True
+{"action":"toggled","key":"1:1:activity","open":false}
+{"action":"toggled","key":"1:1:activity","open":true}
+{"action":"toggled","key":"1:1:activity","open":false}
+== Send with VO-Space, focus kept, the end-of-turn announcement
+Tab (to Send)	Send button 
+VO-Space (Send)	Message edit text 
+focus after Send: ['Message']
+during turn	You are currently on a text area. 
+during turn	You are currently on a text area. 
+during turn	You are currently on a text area. 
+during turn	You are currently on a text area. 
+during turn	You are currently on a text area. 
+after the turn	You are currently on a text area. 
+{"action":"toggled","key":"1:1:activity","open":false}
+{"action":"sent","text":"Add a torch"}

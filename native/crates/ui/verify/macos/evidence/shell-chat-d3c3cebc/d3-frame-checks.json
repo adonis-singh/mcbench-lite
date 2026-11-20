@@ -1,0 +1,136 @@
+[
+ {
+  "note": "the screen and its visible area (top-left coordinates: x, top, width, height)",
+  "seen": [
+   1440,
+   900,
+   0,
+   30,
+   1440,
+   870
+  ]
+ },
+ {
+  "check": "the first window lies inside the visible area",
+  "ok": true,
+  "seen": [
+   [
+    80,
+    55
+   ],
+   [
+    1280,
+    820
+   ]
+  ]
+ },
+ {
+  "check": "and is centred in it",
+  "ok": true,
+  "seen": [
+   [
+    80,
+    55
+   ],
+   [
+    1280,
+    820
+   ]
+  ]
+ },
+ {
+  "note": "the frame at each start",
+  "seen": [
+   [
+    [
+     80,
+     55
+    ],
+    [
+     1280,
+     820
+    ]
+   ],
+   [
+    [
+     80,
+     55
+    ],
+    [
+     1280,
+     820
+    ]
+   ],
+   [
+    [
+     80,
+     55
+    ],
+    [
+     1280,
+     820
+    ]
+   ],
+   [
+    [
+     80,
+     55
+    ],
+    [
+     1280,
+     820
+    ]
+   ]
+  ]
+ },
+ {
+  "check": "three restarts keep the same frame",
+  "ok": true,
+  "seen": [
+   [
+    [
+     80,
+     55
+    ],
+    [
+     1280,
+     820
+    ]
+   ],
+   [
+    [
+     80,
+     55
+    ],
+    [
+     1280,
+     820
+    ]
+   ],
+   [
+    [
+     80,
+     55
+    ],
+    [
+     1280,
+     820
+    ]
+   ],
+   [
+    [
+     80,
+     55
+    ],
+    [
+     1280,
+     820
+    ]
+   ]
+  ]
+ },
+ {
+  "note": "the preferences file",
+  "seen": "{\"light\":false,\"sidebarOpen\":true,\"sidebarWidth\":236.0,\"chatWidth\":null,\"binds\":{},\"benchMode\":false,\"lastModel\":[\"anthropic\",\"claude-opus-5-5\"],\"lastResolution\":1,\"place\":\"/chat/chat-lamp\",\"window\":{\"display\":\"9a0911c6-7b3d-4140-93fb-de91cce602db\",\"x\":80.0,\"y\":55.0,\"width\":1280.0,\"height\":820.0},\"openBenches\":[],\"promptsOpen\":true}"
+ }
+]

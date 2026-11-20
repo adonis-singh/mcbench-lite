@@ -1,0 +1,6 @@
+Narrator started, composer: clipboard=[Redstone lamp with a lever £ mcbench-lite region, Message, edit, ] 
+Ctrl+K: clipboard=[Recent builds group, Redstone lamp with a lever, 1 of 11, selected,  
+palette Down: clipboard=[Castle gate, ] 
+model trigger: clipboard=[Chat model: claude-opus-5-5, button, collapsed, claude-opus-5-5, has popup, ] 
+picker open: clipboard=[Chat model dialog, Search models, edit, Search models..., ] 
+chat row 3: clipboard=[Chats list, Wheat farm, Finished, not opened yet, Resolution: Very high (5x), 3 of 3, ] 

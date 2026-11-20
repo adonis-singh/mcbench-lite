@@ -1,0 +1,1 @@
+    Button name="Remove attachment" lct="button" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=1 rect=[492,712,22x22] patterns=[Invoke,LegacyIAccessible]

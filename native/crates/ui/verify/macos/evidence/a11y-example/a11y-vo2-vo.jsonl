@@ -1,0 +1,17 @@
+{"step": 0, "keys": "123 ctrl,alt", "phrase": "Enable feature off switch"}
+{"step": 1, "keys": "123 ctrl,alt", "phrase": "Reset counter button, group"}
+{"step": 2, "keys": "123 ctrl,alt", "phrase": "0 Counter: 0 stepper"}
+{"step": 3, "keys": "123 ctrl,alt", "phrase": "Accessibility Demo Heading"}
+{"step": 4, "keys": "123 ctrl,alt", "phrase": "Accessibility Demo Heading"}
+{"step": 5, "keys": "124 ctrl,alt", "phrase": "0 Counter: 0 stepper"}
+{"step": 6, "keys": "124 ctrl,alt", "phrase": "Reset counter button, group"}
+{"step": 7, "keys": "49 ctrl,alt", "phrase": "You are currently on a button, group, inside of a group. To click this button, press Control-Option-Space. To exit this group, press Control-Option-Shift-Up Arrow."}
+{"step": 8, "keys": "124 ctrl,alt", "phrase": "Enable feature off switch"}
+{"step": 9, "keys": "49 ctrl,alt", "phrase": "You are currently on a switch, inside of a group. To toggle this switch, press Control-Option-Space. To exit this group, press Control-Option-Shift-Up Arrow."}
+{"step": 10, "keys": "124 ctrl,alt", "phrase": "Enable feature"}
+{"step": 11, "keys": "49 ctrl,alt", "phrase": ""}
+{"step": 12, "keys": "124 ctrl,alt", "phrase": "Tasks list"}
+{"step": 13, "keys": "124 ctrl,alt", "phrase": "Tasks list"}
+{"step": 14, "keys": "125 ctrl,alt,shift", "phrase": "In Tasks list Write code group (1 of 3)"}
+{"step": 15, "keys": "124 ctrl,alt", "phrase": "Run tests group (2 of 3)"}
+{"step": 16, "keys": "124 ctrl,alt", "phrase": "Ship it group (3 of 3)"}

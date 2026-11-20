@@ -1,0 +1,34 @@
+Full Linux run at s4-gate ae3f1c6b with check_actions and check_keyboard matching message names by their start (2026-11-17, adipc, CPUs 24-31, debug build): every check on X11 (Xvfb) and Wayland (headless cage), Orca on X11.
+
+check_actions-wayland        app exit 0 check exit 0 | 37 of 37 passed
+check_actions-x11            app exit 0 check exit 0 | 37 of 37 passed
+check_keyboard-wayland       app exit 0 check exit 0 | 46 of 46 passed
+check_keyboard-x11           app exit 0 check exit 0 | 46 of 46 passed
+check_long-wayland           app exit 0 check exit 0 | 4 of 4 passed
+check_long-x11               app exit 0 check exit 0 | 4 of 4 passed
+check_orca-x11               app exit 0 check exit 0 | 15 of 15 passed
+check_quit-wayland           app exit 0 check exit 0 | 2 of 2 passed
+check_quit-x11               app exit 0 check exit 0 | 2 of 2 passed
+check_selection-wayland      app exit 0 check exit 0 | 9 of 9 passed
+check_selection-x11          app exit 0 check exit 0 | 9 of 9 passed
+check_text-wayland           app exit 0 check exit 0 | 177 of 177 passed
+check_text-x11               app exit 0 check exit 0 | 177 of 177 passed
+check_tree-wayland           app exit 0 check exit 0 | 1 of 1 passed
+check_tree-x11               app exit 0 check exit 0 | 1 of 1 passed
+
+Each run's privacy proof (session.sh):
+check_actions-wayland private: snapshots equal, 0 findings, samples: 51 processes after: none
+check_actions-x11 private: snapshots equal, 0 findings, samples: 52 processes after: none
+check_keyboard-wayland private: snapshots equal, 0 findings, samples: 64 processes after: none
+check_keyboard-x11 private: snapshots equal, 0 findings, samples: 68 processes after: none
+check_long-wayland private: snapshots equal, 0 findings, samples: 197 processes after: none
+check_long-x11 private: snapshots equal, 0 findings, samples: 118 processes after: none
+check_orca-x11 private: snapshots equal, 0 findings, samples: 78 processes after: none
+check_quit-wayland private: snapshots equal, 0 findings, samples: 10 processes after: none
+check_quit-x11 private: snapshots equal, 0 findings, samples: 10 processes after: none
+check_selection-wayland private: snapshots equal, 0 findings, samples: 33 processes after: none
+check_selection-x11 private: snapshots equal, 0 findings, samples: 34 processes after: none
+check_text-wayland private: snapshots equal, 0 findings, samples: 22 processes after: none
+check_text-x11 private: snapshots equal, 0 findings, samples: 23 processes after: none
+check_tree-wayland private: snapshots equal, 0 findings, samples: 19 processes after: none
+check_tree-x11 private: snapshots equal, 0 findings, samples: 21 processes after: none

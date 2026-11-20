@@ -1,0 +1,8 @@
+no UIA client, load: load average: 10.59, 11.48, 11.34
+mcbench-ui-dev: 4,797 ms CPU in 20,029 ms = 23.95% of one core; working set 56 MB
+UIA client attached (uia-probe events, focus/property/structure/text handlers), load: load average: 10.61, 11.36, 11.31
+mcbench-ui-dev: 4,953 ms CPU in 20,044 ms = 24.71% of one core; working set 57 MB
+window inactive (desktop clicked), load: load average: 13.30, 12.05, 11.55
+mcbench-ui-dev: 4,875 ms CPU in 20,041 ms = 24.32% of one core; working set 55 MB
+gpui-pre examples/a11y.rs for comparison, load: load average: 12.59, 12.00, 11.55
+a11y-example: 172 ms CPU in 20,032 ms = 0.86% of one core; working set 31 MB

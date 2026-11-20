@@ -1,0 +1,12 @@
+#!/bin/sh
+# The .deb's postinst: on a system whose kernel restricts unprivileged user
+# namespaces through AppArmor (Ubuntu 24.04 and later) and that has
+# apparmor_parser, installs the app's AppArmor profile as
+# /etc/apparmor.d/mcbench-lite and loads it (README.md, Ubuntu's AppArmor and
+# bubblewrap). Elsewhere (Debian, whose kernels do not restrict them, and
+# Debian 12, whose AppArmor 3.0 cannot read the profile) it does nothing.
+set -e
+if [ "$1" = configure ] && [ "$(cat /proc/sys/kernel/apparmor_restrict_unprivileged_userns 2>/dev/null)" = 1 ] && command -v apparmor_parser >/dev/null; then
+  install -m 644 /usr/share/mcbench-lite/apparmor/mcbench-lite /etc/apparmor.d/mcbench-lite
+  apparmor_parser -r -T -W /etc/apparmor.d/mcbench-lite
+fi

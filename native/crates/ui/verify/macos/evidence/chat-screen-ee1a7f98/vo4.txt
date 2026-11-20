@@ -1,0 +1,33 @@
+== find commands from the top of the window (VO-Home), chat scrolled to its first message
+VO-Home	You article 
+VO-Cmd-H	heading level 1 A lamp on a lever 
+VO-Cmd-H	heading level 2 What was placed 
+VO-Cmd-H	heading level 2 The program 
+VO-Cmd-H	heading level 2 Blocks used 
+VO-Cmd-H	Last heading heading level 2 Blocks used 
+VO-Home	heading level 1 A lamp on a lever 
+VO-Cmd-L	the wiki page on lamps link 
+VO-Cmd-L	Last link the wiki page on lamps link 
+VO-Home	heading level 1 A lamp on a lever 
+VO-Cmd-X	A stone base, three by three 
+VO-Cmd-X	powered from below 
+VO-Home	heading level 1 A lamp on a lever 
+VO-Cmd-T	You are currently on a table, inside of a article. To enter this table, press Control-Option-Shift-Down Arrow. To exit this group, press Control-Option-Shift-Up Arrow. 
+== the table, cell by cell
+VO-Shift-Down	In table Block column 1, row 1 
+VO-Right	Count column 2, row 1 
+VO-Right	Light column 3, row 1 
+VO-Down	0 
+VO-Left	Count 9 
+VO-Left	Block stone 
+VO-Down	redstone_lamp 
+VO-Right	Count 1 
+VO-Shift-Up	Out of table 
+in tree: 0.0.2.2.0 AXHeading A lamp on a lever 1
+in tree: 0.0.2.2.1.2 AXLink the wiki page on lamps 
+in tree: 0.0.2.2.2 AXHeading What was placed 2
+in tree: 0.0.2.2.3 AXList None 
+in tree: 0.0.2.2.3.1.1 AXList None 
+in tree: 0.0.2.2.4 AXHeading The program 2
+in tree: 0.0.2.2.7 AXHeading Blocks used 2
+in tree: 0.0.2.2.8 AXTable None 

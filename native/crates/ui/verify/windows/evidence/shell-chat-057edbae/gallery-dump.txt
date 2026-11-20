@@ -1,0 +1,40 @@
+Window name="Gallery · mcbench-lite" lct="region" id="" class="Zed::Window" fw="AccessKit" enabled=1 kbfocusable=1 focus=1 offscreen=0 ctl=1 content=1 rect=[32,21,1296x859] patterns=[Window,Transform,LegacyIAccessible]
+  TitleBar name="" lct="title bar" id="TitleBar" enabled=1 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=0 rect=[56,24,1264x28] patterns=[Value,LegacyIAccessible] value="Gallery · mcbench-lite" readonly=0
+    MenuBar name="System" lct="menu bar" id="SystemMenuBar" enabled=1 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=0 rect=[40,29,22x22] accesskey="Alt+Space" patterns=[LegacyIAccessible]
+      MenuItem name="System" lct="menu item" id="" enabled=1 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=1 rect=[40,29,22x22] set=1/1 accesskey="Space" patterns=[Invoke,ExpandCollapse,LegacyIAccessible] expand=Collapsed
+    Button name="Minimize" lct="button" id="Minimize-Restore" enabled=1 kbfocusable=0 focus=0 offscreen=0 ctl=1 content=0 rect=[1181,22,47x30] patterns=[Invoke,LegacyIAccessible]
+    Button name="Maximize" lct="button" id="Maximize-Restore" enabled=1 kbfocusable=0 focus=0 offscreen=0 ctl=1 content=0 rect=[1228,22,46x30] patterns=[Invoke,LegacyIAccessible]
+    Button name="Close" lct="button" id="Close" enabled=1 kbfocusable=0 focus=0 offscreen=0 ctl=1 content=0 rect=[1274,22,47x30] patterns=[Invoke,LegacyIAccessible]
+  Button name="Raised" lct="button" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=1 rect=[64,107,67x37] patterns=[Invoke,LegacyIAccessible]
+  Button name="Raised, disabled" lct="button" id="" fw="AccessKit" enabled=0 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=1 rect=[141,107,123x37] patterns=[LegacyIAccessible]
+  Button name="Primary" lct="button" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=1 rect=[274,107,74x37] patterns=[Invoke,LegacyIAccessible]
+  Button name="Primary, disabled" lct="button" id="" fw="AccessKit" enabled=0 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=1 rect=[358,107,130x37] patterns=[LegacyIAccessible]
+  Button name="Delete for good" lct="button" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=1 rect=[498,107,122x37] patterns=[Invoke,LegacyIAccessible]
+  Button name="Ghost" lct="button" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=1 rect=[630,109,68x32] patterns=[Invoke,LegacyIAccessible]
+  Button name="Run bench" lct="button" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=1 rect=[64,197,89x30] patterns=[Invoke,LegacyIAccessible]
+  Button name="Run bench, disabled" lct="button" id="" fw="AccessKit" enabled=0 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=1 rect=[163,197,143x30] patterns=[LegacyIAccessible]
+  Button name="Share" lct="button" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=1 rect=[316,197,81x30] patterns=[Invoke,LegacyIAccessible]
+  Button name="Share, open" lct="button" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=1 rect=[407,197,117x30] patterns=[Invoke,LegacyIAccessible]
+  Button name="Remove" lct="button" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=1 rect=[534,197,95x30] description="Take the public page down" patterns=[Invoke,LegacyIAccessible]
+  Button name="New chat" lct="button" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=1 rect=[64,280,32x32] patterns=[Invoke,LegacyIAccessible]
+  Button name="Collapse sidebar" lct="button" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=1 rect=[106,280,32x32] patterns=[Invoke,LegacyIAccessible]
+  Button name="Settings, disabled" lct="button" id="" fw="AccessKit" enabled=0 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=1 rect=[148,280,32x32] patterns=[LegacyIAccessible]
+  Button name="Copy code" lct="button" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=1 rect=[187,280,32x32] description="Copy code" patterns=[Invoke,LegacyIAccessible]
+  Button name="Show the grid" lct="button" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=1 rect=[226,284,38x24] patterns=[Toggle,LegacyIAccessible] toggle=On
+  Group name="Hover for a tip" lct="group" id="" fw="AccessKit" enabled=1 kbfocusable=0 focus=0 offscreen=0 ctl=1 content=1 rect=[274,280,107x33] description="Tokens used in this chat, and the context window" patterns=[LegacyIAccessible]
+  Button name="Effort: medium" lct="button" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=1 rect=[64,366,117x32] description="How hard the model thinks" patterns=[ExpandCollapse,LegacyIAccessible] expand=Collapsed
+  Text name="Near weekly limit" lct="text" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=1 rect=[175,606,111x22] description="Resets at 3:40 PM" patterns=[LegacyIAccessible]
+  ProgressBar name="84% of context · 840k of 1M tokens" lct="progress bar" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=1 rect=[289,604,26x26] description="84% of context · 840k of 1M tokens" patterns=[RangeValue,LegacyIAccessible] range=84 min=0 max=100 step=0 readonly=1
+  Button name="Resolution: Standard" lct="button" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=1 rect=[318,601,76x32] patterns=[ExpandCollapse,LegacyIAccessible] expand=Collapsed
+  Button name="Chat model: claude-opus-5-5" lct="button" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=1 rect=[397,601,141x32] description="claude-opus-5-5" patterns=[ExpandCollapse,LegacyIAccessible] expand=Collapsed
+  Button name="Reasoning effort: medium" lct="button" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=1 rect=[541,601,79x32] patterns=[ExpandCollapse,LegacyIAccessible] expand=Collapsed
+  Button name="Resolution: High (2×) (set when the bench was made)" lct="button" id="" fw="AccessKit" enabled=0 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=1 rect=[212,647,76x32] patterns=[LegacyIAccessible]
+  Text name="2×" lct="text" id="" fw="AccessKit" enabled=1 kbfocusable=0 focus=0 offscreen=0 ctl=1 content=1 rect=[298,655,14x16] description="Resolution: High (2×)" patterns=[LegacyIAccessible]
+  Text name="5×" lct="text" id="" fw="AccessKit" enabled=1 kbfocusable=0 focus=0 offscreen=0 ctl=1 content=1 rect=[322,655,14x16] description="Resolution: Very high (5×)" patterns=[LegacyIAccessible]
+  Text name="10×" lct="text" id="" fw="AccessKit" enabled=1 kbfocusable=0 focus=0 offscreen=0 ctl=1 content=1 rect=[346,655,18x16] description="Resolution: Maximum (10×)" patterns=[LegacyIAccessible]
+  ProgressBar name="95% of context · 190k of 200k tokens" lct="progress bar" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=1 rect=[374,650,26x26] description="95% of context · 190k of 200k tokens" patterns=[RangeValue,LegacyIAccessible] range=95 min=0 max=100 step=0 readonly=1
+  Text name="Near 5-hour limit" lct="text" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=1 rect=[410,652,111x22] description="Resets at 3:40 PM" patterns=[LegacyIAccessible]
+  Text name="weekly Opus limit reached" lct="text" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=1 rect=[531,652,158x22] description="Resets at 3:40 PM" patterns=[LegacyIAccessible]
+  Button name="Choose chat model" lct="button" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=1 rect=[173,693,137x32] patterns=[ExpandCollapse,LegacyIAccessible] expand=Collapsed
+elements: 38 (view control)
+exit=0 

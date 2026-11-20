@@ -1,0 +1,6 @@
+d":"com.apple.inputmethod.Kotoeri.RomajiTyping.Japanese","selected":1}
+1
+preedit: 日本語 [3, 0]
+committed: 日本語 [0, 3]
+{"action":"copied","text":"Block\tCount\tLight\nstone\t9\t0\nredstone_lamp\t1\t15\nlever\t1\t0\nA lamp only needs power fro"}
+d":"com.apple.keylayout.US","selected":1}

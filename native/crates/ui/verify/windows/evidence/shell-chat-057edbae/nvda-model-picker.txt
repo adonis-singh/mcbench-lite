@@ -1,0 +1,25 @@
+Speaking [LangChangeCommand ('en'), 'Chat model: claude-opus-5-5', 'button', 'collapsed', 'claude-opus-5-5', CancellableSpeech (still valid)]
+Input: kb(desktop):enter
+Speaking [LangChangeCommand ('en'), 'expanded']
+Speaking [LangChangeCommand ('en'), 'Chat model', 'dialog', CancellableSpeech (still valid)]
+Speaking [LangChangeCommand ('en'), 'Search models', 'edit', 'Search models...', CancellableSpeech (still valid), 'blank']
+Input: kb(desktop):shift+tab
+Speaking [LangChangeCommand ('en'), 'Set up providers', 'button', CancellableSpeech (still valid)]
+Input: kb(desktop):shift+tab
+Speaking [LangChangeCommand ('en'), 'Providers', 'tab control', CancellableSpeech (still valid)]
+Speaking [LangChangeCommand ('en'), 'Claude Code harness: its own agent loop with mcbench tools attached', 'tab', CancellableSpeech (still valid)]
+Input: kb(desktop):downArrow
+Input: kb(desktop):tab
+Speaking [LangChangeCommand ('en'), 'Set up providers', 'button', CancellableSpeech (still valid)]
+Input: kb(desktop):g
+Input: kb(desktop):p
+Input: kb(desktop):t
+Input: kb(desktop):downArrow
+Input: kb(desktop):downArrow
+Input: kb(desktop):tab
+Speaking [LangChangeCommand ('en'), 'Search models', 'edit', 'Search models...', CancellableSpeech (still valid), 'blank']
+Input: kb(desktop):enter
+Input: kb(desktop):shift+tab
+Speaking [LangChangeCommand ('en'), 'Set up providers', 'button', CancellableSpeech (still valid)]
+Input: kb(desktop):enter
+Speaking [LangChangeCommand ('en'), 'Settings', 'dialog', CancellableSpeech (still valid)]

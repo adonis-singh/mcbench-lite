@@ -1,0 +1,6 @@
+test window_list_and_controls ... ok
+test messages_and_markdown ... ok
+test a_cached_view_keeps_its_accessibility_subtree ... ok
+test folds_tool_rows_and_activation ... ok
+test tab_walks_list_transcript_composer_send ... ok
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s

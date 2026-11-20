@@ -36,9 +36,20 @@ fn to8(c: vec4<f32>) -> vec4<f32> {
   return floor(clamp(c, vec4<f32>(0.0), vec4<f32>(1.0)) * 255.0 + 0.5) / 255.0;
 }
 
-// The quads (scene.rs Instance, 100 bytes): corners f32 x12, texture
+// The quads (scene.rs Instance, 108 bytes): corners f32 x12, texture
 // coordinates f32 x8, the corners' halved shade unorm16 x4, the tint
-// unorm16 x4, the overlay unorm8 x4; 25 words each.
+// unorm16 x4, the overlay unorm8 x4, and each corner's sky and block light
+// u8 x8 (16 a level, as Minecraft packs a lightmap coordinate; corner k's
+// at bytes 2k and 2k + 1 of words 25 and 26), which the day's shading does
+// not read; 27 words each.
+const QUAD_WORDS = 27u;
+
+// A corner's sky and block light levels (0 to 15).
+fn corner_light(base: u32, k: u32) -> vec2<f32> {
+  let word = quads[base + 25u + k / 2u];
+  let pair = (word >> (16u * (k % 2u))) & 0xffffu;
+  return vec2<f32>(f32(pair & 0xffu), f32(pair >> 8u)) / 16.0;
+}
 @group(2) @binding(0) var<storage, read> quads: array<u32>;
 // The translucent quads' order for the shot's camera (Minecraft's
 // translucency sort), as indices into `quads`.
@@ -79,7 +90,7 @@ fn vs_ordered(@builtin(vertex_index) v: u32) -> VertexOut {
 }
 
 fn quad_vertex(q: u32, k: u32) -> VertexOut {
-  let base = q * 25u;
+  let base = q * QUAD_WORDS;
   var corners = array<u32, 6>(0u, 1u, 2u, 0u, 2u, 3u);
   let corner = corners[k];
   let c0 = corner_of(base, 0u);

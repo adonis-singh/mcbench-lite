@@ -1,0 +1,67 @@
+[package]
+name = "mcbench-ui"
+description = "The native interface: the window, the chat screen, and the seam with the core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "mcbench-ui-dev"
+path = "src/bin/mcbench-ui-dev/main.rs"
+
+[features]
+real-pane = ["dep:mcbench-draw"]
+# Test hooks for staging builds (`src/proof.rs`: MCBENCH_UI_PANIC_AFTER_MS).
+# Release scripts must not enable it.
+proof-hooks = []
+
+[dependencies]
+mcbench-agent.workspace = true
+mcbench-store.workspace = true
+mcbench-setup.workspace = true
+mcbench-world.workspace = true
+# pane agent: the live view's types (`mcbench_render::live`), serde only.
+mcbench-render.workspace = true
+serde_json.workspace = true
+# pane agent: the dev binary's real renderer (`--blueprint`), feature
+# `real-pane` only.
+mcbench-draw = { workspace = true, optional = true }
+# GPUI (gpui-pre 0.3.12) and its components, vendored under native/vendor.
+gpui-kit = "=0.10.0"
+# Markdown to an mdast tree with GitHub's extensions (tables, strike).
+markdown = "=1.0.0"
+futures = "=0.3.34"
+backtrace = "=0.3.77"
+unicode-segmentation = "=1.13.3"
+regex = "=1.13.1"
+# chat (stage four's chat agent), each already in the lock through GPUI or
+# the core: an attached picture redrawn as JPEG (`state::upload`), a copied
+# message's files as data URLs (`state::clipboard`), the local date of the
+# placeholder's seasonal ideas (`state::ideas`).
+image = "=0.25.10"
+# chat-fix: the redrawn picture's JPEG at 4:2:0, as the page's canvas
+# (libjpeg-turbo) writes it; the version the drawing crate (native/draw)
+# already uses.
+jpeg-encoder = "=0.7.1"
+base64 = "=0.22.1"
+chrono = { version = "=0.4.45", default-features = false, features = ["clock"] }
+
+[target.'cfg(unix)'.dependencies]
+libc = "=0.2.191"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "=0.61.2", features = ["Win32_Foundation", "Win32_System_Diagnostics_Debug", "Win32_System_Kernel", "Win32_System_Threading", "Win32_System_Time"] }
+
+[dev-dependencies]
+accesskit_consumer = "=0.38.0"
+# GPUI's test platform (TestAppContext) for tests/contract.rs.
+gpui-pre = { version = "=0.3.12", features = ["test-support"] }
+
+[target.'cfg(target_os = "linux")'.dev-dependencies]
+# The Linux text system, for the bold picture test (tests/bold.rs).
+gpui-pre-wgpu = "=0.3.12"
+
+[lints]
+workspace = true

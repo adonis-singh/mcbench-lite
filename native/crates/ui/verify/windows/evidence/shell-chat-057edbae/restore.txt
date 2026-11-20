@@ -1,0 +1,14 @@
+exit=0 
+before quit:
+name="Castle gate · mcbench-lite" rect=[32,21,1097x859] 
+0
+{"light":false,"sidebarOpen":true,"sidebarWidth":236.0,"chatWidth":null,"binds":{},"benchMode":false,"lastModel":["anthropic","claude-opus-5-5"],"lastResolution":1,"place":"/chat/chat-gate","window":{"display":"78692035-3a04-52f3-a2bf-1133155ae828","x":40.0,"y":52.0,"width":1081.0,"height":820.0},"openBenches":[],"promptsOpen":true}
+after restart:
+name="Castle gate · mcbench-lite" rect=[32,21,1296x859] 
+restart without --origin, preferences saying x 40 y 52 width 1081 height 820, place /chat/chat-gate:
+name="Castle gate · mcbench-lite" rect=[32,33,1296x859] 
+second try, before quit:
+name="Castle gate · mcbench-lite" rect=[32,33,1097x859] 
+"window":{"display":"78692035-3a04-52f3-a2bf-1133155ae828","x":40.0,"y":64.0,"width":1081.0,"height":820.0}
+after restart without --origin:
+name="Castle gate · mcbench-lite" rect=[32,45,1097x859] 

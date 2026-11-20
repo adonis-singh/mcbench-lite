@@ -1,0 +1,18 @@
+{
+ "object:children-changed:add": 49,
+ "object:state-changed:focusable": 1,
+ "object:property-change:accessible-name": 59,
+ "object:children-changed:remove": 37,
+ "object:state-changed:defunct": 1672,
+ "object:state-changed:active": 1,
+ "object:state-changed:focused": 31,
+ "object:text-caret-moved": 22,
+ "object:text-changed:insert": 40,
+ "object:state-changed:enabled": 2,
+ "object:state-changed:sensitive": 2,
+ "object:text-changed:delete": 3,
+ "object:state-changed:busy": 4,
+ "object:announcement": 6,
+ "object:state-changed:collapsed": 2,
+ "object:state-changed:expanded": 2
+}

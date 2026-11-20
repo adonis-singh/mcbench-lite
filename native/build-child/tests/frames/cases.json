@@ -1,0 +1,27 @@
+[
+  {
+    "name": "done",
+    "request": { "source": "module.exports = (mc) => { mc.log('one block'); mc.set([0, 0, 0], 'stone'); }", "registry": { "stone": [{}, {}], "gold_block": [{}, {}] }, "readFile": false, "settledTicks": null },
+    "answers": []
+  },
+  {
+    "name": "fail",
+    "request": { "source": "module.exports = () => { throw 'thrown without a stack'; }", "registry": { "stone": [{}, {}] }, "readFile": false, "settledTicks": null },
+    "answers": []
+  },
+  {
+    "name": "read",
+    "request": { "source": "module.exports = (mc) => { mc.log(mc.readFile('a.txt')); }", "registry": { "stone": [{}, {}] }, "readFile": true, "settledTicks": null },
+    "answers": [{ "read": "a.txt", "ok": true, "text": "hello from /work" }]
+  },
+  {
+    "name": "read-refused",
+    "request": { "source": "module.exports = (mc) => { try { mc.readFile('b.txt'); } catch (e) { mc.log(e.message); } }", "registry": { "stone": [{}, {}] }, "readFile": true, "settledTicks": null },
+    "answers": [{ "read": "b.txt", "ok": false, "text": "mc.readFile: b.txt: no such file in /work" }]
+  },
+  {
+    "name": "settled",
+    "request": { "source": "module.exports = (mc) => { mc.log(JSON.stringify(mc.settled(0, 0, 0)), mc.settledTicks); mc.log(JSON.stringify(mc.settled(1, 0, 0))); }", "registry": { "stone": [{}, {}] }, "readFile": false, "settledTicks": 210 },
+    "answers": [{ "settled": true }]
+  }
+]

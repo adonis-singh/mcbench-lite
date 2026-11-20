@@ -17,10 +17,20 @@ pub fn peak() -> u64 {
 
 #[cfg(target_os = "linux")]
 fn now_and_peak() -> (u64, u64) {
-    let status = std::fs::read_to_string("/proc/self/status").expect("/proc/self/status is readable");
+    let status =
+        std::fs::read_to_string("/proc/self/status").expect("/proc/self/status is readable");
     let field = |name: &str| -> u64 {
-        let line = status.lines().find(|l| l.starts_with(name)).unwrap_or_else(|| panic!("/proc/self/status has {name}"));
-        line[name.len()..].trim().trim_end_matches(" kB").trim().parse::<u64>().expect("a count of kB") * 1024
+        let line = status
+            .lines()
+            .find(|l| l.starts_with(name))
+            .unwrap_or_else(|| panic!("/proc/self/status has {name}"));
+        line[name.len()..]
+            .trim()
+            .trim_end_matches(" kB")
+            .trim()
+            .parse::<u64>()
+            .expect("a count of kB")
+            * 1024
     };
     (field("VmRSS:"), field("VmHWM:"))
 }
@@ -29,7 +39,13 @@ fn now_and_peak() -> (u64, u64) {
 fn now_and_peak() -> (u64, u64) {
     let mut info: libc::rusage_info_v4 = unsafe { std::mem::zeroed() };
     // SAFETY: proc_pid_rusage writes a rusage_info_v4 for RUSAGE_INFO_V4.
-    let r = unsafe { libc::proc_pid_rusage(std::process::id() as i32, libc::RUSAGE_INFO_V4, (&mut info as *mut libc::rusage_info_v4).cast()) };
+    let r = unsafe {
+        libc::proc_pid_rusage(
+            std::process::id() as i32,
+            libc::RUSAGE_INFO_V4,
+            (&mut info as *mut libc::rusage_info_v4).cast(),
+        )
+    };
     assert_eq!(r, 0, "proc_pid_rusage of the helper itself");
     (info.ri_phys_footprint, info.ri_lifetime_max_phys_footprint)
 }
@@ -38,9 +54,13 @@ fn now_and_peak() -> (u64, u64) {
 fn now_and_peak() -> (u64, u64) {
     use windows::Win32::System::ProcessStatus::{GetProcessMemoryInfo, PROCESS_MEMORY_COUNTERS};
     use windows::Win32::System::Threading::GetCurrentProcess;
-    let mut c = PROCESS_MEMORY_COUNTERS { cb: std::mem::size_of::<PROCESS_MEMORY_COUNTERS>() as u32, ..Default::default() };
+    let mut c = PROCESS_MEMORY_COUNTERS {
+        cb: std::mem::size_of::<PROCESS_MEMORY_COUNTERS>() as u32,
+        ..Default::default()
+    };
     // SAFETY: the counters are the size given; the handle is this process's pseudo handle.
-    unsafe { GetProcessMemoryInfo(GetCurrentProcess(), &mut c, c.cb) }.expect("GetProcessMemoryInfo of the helper itself");
+    unsafe { GetProcessMemoryInfo(GetCurrentProcess(), &mut c, c.cb) }
+        .expect("GetProcessMemoryInfo of the helper itself");
     (c.WorkingSetSize as u64, c.PeakWorkingSetSize as u64)
 }
 
@@ -58,7 +78,11 @@ pub fn held(allocated: Option<u64>) -> u64 {
     #[cfg(target_os = "macos")]
     {
         let v = vm_info();
-        let (footprint, purgeable, graphics) = (v.phys_footprint, v.ledger_purgeable_nonvolatile.max(0) as u64, v.ledger_tag_graphics_footprint.max(0) as u64);
+        let (footprint, purgeable, graphics) = (
+            v.phys_footprint,
+            v.ledger_purgeable_nonvolatile.max(0) as u64,
+            v.ledger_tag_graphics_footprint.max(0) as u64,
+        );
         let cached = graphics.saturating_sub(allocated.unwrap_or(graphics));
         footprint.saturating_sub(purgeable + cached)
     }
@@ -135,7 +159,14 @@ fn vm_info() -> TaskVmInfo {
         static mach_task_self_: libc::mach_port_t;
     }
     // SAFETY: task_info writes at most `count` words of the struct for this task.
-    let r = unsafe { libc::task_info(mach_task_self_, TASK_VM_INFO, (&mut info as *mut TaskVmInfo).cast(), &mut count) };
+    let r = unsafe {
+        libc::task_info(
+            mach_task_self_,
+            TASK_VM_INFO,
+            (&mut info as *mut TaskVmInfo).cast(),
+            &mut count,
+        )
+    };
     assert_eq!(r, 0, "task_info(TASK_VM_INFO) of the helper itself");
     info
 }

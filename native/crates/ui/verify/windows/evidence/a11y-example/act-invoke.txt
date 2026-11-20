@@ -1,0 +1,3 @@
+before: Button name="Reset counter" lct="button" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=1 rect=[822,392,63x34] patterns=[Invoke,LegacyIAccessible]
+after:  Button name="Reset counter" lct="button" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=1 rect=[822,392,63x34] patterns=[Invoke,LegacyIAccessible]
+    Spinner name="Counter: 0" lct="spin button" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=1 rel=[24,95,84x34] patterns=[RangeValue,LegacyIAccessible] range=0 min=0 max=0 step=0 readonly=0

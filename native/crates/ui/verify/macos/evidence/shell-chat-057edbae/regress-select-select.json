@@ -1,0 +1,22 @@
+[
+ {
+  "how": "drag 'Chinese: 第二盏灯由拉杆控制' -> 'Both lamps are lit. '",
+  "copied": "Chinese: 第二盏灯由拉杆控制\nEach sign line holds at most fifteen characters, so the longer lines wrap onto a second sign.\nShow me how it looks now.\nHere is the view from the south-east after the change:\nBoth lam"
+ },
+ {
+  "how": "double click",
+  "copied": "Each"
+ },
+ {
+  "how": "triple click",
+  "copied": "Each sign line holds at most fifteen characters, so the longer lines wrap onto a second sign."
+ },
+ {
+  "how": "drag from a table cell",
+  "copied": "no table cell in the tree on this screen"
+ },
+ {
+  "how": "Cmd-A in the transcript",
+  "copied": "Build a redstone lamp that turns on with a lever, and explain what you placed.\nA lamp on a lever\nThe lamp is built and wired. It lights when the lever is on and goes dark when it is off; the old torch is gone. The block that does the work is a redstone_lamp, and the wiki page on lamps has the details.\nWhat was placed\nA stone base, three by three\nThe lamp on top\npowered from below\nwith a lever on its west side\nA sign that says Pull me\nThe program\nfn build(world: &mut World) {\n    world.fill((0, 0, 0), (2, 0, 2), \"stone\");\n    world.set((1, 1, 1), \"redstone_lamp\");\n    world.set((0, 1, 1), \"lever[face=floor,facing=west]\");\n}\nBlocks used\nBlock\tCount\tLight\nstone\t9\t0\nredstone_lamp\t1\t15\nlever\t1\t0\nA lamp only needs power from one side: the lever powers the block it sits on, and that block powers the lamp.\nThat is all. Pull the lever to test it.\nPut a label on the second lamp in English, Arabic, Hebrew, Japanese and Chinese.\nLabels in three scripts\nThe sign above the second lamp now reads in each language you asked for:\nEnglish: Lamp two\nArabic, right to left: مصباح رقم اثنين يعمل بالرافعة\nHebrew, right to left: מנורה שנייה עם ידית\nJapanese: 二番目のランプはレバーで点きます\nChinese: 第二盏灯由拉杆控制\nEach sign line holds at most fifteen characters, so the longer lines wrap onto a second sign.\nShow me how it looks now.\nHere is the view from the south-east after the change:\nBoth lamps are lit. See the lever page if you want a different facing.\nThanks. Is the base still three by three?\nYes: the base is still three by three, nine stone blocks, and nothing else moved."
+ }
+]

@@ -1,0 +1,6 @@
+  Window name="Resolution" lct="dialog" id="" fw="AccessKit" enabled=1 kbfocusable=0 focus=0 offscreen=0 ctl=1 content=1 rect=[284,654,240x154] patterns=[Window,LegacyIAccessible]
+    Slider name="Resolution" lct="slider" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=1 offscreen=0 ctl=1 content=1 rect=[297,695,214x20] description="About 50 blocks for a main feature such as an eye or a window. About 250 blocks across the whole build
+    Button name="Standard" lct="button" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=1 rect=[293,717,56x26] patterns=[Invoke,LegacyIAccessible]
+    Button name="2×" lct="button" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=1 rect=[361,717,26x26] patterns=[Invoke,LegacyIAccessible]
+    Button name="5×" lct="button" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=1 rect=[427,717,26x26] patterns=[Invoke,LegacyIAccessible]
+    Button name="10×" lct="button" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=1 rect=[483,717,32x26] patterns=[Invoke,LegacyIAccessible]

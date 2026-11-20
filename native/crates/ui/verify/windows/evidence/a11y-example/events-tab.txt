@@ -1,0 +1,16 @@
+   0.043 focus | Pane name="Taskbar" lct="pane" id="" class="Shell_TrayWnd" fw="Win32" enabled=1 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=1 rect=[0,1032,1920x48] patterns=[LegacyIAccessible]
+recording events of a11y-example for 12 s
+   1.990 property HasKeyboardFocus=false | Button name="Enable feature" lct="button" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=1 rect=[726,443,44x24] patterns=[Toggle,LegacyIAccessible] toggle=On
+   1.995 property HasKeyboardFocus=true | Pane name="Accessibility Demo" lct="application" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=1 offscreen=0 ctl=1 content=1 rect=[710,328,500x400] patterns=[LegacyIAccessible]
+   1.999 focus | Pane name="Accessibility Demo" lct="application" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=1 offscreen=0 ctl=1 content=1 rect=[710,328,500x400] patterns=[LegacyIAccessible]
+   3.116 property HasKeyboardFocus=false | Pane name="Accessibility Demo" lct="application" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=1 rect=[710,328,500x400] patterns=[LegacyIAccessible]
+   3.121 property HasKeyboardFocus=true | Spinner name="Counter: 0" lct="spin button" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=1 offscreen=0 ctl=1 content=1 rect=[726,392,84x34] patterns=[RangeValue,LegacyIAccessible] range=0 min=0 max=0 step=0 readonly=0
+   3.125 focus | Spinner name="Counter: 0" lct="spin button" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=1 offscreen=0 ctl=1 content=1 rect=[726,392,84x34] patterns=[RangeValue,LegacyIAccessible] range=0 min=0 max=0 step=0 readonly=0
+   4.245 property HasKeyboardFocus=false | Spinner name="Counter: 0" lct="spin button" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=1 rect=[726,392,84x34] patterns=[RangeValue,LegacyIAccessible] range=0 min=0 max=0 step=0 readonly=0
+   4.249 property HasKeyboardFocus=true | Button name="Reset counter" lct="button" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=1 offscreen=0 ctl=1 content=1 rect=[822,392,63x34] patterns=[Invoke,LegacyIAccessible]
+   4.252 focus | Button name="Reset counter" lct="button" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=1 offscreen=0 ctl=1 content=1 rect=[822,392,63x34] patterns=[Invoke,LegacyIAccessible]
+   5.324 property HasKeyboardFocus=false | Button name="Reset counter" lct="button" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=0 offscreen=0 ctl=1 content=1 rect=[822,392,63x34] patterns=[Invoke,LegacyIAccessible]
+   5.329 property HasKeyboardFocus=true | Button name="Enable feature" lct="button" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=1 offscreen=0 ctl=1 content=1 rect=[726,443,44x24] patterns=[Toggle,LegacyIAccessible] toggle=On
+   5.333 focus | Button name="Enable feature" lct="button" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=1 offscreen=0 ctl=1 content=1 rect=[726,443,44x24] patterns=[Toggle,LegacyIAccessible] toggle=On
+   6.501 property TogglePattern.ToggleState=0 | Button name="Enable feature" lct="button" id="" fw="AccessKit" enabled=1 kbfocusable=1 focus=1 offscreen=0 ctl=1 content=1 rect=[726,443,44x24] patterns=[Toggle,LegacyIAccessible] toggle=Off
+recording done

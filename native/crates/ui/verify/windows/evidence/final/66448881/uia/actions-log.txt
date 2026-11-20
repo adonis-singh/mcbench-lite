@@ -1,0 +1,8 @@
+{"action":"link activated","url":"https://minecraft.wiki/w/Redstone_Lamp"}
+{"action":"image activated","url":"%TEMP%\\mcbench-ui-dev\\lamp.png"}
+{"action":"opened chat","chat":"chat-gate","title":"Castle gate"}
+{"action":"opened chat","chat":"chat-lamp","title":"Redstone lamp with a lever"}
+{"action":"sent","text":"Build a tower"}
+{"action":"sent","text":"Second"}
+{"action":"stop","chat":"chat-lamp"}
+{"action":"new chat"}

@@ -1,0 +1,23 @@
+{
+ "front": {
+  "bundle": "",
+  "name": "mcbench-ui-dev",
+  "pid": 2255
+ },
+ "focus": {
+  "nodes": [
+   {
+    "path": "0.0.9",
+    "AXRole": "AXTextArea",
+    "AXSubrole": "AXUnknown",
+    "AXTitle": "Message"
+   }
+  ],
+  "app": {
+   "path": "0.0.9",
+   "AXRole": "AXTextArea",
+   "AXSubrole": "AXUnknown",
+   "AXTitle": "Message"
+  }
+ }
+}

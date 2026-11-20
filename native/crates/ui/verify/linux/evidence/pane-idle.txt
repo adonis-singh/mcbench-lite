@@ -1,0 +1,13 @@
+# pane agent, 2026-11-18, adipc: check_pane_perf.py idle (settled count from 1 s after paused; nothing after 500 ms) on s4-pane 48f498b1's dev binary
+== check_pane_perf-wayland-idle-101910
+ok      a settled idle pane paints nothing for 60 s: 0 painted in the 60 s from 1 s after paused; all after the press: [12, 66] ms
+ok      nothing paints later than 500 ms after the Pause: [12, 66] ms after the Pause
+ok      the window logged its costs
+{"mode": "idle", "pane_logical": [1280, 820], "load_before": "33.50", "frames_in_60s": 2, "painted_ms_after_pause": [12, 66], "frames_after_the_first_100_ms": 0, "cpu_percent": 0.1, "painted_in_the_settled_60s": 0, "load_after": "44.91", "window": {"frames": 63, "dropped": 0, "repaints": 44, "mean_ms": 1.3385188730158728, "p50_ms": 1.2568869999999999, "p99_ms": 3.9085810000000003, "worst_ms": 4.599355999999999, "input_to_paint": {"count": 0}, "wait": {"count": 63, "mean_ms": 19.432511365079367, "p50_ms": 15.334413999999999, "p95_ms": 48.105399, "p99_ms": 68.12099500000001, "worst_ms": 120.674303}, "render": {"count": 62, "mean_ms": 36.4330815, "p50_ms": 37.99222700000001, "p95_ms": 45.358194999999995, "p99_ms": 51.048643999999996, "worst_ms": 53.97825400000001}, "recent": [{"ms_ago": 61918, "seq": 56}, {"ms_ago": 61855, "seq": 57}, {"ms_ago": 61781, "seq": 58}, {"ms_ago": 61735, "seq": 59}, {"ms_ago": 61684, "seq": 60}, {"ms_ago": 61640, "seq": 61}, {"ms_ago": 61584, "seq": 62}, {"ms_ago": 61530, "seq": 63}]}}
+3 of 3 passed
+== check_pane_perf-x11-idle-101758
+ok      a settled idle pane paints nothing for 60 s: 0 painted in the 60 s from 1 s after paused; all after the press: [63] ms
+ok      nothing paints later than 500 ms after the Pause: [63] ms after the Pause
+ok      the window logged its costs
+{"mode": "idle", "pane_logical": [1280, 820], "load_before": "23.97", "frames_in_60s": 1, "painted_ms_after_pause": [63], "frames_after_the_first_100_ms": 0, "cpu_percent": 1.4, "painted_in_the_settled_60s": 0, "load_after": "31.80", "window": {"frames": 67, "dropped": 0, "repaints": 7, "mean_ms": 1.0954055820895523, "p50_ms": 1.056237, "p99_ms": 3.2683579999999997, "worst_ms": 4.669537, "input_to_paint": {"count": 0}, "wait": {"count": 67, "mean_ms": 24.055745791044775, "p50_ms": 25.304712, "p95_ms": 54.031463, "p99_ms": 58.006016, "worst_ms": 102.803454}, "render": {"count": 66, "mean_ms": 30.933397757575758, "p50_ms": 32.349990000000005, "p95_ms": 47.779607, "p99_ms": 51.382466, "worst_ms": 52.423775}, "recent": [{"ms_ago": 61816, "seq": 60}, {"ms_ago": 61767, "seq": 61}, {"ms_ago": 61720, "seq": 62}, {"ms_ago": 61673, "seq": 63}, {"ms_ago": 61626, "seq": 64}, {"ms_ago": 61575, "seq": 65}, {"ms_ago": 61526, "seq": 66}, {"ms_ago": 61432, "seq": 67}]}}
+3 of 3 passed

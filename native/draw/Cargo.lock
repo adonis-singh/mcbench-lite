@@ -562,6 +562,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5d15f86d12da44cd8d4ec3c73984537eb7f4cadcb9776a575a0a8a05ca11005c"
 
 [[package]]
+name = "mcbench-core"
+version = "0.1.0"
+
+[[package]]
 name = "mcbench-draw"
 version = "0.1.0"
 dependencies = [
@@ -572,6 +576,8 @@ dependencies = [
  "jpeg-encoder",
  "libc",
  "libmimalloc-sys",
+ "mcbench-core",
+ "mcbench-render",
  "mcbench-renderer",
  "mimalloc",
  "objc2-metal",
@@ -582,6 +588,13 @@ dependencies = [
  "wgpu",
  "windows",
  "zip",
+]
+
+[[package]]
+name = "mcbench-render"
+version = "2.0.0"
+dependencies = [
+ "serde",
 ]
 
 [[package]]

@@ -1,0 +1,10 @@
+== item 4 minimised: send (--rate-ms 150), Alt+Space N at once
+IsIconic False, IsWindowVisible False
+minimised, during the turn: 
+minimised, after the turn: 
+IsIconic False, IsWindowVisible False
+shown again: ListItem name="Redstone lamp with a lever, open"
+== occluded: send again, then Notepad maximised over the window
+IsIconic False, IsWindowVisible False
+occluded, during the turn: ListItem name="Redstone lamp with a lever, open"
+occluded, after the turn: ListItem name="Redstone lamp with a lever, open"

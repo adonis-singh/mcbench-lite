@@ -1,0 +1,96 @@
+[
+ {
+  "check": "Attach file has its tooltip as help",
+  "ok": true,
+  "seen": "Attach file"
+ },
+ {
+  "note": "windows after Attach file",
+  "seen": [
+   {
+    "b": [
+     280,
+     136,
+     880,
+     448
+    ],
+    "layer": 0,
+    "name": "Open",
+    "owner": "mcbench-ui-dev",
+    "pid": 2691
+   },
+   {
+    "b": [
+     80,
+     55,
+     1280,
+     820
+    ],
+    "layer": 0,
+    "name": "Redstone lamp with a lever · mcbench-lite",
+    "owner": "mcbench-ui-dev",
+    "pid": 2691
+   }
+  ]
+ },
+ {
+  "check": "the picked picture is a tile door.png, jpeg (redrawn)",
+  "ok": true,
+  "seen": [
+   "door.png, jpeg"
+  ]
+ },
+ {
+  "check": "focus is back in the window after the panel",
+  "ok": true,
+  "seen": [
+   "AXButton",
+   "Attach file"
+  ]
+ },
+ {
+  "check": "each read tile has Remove attachment",
+  "ok": true,
+  "seen": 1
+ },
+ {
+  "check": "Remove attachment removes the tile",
+  "ok": true,
+  "seen": null
+ },
+ {
+  "note": "right after Cmd-V (a Reading… status may already be gone)",
+  "seen": []
+ },
+ {
+  "check": "a pasted picture becomes a tile",
+  "ok": true,
+  "seen": [
+   "image.png, jpeg"
+  ]
+ },
+ {
+  "note": "titles seen while the paste was read",
+  "seen": []
+ },
+ {
+  "check": "the limit's text: A message supports at most 8 attachments",
+  "ok": true,
+  "seen": [
+   "paragraph, Each sign line holds at most fifteen characters, so the longer lines wrap onto a second sign.",
+   "Each sign line holds at most fifteen characters, so the longer lines wrap onto a second sign.",
+   "Error, A message supports at most 8 attachments",
+   "A message supports at most 8 attachments"
+  ]
+ },
+ {
+  "check": "the limit's text: \"big.bin\" exceeds 100 MB",
+  "ok": true,
+  "seen": [
+   "paragraph, Each sign line holds at most fifteen characters, so the longer lines wrap onto a second sign.",
+   "Each sign line holds at most fifteen characters, so the longer lines wrap onto a second sign.",
+   "Error, \"big.bin\" exceeds 100 MB",
+   "\"big.bin\" exceeds 100 MB"
+  ]
+ }
+]

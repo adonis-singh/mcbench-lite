@@ -1,0 +1,194 @@
+{
+ "adv-capture-stack-trace": {
+  "class": "logs differ",
+  "cause": "host frames: below build.js the stack shows the child's files (/shim/prelude.js, /server/mc-dsl.js, /server/build-child.js) where Node shows node:vm and the server's own paths; formatProgramError keeps only build.js frames, so a model sees them only when a program prints a stack it captured itself",
+  "rust": {
+   "ok": true,
+   "changes": "8fe911fb1e3612bb94af0b0a5794464c7df5d09ae7b8856bf3899fbe85693ffe",
+   "logs": [
+    "captured=Error\n    at module.exports (build.js:4:23)\n    at build.js:13:18\n    at build.js:17:3\n    at Script.runInContext (/shim/prelude.js:127:50)\n    at runProgram (/server/mc-dsl.js:549:54)\n    at /server/build-child.js:63:12\n    at /shim/prelude.js:149:59",
+    "limit=10",
+    "short=Error: s\n    at build.js:6:47\n    at p (build.js:3:65)"
+   ],
+   "files": [],
+   "touched": 0
+  }
+ },
+ "adv-lone-surrogate": {
+  "class": "logs differ",
+  "cause": "a lone surrogate in a log line: JSON.stringify writes it as \\udc00 and a Rust String cannot hold it, so the parent reads it as U+FFFD; keeping it needs a JavaScript string type through BuildOutcome and mcbench-json (seam request in the report)",
+  "rust": {
+   "ok": true,
+   "changes": "38cd5c58bc96bc8118a0cf93209b209affeb62f1d8ba89469f5637f95e0d1f87",
+   "logs": [
+    "a�b"
+   ],
+   "files": [
+    {
+     "path": "s.txt",
+     "length": 3,
+     "sha": "05087813392efc16fe8ff448920c6328e53af865df39419436659d9ffda90f7b"
+    }
+   ],
+   "touched": 1
+  }
+ },
+ "adv-math-bits": {
+  "class": "logs differ",
+  "cause": "Math bits: sin and cos are the embedded V8's own (the owner's decision, docs/native-app.md Math results); between macOS arm64 and Linux x64, sqrt and ** differ in the sign of NaN results (0x7ff8000000000000 on the Mac, 0xfff8000000000000 on Linux) and pow and ** in value, because V8 calls the platform C library's pow for exponents other than 0.5 and 2 (tests/child math-fixed)",
+  "rust": {
+   "linux": {
+    "ok": true,
+    "changes": "8fe911fb1e3612bb94af0b0a5794464c7df5d09ae7b8856bf3899fbe85693ffe",
+    "logs": [
+     "sin e9e860bf",
+     "cos 40780711",
+     "tan 35370bdb",
+     "asin 8958913f",
+     "acos 6255d23d",
+     "atan 2d10d850",
+     "sinh cdce13c5",
+     "cosh ef5980fe",
+     "tanh dbfa9271",
+     "asinh 4dc2cbe6",
+     "acosh 200aeaed",
+     "atanh cae9d6b0",
+     "exp c368d568",
+     "expm1 63be4303",
+     "log 80620689",
+     "log1p 4ceced83",
+     "log2 2a7d505b",
+     "log10 ceeb285e",
+     "sqrt ea783e28",
+     "cbrt da00eb4b",
+     "fround 3346ca0e",
+     "pow 51e55aca",
+     "atan2 c491a5d1",
+     "hypot f593a367",
+     "** c9b37d4d",
+     "bfeb453ab76bf397 bfe2699022adc4c1 7fed75ae7a50ee14 3ff6a09e667f3bcd 3ca1a62633145c07 434d02967c31cdb5"
+    ],
+    "files": [],
+    "touched": 0
+   },
+   "macos": {
+    "ok": true,
+    "changes": "8fe911fb1e3612bb94af0b0a5794464c7df5d09ae7b8856bf3899fbe85693ffe",
+    "logs": [
+     "sin e9e860bf",
+     "cos 40780711",
+     "tan 35370bdb",
+     "asin 8958913f",
+     "acos 6255d23d",
+     "atan 2d10d850",
+     "sinh cdce13c5",
+     "cosh ef5980fe",
+     "tanh dbfa9271",
+     "asinh 4dc2cbe6",
+     "acosh 200aeaed",
+     "atanh cae9d6b0",
+     "exp c368d568",
+     "expm1 63be4303",
+     "log 80620689",
+     "log1p 4ceced83",
+     "log2 2a7d505b",
+     "log10 ceeb285e",
+     "sqrt f4ca3e28",
+     "cbrt da00eb4b",
+     "fround 3346ca0e",
+     "pow 4f294d6d",
+     "atan2 c491a5d1",
+     "hypot f593a367",
+     "** bb3e504b",
+     "bfeb453ab76bf397 bfe2699022adc4c1 7fed75ae7a50ee14 3ff6a09e667f3bcd 3ca1a62633145c07 434d02967c31cdb5"
+    ],
+    "files": [],
+    "touched": 0
+   }
+  }
+ },
+ "adv-prepare-stack-trace": {
+  "class": "logs differ",
+  "cause": "host frames: below build.js the stack shows the child's files (/shim/prelude.js, /server/mc-dsl.js, /server/build-child.js) where Node shows node:vm and the server's own paths; formatProgramError keeps only build.js frames, so a model sees them only when a program prints a stack it captured itself",
+  "rust": {
+   "ok": true,
+   "changes": "8fe911fb1e3612bb94af0b0a5794464c7df5d09ae7b8856bf3899fbe85693ffe",
+   "logs": [
+    "frames=bootstrap.js:mc.<computed>:undefined:14:15|build.js::undefined:5:32|build.js:p:undefined:3:65|build.js:module.exports:undefined:5:3|build.js::undefined:13:18|build.js::undefined:17:3|/shim/prelude.js:runInContext:undefined:127:50|/server/mc-dsl.js:runProgram:undefined:549:54|/server/build-chi...(truncated)",
+    "own=build.js::object:6:18|build.js:p:object:3:65|build.js:module.exports:object:6:3|build.js::object:13:18|build.js::object:17:3|/shim/prelude.js:runInContext:undefined:127:50|/server/mc-dsl.js:runProgram:undefined:549:54|/server/build-child.js::undefined:63:12|/shim/prelude.js::undefined:149:59"
+   ],
+   "files": [],
+   "touched": 0
+  }
+ },
+ "adv-recursion-depth-exact": {
+  "class": "logs differ",
+  "cause": "recursion depth: the child's 8 MiB main-thread stack under V8's default stack limit holds a few more frames than Node's; the RangeError and its text are the same",
+  "unpinned": true,
+  "measured": {
+   "linux": [
+    "12535"
+   ],
+   "macos": [
+    "10417"
+   ]
+  }
+ },
+ "recbuildsandbox-0012": {
+  "class": "fails in rust only",
+  "cause": "escape probe: the vector reaches the child's main realm, whose process is the prelude's { env, exit } (no pid, no permission model, no getBuiltinModule), where Node's reaches Node's real process; nothing on the host is reachable from either",
+  "rust": {
+   "ok": false,
+   "error": "build.js:7\n  mc.log(process.pid, process.ppid, JSON.stringify(Object.entries(process.env).filter(([k]) => k !== \"MCBENCH_MC_Y_OFFSET\")), process.permission.has(\"fs.read\", \"/\"));\n                                                                                                                                                 ^\n\nTypeError: Cannot read properties of undefined (reading 'has')\n    at module.exports (build.js:7:146)\n    at build.js:12:18\n    at build.js:16:3",
+   "logs": null
+  }
+ },
+ "recbuildsandbox-0013": {
+  "class": "logs differ",
+  "cause": "escape probe: the vector reaches the child's main realm, whose process is the prelude's { env, exit } (no pid, no permission model, no getBuiltinModule), where Node's reaches Node's real process; nothing on the host is reachable from either",
+  "rust": {
+   "ok": true,
+   "changes": "38cd5c58bc96bc8118a0cf93209b209affeb62f1d8ba89469f5637f95e0d1f87",
+   "logs": [
+    "blocked:Cannot read properties of null (reading 'readFileSync')"
+   ],
+   "files": [],
+   "touched": 1
+  }
+ },
+ "recbuildsandbox-0014": {
+  "class": "fails in rust only",
+  "cause": "escape probe: the vector reaches the child's main realm, whose process is the prelude's { env, exit } (no pid, no permission model, no getBuiltinModule), where Node's reaches Node's real process; nothing on the host is reachable from either",
+  "rust": {
+   "ok": false,
+   "error": "build.js:9\n      process.getBuiltinModule('net').connect(49982, '127.0.0.1').on('error', () => {});\n              ^\n\nTypeError: process.getBuiltinModule is not a function\n    at module.exports (build.js:9:15)\n    at build.js:16:18\n    at build.js:20:3",
+   "logs": null
+  }
+ },
+ "recbuildsandbox-0015": {
+  "class": "logs differ",
+  "cause": "escape probe: the vector reaches the child's main realm, whose process is the prelude's { env, exit } (no pid, no permission model, no getBuiltinModule), where Node's reaches Node's real process; nothing on the host is reachable from either",
+  "rust": {
+   "ok": true,
+   "changes": "38cd5c58bc96bc8118a0cf93209b209affeb62f1d8ba89469f5637f95e0d1f87",
+   "logs": [
+    "blocked:process.getBuiltinModule is not a function"
+   ],
+   "files": [],
+   "touched": 1
+  }
+ },
+ "recbuildsandbox-0016": {
+  "class": "logs differ",
+  "cause": "escape probe: the vector reaches the child's main realm, whose process is the prelude's { env, exit } (no pid, no permission model, no getBuiltinModule), where Node's reaches Node's real process; nothing on the host is reachable from either",
+  "rust": {
+   "ok": true,
+   "changes": "38cd5c58bc96bc8118a0cf93209b209affeb62f1d8ba89469f5637f95e0d1f87",
+   "logs": [
+    "custom map callback pid=undefined "
+   ],
+   "files": [],
+   "touched": 1
+  }
+ }
+}

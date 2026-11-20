@@ -1,0 +1,25 @@
+# The parts of the guest base and the root filesystem that are not Debian packages (sources.py reads this).
+# A row with a pip name must match that distribution in rootfs-<arch>.pip.tsv; the others were read from the assets of 2026-11-17.
+# userland	component	version	pip	licence	family	source
+rootfs	Python	3.12.16	-	PSF-2.0, with the licences of the code it includes in /usr/local/lib/python3.12/LICENSE.txt; built by Docker's official python:3.12-slim image and linked against Debian packages of this list	none	https://www.python.org/ftp/python/3.12.16/Python-3.12.16.tar.xz
+rootfs	pip	25.0.1	pip	MIT; its vendored certifi is MPL-2.0 and is shipped as its own source files	copyleft-other	https://pypi.org/project/pip/25.0.1/#files
+rootfs	NumPy	2.5.5	numpy	BSD-3-Clause AND 0BSD AND MIT AND Zlib AND CC0-1.0	none	https://pypi.org/project/numpy/2.5.5/#files
+rootfs	OpenBLAS (scipy-openblas64, in NumPy's wheel)	NumPy 2.5.5's	-	BSD-3-Clause, with LAPACK (BSD-3-Clause-Open-MPI) and GCC's libgfortran statically linked (GPL-3.0-or-later WITH GCC-exception-3.1, which permits this without offering its source)	GPL	https://github.com/MacPython/openblas-libs
+rootfs	Pillow	13.0.0	pillow	MIT-CMU, with raqm (MIT) and fribidi-shim (MIT-CMU) built in; FriBiDi is loaded at run time when present and is not shipped	none	https://pypi.org/project/pillow/13.0.0/#files
+rootfs	libXau (in Pillow's wheel)	1.0.9-3.el8	-	MIT	none	https://gitlab.freedesktop.org/xorg/lib/libxau
+rootfs	libavif (in Pillow's wheel)	1.4.2	-	BSD-2-Clause	none	https://github.com/AOMediaCodec/libavif
+rootfs	Brotli (in Pillow's wheel)	1.2.0	-	MIT	none	https://github.com/google/brotli
+rootfs	FreeType (in Pillow's wheel)	2.14.3	-	FTL (FreeType offers FTL or GPL-2.0-or-later; Pillow takes FTL)	none	https://download.savannah.gnu.org/releases/freetype/
+rootfs	HarfBuzz (in Pillow's wheel)	14.5.0	-	MIT	none	https://github.com/harfbuzz/harfbuzz
+rootfs	libjpeg-turbo (in Pillow's wheel)	3.2.0	-	IJG AND BSD-3-Clause AND Zlib	none	https://github.com/libjpeg-turbo/libjpeg-turbo
+rootfs	Little CMS 2 (in Pillow's wheel)	2.19.1	-	MIT	none	https://github.com/mm2/Little-CMS
+rootfs	XZ Utils liblzma (in Pillow's wheel)	5.8.4	-	0BSD	none	https://github.com/tukaani-project/xz
+rootfs	OpenJPEG (in Pillow's wheel)	2.5.4	-	BSD-2-Clause	none	https://github.com/uclouvain/openjpeg
+rootfs	libpng (in Pillow's wheel)	1.6.58	-	libpng-2.0	none	https://github.com/pnggroup/libpng
+rootfs	libwebp and libsharpyuv (in Pillow's wheel)	1.6.0	-	BSD-3-Clause	none	https://chromium.googlesource.com/webm/libwebp
+rootfs	libtiff (in Pillow's wheel)	4.7.2	-	libtiff	none	https://gitlab.com/libtiff/libtiff
+rootfs	libxcb (in Pillow's wheel)	1.17.0	-	X11	none	https://gitlab.freedesktop.org/xorg/lib/libxcb
+rootfs	Zstandard (in Pillow's wheel)	1.5.7	-	BSD-3-Clause (Zstandard offers BSD-3-Clause or GPL-2.0)	none	https://github.com/facebook/zstd
+rootfs	pasta (passt)	2026_10_02.cba3570	-	GPL-2.0-or-later; a static binary that includes Debian 13's glibc (LGPL-2.1-or-later; its source is this bundle's glibc) and libgcc (GPL-3.0-or-later WITH GCC-exception-3.1)	GPL+LGPL	release:passt-2026_10_02.cba3570.tar.gz
+guest	mcbench-sandbox-agent	the release's	-	MIT (mcbench-lite's repository); statically linked with musl (MIT), Rust's standard library (MIT OR Apache-2.0) and 44 crates under MIT, Apache-2.0, Zlib, Unicode-3.0 or Unlicense	none	https://github.com/adonis-singh/mcbench-lite
+guest	init and udhcpc.sh	the release's	-	MIT (mcbench-lite's repository)	none	https://github.com/adonis-singh/mcbench-lite

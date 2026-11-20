@@ -1,0 +1,12 @@
+Developer info for navigator object:
+name: 'Recycle Bin'
+role: LISTITEM
+Python class mro: (<class 'NVDAObjects.Dynamic_SysListView32EmittingDuplicateFocusEventsListItemIAccessible'>, <class 'appModules.explorer.SysListView32EmittingDuplicateFocusEvents'>, <class 'NVDAObjects.IAccessible.sysListView32.ListItem'>, <class 'NVDAObjects.behaviors.RowWithFakeNavigation'>, <class 'NVDAObjects.behaviors.RowWithoutCellObjects'>, <class 'NVDAObjects.IAccessible.sysListView32.ListItemWithoutColumnSupport'>, <class 'NVDAObjects.IAccessible.IAccessible'>, <class 'NVDAObjects.window.Window'>, <class 'NVDAObjects.NVDAObject'>, <class 'documentBase.TextContainerObject'>, <class 'baseObject.ScriptableObject'>, <class 'baseObject.AutoPropertyObject'>, <class 'garbageHandler.TrackedObject'>, <class 'object'>)
+appModule: AppModule(explorer, appName='explorer', processID=4992)
+appModule.productName: 'MicrosoftAr WindowsAr Operating System'
+appModule.productVersion: '10.0.26300.9457'
+appModule.helperLocalBindingHandle: c_void_p(1996844078144)
+appModule.appArchitecture: 'AMD64'
+windowHandle: 65788
+windowClassName: 'SysListView32'
+IAccessible event parameters: windowHandle=65788, objectID=-4, childID=1

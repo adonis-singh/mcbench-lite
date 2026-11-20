@@ -1,0 +1,18 @@
+{"name":"initialize","received":"{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"protocolVersion\":\"2025-06-18\",\"capabilities\":{\"tools\":{\"listChanged\":false}},\"serverInfo\":{\"name\":\"mcbench\",\"version\":\"1\"}}}\n"}
+{"name":"initialize without a version","received":"{\"jsonrpc\":\"2.0\",\"id\":\"a\",\"result\":{\"capabilities\":{\"tools\":{\"listChanged\":false}},\"serverInfo\":{\"name\":\"mcbench\",\"version\":\"1\"}}}\n"}
+{"name":"ping and a blank line","received":"{\"jsonrpc\":\"2.0\",\"id\":2,\"result\":{}}\n"}
+{"name":"tools/list","received":"{\"jsonrpc\":\"2.0\",\"id\":3,\"result\":{\"tools\":[{\"name\":\"echo\",\"description\":\"Echo\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"number\"}}}},{\"name\":\"nodesc\",\"inputSchema\":{\"type\":\"object\"}}]}}\n"}
+{"name":"tools/call with meta","received":"{\"jsonrpc\":\"2.0\",\"id\":4,\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"{\\\"name\\\":\\\"echo\\\",\\\"args\\\":{\\\"10\\\":1,\\\"n\\\":2.5,\\\"a\\\":[1e+21,1e-7,0]},\\\"callId\\\":\\\"call_x\\\",\\\"toolUseId\\\":\\\"toolu_1\\\"}\"}],\"isError\":false}}\n"}
+{"name":"tools/call with no meta or arguments","received":"{\"jsonrpc\":\"2.0\",\"id\":5,\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"{\\\"name\\\":\\\"echo\\\",\\\"args\\\":{},\\\"callId\\\":\\\"5\\\",\\\"toolUseId\\\":null}\"}],\"isError\":false}}\n"}
+{"name":"tools/call with a string id and null arguments","received":"{\"jsonrpc\":\"2.0\",\"id\":\"s-6\",\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"{\\\"name\\\":\\\"echo\\\",\\\"args\\\":{},\\\"callId\\\":\\\"7\\\",\\\"toolUseId\\\":null}\"}],\"isError\":false}}\n"}
+{"name":"a failing tool","received":"{\"jsonrpc\":\"2.0\",\"id\":8,\"error\":{\"code\":-32603,\"message\":\"failed: fail\"}}\n"}
+{"name":"an image","received":"{\"jsonrpc\":\"2.0\",\"id\":9,\"result\":{\"content\":[{\"type\":\"image\",\"data\":\"AA==\",\"mimeType\":\"image/png\"},{\"type\":\"text\",\"text\":\"shot\"}],\"isError\":false}}\n"}
+{"name":"an unknown method","received":"{\"jsonrpc\":\"2.0\",\"id\":10,\"error\":{\"code\":-32601,\"message\":\"Method not found: resources/list\"}}\n"}
+{"name":"no method","received":"{\"jsonrpc\":\"2.0\",\"id\":11,\"error\":{\"code\":-32601,\"message\":\"Method not found: undefined\"}}\n"}
+{"name":"a parse error","received":"{\"jsonrpc\":\"2.0\",\"id\":null,\"error\":{\"code\":-32700,\"message\":\"Parse error\"}}\n"}
+{"name":"notifications are not answered","received":""}
+{"name":"crlf and a line split over writes","received":"{\"jsonrpc\":\"2.0\",\"id\":12,\"result\":{}}\n{\"jsonrpc\":\"2.0\",\"id\":13,\"result\":{}}\n"}
+{"name":"a slow call answered after a quick one","received":"{\"jsonrpc\":\"2.0\",\"id\":15,\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"{\\\"name\\\":\\\"echo\\\",\\\"args\\\":{},\\\"callId\\\":\\\"15\\\",\\\"toolUseId\\\":null}\"}],\"isError\":false}}\n{\"jsonrpc\":\"2.0\",\"id\":14,\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"{\\\"name\\\":\\\"slow\\\",\\\"args\\\":{},\\\"callId\\\":\\\"14\\\",\\\"toolUseId\\\":null}\"}],\"isError\":false}}\n"}
+{"name":"a cancelled call","received":"{\"jsonrpc\":\"2.0\",\"id\":16,\"error\":{\"code\":-32603,\"message\":\"Cancelled by harness\"}}\n"}
+{"name":"a cancel naming another id","received":"{\"jsonrpc\":\"2.0\",\"id\":17,\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"{\\\"name\\\":\\\"slow\\\",\\\"args\\\":{},\\\"callId\\\":\\\"17\\\",\\\"toolUseId\\\":null}\"}],\"isError\":false}}\n"}
+{"name":"a call cut off by the client ending","received":""}

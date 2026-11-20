@@ -1,0 +1,105 @@
+#!/usr/bin/busybox sh
+# /init of the bash sandbox's VM on macOS (pid 1, busybox sh): the guest
+# base's only program of its own besides mcbench-sandbox-agent. It mounts
+# what the agent needs, loads the kernel modules the boxes need, delegates a
+# cgroup subtree to the agent's user, brings up the NAT network, runs the
+# agent on the host's vsock connection, and powers the VM off when the
+# agent ends (the host closed the connection, or the agent died).
+#
+# The host gives its choices on the kernel command line (src/macos.rs):
+#   mcbench.user=<uid>:<gid>      the agent's user (the boxes' user)
+#   mcbench.port=<n>              the vsock port the agent listens on
+#   mcbench.rootfs=<file>         the root filesystem's tar.zst in the share "rootfs"
+#   mcbench.sha256=<hex>          its pin
+#
+# Shares (virtiofs): "sandbox" (the data folder's sandbox folder, read and
+# write) at /mnt/sandbox, "rootfs" (the root filesystem's folder, read only)
+# at /mnt/rootfs. Disk /dev/vda: the agent's own folder (the unpacked root
+# filesystem), ext4 driver over a busybox ext2 file system made when blank.
+PATH=/usr/bin
+export PATH
+# bubblewrap's pivot_root cannot leave the kernel's initramfs (it is not a
+# mount of its own): the files move to a tmpfs first, which becomes the root.
+if [ ! -e /.moved ]; then
+  /usr/bin/busybox mount -t tmpfs -o mode=0755 tmpfs /mnt
+  for entry in bin etc init lib lib64 root run sbin tmp usr var; do
+    [ -e "/$entry" ] || [ -L "/$entry" ] && /usr/bin/busybox cp -a "/$entry" /mnt/
+  done
+  /usr/bin/busybox mkdir -p /mnt/dev /mnt/proc /mnt/sys /mnt/mnt
+  /usr/bin/busybox touch /mnt/.moved
+  exec /usr/bin/busybox switch_root /mnt /init
+fi
+/usr/bin/busybox mount -t proc proc /proc
+/usr/bin/busybox mount -t sysfs sysfs /sys
+/usr/bin/busybox mount -t devtmpfs devtmpfs /dev
+/usr/bin/busybox --install -s /usr/bin
+exec > /dev/hvc0 2>&1 < /dev/null
+fail() {
+  echo "mcbench guest init: $*"
+  poweroff -f
+}
+for arg in $(cat /proc/cmdline); do
+  case "$arg" in
+    mcbench.user=*) USER_IDS=${arg#mcbench.user=} ;;
+    mcbench.port=*) PORT=${arg#mcbench.port=} ;;
+    mcbench.rootfs=*) ROOTFS=${arg#mcbench.rootfs=} ;;
+    mcbench.sha256=*) SHA256=${arg#mcbench.sha256=} ;;
+  esac
+done
+[ -n "$USER_IDS" ] && [ -n "$PORT" ] && [ -n "$ROOTFS" ] && [ -n "$SHA256" ] || fail "the kernel command line lacks an mcbench.* setting: $(cat /proc/cmdline)"
+UID_=${USER_IDS%:*}
+GID_=${USER_IDS#*:}
+
+mkdir -p /dev/pts /dev/shm /sys/fs/cgroup /mnt/sandbox /mnt/rootfs /var/mcbench /tmp /run
+mount -t devpts devpts /dev/pts
+mount -t tmpfs -o mode=1777 tmpfs /dev/shm
+mount -t tmpfs -o mode=1777 tmpfs /tmp
+mount -t tmpfs -o mode=0755 tmpfs /run
+mount -t cgroup2 cgroup2 /sys/fs/cgroup || fail "mounting cgroup2"
+
+while read -r module; do
+  insmod "/usr/lib/mcbench/modules/$module.ko" || fail "loading $module"
+done < /usr/lib/mcbench/modules.order
+# pasta opens the tun device as the agent's user (udev's rule on a host).
+chmod 0666 /dev/net/tun || fail "the tun device"
+
+mount -t virtiofs sandbox /mnt/sandbox || fail "mounting the share sandbox"
+mount -t virtiofs -o ro rootfs /mnt/rootfs || fail "mounting the share rootfs"
+# The VM has no clock of its own: the agent's clock keeps it on the host's
+# through a file of the share (mcbench-sandbox-agent clock says how).
+mkdir -p /mnt/sandbox/.vm
+mcbench-sandbox-agent clock /mnt/sandbox/.vm/clock &
+if ! mount -t ext4 -o noatime /dev/vda /var/mcbench 2> /dev/null; then
+  mke2fs -q /dev/vda > /dev/null || fail "making the file system on /dev/vda"
+  mount -t ext4 -o noatime /dev/vda /var/mcbench || fail "mounting /dev/vda"
+fi
+chown "$UID_:$GID_" /var/mcbench
+# The boxes' run folders live in memory: the disk is written only when the
+# root filesystem is unpacked, so a VM killed with the app leaves it whole.
+mkdir -p /var/mcbench/.run
+mount -t tmpfs -o mode=0755 tmpfs /var/mcbench/.run
+chown "$UID_:$GID_" /var/mcbench/.run
+
+ip link set lo up
+ip link set eth0 up
+udhcpc -i eth0 -s /usr/share/mcbench/udhcpc.sh -t 20 -T 1 -n > /dev/null || fail "no address from the NAT's DHCP"
+
+# The agent's user gets a cgroup subtree of its own with the controllers the
+# boxes' limits need (what a Linux host's systemd gives each box's scope).
+echo "+memory +pids +cpu" > /sys/fs/cgroup/cgroup.subtree_control || fail "enabling the controllers"
+mkdir /sys/fs/cgroup/mcbench /sys/fs/cgroup/mcbench/agent
+echo "+memory +pids +cpu" > /sys/fs/cgroup/mcbench/cgroup.subtree_control || fail "enabling the controllers for mcbench"
+for file in /sys/fs/cgroup/mcbench /sys/fs/cgroup/mcbench/cgroup.procs /sys/fs/cgroup/mcbench/cgroup.threads /sys/fs/cgroup/mcbench/cgroup.subtree_control \
+  /sys/fs/cgroup/mcbench/agent /sys/fs/cgroup/mcbench/agent/cgroup.procs /sys/fs/cgroup/mcbench/agent/cgroup.threads; do
+  chown "$UID_:$GID_" "$file" || fail "giving $file to the agent's user"
+done
+
+(
+  echo 0 > /sys/fs/cgroup/mcbench/agent/cgroup.procs || exit 1
+  cd /var/mcbench || exit 1
+  exec env -i PATH=/usr/bin HOME=/var/mcbench \
+    /usr/bin/mcbench-sandbox-agent guest "$PORT" "$UID_:$GID_" /sys/fs/cgroup/mcbench /var/mcbench "/mnt/rootfs/$ROOTFS" "$SHA256"
+)
+echo "mcbench guest init: the agent ended ($?)"
+sync
+poweroff -f

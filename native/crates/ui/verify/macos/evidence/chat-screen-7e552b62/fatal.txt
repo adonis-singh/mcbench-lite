@@ -1,0 +1,10 @@
+front: {"bundle":"","name":"mcbench-ui-dev","pid":759}
+ AXApplication None 'mcbench-ui-dev' 'None' None
+0 AXWindow AXStandardWindow 'mcbench-lite — stopped' 'None' False
+0.0 AXGroup AXUnknown None 'None' False
+0.0.0 AXGroup AXApplicationAlert 'mcbench-lite stopped on an error' 'None' False
+0.0.0.0 AXStaticText AXUnknown None 'The data folder could not be opened: permission denied' False
+0.0.0.1 AXButton AXUnknown 'Quit' 'None' True
+0.1 AXButton AXCloseButton None 'None' False
+0.2 AXButton AXFullScreenButton None 'None' False
+Space on Quit: process gone
