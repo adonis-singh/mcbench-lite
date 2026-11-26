@@ -472,7 +472,7 @@ checksum = "5d15f86d12da44cd8d4ec3c73984537eb7f4cadcb9776a575a0a8a05ca11005c"
 
 [[package]]
 name = "mcbench-build"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "async-trait",
  "libc",
@@ -489,7 +489,7 @@ dependencies = [
 
 [[package]]
 name = "mcbench-build-child"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "deno_core_icudata",
  "libc",
@@ -500,7 +500,7 @@ dependencies = [
 
 [[package]]
 name = "mcbench-json"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "serde",
  "serde_json",
@@ -509,11 +509,11 @@ dependencies = [
 
 [[package]]
 name = "mcbench-spawn"
-version = "2.0.0"
+version = "2.0.1"
 
 [[package]]
 name = "mcbench-world"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "flate2",
  "indexmap",

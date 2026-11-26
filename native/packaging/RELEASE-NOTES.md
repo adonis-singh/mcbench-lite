@@ -1,3 +1,11 @@
+# mcbench-lite 2.0.1
+
+Released 2026-11-26.
+
+Security fix: a command run in Codex CLI's sandbox could open a vsock socket, which on Windows reached the Windows host's WSL service ports. Codex CLI's sandbox now refuses vsock sockets and io_uring, as the bash shell's sandbox already did.
+
+The notes of 2.0.0 follow.
+
 # mcbench-lite 2.0.0
 
 Released 2026-11-20.

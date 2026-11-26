@@ -462,11 +462,25 @@ fn libc_ids() -> (u32, u32) {
 /// the command runs, and exits when the command has, which ends the rest.
 /// It holds the app's stdin, stdout and stderr, so it makes itself not
 /// dumpable first: no process of the box can then open its
-/// `/proc/<pid>/fd`.
+/// `/proc/<pid>/fd`. Then, before its first thread or child, it installs
+/// the filter of the calls every program of a box is refused
+/// (`crate::linux::refused`: a vsock socket, io_uring), which bubblewrap's
+/// `no_new_privs` allows, so the command and everything it starts carry it:
+/// in WSL's VM a vsock socket reaches the Windows host's WSL services.
 #[cfg(target_os = "linux")]
 pub fn relay(port: u16, socket: &Path, command: &[String]) -> ! {
     use std::io::{Read, Write};
     undumpable();
+    crate::linux::refused::prepare();
+    // SAFETY: the filter is prepared, and bubblewrap set no_new_privs
+    // before it ran the relay.
+    if !unsafe { crate::linux::refused::install() } {
+        eprintln!(
+            "relay: the refused calls' filter: {}",
+            std::io::Error::last_os_error()
+        );
+        std::process::exit(1)
+    }
     let listener = std::net::TcpListener::bind(("127.0.0.1", port)).unwrap_or_else(|e| {
         eprintln!("relay: 127.0.0.1:{port}: {e}");
         std::process::exit(1)

@@ -3,6 +3,6 @@
 # architecture, file name, sha256, size in bytes; url is the folder that holds the files.
 rootfs	x86_64	rootfs-x86_64.tar.zst	786d552ac02865a6542f32605d6bfb47f2c5148b0f8ce78b27b7c4aa75fd955f	82756487
 rootfs	aarch64	rootfs-aarch64.tar.zst	067f3991576897f5fb58a8187cf625dcd53b79da89611bce3cc9213fd354df9a	78431673
-guest-base	x86_64	guest-base-x86_64.tar.zst	e828bcb4a8482d2484e66f92e351a3bad0e62688c482d55dbc8423414a713b8a	17870850
-guest-base	aarch64	guest-base-aarch64.tar.zst	3d6c781bdc081e0b5896f884cfdfe7e57f624a7290d7d020560534abf2d9deae	15267972
-url	https://github.com/adonis-singh/mcbench-lite/releases/download/sandbox-assets-d76a7188bbcc92ce
+guest-base	x86_64	guest-base-x86_64.tar.zst	b28c6e7a89910b2eb90ecd09c1d636a4d5c50354e4fa8686c932267e6000cd8e	17871137
+guest-base	aarch64	guest-base-aarch64.tar.zst	d2da17a1b12c123dac9b5658e63391fe57b193b00d1d960d3e7be839cef40ddf	15268929
+url	https://github.com/adonis-singh/mcbench-lite/releases/download/sandbox-assets-d2ee8e1dfcc8c149

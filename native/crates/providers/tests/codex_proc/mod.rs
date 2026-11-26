@@ -49,7 +49,7 @@ pub const FLOOD_MIB: u64 = 64;
 /// which would wait for the other end) and closed at once; a write clears
 /// `O_NONBLOCK` on its own open file first, so it waits as a writer of the
 /// pipe does.
-const HELPERS: &str = r#"import errno, fcntl, os
+const HELPERS: &str = r#"import ctypes, errno, fcntl, os, socket
 def name(e):
     return errno.errorcode.get(e.errno, str(e.errno))
 def ppid(p):
@@ -97,7 +97,11 @@ codex = os.getppid()
 /// write <ok|errno> <target>`; `exe-open <pid> <name> read <ok|errno>
 /// <target>`; `mapped <pid>/map_files/<range> <the box's device:inode at
 /// the path> <path>` and `map_files <pid> <opening the first: ok|errno>`;
-/// then `stdin`, `forge` (fd/1 and fd/2), `auth` and `run/mcbench`.
+/// then `stdin`, `forge` (fd/1 and fd/2), `auth` and `run/mcbench`; then
+/// `vsock <ok|errno>` (a vsock socket; when one is made, `vsock connect
+/// <cid> <port> <connected|errno>` for the Windows host's WSL ports and the
+/// host's and this machine's port 1024, connects only) and `io_uring
+/// <ok|errno>` (`io_uring_setup`, 425 on both architectures).
 const PROBE: &str = r#"print('command %d codex %d relay %d' % (me, codex, ppid(codex)))
 for p in sorted(int(n) for n in os.listdir('/proc') if n.isdigit()):
     if p == me:
@@ -163,6 +167,26 @@ print('forge %d fd/2 %s' % (codex, write_through('/proc/%d/fd/2' % codex, b'forg
 auth = '/codex-home/auth.json'
 print('auth read %s write %s size %d' % (try_open(auth, os.O_RDONLY), try_open(auth, os.O_WRONLY | os.O_APPEND), os.stat(auth).st_size))
 print('run/mcbench ' + ' '.join(sorted(os.listdir('/run/mcbench'))))
+try:
+    socket.socket(socket.AF_VSOCK, socket.SOCK_STREAM).close()
+    print('vsock ok')
+    for cid, port in [(2, 50000), (2, 50001), (2, 50003), (2, 50005), (2, 1024), (1, 1024)]:
+        s = socket.socket(socket.AF_VSOCK, socket.SOCK_STREAM)
+        s.settimeout(2)
+        try:
+            s.connect((cid, port))
+            got = 'connected'
+        except OSError as e:
+            got = name(e) if e.errno else 'timed out'
+        s.close()
+        print('vsock connect %d %d %s' % (cid, port, got))
+except OSError as e:
+    print('vsock ' + name(e))
+libc = ctypes.CDLL(None, use_errno=True)
+ring = libc.syscall(425, 1, ctypes.create_string_buffer(120))
+print('io_uring ' + ('ok' if ring >= 0 else errno.errorcode.get(ctypes.get_errno(), '?')))
+if ring >= 0:
+    os.close(ring)
 "#;
 
 /// The second turn's command (after [`HELPERS`]): `flood <pid> fd/1
@@ -311,6 +335,14 @@ pub fn check(
                     words[3..].join(" ")
                 ))
             }
+            "vsock" | "io_uring" if words.get(1) == Some(&"ok") => out.push(format!(
+                "the command made {}: the box does not refuse it",
+                if words[0] == "vsock" {
+                    "a vsock socket"
+                } else {
+                    "an io_uring ring"
+                }
+            )),
             "forge" if words.get(3) == Some(&"wrote") => out.push(format!(
                 "Codex's {} (pid {}), the app's pipe, written to from the model's command: {}",
                 words[2],
@@ -319,6 +351,12 @@ pub fn check(
             )),
             _ => {}
         }
+    }
+    for kind in ["vsock ", "io_uring "] {
+        assert!(
+            lines.iter().any(|l| l.starts_with(kind)),
+            "the probe tried {kind}: {listing}"
+        );
     }
     if lines.contains(&FORGED) {
         out.push(format!(

@@ -10,7 +10,7 @@
 [package]
 name = "mcbench-build-child"
 description = "The V8 child of one build call: today's build-child.js and the files it loads, unchanged, in an embedded V8"
-version = "2.0.0"
+version = "2.0.1"
 edition = "2024"
 license = "MIT"
 rust-version = "1.99.1"
